@@ -33,6 +33,8 @@ import {
   set_rotation_slider_value,
   make_toggle_button,
   make_range_slider,
+  make_label_input,
+  set_label_input_value,
 } from '../ui/landmark_ui';
 import { hexToRgb } from '../utils/hexToRgb';
 import { build_rotation_state, rotate_point_inverse } from '../utils/rotation';
@@ -63,24 +65,40 @@ export const landmark_ist = async (model, el) => {
   const width = model.get('width') || el.clientWidth || 900;
   const height = model.get('height') || 600;
   const panel_width = landmark_panel_width(width);
-  const column_width = width / 2 - 4;
 
   const root_container = document.createElement('div');
   root_container.className = 'landmark-root';
   el.appendChild(root_container);
 
+  // One row of "sections" (toolbar, LNDMRK, CELL, TRX, SLICE), each its own
+  // small column: top controls directly above that section's own bar box —
+  // not two long, unaligned rows (wastes horizontal space and separates a
+  // toggle/slider from the bar it controls).
   const control_row = document.createElement('div');
   control_row.style.display = 'flex';
-  control_row.style.alignItems = 'center';
-  control_row.style.gap = '8px';
+  control_row.style.alignItems = 'flex-start';
+  control_row.style.gap = '10px';
   control_row.style.width = `${width}px`;
   control_row.style.flexWrap = 'wrap';
   control_row.style.padding = '4px 0';
 
-  const columns_row = document.createElement('div');
-  columns_row.style.display = 'flex';
-  columns_row.style.width = `${width}px`;
-  columns_row.style.gap = '8px';
+  const make_section = (top_els, bar_el) => {
+    const section = document.createElement('div');
+    section.style.display = 'flex';
+    section.style.flexDirection = 'column';
+    section.style.alignItems = 'flex-start';
+    section.style.gap = '2px';
+
+    const top = document.createElement('div');
+    top.style.display = 'flex';
+    top.style.alignItems = 'center';
+    top.style.gap = '4px';
+    top.append(...top_els);
+
+    section.appendChild(top);
+    if (bar_el) section.appendChild(bar_el);
+    return section;
+  };
 
   const state = {
     mark_mode: false,
@@ -242,14 +260,19 @@ export const landmark_ist = async (model, el) => {
   // --- MARK / SAVE / DEL state machine --------------------------------------
 
   const sync_side_to_model = (side) => {
+    // Captured *before* the empty-first set below: that intermediate write
+    // fires our own `change:landmark_geojson_*` listener synchronously
+    // (see `on_landmark_geojson_changed`), which reacts by rebuilding
+    // `state.features[side]` from the (momentarily empty) model value. If
+    // the real payload were computed *after* that set, it would compute
+    // from the just-wiped state and permanently save an empty collection —
+    // this was silently deleting every previously-saved landmark on SAVE/DEL.
+    const real_value = features_to_geojson(state.features[side]);
     model.set(`landmark_geojson_${side}`, {
       type: 'FeatureCollection',
       features: [],
     });
-    model.set(
-      `landmark_geojson_${side}`,
-      features_to_geojson(state.features[side])
-    );
+    model.set(`landmark_geojson_${side}`, real_value);
     model.save_changes();
   };
 
@@ -302,6 +325,7 @@ export const landmark_ist = async (model, el) => {
       state.next_label += 1;
     }
     state.active_label = null;
+    sync_label_input();
     refresh();
     SIDES.forEach(sync_side_to_model);
   }
@@ -440,6 +464,14 @@ export const landmark_ist = async (model, el) => {
       if (isDragging) return 'grabbing';
       return state.mark_mode ? 'crosshair' : 'grab';
     },
+    // Available regardless of MARK mode — a quick way to check a cell's
+    // cluster without needing to click it.
+    getTooltip: ({ object, layer }) => {
+      if (!object || !layer?.id?.startsWith('landmark-cell-')) return null;
+      const cluster_line =
+        object.cluster != null ? `cluster: ${object.cluster}<br/>` : '';
+      return { html: `${cluster_line}cell: ${object.cell_id}` };
+    },
   });
 
   const cleanup_shortcuts = register_landmark_keyboard_shortcuts({
@@ -456,20 +488,35 @@ export const landmark_ist = async (model, el) => {
     on_delete: () => delete_selected(),
   });
 
-  // --- Per-side header: slice dropdown + rotation slider ----------------------
+  // --- One shared canvas + per-side "active" border overlay -------------------
 
   const slice_ids = model.get('slice_ids') || [];
   const slice_labels = model.get('slice_labels') || {};
   const rotation_sliders = {};
   const dropdowns = {};
 
-  const make_side_column = (side) => {
-    const column = document.createElement('div');
-    column.style.width = `${column_width}px`;
-    column.style.display = 'flex';
-    column.style.alignItems = 'center';
-    column.style.gap = '6px';
-    column.addEventListener('click', () => set_active_side(side));
+  const panels_shell = document.createElement('div');
+  panels_shell.style.position = 'relative';
+  panels_shell.style.width = `${width}px`;
+  panels_shell.style.height = `${height}px`;
+  panels_shell.style.border = '1px solid #d3d3d3';
+  panels_shell.appendChild(panels_row);
+
+  // Slice dropdown + rotation slider are inset directly on top of each view
+  // (like the scale bar) instead of a separate row — saves vertical space
+  // since the panel area they'd otherwise sit above already exists.
+  const make_inset_controls = (side, x) => {
+    const inset = document.createElement('div');
+    inset.style.position = 'absolute';
+    inset.style.top = '4px';
+    inset.style.left = `${x + 4}px`;
+    inset.style.display = 'flex';
+    inset.style.alignItems = 'center';
+    inset.style.gap = '6px';
+    inset.style.padding = '2px 6px';
+    inset.style.background = 'rgba(255, 255, 255, 0.85)';
+    inset.style.borderRadius = '3px';
+    inset.addEventListener('click', () => set_active_side(side));
 
     const dropdown = make_landmark_dropdown(
       slice_ids,
@@ -489,20 +536,9 @@ export const landmark_ist = async (model, el) => {
     });
     rotation_sliders[side] = rotation_slider;
 
-    column.append(dropdown, rotation_slider.container);
-    return column;
+    inset.append(dropdown, rotation_slider.container);
+    return inset;
   };
-
-  columns_row.append(make_side_column('a'), make_side_column('b'));
-
-  // --- One shared canvas + per-side "active" border overlay -------------------
-
-  const panels_shell = document.createElement('div');
-  panels_shell.style.position = 'relative';
-  panels_shell.style.width = `${width}px`;
-  panels_shell.style.height = `${height}px`;
-  panels_shell.style.border = '1px solid #d3d3d3';
-  panels_shell.appendChild(panels_row);
 
   const make_side_overlay = (side, x) => {
     const overlay = document.createElement('div');
@@ -524,6 +560,9 @@ export const landmark_ist = async (model, el) => {
   panels_shell.appendChild(scale_bars.a.container);
   panels_shell.appendChild(scale_bars.b.container);
 
+  panels_shell.appendChild(make_inset_controls('a', 0));
+  panels_shell.appendChild(make_inset_controls('b', panel_width + 4));
+
   // --- Shared control panel: LNDMRK / CELL / TRX / SLICE ----------------------
 
   const lndmrk_toggle = make_toggle_button('LNDMRK', { checked: true });
@@ -532,11 +571,26 @@ export const landmark_ist = async (model, el) => {
     refresh();
   });
 
+  // The label the next SAVE will use — mirrors `state.active_label ?? state.next_label`,
+  // editable directly, and kept in sync wherever either of those changes.
+  const label_input = make_label_input((value) => {
+    state.active_label =
+      value && value !== String(state.next_label) ? value : null;
+    rebuild_lndmrk_bar();
+  });
+  function sync_label_input() {
+    set_label_input_value(
+      label_input,
+      state.active_label ?? String(state.next_label)
+    );
+  }
+  sync_label_input();
+
   const lndmrk_bar_container = make_bar_container();
   style_bar_box(lndmrk_bar_container);
   const lndmrk_bar_svg = d3.create('svg');
 
-  const rebuild_lndmrk_bar = () => {
+  function rebuild_lndmrk_bar() {
     const coverage = model.get('landmark_coverage') || {};
     const bar_data = Object.entries(coverage).map(([name, value]) => ({
       name,
@@ -552,8 +606,23 @@ export const landmark_ist = async (model, el) => {
     );
     make_bar_graph(
       lndmrk_bar_container,
-      (_event, d) => {
+      (event, d) => {
+        // Shift-click deletes the landmark entirely (every slice it's in) —
+        // plain click just targets it as the active editing label.
+        if (event.shiftKey) {
+          const confirmed = window.confirm(
+            `Delete landmark "${d.name}" entirely, across every slice it appears in? This can't be undone.`
+          );
+          if (!confirmed) return;
+          if (state.active_label === d.name) state.active_label = null;
+          sync_label_input();
+          model.set('delete_landmark', '');
+          model.set('delete_landmark', d.name);
+          model.save_changes();
+          return;
+        }
         state.active_label = state.active_label === d.name ? null : d.name;
+        sync_label_input();
         rebuild_lndmrk_bar();
       },
       lndmrk_bar_svg,
@@ -571,8 +640,12 @@ export const landmark_ist = async (model, el) => {
       model.set('rename_landmark', {});
       model.set('rename_landmark', { old: d.name, new: next });
       model.save_changes();
+      if (state.active_label === d.name) {
+        state.active_label = next;
+        sync_label_input();
+      }
     });
-  };
+  }
   rebuild_lndmrk_bar();
   model.on('change:landmark_coverage', rebuild_lndmrk_bar);
 
@@ -685,19 +758,20 @@ export const landmark_ist = async (model, el) => {
   };
 
   control_row.append(
-    toolbar.container,
-    lndmrk_toggle.container,
-    lndmrk_bar_container,
-    cell_toggle.container,
-    size_slider.container,
-    cell_bar_container,
-    trx_toggle.container,
-    trx_bar_container,
-    make_tag('SLICE'),
-    slice_bar_container
+    make_section([toolbar.container], null),
+    make_section(
+      [lndmrk_toggle.container, label_input.container],
+      lndmrk_bar_container
+    ),
+    make_section(
+      [cell_toggle.container, size_slider.container],
+      cell_bar_container
+    ),
+    make_section([trx_toggle.container], trx_bar_container),
+    make_section([make_tag('SLICE')], slice_bar_container)
   );
 
-  root_container.append(control_row, columns_row, panels_shell);
+  root_container.append(control_row, panels_shell);
 
   // --- React to Python-driven slice swaps ---------------------------------------
 

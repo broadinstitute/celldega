@@ -280,3 +280,52 @@ def test_rename_landmark_ignores_unknown_or_noop_requests():
 
     lm.rename_landmark = {"old": "1", "new": "1"}
     assert set(lm.landmarks["label"]) == {"1"}
+
+
+def test_delete_landmark_removes_every_instance_across_slices():
+    rng = np.random.default_rng(15)
+    adatas = [_make_slice(rng) for _ in range(3)]
+    lm = Landmark(adatas=adatas)  # initial pair 0, 1
+
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0), _pair_feature("2", 4.0, 4.0)],
+    }
+    lm.landmark_geojson_b = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 2.0, 2.0), _pair_feature("2", 5.0, 5.0)],
+    }
+
+    # Extend label "1" onto slice 2 too, so it spans 3 slices before deletion
+    # ("2" already spans slices 0 and 1 from the initial commit above).
+    lm.slice_id_a = "2"
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 9.0, 9.0)],
+    }
+    assert lm.landmark_coverage == {"1": 3, "2": 2}
+
+    lm.delete_landmark = "1"
+
+    assert "1" not in set(lm.landmarks["label"])
+    assert lm.landmark_coverage == {"2": 2}
+    assert lm.landmark_geojson_a == {"type": "FeatureCollection", "features": []}
+    # One-shot trigger resets itself.
+    assert lm.delete_landmark == ""
+
+    # Side b still shows slice 1, which still has label "2" but no longer "1".
+    labels_on_b = {f["properties"]["label"] for f in lm.landmark_geojson_b["features"]}
+    assert labels_on_b == {"2"}
+
+
+def test_delete_landmark_ignores_unknown_label():
+    rng = np.random.default_rng(16)
+    lm = Landmark(adatas=_make_two_slices(rng))
+    lm.landmark_geojson_a = {
+        "type": "FeatureCollection",
+        "features": [_pair_feature("1", 1.0, 1.0)],
+    }
+
+    lm.delete_landmark = "not_a_label"
+    assert set(lm.landmarks["label"]) == {"1"}
+    assert lm.delete_landmark == ""

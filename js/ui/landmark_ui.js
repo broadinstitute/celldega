@@ -216,3 +216,36 @@ export const make_range_slider = (
   container.append(slider, label);
   return { container, slider, label };
 };
+
+/** The label that will be used for the next SAVEd pair — the LNDMRK
+ * equivalent of a gene-search box: it always shows the current "what am I
+ * placing/targeting" value, editable directly, and updates when a LNDMRK
+ * bar is clicked to target an existing landmark. `on_commit(value)` fires
+ * on Enter/blur (an empty value means "back to auto-numbering"). */
+export const make_label_input = (on_commit) => {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.style.width = '70px';
+  input.style.height = '18px';
+  input.style.fontSize = '10px';
+  input.style.padding = '1px 4px';
+  input.style.border = '1px solid #d3d3d3';
+  input.style.borderRadius = '3px';
+  input.title =
+    'Label for the next SAVEd pair — click a LNDMRK bar to target an existing one';
+
+  const commit = () => on_commit(input.value.trim());
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    commit();
+    input.blur();
+  });
+  input.addEventListener('blur', commit);
+
+  return { container: input, input };
+};
+
+export const set_label_input_value = (label_input, value) => {
+  label_input.input.value = value;
+};

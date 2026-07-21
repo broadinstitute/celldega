@@ -205,6 +205,11 @@ class Landmark(anywidget.AnyWidget):
     # name-entry dialog) instead of just its auto-incremented number.
     rename_landmark = traitlets.Dict({}).tag(sync=True)
 
+    # One-shot delete-everywhere request: the label to remove entirely, across
+    # every slice it has a point in — not just the pair currently on screen
+    # (that's what DEL already does; see `_commit_side_landmarks`'s caller).
+    delete_landmark = traitlets.Unicode("").tag(sync=True)
+
     # Python-only materialized table, spanning every slice visited so far.
     landmarks = traitlets.Instance(pd.DataFrame, allow_none=True)
 
@@ -398,6 +403,34 @@ class Landmark(anywidget.AnyWidget):
             setattr(self, f"landmark_geojson_{side}", self._geojson_for_slice(slice_id_str))
 
         self.rename_landmark = {}
+
+    @traitlets.observe("delete_landmark")
+    def _on_delete_landmark_change(self, change: dict) -> None:
+        label = change["new"]
+        if not label:
+            return
+        self._delete_landmark(str(label))
+
+    def _delete_landmark(self, label: str) -> None:
+        """Remove a landmark entirely — every slice it has a point in, not
+        just whichever pair happens to be on screen (that's DEL's job, via
+        `_commit_side_landmarks`)."""
+        if self.landmarks is None or self.landmarks.empty:
+            self.delete_landmark = ""
+            return
+        mask = self.landmarks["label"] == label
+        if not mask.any():
+            self.delete_landmark = ""
+            return
+
+        self.landmarks = self.landmarks.loc[~mask].reset_index(drop=True)
+        self._recompute_landmark_coverage()
+
+        for side in ("a", "b"):
+            slice_id_str = getattr(self, f"slice_id_{side}")
+            setattr(self, f"landmark_geojson_{side}", self._geojson_for_slice(slice_id_str))
+
+        self.delete_landmark = ""
 
     def _recompute_landmark_coverage(self) -> None:
         """Number of distinct slices each landmark label has a saved point in,

@@ -254,10 +254,7 @@ export const landmark = async (model, el) => {
         opacity: state.cell_opacity,
         highlighted_cell: state.highlighted_cell[side],
       }),
-      // `ini_landmark_marker_layer` returns [hit_disc, reticle] — the hit
-      // disc (pickable) must render/pick above the cells, the reticle above
-      // that.
-      ...ini_landmark_marker_layer(side, combined_features(side), {
+      ini_landmark_marker_layer(side, combined_features(side), {
         rotation_state: state.rotation_state[side],
         visible: state.marker_visible,
         modify_target: state.ui_mode === 'modify' ? state.active_label : null,

@@ -296,6 +296,22 @@ def test_landscape_cluster_attr_synced_for_custom_cluster_key() -> None:
     assert "my_cluster" in table.schema.names
 
 
+def test_yearbook_cluster_attr_synced_for_custom_cluster_key() -> None:
+    """Yearbook must sync cluster_attr like Landscape does -- js/celldega.js reads
+    `model.get('cluster_attr')` to pick meta_cluster_parquet's key column, and
+    without a declared/synced trait it always falls back to 'leiden' regardless
+    of what was actually passed in."""
+    obs = pd.DataFrame({"my_cluster": ["a", "b", "a"]}, index=["cell_1", "cell_2", "cell_3"])
+    adata = AnnData(np.zeros((3, 0)), obs=obs)
+
+    widget = Yearbook(base_url="https://example.org/data", adata=adata, cluster_attr="my_cluster")
+
+    assert widget.cluster_attr == "my_cluster"
+
+    table = pq.read_table(io.BytesIO(widget.meta_cluster_parquet))
+    assert "my_cluster" in table.schema.names
+
+
 def test_yearbook_accepts_selection_result() -> None:
     from anndata import AnnData
 

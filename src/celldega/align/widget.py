@@ -140,7 +140,14 @@ def _next_label_after(labels: Any) -> int:
 def _slice_centroids(
     adata: AnnData, cluster_key: str | None, color_by_category: dict[str, str] | None
 ) -> pd.DataFrame:
-    """One slice's cell centroids (+ optional cluster/color) for a Landmark viewport."""
+    """One slice's cell centroids (+ optional cluster/color) for a Landmark viewport.
+
+    Emits ``cell_id, x, y, [cluster,] color``. This is intentionally an
+    extensible, per-cell columnar payload: coloring centroids by gene
+    expression later (red-fill + expression-driven opacity, as Landscape does)
+    only needs an extra per-cell expression/value column here plus an alpha
+    branch in ``ini_landmark_cell_layer`` — no schema or transport rework.
+    """
     spatial = adata.obsm.get("spatial")
     if spatial is None or np.asarray(spatial).shape[1] < 2:
         raise ValueError("each slice must have obsm['spatial'] with at least 2 columns (x, y)")

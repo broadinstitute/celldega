@@ -143,7 +143,11 @@ def _pooled_neighbor_stats(
 
 
 def _resolve_fit_function(
-    method: str, allow_reflection: bool, smoothing: float, degree: int
+    method: str,
+    allow_reflection: bool,
+    smoothing: float,
+    degree: int,
+    area_regularization: float,
 ) -> Callable[..., Transform]:
     if method == "procrustes":
 
@@ -165,7 +169,12 @@ def _resolve_fit_function(
             source: np.ndarray, target: np.ndarray, weights: np.ndarray | None = None
         ) -> Transform:
             return fit_transform_tps(
-                source, target, weights=weights, smoothing=smoothing, degree=degree
+                source,
+                target,
+                weights=weights,
+                smoothing=smoothing,
+                degree=degree,
+                area_regularization=area_regularization,
             )
 
         return _fit
@@ -241,6 +250,7 @@ class SerialAlignmentTransform:
     allow_reflection: bool
     smoothing: float
     degree: int
+    area_regularization: float
     weight_by_adjacent_counts: bool
     alignment_window: int
 
@@ -280,6 +290,7 @@ class SerialAlignmentTransform:
             "allow_reflection": self.allow_reflection,
             "smoothing": self.smoothing,
             "degree": self.degree,
+            "area_regularization": self.area_regularization,
             "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
             "alignment_window": self.alignment_window,
         }
@@ -319,9 +330,11 @@ class SerialAlignmentTransform:
             method=metadata["method"],
             allow_reflection=metadata["allow_reflection"],
             smoothing=metadata["smoothing"],
-            # `degree` postdates this field's introduction -- default `1`
-            # (the fit's own previous hardcoded behavior) for older saves.
+            # `degree`/`area_regularization` postdate this field's
+            # introduction -- default to the fit's previous behavior for
+            # older saves.
             degree=metadata.get("degree", 1),
+            area_regularization=metadata.get("area_regularization", 0.0),
             weight_by_adjacent_counts=metadata["weight_by_adjacent_counts"],
             alignment_window=metadata["alignment_window"],
         )
@@ -337,6 +350,7 @@ def calc_alignment_transform(
     allow_reflection: bool = False,
     smoothing: float = 0.0,
     degree: int = 1,
+    area_regularization: float = 0.0,
     weight_by_adjacent_counts: bool = True,
     compute_residuals: bool = True,
 ) -> SerialAlignmentTransform:
@@ -407,6 +421,16 @@ def calc_alignment_transform(
             ``method="procrustes"`` (always rigid, scale disabled — see
             above) does; this only shifts the fit's default behavior, it
             doesn't hard-enforce anything.
+        area_regularization: ``method="tps"`` only. Penalty in ``[0, 1]`` on
+            each slice's *total* (global) area change. TPS otherwise rescales
+            a slice freely to make landmarks coincide; this measures the net
+            area factor and applies a uniform rescale (about the aligned
+            centroid, so rotation/translation — the alignment pose — are
+            untouched) to pull it back. ``0`` (default) leaves the fit as-is;
+            ``1`` fully cancels the global area change so each slice keeps its
+            own area (local warp intact, at the cost of peripheral landmarks
+            coinciding a bit less tightly); values between partially penalize
+            it. See :func:`~celldega.align._transform.fit_transform_tps`.
         weight_by_adjacent_counts: If ``True`` (default), weight each shared
             landmark by the geometric mean of its cell count in the current
             slice and its neighbor window (a centroid from more cells is a
@@ -442,7 +466,9 @@ def calc_alignment_transform(
         raise ValueError(f"reference must be in [0, {n - 1}], got {reference}")
     if alignment_window < 1:
         raise ValueError(f"alignment_window must be >= 1, got {alignment_window}")
-    fit_transform = _resolve_fit_function(method, allow_reflection, smoothing, degree)
+    fit_transform = _resolve_fit_function(
+        method, allow_reflection, smoothing, degree, area_regularization
+    )
 
     all_stats = [_slice_landmarks(landmarks, slice_id, slice_attr) for slice_id in slice_ids]
 
@@ -533,6 +559,7 @@ def calc_alignment_transform(
         allow_reflection=allow_reflection,
         smoothing=smoothing,
         degree=degree,
+        area_regularization=area_regularization,
         weight_by_adjacent_counts=weight_by_adjacent_counts,
         alignment_window=alignment_window,
     )
@@ -636,6 +663,7 @@ def align_serial_slices(
         "method": transform.method,
         "allow_reflection": transform.allow_reflection,
         "smoothing": transform.smoothing,
+        "area_regularization": transform.area_regularization,
         "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,
         "z_space": z_space,
         "z_coord": z_coord,

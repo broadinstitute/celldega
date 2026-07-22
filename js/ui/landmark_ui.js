@@ -285,9 +285,12 @@ export const make_range_slider = (
 /** The label of whatever's currently being placed (MARK) or edited (MODIFY)
  * — the LNDMRK equivalent of a gene-search box: hidden in 'browse', shown
  * and editable in 'mark'/'modify', and updated when a LNDMRK bar or an
- * existing landmark marker is clicked to target a landmark. `on_commit(value)`
- * fires on Enter/blur (an empty value means "back to auto-numbering", only
- * meaningful in 'mark'). */
+ * existing landmark marker is clicked to target a landmark. `on_commit(value,
+ * committed)` fires on Enter (`committed = true`) and on blur (`committed =
+ * false`). A rename should only actually apply on an explicit commit (Enter,
+ * or the SAVE button) — never on blur — so the caller uses `committed` to
+ * decide whether to stage the value locally or write it through. An empty
+ * value means "back to auto-numbering", only meaningful in 'mark'. */
 export const make_label_input = (on_commit) => {
   const input = document.createElement('input');
   input.type = 'text';
@@ -303,14 +306,13 @@ export const make_label_input = (on_commit) => {
   input.title =
     'Landmark name — click a LNDMRK bar or an existing marker to target one';
 
-  const commit = () => on_commit(input.value.trim());
   input.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    commit();
+    on_commit(input.value.trim(), true);
     input.blur();
   });
-  input.addEventListener('blur', commit);
+  input.addEventListener('blur', () => on_commit(input.value.trim(), false));
 
   return { container: input, input };
 };

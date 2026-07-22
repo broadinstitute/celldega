@@ -624,6 +624,39 @@ def test_calc_alignment_transform_degree_changes_the_tps_fit():
     )
 
 
+def test_calc_alignment_transform_area_regularization_preserves_slice_area(tmp_path):
+    rng = np.random.default_rng(42)
+    slice0 = _make_slice(rng)
+    # slice1 is genuinely ~0.6x the size of slice0 (a real area difference).
+    slice1 = _make_slice(rng, scale=0.6, rotation_deg=10, translation=(3.0, -2.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+
+    def area_factor(transform, slice_id):
+        # aligned landmark cloud area vs source (slice1's own coords)
+        src = np.array([_TRUE_CENTERS[k] for k in _TRUE_CENTERS])
+        out = transform.apply_to_points(slice_id, src * 0.6)
+        cov_out = np.linalg.det(np.cov(out, rowvar=False))
+        cov_src = np.linalg.det(np.cov(src * 0.6, rowvar=False))
+        return float(np.sqrt(cov_out / cov_src))
+
+    plain = calc_alignment_transform(landmarks, method="tps")
+    pinned = calc_alignment_transform(landmarks, method="tps", area_regularization=1.0)
+
+    assert plain.area_regularization == 0.0
+    assert pinned.area_regularization == 1.0
+    # Plain TPS blows slice1 up ~1/0.6 to match slice0; the penalty keeps its area.
+    assert area_factor(plain, 1) > 1.3
+    assert np.isclose(area_factor(pinned, 1), 1.0, atol=1e-6)
+
+    # area_regularization survives save/load.
+    save_dir = tmp_path / "t"
+    pinned.save(save_dir)
+    reloaded = SerialAlignmentTransform.load(save_dir)
+    assert reloaded.area_regularization == 1.0
+    fake = np.array([[1.0, 1.0], [2.0, 3.0]])
+    assert np.allclose(pinned.apply_to_points(1, fake), reloaded.apply_to_points(1, fake))
+
+
 def test_serial_alignment_transform_tps_save_load_preserves_exact_interpolation(tmp_path):
     """Before this split, a TPS transform's spline was discarded entirely -- this
     is the concrete fix: it survives a save/load round trip and still

@@ -150,18 +150,28 @@ class ThinPlateSplineTransform:
     before the spline is evaluated — see :func:`fit_transform_tps` for why
     (it makes ``smoothing`` scale-free). ``source_center = [0, 0]`` and
     ``source_scale = 1`` reproduce an un-normalized fit.
+
+    ``output_area_scale`` is an optional uniform rescale (about
+    ``output_center``, in the target frame) applied *after* the spline, used
+    by :func:`fit_transform_tps`'s ``area_regularization`` to pull the warp's
+    net area change back toward 1. ``output_area_scale = 1`` is a no-op.
     """
 
     interpolator: RBFInterpolator
     source_center: np.ndarray = None
     source_scale: float = 1.0
+    output_center: np.ndarray = None
+    output_area_scale: float = 1.0
 
     def apply(self, points: np.ndarray) -> np.ndarray:
         """Apply this warp to an ``(n, 2)`` array of points."""
         points = np.asarray(points, dtype=float)
         if self.source_center is not None:
             points = (points - self.source_center) / self.source_scale
-        return self.interpolator(points)
+        out = self.interpolator(points)
+        if self.output_center is not None and self.output_area_scale != 1.0:
+            out = self.output_center + self.output_area_scale * (out - self.output_center)
+        return out
 
 
 def fit_transform_tps(
@@ -171,6 +181,7 @@ def fit_transform_tps(
     smoothing: float = 0.0,
     degree: int = 1,
     normalize: bool = True,
+    area_regularization: float = 0.0,
 ) -> ThinPlateSplineTransform:
     """Fit a thin-plate-spline warp that maps ``source`` landmarks onto ``target`` landmarks.
 
@@ -214,17 +225,31 @@ def fit_transform_tps(
             scale-free (see above) and improves numerical conditioning. It
             does *not* change a ``smoothing=0`` fit (exact interpolation is
             exact in any units) — only the meaning of a nonzero ``smoothing``.
+        area_regularization: Penalty on the warp's *total* (global) area
+            change, in ``[0, 1]``. TPS's affine component freely rescales a
+            slice to make landmarks coincide, which is often undesirable when
+            slices are genuinely different sizes. After fitting, the warp's
+            net area factor ``g`` (from the landmark cloud's covariance) is
+            measured and a uniform rescale is applied so the net factor
+            becomes ``g**(1 - area_regularization)``: ``0`` (default) leaves
+            the fit untouched, ``1`` fully cancels the global area change (the
+            slice keeps its own area, local warp intact), and values between
+            partially penalize it. Local (bending) area variation is
+            unaffected — this only touches the global scale.
 
     Returns:
         The fitted :class:`ThinPlateSplineTransform`.
 
     Raises:
         ValueError: If fewer than 3 point pairs are given, shapes mismatch,
-            ``weights`` has the wrong shape or non-positive entries, or the
-            landmarks are degenerate (e.g. collinear).
+            ``weights`` has the wrong shape or non-positive entries,
+            ``area_regularization`` is negative, or the landmarks are
+            degenerate (e.g. collinear).
     """
     source, target = _validate_point_pairs(source, target, min_points=3)
     weights = _validate_weights(weights, source.shape[0])
+    if area_regularization < 0:
+        raise ValueError(f"area_regularization must be >= 0, got {area_regularization}")
 
     if normalize:
         source_center = source.mean(axis=0)
@@ -250,8 +275,26 @@ def fit_transform_tps(
             "or otherwise degenerate. Add more spatially spread-out landmarks."
         ) from exc
 
+    output_center = None
+    output_area_scale = 1.0
+    if area_regularization > 0:
+        # Measure the warp's net area change from how much the landmark cloud's
+        # spread (covariance area = sqrt(det cov)) grows/shrinks under it, then
+        # rescale the output to pull that factor toward 1.
+        transformed = interpolator(source_normalized)
+        det_source = float(np.linalg.det(np.cov(source, rowvar=False)))
+        det_output = float(np.linalg.det(np.cov(transformed, rowvar=False)))
+        if det_source > 0 and det_output > 0:
+            area_factor = np.sqrt(det_output / det_source)
+            output_area_scale = float(area_factor ** (-area_regularization / 2.0))
+            output_center = transformed.mean(axis=0)
+
     return ThinPlateSplineTransform(
-        interpolator=interpolator, source_center=source_center, source_scale=source_scale
+        interpolator=interpolator,
+        source_center=source_center,
+        source_scale=source_scale,
+        output_center=output_center,
+        output_area_scale=output_area_scale,
     )
 
 
@@ -333,10 +376,12 @@ def save_transform(transform: Transform, path: str | Path) -> None:
         interpolator = transform.interpolator
         powers = interpolator.powers
         degree = int(powers.sum(axis=1).max()) if powers.size else -1
+        n_dim = interpolator.y.shape[1]
         source_center = (
-            transform.source_center
-            if transform.source_center is not None
-            else np.zeros(interpolator.y.shape[1])
+            transform.source_center if transform.source_center is not None else np.zeros(n_dim)
+        )
+        output_center = (
+            transform.output_center if transform.output_center is not None else np.zeros(n_dim)
         )
         np.savez(
             path,
@@ -349,6 +394,8 @@ def save_transform(transform: Transform, path: str | Path) -> None:
             degree=np.asarray(degree),
             source_center=np.asarray(source_center),
             source_scale=np.asarray(transform.source_scale),
+            output_center=np.asarray(output_center),
+            output_area_scale=np.asarray(transform.output_area_scale),
         )
         return
     raise TypeError(f"don't know how to save a transform of type {type(transform)!r}")
@@ -394,9 +441,21 @@ def load_transform(path: str | Path) -> Transform:
                 else np.zeros(interpolator.y.shape[1])
             )
             source_scale = float(data["source_scale"]) if "source_scale" in data else 1.0
+            # `output_*` (area regularization) also postdates the format —
+            # older saves default to a no-op (scale 1).
+            output_area_scale = (
+                float(data["output_area_scale"]) if "output_area_scale" in data else 1.0
+            )
+            output_center = (
+                data["output_center"]
+                if "output_center" in data and output_area_scale != 1.0
+                else None
+            )
             return ThinPlateSplineTransform(
                 interpolator=interpolator,
                 source_center=source_center,
                 source_scale=source_scale,
+                output_center=output_center,
+                output_area_scale=output_area_scale,
             )
         raise ValueError(f"unknown transform kind {kind!r} in {path}")

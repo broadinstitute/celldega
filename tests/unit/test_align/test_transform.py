@@ -140,6 +140,69 @@ def test_tps_save_load_round_trips_normalization(tmp_path):
     assert np.isclose(reloaded.source_scale, transform.source_scale)
 
 
+def _cloud_area(points):
+    """Covariance-based area of a point cloud (same measure the area penalty uses)."""
+    return float(np.sqrt(np.linalg.det(np.cov(points, rowvar=False))))
+
+
+def test_tps_area_regularization_penalizes_global_area_change():
+    rng = np.random.default_rng(32)
+    source = rng.uniform(-10, 10, size=(12, 2))
+    # Target is source shrunk to ~0.5x area (plus a little local noise) — a
+    # clear global area change a plain TPS would reproduce.
+    target = 0.7 * source + rng.normal(scale=0.2, size=source.shape)
+
+    src_area = _cloud_area(source)
+    unreg = fit_transform_tps(source, target, area_regularization=0.0)
+    full = fit_transform_tps(source, target, area_regularization=1.0)
+    half = fit_transform_tps(source, target, area_regularization=0.5)
+
+    ratio_unreg = _cloud_area(unreg.apply(source)) / src_area
+    ratio_full = _cloud_area(full.apply(source)) / src_area
+    ratio_half = _cloud_area(half.apply(source)) / src_area
+
+    assert ratio_unreg < 0.7  # plain TPS shrinks area (~0.49)
+    assert np.isclose(ratio_full, 1.0, atol=1e-6)  # area fully preserved
+    # Partial penalty lands between the two.
+    assert ratio_unreg < ratio_half < ratio_full
+
+
+def test_tps_area_regularization_keeps_local_warp():
+    rng = np.random.default_rng(33)
+    source = rng.uniform(-10, 10, size=(12, 2))
+    # A non-affine warp: still recovered (locally) even with area fully pinned.
+    target = source + np.column_stack([0.03 * source[:, 1] ** 2, np.zeros(12)])
+
+    reg = fit_transform_tps(source, target, area_regularization=1.0)
+    # Total area unchanged...
+    assert np.isclose(_cloud_area(reg.apply(source)) / _cloud_area(source), 1.0, atol=1e-6)
+    # ...but it's not the identity (local warp is still applied).
+    assert not np.allclose(reg.apply(source), source, atol=1.0)
+
+
+def test_tps_save_load_round_trips_area_regularization(tmp_path):
+    rng = np.random.default_rng(34)
+    source = rng.uniform(-5000, 5000, size=(8, 2))
+    target = 0.8 * source + rng.normal(scale=50.0, size=source.shape)
+    transform = fit_transform_tps(source, target, smoothing=0.5, area_regularization=1.0)
+    assert transform.output_area_scale != 1.0  # the penalty actually engaged
+
+    path = tmp_path / "tps.npz"
+    save_transform(transform, path)
+    reloaded = load_transform(path)
+
+    query = rng.uniform(-5000, 5000, size=(6, 2))
+    assert np.allclose(transform.apply(query), reloaded.apply(query))
+
+
+def test_tps_area_regularization_rejects_negative():
+    rng = np.random.default_rng(35)
+    source = rng.uniform(-10, 10, size=(5, 2))
+    target = source + rng.normal(scale=0.1, size=source.shape)
+    with pytest.raises(ValueError, match="area_regularization"):
+        fit_transform_tps(source, target, area_regularization=-0.5)
+
+
 def test_tps_affine_consistent_data_extrapolates_like_affine():
     rng = np.random.default_rng(6)
     source = rng.uniform(-5, 5, size=(6, 2))

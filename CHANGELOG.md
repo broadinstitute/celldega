@@ -4,6 +4,52 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.19.0a2] - 2026-07-17
+
+### Fixed
+
+- **Unsigned `landscape_parameters.json` fetch with private-bucket creds** —
+  `set_landscape_parameters` accepted an `aws` client (for SigV4-signed S3
+  requests) but never actually used it, always issuing a plain unsigned
+  `fetch`. Against a private bucket this 403s, and the XML error body then
+  fails `response.json()` with a confusing `SyntaxError: Unexpected token
+  '<'`. A redundant signed "warm-up" fetch to the same URL earlier in init
+  likely masked this via browser HTTP caching in some environments. Now
+  `set_landscape_parameters` uses `aws.fetch(...)` when creds are provided
+  (matching the pattern already used for parquet/arrow requests) and throws
+  a clear error on a non-2xx response instead of trying to parse it as JSON.
+  Also fixes `landscape_h_e.js`, which never passed `viz_state.aws` through
+  to this call at all.
+
+## [0.19.0a1] - 2026-07-17
+
+Alpha pre-release: a new serial-slice alignment module, plus small front-end
+fixes needed to render stacked 2D alpha shapes in the 3D point-cloud
+`Landscape` view.
+
+### Added
+
+- **`celldega.align`** — registration of serial 3D tissue slices into a
+  shared coordinate frame. `calc_landmarks` derives per-slice landmarks from
+  shared cluster labels (or accepts manually-placed ones);
+  `calc_alignment_transform` chain-walk fits a rigid Procrustes or non-rigid
+  thin-plate-spline transform outward from a reference slice, returning a
+  reusable, persistable `SerialAlignmentTransform`
+  (`.save()`/`.load()`, `.apply_to_points()`); `align_serial_slices` applies
+  a fitted transform to a set of `AnnData`, aligning `obsm["spatial"]` and
+  assigning each slice a `Z` coordinate (`z_space` or explicit `z_coord`).
+
+### Fixed
+
+- **Widget crash on gene-less datasets** — `set_meta_gene`/
+  `set_color_dict_gene` called `.getChild(...)` directly on the result of a
+  failed `meta_gene.parquet` fetch (e.g. point-cloud datasets with no
+  expression data), throwing `TypeError: n.getChild is not a function` and
+  aborting the entire `Landscape` render. Both now go through the same
+  null-safe `table_accessors` helpers already used for cluster metadata, so
+  a missing `meta_gene.parquet` degrades to an empty gene list instead of
+  crashing.
+
 ## [0.18.1] - 2026-07-15
 
 ### Fixed

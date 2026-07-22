@@ -1,10 +1,12 @@
 """Tests for Clustergram widget with Parquet input."""
 
+import io
 import json
 
 from anndata import AnnData
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 
 
@@ -275,6 +277,39 @@ def test_landscape_nbhd_edit_syncs_geojson() -> None:
     widget.nbhd_geojson = geojson
     assert isinstance(widget.nbhd, gpd.GeoDataFrame)
     assert list(widget.nbhd["name"]) == ["a"]
+
+
+def test_landscape_cluster_attr_synced_for_custom_cluster_key() -> None:
+    """meta_cluster_parquet's key field must match cluster_attr, not a hardcoded
+    'leiden' — the frontend reads this back via `model.get('cluster_attr')`."""
+    obs = pd.DataFrame({"my_cluster": ["a", "b", "a"]}, index=["cell_1", "cell_2", "cell_3"])
+    adata = AnnData(np.zeros((3, 0)), obs=obs)
+
+    widget = Landscape(adata=adata, transform=np.eye(3), cluster_attr="my_cluster")
+
+    assert widget.cluster_attr == "my_cluster"
+
+    # Check the raw Arrow schema (what the JS frontend keys off of via
+    # `objects_from_parquet`), not `pd.read_parquet`, which would silently
+    # restore "my_cluster" as the DataFrame index instead of a column.
+    table = pq.read_table(io.BytesIO(widget.meta_cluster_parquet))
+    assert "my_cluster" in table.schema.names
+
+
+def test_yearbook_cluster_attr_synced_for_custom_cluster_key() -> None:
+    """Yearbook must sync cluster_attr like Landscape does -- js/celldega.js reads
+    `model.get('cluster_attr')` to pick meta_cluster_parquet's key column, and
+    without a declared/synced trait it always falls back to 'leiden' regardless
+    of what was actually passed in."""
+    obs = pd.DataFrame({"my_cluster": ["a", "b", "a"]}, index=["cell_1", "cell_2", "cell_3"])
+    adata = AnnData(np.zeros((3, 0)), obs=obs)
+
+    widget = Yearbook(base_url="https://example.org/data", adata=adata, cluster_attr="my_cluster")
+
+    assert widget.cluster_attr == "my_cluster"
+
+    table = pq.read_table(io.BytesIO(widget.meta_cluster_parquet))
+    assert "my_cluster" in table.schema.names
 
 
 def test_yearbook_accepts_selection_result() -> None:

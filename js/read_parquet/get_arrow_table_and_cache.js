@@ -22,7 +22,10 @@ export const get_arrow_table_and_cache_new = async (
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      data = arrayBufferToArrowTable(arrayBuffer);
+      // Await here so a parse failure is caught below instead of becoming
+      // an unhandled promise rejection (and so the cache stores the
+      // resolved table, not a pending/rejecting promise).
+      data = await arrayBufferToArrowTable(arrayBuffer);
       cache.set(url, data);
     } catch (error) {
       handleAsyncError(error, {

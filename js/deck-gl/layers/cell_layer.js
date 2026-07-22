@@ -272,7 +272,33 @@ export const set_point_cloud_umap_positions_from_names = (
   );
 };
 
+export const set_point_cloud_centroid_positions_from_names = (
+  viz_state,
+  cellNames,
+  numRows = cellNames.length
+) => {
+  const positions = new Float32Array(numRows * POINT_CLOUD_POSITION_SIZE);
+  const centroids = viz_state.centroids3d?.centroids || {};
+
+  for (let index = 0; index < numRows; index++) {
+    const coords = centroids[cellNames[index]];
+    const offset = index * POINT_CLOUD_POSITION_SIZE;
+    positions[offset] = Number(coords?.[0]) || 0;
+    positions[offset + 1] = Number(coords?.[1]) || 0;
+    positions[offset + 2] = Number(coords?.[2]) || 0;
+  }
+
+  viz_state.spatial.cell_centroid_positions = positions;
+};
+
 const get_point_cloud_positions = (viz_state) => {
+  // A centroid override (Landscape(adata=..., use_adata_3d_centroids=True)) is a
+  // static, per-widget choice made once at construction — not a runtime toggle
+  // like umap_state — so it always wins over the on-disk/umap positions once set.
+  if (viz_state.spatial.cell_centroid_positions) {
+    return viz_state.spatial.cell_centroid_positions;
+  }
+
   if (
     viz_state.obs_store?.umap_state?.get() &&
     viz_state.spatial.cell_umap_positions
@@ -708,6 +734,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
   const numRows = viz_state.spatial.cell_scatter_data.length;
 
+  // A centroid override (Landscape(adata=..., use_adata_3d_centroids=True)) only
+  // applies to point-cloud views — 2D views always use the on-disk x/y.
+  const use_centroids =
+    pointCloud &&
+    Boolean(viz_state.centroids3d?.requested) &&
+    Boolean(viz_state.centroids3d?.has_centroids);
+
   viz_state.combo_data.cell_compact = pointCloud
     ? createEmptyCellCompact()
     : buildCellCompactData(
@@ -731,6 +764,26 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       dim,
       numRows
     );
+
+    if (use_centroids) {
+      set_point_cloud_centroid_positions_from_names(
+        viz_state,
+        viz_state.cats.cell_names_array,
+        numRows
+      );
+
+      // The bounds/center/zoom computed above reflect the on-disk backdrop's
+      // geometry, not the centroid positions actually being rendered — recompute
+      // from the centroid buffer so the initial camera frames the real data.
+      set_spatial_bounds_from_flat_coordinates(
+        viz_state,
+        viz_state.spatial.cell_centroid_positions,
+        POINT_CLOUD_POSITION_SIZE,
+        numRows
+      );
+    } else {
+      viz_state.spatial.cell_centroid_positions = null;
+    }
   }
 
   if (viz_state.umap.has_umap) {

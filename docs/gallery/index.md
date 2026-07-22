@@ -21,6 +21,14 @@ This page includes links to visualizations made with the stand-alone [Celldega J
 
 </div>
 
+### Point Cloud
+
+<div class="grid cards" markdown>
+
+- [Mouse Cranium E14 (local, 3D point cloud)](gallery_mouse_cranium_e14.md)
+
+</div>
+
 ## Sequencing Spatial Transcriptomics
 
 ### Visium HD

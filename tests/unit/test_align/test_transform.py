@@ -140,52 +140,77 @@ def test_tps_save_load_round_trips_normalization(tmp_path):
     assert np.isclose(reloaded.source_scale, transform.source_scale)
 
 
-def _cloud_area(points):
-    """Covariance-based area of a point cloud (same measure the area penalty uses)."""
-    return float(np.sqrt(np.linalg.det(np.cov(points, rowvar=False))))
+def _affine_svals(transform, points):
+    """Singular values of the transform's best-fit global affine over `points`
+    (row-vector convention). Product = area factor, ratio = anisotropy."""
+    pts = np.asarray(points, dtype=float)
+    out = transform.apply(pts)
+    linear, *_ = np.linalg.lstsq(pts - pts.mean(0), out - out.mean(0), rcond=None)
+    return np.linalg.svd(linear, compute_uv=False)
 
 
 def test_tps_area_regularization_penalizes_global_area_change():
     rng = np.random.default_rng(32)
     source = rng.uniform(-10, 10, size=(12, 2))
-    # Target is source shrunk to ~0.5x area (plus a little local noise) — a
-    # clear global area change a plain TPS would reproduce.
+    # Target is source shrunk to ~0.7x (plus a little local noise) — a clear
+    # global area change a plain TPS reproduces.
     target = 0.7 * source + rng.normal(scale=0.2, size=source.shape)
 
-    src_area = _cloud_area(source)
+    def area(t):
+        return float(np.prod(_affine_svals(t, source)))
+
     unreg = fit_transform_tps(source, target, area_regularization=0.0)
     full = fit_transform_tps(source, target, area_regularization=1.0)
     half = fit_transform_tps(source, target, area_regularization=0.5)
 
-    ratio_unreg = _cloud_area(unreg.apply(source)) / src_area
-    ratio_full = _cloud_area(full.apply(source)) / src_area
-    ratio_half = _cloud_area(half.apply(source)) / src_area
-
-    assert ratio_unreg < 0.7  # plain TPS shrinks area (~0.49)
-    assert np.isclose(ratio_full, 1.0, atol=1e-6)  # area fully preserved
-    # Partial penalty lands between the two.
-    assert ratio_unreg < ratio_half < ratio_full
+    assert area(unreg) < 0.7  # plain TPS shrinks the area
+    assert np.isclose(area(full), 1.0, atol=1e-6)  # area fully preserved
+    assert area(unreg) < area(half) < area(full)  # partial penalty is in between
 
 
-def test_tps_area_regularization_keeps_local_warp():
-    rng = np.random.default_rng(33)
+def test_tps_shape_regularization_penalizes_anisotropy():
+    rng = np.random.default_rng(36)
     source = rng.uniform(-10, 10, size=(12, 2))
-    # A non-affine warp: still recovered (locally) even with area fully pinned.
-    target = source + np.column_stack([0.03 * source[:, 1] ** 2, np.zeros(12)])
+    # Anisotropic target: stretched 1.4x in x, squeezed 0.7x in y (area ~0.98,
+    # but very non-square) — the "taller/pinched" distortion area_reg misses.
+    target = source * np.array([1.4, 0.7]) + rng.normal(scale=0.15, size=source.shape)
 
-    reg = fit_transform_tps(source, target, area_regularization=1.0)
-    # Total area unchanged...
-    assert np.isclose(_cloud_area(reg.apply(source)) / _cloud_area(source), 1.0, atol=1e-6)
-    # ...but it's not the identity (local warp is still applied).
-    assert not np.allclose(reg.apply(source), source, atol=1.0)
+    def aniso(t):
+        s = _affine_svals(t, source)
+        return float(s[0] / s[1])
+
+    unreg = fit_transform_tps(source, target, shape_regularization=0.0)
+    full = fit_transform_tps(source, target, shape_regularization=1.0)
+
+    assert aniso(unreg) > 1.5  # plain TPS keeps the stretch
+    assert np.isclose(aniso(full), 1.0, atol=1e-6)  # proportions restored (isotropic)
 
 
-def test_tps_save_load_round_trips_area_regularization(tmp_path):
+def test_tps_area_and_shape_regularization_make_global_affine_rigid():
+    rng = np.random.default_rng(37)
+    source = rng.uniform(-10, 10, size=(12, 2))
+    # Anisotropic global stretch PLUS a genuine non-affine (quadratic) local warp.
+    target = source * np.array([1.4, 0.6]) + np.column_stack(
+        [0.03 * source[:, 1] ** 2, np.zeros(12)]
+    )
+
+    rigid = fit_transform_tps(source, target, area_regularization=1.0, shape_regularization=1.0)
+    svals = _affine_svals(rigid, source)
+    # Both singular values ~1 -> the global affine is a pure rotation (rigid):
+    # the stretch is gone.
+    assert np.allclose(svals, [1.0, 1.0], atol=1e-6)
+    # ...but the local (quadratic) warp is still applied (not identity).
+    assert not np.allclose(rigid.apply(source), source, atol=1.0)
+
+
+def test_tps_save_load_round_trips_regularization(tmp_path):
     rng = np.random.default_rng(34)
     source = rng.uniform(-5000, 5000, size=(8, 2))
-    target = 0.8 * source + rng.normal(scale=50.0, size=source.shape)
-    transform = fit_transform_tps(source, target, smoothing=0.5, area_regularization=1.0)
-    assert transform.output_area_scale != 1.0  # the penalty actually engaged
+    target = source * np.array([0.8, 1.2]) + rng.normal(scale=50.0, size=source.shape)
+    transform = fit_transform_tps(
+        source, target, smoothing=0.5, area_regularization=1.0, shape_regularization=1.0
+    )
+    assert transform.output_affine is not None  # the correction actually engaged
 
     path = tmp_path / "tps.npz"
     save_transform(transform, path)
@@ -195,12 +220,14 @@ def test_tps_save_load_round_trips_area_regularization(tmp_path):
     assert np.allclose(transform.apply(query), reloaded.apply(query))
 
 
-def test_tps_area_regularization_rejects_negative():
+def test_tps_regularization_rejects_negative():
     rng = np.random.default_rng(35)
     source = rng.uniform(-10, 10, size=(5, 2))
     target = source + rng.normal(scale=0.1, size=source.shape)
     with pytest.raises(ValueError, match="area_regularization"):
         fit_transform_tps(source, target, area_regularization=-0.5)
+    with pytest.raises(ValueError, match="shape_regularization"):
+        fit_transform_tps(source, target, shape_regularization=-0.5)
 
 
 def test_tps_affine_consistent_data_extrapolates_like_affine():

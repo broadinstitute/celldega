@@ -657,6 +657,36 @@ def test_calc_alignment_transform_area_regularization_preserves_slice_area(tmp_p
     assert np.allclose(pinned.apply_to_points(1, fake), reloaded.apply_to_points(1, fake))
 
 
+def test_calc_alignment_transform_shape_regularization_preserves_proportions(tmp_path):
+    rng = np.random.default_rng(43)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng)
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    # Make slice 1's landmarks anisotropically stretched (1.4x in x, 0.7x in y)
+    # relative to slice 0 — a proportion change with ~unchanged area.
+    mask = landmarks["slice"] == 1
+    landmarks.loc[mask, "x"] *= 1.4
+    landmarks.loc[mask, "y"] *= 0.7
+
+    def anisotropy(transform, slice_id):
+        src = landmarks.loc[landmarks["slice"] == slice_id, ["x", "y"]].to_numpy()
+        out = transform.apply_to_points(slice_id, src)
+        linear, *_ = np.linalg.lstsq(src - src.mean(0), out - out.mean(0), rcond=None)
+        s = np.linalg.svd(linear, compute_uv=False)
+        return float(s[0] / s[1])
+
+    plain = calc_alignment_transform(landmarks, method="tps")
+    pinned = calc_alignment_transform(landmarks, method="tps", shape_regularization=1.0)
+
+    assert pinned.shape_regularization == 1.0
+    assert anisotropy(plain, 1) > 1.5  # plain TPS keeps the stretch
+    assert np.isclose(anisotropy(pinned, 1), 1.0, atol=1e-6)  # proportions restored
+
+    save_dir = tmp_path / "t"
+    pinned.save(save_dir)
+    assert SerialAlignmentTransform.load(save_dir).shape_regularization == 1.0
+
+
 def test_serial_alignment_transform_tps_save_load_preserves_exact_interpolation(tmp_path):
     """Before this split, a TPS transform's spline was discarded entirely -- this
     is the concrete fix: it survives a save/load round trip and still

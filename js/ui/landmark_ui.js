@@ -106,11 +106,14 @@ export const set_toolbar_mode = (
   show(buttons.save, mark || modify);
 };
 
-/** Blue once there's something for SAVE to actually commit (e.g. a drawn-but-
- * unsaved landmark instance in 'mark'); the default gray otherwise, so the
- * button visually confirms "yes, this click will do something." */
+/** Blue + clickable once there's something for SAVE to actually commit (e.g.
+ * a drawn-but-unsaved point in 'mark', or a tentatively-typed rename); gray
+ * and inert otherwise, so an inactive SAVE reads as — and behaves as —
+ * non-clickable (blue = clickable). */
 export const set_save_button_active = (buttons, active) => {
   buttons.save.style.color = active ? 'blue' : 'gray';
+  buttons.save.style.cursor = active ? 'pointer' : 'default';
+  buttons.save.style.pointerEvents = active ? 'auto' : 'none';
 };
 
 export const set_del_button_visible = (buttons, visible) => {
@@ -285,13 +288,17 @@ export const make_range_slider = (
 /** The label of whatever's currently being placed (MARK) or edited (MODIFY)
  * — the LNDMRK equivalent of a gene-search box: hidden in 'browse', shown
  * and editable in 'mark'/'modify', and updated when a LNDMRK bar or an
- * existing landmark marker is clicked to target a landmark. `on_commit(value,
- * committed)` fires on Enter (`committed = true`) and on blur (`committed =
- * false`). A rename should only actually apply on an explicit commit (Enter,
- * or the SAVE button) — never on blur — so the caller uses `committed` to
- * decide whether to stage the value locally or write it through. An empty
- * value means "back to auto-numbering", only meaningful in 'mark'. */
-export const make_label_input = (on_commit) => {
+ * existing landmark marker is clicked to target a landmark.
+ *
+ * - `on_input(value)` fires on every keystroke — for live UI feedback (e.g.
+ *   lighting up SAVE) without committing anything.
+ * - `on_commit(value, committed)` fires on Enter (`committed = true`) and on
+ *   blur (`committed = false`). A rename should only actually apply on an
+ *   explicit commit (Enter, or the SAVE button) — never on blur — so the
+ *   caller uses `committed` to decide whether to stage or write through.
+ *
+ * An empty value means "back to auto-numbering", only meaningful in 'mark'. */
+export const make_label_input = ({ on_input, on_commit }) => {
   const input = document.createElement('input');
   input.type = 'text';
   input.style.width = '60px';
@@ -306,6 +313,7 @@ export const make_label_input = (on_commit) => {
   input.title =
     'Landmark name — click a LNDMRK bar or an existing marker to target one';
 
+  input.addEventListener('input', () => on_input?.(input.value.trim()));
   input.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();

@@ -337,43 +337,54 @@ export const landmark = async (model, el) => {
   // 'modify' it's the targeted landmark's name (editing stages a rename,
   // applied on SAVE — not immediately, since modify's only way out is
   // save/delete).
-  const label_input = make_label_input((value, committed) => {
+  // Stage the typed value *locally* (no model write) — updates the preview
+  // and, in 'modify', the pending rename. Shared by the live on_input (so
+  // SAVE lights up as you type) and on_commit.
+  function stage_label(value) {
     if (state.ui_mode === 'mark') {
       const original = state.mark_target_label;
       if (original && value && value !== original) {
-        // Renaming an existing landmark from MARK's textbox. Stage it and
-        // preview the new name; only write the rename through on an explicit
-        // commit (Enter) — never on blur. SAVE also applies a staged rename.
-        state.pending_rename = value;
+        state.pending_rename = value; // renaming an existing targeted landmark
         state.active_label = value;
-        if (committed) {
-          apply_rename(original, value);
-          state.mark_target_label = value;
-          state.pending_rename = null;
-        }
       } else {
         state.pending_rename = null;
         state.active_label =
           value && value !== String(state.next_label) ? value : null;
       }
+    } else if (state.ui_mode === 'modify') {
+      state.pending_rename =
+        value && value !== state.active_label ? value : null;
+    }
+  }
+
+  const label_input = make_label_input({
+    // Live: reflect the typed value immediately (SAVE turns blue), but don't
+    // write a rename through until an explicit commit.
+    on_input: (value) => {
+      stage_label(value);
+      apply_ui_mode();
+      refresh();
+    },
+    on_commit: (value, committed) => {
+      stage_label(value);
+      if (committed && state.pending_rename) {
+        // Enter is an explicit commit — apply the staged rename now.
+        const original =
+          state.ui_mode === 'mark'
+            ? state.mark_target_label
+            : state.active_label;
+        apply_rename(original, state.pending_rename);
+        state.active_label = state.pending_rename;
+        if (state.ui_mode === 'mark')
+          state.mark_target_label = state.pending_rename;
+        state.pending_rename = null;
+        sync_label_input();
+      }
       rebuild_lndmrk_bar();
       rebuild_slice_bar();
       apply_ui_mode();
       refresh();
-    } else if (state.ui_mode === 'modify') {
-      // Stage the rename on blur; only write it through on Enter (or SAVE).
-      state.pending_rename =
-        value && value !== state.active_label ? value : null;
-      if (committed && state.pending_rename) {
-        apply_rename(state.active_label, state.pending_rename);
-        state.active_label = state.pending_rename;
-        state.pending_rename = null;
-        sync_label_input();
-      }
-      // A staged rename is the one thing SAVE commits in modify (drags
-      // auto-commit) — light SAVE up once you've tentatively changed the name.
-      apply_ui_mode();
-    }
+    },
   });
   function sync_label_input() {
     if (state.ui_mode === 'browse') {
@@ -467,6 +478,7 @@ export const landmark = async (model, el) => {
       else if (state.ui_mode === 'mark') enter_modify(state.mark_target_label);
     },
     on_save: () => {
+      if (!is_save_active()) return; // gray SAVE is inert (nothing to commit)
       if (state.ui_mode === 'mark') save_mark();
       else if (state.ui_mode === 'modify') save_modify();
     },
@@ -482,13 +494,19 @@ export const landmark = async (model, el) => {
   toolbar.container.append(label_input.container, color_input.container);
 
   // SAVE lights up only when it has something to commit: in 'mark', once at
-  // least one point is drawn; in 'modify', once a rename is tentatively typed
-  // (drags auto-commit, so a rename is the only thing SAVE itself applies).
-  const is_save_active = () => {
-    if (state.ui_mode === 'mark') return state.pending_points.size > 0;
+  // least one point is drawn (or a targeted landmark's rename is staged); in
+  // 'modify', once a rename is tentatively typed (drags auto-commit, so a
+  // rename is the only thing SAVE itself applies).
+  function is_save_active() {
+    if (state.ui_mode === 'mark') {
+      return (
+        state.pending_points.size > 0 ||
+        (state.mark_target_label != null && state.pending_rename != null)
+      );
+    }
     if (state.ui_mode === 'modify') return state.pending_rename != null;
     return false;
-  };
+  }
 
   function apply_ui_mode() {
     set_toolbar_mode(toolbar.buttons, state.ui_mode, {

@@ -60,6 +60,7 @@ from celldega.align._transform import (
 )
 from celldega.align.landmarks import calc_landmarks
 from celldega.align.plot import plot_alignment
+from celldega.align.point_cloud import write_alignment_point_cloud
 from celldega.align.serial_slices import (
     SerialAlignmentTransform,
     align_serial_slices,
@@ -80,4 +81,5 @@ __all__ = [
     "load_transform",
     "plot_alignment",
     "save_transform",
+    "write_alignment_point_cloud",
 ]

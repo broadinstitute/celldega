@@ -148,6 +148,7 @@ def _resolve_fit_function(
     smoothing: float,
     degree: int,
     area_regularization: float,
+    shape_regularization: float,
 ) -> Callable[..., Transform]:
     if method == "procrustes":
 
@@ -175,6 +176,7 @@ def _resolve_fit_function(
                 smoothing=smoothing,
                 degree=degree,
                 area_regularization=area_regularization,
+                shape_regularization=shape_regularization,
             )
 
         return _fit
@@ -251,6 +253,7 @@ class SerialAlignmentTransform:
     smoothing: float
     degree: int
     area_regularization: float
+    shape_regularization: float
     weight_by_adjacent_counts: bool
     alignment_window: int
 
@@ -291,6 +294,7 @@ class SerialAlignmentTransform:
             "smoothing": self.smoothing,
             "degree": self.degree,
             "area_regularization": self.area_regularization,
+            "shape_regularization": self.shape_regularization,
             "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
             "alignment_window": self.alignment_window,
         }
@@ -335,6 +339,7 @@ class SerialAlignmentTransform:
             # older saves.
             degree=metadata.get("degree", 1),
             area_regularization=metadata.get("area_regularization", 0.0),
+            shape_regularization=metadata.get("shape_regularization", 0.0),
             weight_by_adjacent_counts=metadata["weight_by_adjacent_counts"],
             alignment_window=metadata["alignment_window"],
         )
@@ -351,6 +356,7 @@ def calc_alignment_transform(
     smoothing: float = 0.0,
     degree: int = 1,
     area_regularization: float = 0.0,
+    shape_regularization: float = 0.0,
     weight_by_adjacent_counts: bool = True,
     compute_residuals: bool = True,
 ) -> SerialAlignmentTransform:
@@ -467,7 +473,7 @@ def calc_alignment_transform(
     if alignment_window < 1:
         raise ValueError(f"alignment_window must be >= 1, got {alignment_window}")
     fit_transform = _resolve_fit_function(
-        method, allow_reflection, smoothing, degree, area_regularization
+        method, allow_reflection, smoothing, degree, area_regularization, shape_regularization
     )
 
     all_stats = [_slice_landmarks(landmarks, slice_id, slice_attr) for slice_id in slice_ids]
@@ -560,6 +566,7 @@ def calc_alignment_transform(
         smoothing=smoothing,
         degree=degree,
         area_regularization=area_regularization,
+        shape_regularization=shape_regularization,
         weight_by_adjacent_counts=weight_by_adjacent_counts,
         alignment_window=alignment_window,
     )
@@ -664,6 +671,7 @@ def align_serial_slices(
         "allow_reflection": transform.allow_reflection,
         "smoothing": transform.smoothing,
         "area_regularization": transform.area_regularization,
+        "shape_regularization": transform.shape_regularization,
         "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,
         "z_space": z_space,
         "z_coord": z_coord,

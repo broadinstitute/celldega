@@ -814,6 +814,9 @@ class Yearbook(anywidget.AnyWidget):
         default_value=["leiden"],
     ).tag(sync=True)
 
+    # obs column driving the cluster color legend/meta_cluster_parquet key field
+    cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
+
     # Stateless front-end query, evaluated in the browser against LandscapeFiles
     # (no Python/AnnData required). Distinct from the Python-side
     # ``celldega.select`` query module. Supports:
@@ -950,6 +953,8 @@ class Yearbook(anywidget.AnyWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+
+        self.cluster_attr = cluster_attr
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df

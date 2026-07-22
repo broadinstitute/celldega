@@ -141,14 +141,13 @@ export const landmark = async (model, el) => {
     next_label: model.get('next_landmark_label') || 1,
     rows: { a: [], b: [] },
     features: { a: [], b: [] },
-    // Shared across both views — one CELL/LNDMRK control panel, not one per side.
+    // Shared across both views — one CELL/LNDMRK control panel, not one per
+    // side. `highlight_cluster` is kept in sync both ways: clicking a CELL
+    // bar or clicking a cell in either scatterplot sets it (like Landscape).
     highlight_cluster: null,
     cell_visible: true,
     cell_opacity: 0.86,
     marker_visible: true,
-    // Per-side single-cell pick (a visual anchor while placing a nearby
-    // landmark) — independent of cluster highlighting.
-    highlighted_cell: { a: null, b: null },
     // Rotation is remembered per *slice id*, not per side, so swapping away
     // and back to a slice restores the angle you left it at.
     rotation_deg_by_slice: {},
@@ -252,7 +251,6 @@ export const landmark = async (model, el) => {
         visible: state.cell_visible,
         radius: model.get('cell_radius'),
         opacity: state.cell_opacity,
-        highlighted_cell: state.highlighted_cell[side],
       }),
       ini_landmark_marker_layer(side, combined_features(side), {
         rotation_state: state.rotation_state[side],
@@ -663,11 +661,17 @@ export const landmark = async (model, el) => {
     });
   };
 
-  const toggle_highlighted_cell = (side, cell_id) => {
-    state.highlighted_cell[side] =
-      state.highlighted_cell[side] === cell_id ? null : cell_id;
+  // Clicking a cell (or a CELL bar) highlights that whole *cluster* and dims
+  // the rest — the same on the scatterplot and the bar graph, kept in sync
+  // both ways, exactly like Landscape. Whole-cluster (not single-cell) so a
+  // highlighted point never reads as a landmark marker.
+  function toggle_highlight_cluster(cluster) {
+    if (cluster == null) return;
+    state.highlight_cluster =
+      state.highlight_cluster === cluster ? null : cluster;
+    rebuild_cell_bar();
     refresh();
-  };
+  }
 
   // Tracks which side the pointer is over, for the mark-mode cursor only.
   let hover_side = null;
@@ -697,8 +701,8 @@ export const landmark = async (model, el) => {
       if (clicked_marker.properties.draft) return; // reposition via drag, not click
       const { label } = clicked_marker.properties;
       // Clicking a landmark toggles editing it: click once to enter modify
-      // (drag/rename/delete) for it; click the same one again to exit back to
-      // browse. This is the way out of modify (there's no CANCEL button).
+      // (drag/rename/delete) for it; click the same one again to exit back
+      // to browse (same as the CANCEL button).
       if (state.ui_mode === 'modify' && state.active_label === label) {
         enter_browse();
       } else {
@@ -716,8 +720,14 @@ export const landmark = async (model, el) => {
       return;
     }
 
-    if (info.object && info.layer?.id?.startsWith('landmark-cell-')) {
-      toggle_highlighted_cell(side, info.object.cell_id);
+    // In browse, clicking a cell highlights its cluster (and the matching
+    // CELL bar) — a quick way to inspect where a cluster sits before marking.
+    if (
+      state.ui_mode === 'browse' &&
+      info.object &&
+      info.layer?.id?.startsWith('landmark-cell-')
+    ) {
+      toggle_highlight_cluster(info.object.cluster);
     }
   };
 
@@ -1044,12 +1054,7 @@ export const landmark = async (model, el) => {
     );
     make_bar_graph(
       cell_bar_container,
-      (_event, d) => {
-        state.highlight_cluster =
-          state.highlight_cluster === d.name ? null : d.name;
-        rebuild_cell_bar();
-        refresh();
-      },
+      (_event, d) => toggle_highlight_cluster(d.name),
       cell_bar_svg,
       cell_bar_data,
       color_dict,
@@ -1148,12 +1153,15 @@ export const landmark = async (model, el) => {
     refresh();
   });
 
+  // A plain, non-interactive section label. Near-black (not blue) on purpose:
+  // SLICE isn't clickable, and blue is reserved for things that are (the
+  // web-1.0 convention the LNDMRK/CELL toggles and MARK/MODIFY buttons follow).
   const make_tag = (text) => {
     const tag = document.createElement('span');
     tag.textContent = text;
     tag.style.fontSize = '11px';
     tag.style.fontWeight = '700';
-    tag.style.color = 'blue';
+    tag.style.color = '#1a1a1a';
     return tag;
   };
 
@@ -1187,7 +1195,6 @@ export const landmark = async (model, el) => {
       dropdowns[other_side(side)],
       new_slice_id
     );
-    state.highlighted_cell[side] = null;
     set_rotation_slider_value(
       rotation_sliders[side],
       rotation_deg_for_side(side)

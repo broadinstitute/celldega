@@ -2,9 +2,9 @@ import { create_color_input } from './editor_common';
 
 // Outline-free text buttons (matching the CELL/LNDMRK toggle look) — the
 // color carries the meaning, no border/background box, to keep the toolbar
-// compact. Blue = ready to engage; green = the mode is currently engaged
-// (click again to leave it — there's no separate CANCEL button).
-const ACTIVE_COLOR = 'green';
+// compact. Blue = clickable/ready; while a mode is engaged its button reads
+// "CANCEL" in red (click it to leave the mode, discarding anything unsaved).
+const CANCEL_COLOR = 'red';
 
 const make_button = (label) => {
   const button = document.createElement('button');
@@ -83,9 +83,9 @@ const show = (button, visible) => {
 /** `mode` is 'browse' | 'mark' | 'modify' — see `landmark.js`'s state
  * machine. MARK is the primary browse button; MODIFY only appears once a
  * specific landmark is selected (while marking a targeted existing landmark,
- * `mark_has_target`, or in modify). Both are toggles: blue when available,
- * green while engaged. Exit their mode by clicking them again (or the
- * targeted landmark) — no CANCEL button. */
+ * `mark_has_target`, or in modify). Whichever of MARK/MODIFY is engaged
+ * swaps its label to "CANCEL" (red) — click it to leave the mode; blue
+ * "MARK"/"MODIFY" the rest of the time. */
 export const set_toolbar_mode = (
   buttons,
   mode,
@@ -96,10 +96,12 @@ export const set_toolbar_mode = (
   const modify = mode === 'modify';
 
   show(buttons.mark, browse || mark);
-  buttons.mark.style.color = mark ? ACTIVE_COLOR : 'blue';
+  buttons.mark.textContent = mark ? 'CANCEL' : 'MARK';
+  buttons.mark.style.color = mark ? CANCEL_COLOR : 'blue';
 
   show(buttons.modify, modify || (mark && mark_has_target));
-  buttons.modify.style.color = modify ? ACTIVE_COLOR : 'blue';
+  buttons.modify.textContent = modify ? 'CANCEL' : 'MODIFY';
+  buttons.modify.style.color = modify ? CANCEL_COLOR : 'blue';
 
   show(buttons.save, mark || modify);
 };

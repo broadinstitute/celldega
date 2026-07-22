@@ -190,10 +190,12 @@ class Landmark(anywidget.AnyWidget):
             and safe to append new landmark sets onto (the auto-numbered
             label counter starts past whatever numeric labels are already
             present).
-        cell_radius: Cell-point display radius in pixels (``width``/
-            ``height``/``cell_radius`` are all plain synced traits, so this
-            can also be set as ``Landmark(..., cell_radius=3.0)`` or
-            afterward via ``lm.cell_radius = 3.0``). The CELL control has a
+        cell_radius: Cell-point radius in data-space (micron) units — the
+            points scale with zoom, exactly like Landscape's cell layer
+            (which defaults to ``5.0``), with a 1px on-screen floor.
+            ``width``/``height``/``cell_radius`` are all plain synced traits,
+            so this can also be set as ``Landmark(..., cell_radius=8.0)`` or
+            afterward via ``lm.cell_radius = 8.0``. The CELL control has a
             runtime *opacity* slider instead — radius rarely needs
             mid-session adjustment once set.
         landscapes: Not implemented yet — planned future alternative to
@@ -219,7 +221,7 @@ class Landmark(anywidget.AnyWidget):
     # runtime slider, since it rarely needs adjusting mid-session once set;
     # the CELL control instead has an opacity slider (frequently useful to
     # adjust while marking, to see landmarks/cells underneath each other).
-    cell_radius = traitlets.Float(2.0).tag(sync=True)
+    cell_radius = traitlets.Float(5.0).tag(sync=True)
 
     # Full pool of slice ids (as str) available to swap between, in resolved
     # order, and their display labels — drive the front-end dropdowns.

@@ -65,7 +65,7 @@ def test_landmark_defaults_from_list_of_two():
     assert lm.landmarks is not None
     assert list(lm.landmarks.columns) == ["label", "x", "y", "slice"]
     assert lm.landmarks.empty
-    assert lm.cell_radius == 2.0
+    assert lm.cell_radius == 5.0  # data-space default, matching Landscape's cell layer
 
 
 def test_landmark_cell_radius_is_settable_like_width_and_height():

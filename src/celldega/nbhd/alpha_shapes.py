@@ -190,6 +190,7 @@ def alpha_shape_cell_clusters_by_slice(
     alphas: Sequence[float] = (150,),
     meta_cluster: pd.DataFrame | None = None,
     z_jitter: float = 0.1,
+    progress_every: int = 0,
 ) -> gpd.GeoDataFrame:
     """
     Compute one alpha shape per (slice, cluster) pair, each stamped with its slice's Z.
@@ -226,6 +227,12 @@ def alpha_shape_cell_clusters_by_slice(
     z_jitter : float
         Per-cluster Z offset within a slice, to avoid z-fighting between
         coplanar cluster polygons that would otherwise sit at the exact same Z.
+    progress_every : int
+        Print a progress line every this many slices processed (0, the
+        default, disables it). Each real alpha shape involves a Delaunay
+        triangulation plus verification, so this is the slow part of a
+        neighborhood-cloud pre-processing run on a large aligned dataset with
+        many slices -- worth visibility into, unlike a quick synthetic test.
 
     Returns
     -------
@@ -243,9 +250,13 @@ def alpha_shape_cell_clusters_by_slice(
 
     obs = adata.obs
     coords = np.asarray(adata.obsm["spatial"])
+    slice_ids = obs[slice_attr].unique()
+    n_slices = len(slice_ids)
 
     gdfs: list[gpd.GeoDataFrame] = []
-    for slice_id in obs[slice_attr].unique():
+    for i, slice_id in enumerate(slice_ids, start=1):
+        if progress_every and i % progress_every == 0:
+            print(f"alpha shapes: slice {i}/{n_slices} ({slice_id})")
         mask = (obs[slice_attr] == slice_id).to_numpy()
         cluster_values = obs.loc[mask, cluster_attr].to_numpy()
 
@@ -280,7 +291,10 @@ def alpha_shape_cell_clusters_by_slice(
     if not gdfs:
         raise ValueError("no alpha shapes could be computed for any slice")
 
-    return gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), geometry="geometry")
+    gdf_all = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True), geometry="geometry")
+    if progress_every:
+        print(f"alpha shapes: done, {len(gdf_all)} neighborhoods across {n_slices} slices")
+    return gdf_all
 
 
 # A gene's index-within-`gene_list` is reduced modulo this many buckets, each

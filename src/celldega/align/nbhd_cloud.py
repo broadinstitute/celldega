@@ -41,6 +41,7 @@ def write_nbhd_cloud(
     alphas: Sequence[float] = (150,),
     z_jitter: float = 0.1,
     meta_cluster: pd.DataFrame | None = None,
+    progress_every: int = 1,
     compute_gene_nbhds: bool = False,
     gene_list: Sequence[str] | None = None,
     gene_min_expression: float = 2.0,
@@ -95,6 +96,11 @@ def write_nbhd_cloud(
         Optional cluster color/metadata lookup. Without it, colors come from
         `adata.uns[f"{cluster_attr}_colors"]` if present (the usual place
         scanpy leaves them after `sc.tl.leiden`/`sc.pl.umap`), else black.
+    progress_every : int
+        Print a progress line every this many slices while computing cluster
+        shapes (default `1`, i.e. every slice — a real alpha shape per
+        (slice, cluster) is the slow part of this call on a large aligned
+        dataset with many slices). `0` disables it.
     compute_gene_nbhds : bool
         Whether to also compute and write gene-nbhds. Default `False` — see
         above. Requires `gene_list`.
@@ -166,6 +172,7 @@ def write_nbhd_cloud(
         alphas=alphas,
         meta_cluster=meta_cluster,
         z_jitter=z_jitter,
+        progress_every=progress_every,
     )
     nbhd = NeighborhoodCollection.from_gdf(gdf_alpha, nbhd_type="alpha_shape")
 

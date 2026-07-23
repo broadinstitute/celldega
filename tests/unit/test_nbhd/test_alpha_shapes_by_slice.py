@@ -114,6 +114,54 @@ def test_alpha_shape_cell_clusters_by_slice_rejects_multiple_alphas():
         alpha_shape_cell_clusters_by_slice(adata, alphas=(100, 150))
 
 
+def test_alpha_shape_cell_clusters_by_slice_progress_every_disabled_by_default(capsys):
+    adata = _synthetic_multi_slice_adata(n_slices=2, n_clusters=1)
+
+    alpha_shape_cell_clusters_by_slice(
+        adata, cluster_attr="cluster", slice_attr="slice_id", z_attr="z", alphas=(150,)
+    )
+
+    assert capsys.readouterr().out == ""
+
+
+def test_alpha_shape_cell_clusters_by_slice_reports_progress_when_requested(capsys):
+    adata = _synthetic_multi_slice_adata(n_slices=3, n_clusters=1)
+
+    alpha_shape_cell_clusters_by_slice(
+        adata,
+        cluster_attr="cluster",
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        progress_every=1,
+    )
+
+    out = capsys.readouterr().out
+    assert "slice 1/3" in out
+    assert "slice 2/3" in out
+    assert "slice 3/3" in out
+    assert "done, " in out
+
+
+def test_alpha_shape_cell_clusters_by_slice_progress_every_n_skips_slices(capsys):
+    adata = _synthetic_multi_slice_adata(n_slices=4, n_clusters=1)
+
+    alpha_shape_cell_clusters_by_slice(
+        adata,
+        cluster_attr="cluster",
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        progress_every=2,
+    )
+
+    out = capsys.readouterr().out
+    assert "slice 2/4" in out
+    assert "slice 4/4" in out
+    assert "slice 1/4" not in out
+    assert "slice 3/4" not in out
+
+
 def test_stamp_z_sets_constant_z_on_every_vertex():
     poly = Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
     stamped = _stamp_z(poly, 42.0)

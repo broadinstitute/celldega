@@ -199,3 +199,25 @@ def test_write_nbhd_cloud_reports_missing_spatial_clearly(tmp_path):
 
     with pytest.raises(ValueError, match=r"obsm\['spatial'\] is required"):
         write_nbhd_cloud(adata, tmp_path)
+
+
+def test_write_nbhd_cloud_reports_progress_by_default(tmp_path, capsys):
+    """progress_every defaults to 1 (every slice) here -- unlike
+    alpha_shape_cell_clusters_by_slice's own off-by-default, since this is
+    the one-call, large-dataset entry point where feedback matters most."""
+    adata = _synthetic_dataset(n_slices=2)
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z")
+
+    out = capsys.readouterr().out
+    assert "slice 1/2" in out
+    assert "slice 2/2" in out
+
+
+def test_write_nbhd_cloud_progress_every_zero_disables_reporting(tmp_path, capsys):
+    adata = _synthetic_dataset(n_slices=2)
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z", progress_every=0)
+
+    out = capsys.readouterr().out
+    assert "alpha shapes:" not in out

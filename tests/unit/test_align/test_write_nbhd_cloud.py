@@ -161,3 +161,41 @@ def test_write_nbhd_cloud_works_on_a_plain_anndata_without_point_cloud_files(tmp
     )
 
     assert (tmp_path / "nbhd_cloud" / "shapes" / "by_gene" / "Gene0.parquet").exists()
+
+
+def test_write_nbhd_cloud_reports_missing_obs_columns_clearly(tmp_path):
+    adata = ad.AnnData(
+        X=np.zeros((5, 1)),
+        obs=pd.DataFrame(index=[f"c{i}" for i in range(5)]),
+    )
+    adata.obsm["spatial"] = np.random.default_rng(0).random((5, 2))
+
+    with pytest.raises(ValueError, match=r"cluster_attr='cluster'.*slice_attr='slice_id'"):
+        write_nbhd_cloud(adata, tmp_path)
+
+
+def test_write_nbhd_cloud_reports_missing_z_attr_clearly(tmp_path):
+    adata = ad.AnnData(
+        X=np.zeros((5, 1)),
+        obs=pd.DataFrame(
+            {"cluster": ["a"] * 5, "slice_id": ["s0"] * 5},
+            index=[f"c{i}" for i in range(5)],
+        ),
+    )
+    adata.obsm["spatial"] = np.random.default_rng(0).random((5, 2))
+
+    with pytest.raises(ValueError, match=r"z_attr='Z'"):
+        write_nbhd_cloud(adata, tmp_path, z_attr="Z")
+
+
+def test_write_nbhd_cloud_reports_missing_spatial_clearly(tmp_path):
+    adata = ad.AnnData(
+        X=np.zeros((5, 1)),
+        obs=pd.DataFrame(
+            {"cluster": ["a"] * 5, "slice_id": ["s0"] * 5},
+            index=[f"c{i}" for i in range(5)],
+        ),
+    )
+
+    with pytest.raises(ValueError, match=r"obsm\['spatial'\] is required"):
+        write_nbhd_cloud(adata, tmp_path)

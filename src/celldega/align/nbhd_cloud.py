@@ -133,6 +133,31 @@ def write_nbhd_cloud(
 
     dega_files_dir = Path(dega_files_dir)
 
+    # Fail with an actionable message up front rather than a bare KeyError
+    # from deep inside alpha_shape_cell_clusters_by_slice -- the whole point
+    # of this function is a one-call entry point, so a first-time caller who
+    # hasn't set cluster_attr/slice_attr to match their own AnnData should be
+    # told exactly what's missing and which kwarg fixes it.
+    missing_obs = [
+        (name, attr)
+        for name, attr in [("cluster_attr", cluster_attr), ("slice_attr", slice_attr)]
+        if attr not in adata.obs.columns
+    ]
+    if z_attr is not None and z_attr not in adata.obs.columns:
+        missing_obs.append(("z_attr", z_attr))
+    if missing_obs:
+        details = ", ".join(f"{param}={attr!r}" for param, attr in missing_obs)
+        raise ValueError(
+            f"adata.obs is missing column(s) referenced by {details}. Pass the "
+            "matching column name(s) explicitly, e.g. "
+            "write_nbhd_cloud(adata, ..., cluster_attr='leiden', slice_attr='batch')."
+        )
+    if "spatial" not in adata.obsm:
+        raise ValueError(
+            "adata.obsm['spatial'] is required (e.g. from "
+            "celldega.align.serial_slices.align_serial_slices)."
+        )
+
     gdf_alpha = alpha_shape_cell_clusters_by_slice(
         adata,
         cluster_attr=cluster_attr,

@@ -331,6 +331,12 @@ class Landscape(anywidget.AnyWidget):
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
+    # Named alignment variant for point-cloud technology. When set, cell
+    # positions are read from cell_metadata_<alignment>.parquet (written by
+    # celldega.align.write_alignment_point_cloud) while clusters/genes keep
+    # loading from their normal (segmentation-driven) paths.
+    alignment = traitlets.Unicode("").tag(sync=True)
+
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
 

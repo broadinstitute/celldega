@@ -243,12 +243,17 @@ export const switch_dataset = async (
       viz_state.aws
     );
 
-    // Load new cell metadata
+    // Load new cell metadata. An alignment variant overrides only the
+    // cell_metadata positions file; clusters/genes still key off seg.version.
     let cell_url;
-    if (viz_state.seg.version === 'default') {
+    const cell_meta_version =
+      viz_state.alignment && viz_state.alignment !== 'default'
+        ? viz_state.alignment
+        : viz_state.seg.version;
+    if (!cell_meta_version || cell_meta_version === 'default') {
       cell_url = `${new_base_url}/cell_metadata.parquet`;
     } else {
-      cell_url = `${new_base_url}/cell_metadata_${viz_state.seg.version}.parquet`;
+      cell_url = `${new_base_url}/cell_metadata_${cell_meta_version}.parquet`;
     }
 
     const cell_arrow_table = await get_arrow_table(

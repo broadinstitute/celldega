@@ -810,10 +810,16 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   let cell_url;
   const pointCloud = is_point_cloud_viz(viz_state);
 
-  if (viz_state.seg.version === 'default') {
+  // An alignment variant overrides only the cell_metadata positions file;
+  // clusters/genes still load from their segmentation-driven paths.
+  const cell_meta_version =
+    viz_state.alignment && viz_state.alignment !== 'default'
+      ? viz_state.alignment
+      : viz_state.seg.version;
+  if (!cell_meta_version || cell_meta_version === 'default') {
     cell_url = `${base_url}/cell_metadata.parquet`;
   } else {
-    cell_url = `${base_url}/cell_metadata_${viz_state.seg.version}.parquet`;
+    cell_url = `${base_url}/cell_metadata_${cell_meta_version}.parquet`;
   }
 
   const cell_arrow_table = await get_arrow_table(

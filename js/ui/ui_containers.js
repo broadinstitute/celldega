@@ -367,6 +367,11 @@ export const make_ist_ui_container = (
     refresh_layer(viz_state, layers_obj, 'background_layer');
   });
 
+  // Hide the gene panel (gene bar graph + gene search) for gene-less datasets
+  // (e.g. a point-cloud DegaFiles written without cbg data). set_meta_gene has
+  // already run, so an empty gene_names array reliably signals "no genes".
+  const hasGenes = (viz_state.genes.gene_names?.length || 0) > 0;
+
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(
       'image_layer_container',
@@ -973,7 +978,9 @@ export const make_ist_ui_container = (
     ctrl_container.appendChild(viz_state.containers.image);
   }
   ctrl_container.appendChild(cell_container);
-  ctrl_container.appendChild(gene_container);
+  if (hasGenes) {
+    ctrl_container.appendChild(gene_container);
+  }
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
@@ -1319,7 +1326,9 @@ export const make_ist_ui_container = (
     ctrl_container.appendChild(nbhd_cloud_slice_container);
   }
 
-  ctrl_container.appendChild(viz_state.genes.gene_search);
+  if (hasGenes) {
+    ctrl_container.appendChild(viz_state.genes.gene_search);
+  }
 
   // === Add logo to top right === //
   const logo_button = document.createElement('div');

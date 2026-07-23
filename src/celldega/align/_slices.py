@@ -21,10 +21,16 @@ __all__ = ["_ordered_slices", "_resolve_slice_order"]
 
 def _resolve_slice_order(column: pd.Series) -> list[Any]:
     """Slice order from a slice-tagging column: ordered-categorical order if
-    it is one, else sorted unique values."""
+    it is one, else sorted unique values — numerically when every value
+    looks like a number, so slice ids such as "9"/"10" don't end up sorted
+    lexicographically (which would place "10" between "1" and "2")."""
     if isinstance(column.dtype, pd.CategoricalDtype) and column.dtype.ordered:
         return [c for c in column.dtype.categories if c in column.unique()]
-    return sorted(column.unique().tolist())
+    values = column.unique().tolist()
+    try:
+        return sorted(values, key=float)
+    except (TypeError, ValueError):
+        return sorted(values)
 
 
 def _ordered_slices(

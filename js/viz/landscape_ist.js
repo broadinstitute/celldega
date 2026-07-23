@@ -268,6 +268,12 @@ export const landscape_ist = async (
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
 
+  // Named alignment variant (point-cloud only): selects the cell_metadata
+  // positions file independently of the segmentation-driven clusters/genes.
+  viz_state.alignment =
+    (typeof ini_model?.get === 'function' ? ini_model.get('alignment') : '') ||
+    '';
+
   viz_state.root = el;
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';

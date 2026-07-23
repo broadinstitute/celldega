@@ -4,6 +4,48 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.19.0a3] - 2026-07-22
+
+Alpha pre-release: interactive landmarking and 3D visualization of aligned
+data, building on the serial-slice alignment module from `0.19.0a1`. Published
+to make the `Landmark` widget and point-cloud alignment views easier to test.
+
+### Added
+
+- **`celldega.viz.Landmark`** — an interactive widget for manually marking
+  corresponding landmark points across slices. Two side-by-side panels (any
+  slice swappable into either via dropdowns) with MARK / MODIFY / SAVE / DEL,
+  per-landmark rename + color, and per-slice rotation. Centroids are colored by
+  an optional `cluster_key` and streamed over the widget comm channel (no
+  bucket reads). Emits `.landmarks` in the exact shape `calc_landmarks`
+  produces, so manual and automatic landmarks concatenate; `landmarks=`
+  reloads a prior table for review/extension.
+- **Anti-overfit TPS controls** — `area_regularization` and
+  `shape_regularization` (both `[0, 1]`) on `fit_transform_tps` /
+  `calc_alignment_transform`, applied as a post-fit SVD correction that pulls
+  the warp's global area and proportions toward rigid while leaving local
+  deformation intact (`1`/`1` makes the global part rotation-only). Both are
+  persisted through `save`/`load` and `uns["align_serial_slices"]`.
+- **`celldega.align.plot_alignment`** (also `transform.plot()`) — a before/after
+  2D scatter to sanity-check a fit at a glance.
+- **`celldega.align.write_alignment_point_cloud`** — writes aligned 3D cell
+  centroids into a point-cloud DegaFiles as named alignment variants
+  (`cell_metadata_<name>.parquet`), registered under a new `"alignments"` key
+  in `landscape_parameters.json`. Appends to an existing DegaFiles (positions
+  only, reusing clusters/genes) or creates a fresh one (clusters from
+  `obs[cluster_key]`, plus gene expression when `adata` carries it).
+- **`Landscape(alignment="<name>")`** — a new argument for point-cloud
+  technology that loads a named alignment's positions
+  (`cell_metadata_<name>.parquet`) while clusters/genes keep loading from
+  their normal paths, so alignments can be swapped without a dropdown.
+
+### Fixed
+
+- **Gene panel shown for gene-less datasets** — the `Landscape` gene bar-graph
+  and gene search are now hidden when a dataset has no gene expression (e.g. a
+  point-cloud DegaFiles written without `cbg/`), instead of rendering an empty
+  panel.
+
 ## [0.19.0a2] - 2026-07-17
 
 ### Fixed

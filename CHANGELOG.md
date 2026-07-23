@@ -12,7 +12,7 @@ to make the `Landmark` widget and point-cloud alignment views easier to test.
 
 ### Added
 
-- **`celldega.align.Landmark`** — an interactive widget for manually marking
+- **`celldega.viz.Landmark`** — an interactive widget for manually marking
   corresponding landmark points across slices. Two side-by-side panels (any
   slice swappable into either via dropdowns) with MARK / MODIFY / SAVE / DEL,
   per-landmark rename + color, and per-slice rotation. Centroids are colored by

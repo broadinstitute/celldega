@@ -93,6 +93,21 @@ def test_calc_landmarks_combined_anndata_mode_matches_list_mode():
         assert np.allclose([list_row["x"], list_row["y"]], [combined_row["x"], combined_row["y"]])
 
 
+def test_calc_landmarks_excludes_nan_cluster_labels():
+    rng = np.random.default_rng(6)
+    adata = _make_adata(rng, {"a": 5, "b": 8, "c": 3})
+    labels = adata.obs["cluster"].astype(object)
+    labels.iloc[:4] = np.nan  # unclustered/QC-filtered cells
+    adata.obs["cluster"] = labels
+
+    landmarks = calc_landmarks(adata, "cluster")
+
+    assert "nan" not in set(landmarks["label"])
+    assert set(landmarks["label"]) == set(_CENTERS)
+    row_a = landmarks.loc[landmarks["label"] == "a"].iloc[0]
+    assert row_a["count"] == 1  # 5 "a" cells, 4 of which were nulled out above
+
+
 def test_calc_landmarks_single_anndata_missing_slice_attr_column_raises():
     rng = np.random.default_rng(5)
     adata = _make_adata(rng, {"a": 2, "b": 2, "c": 2})  # has no "batch" column

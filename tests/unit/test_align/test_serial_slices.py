@@ -1,3 +1,5 @@
+import warnings
+
 import anndata as ad
 from anndata import AnnData
 import numpy as np
@@ -504,6 +506,38 @@ def test_align_serial_slices_uns_provenance_matches_transform():
     assert uns["landmarks_aligned"].equals(transform.landmarks_aligned)
     assert uns["transforms"] == transform.transform_log
     assert uns["method"] == transform.method
+
+
+def test_align_serial_slices_warns_on_duplicate_obs_names():
+    """Slices commonly reuse the same per-slice barcode convention (e.g. every
+    sample starts at "0", "1", ...) -- align_serial_slices should flag that
+    rather than silently producing an AnnData with duplicate obs_names."""
+    rng = np.random.default_rng(42)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks)
+
+    with pytest.warns(UserWarning, match="obs_names are not unique"):
+        combined = align_serial_slices([slice0, slice1], transform)
+
+    assert not combined.obs_names.is_unique
+
+
+def test_align_serial_slices_cell_name_prefix_keeps_names_unique_and_silences_warning():
+    rng = np.random.default_rng(43)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=10, translation=(1.0, 1.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        combined = align_serial_slices([slice0, slice1], transform, cell_name_prefix=True)
+
+    assert combined.obs_names.is_unique
+    assert combined.obs_names[0].startswith("0_")
+    assert combined.obs_names[slice0.n_obs].startswith("1_")
 
 
 # ---------------------------------------------------------------------------

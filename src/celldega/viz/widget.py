@@ -267,6 +267,14 @@ class Landscape(anywidget.AnyWidget):
     falls back to syncing them directly through the widget state, which is
     fine for smaller datasets.
 
+    A point-cloud (3D) view requires a real, pre-built DegaFiles ``base_url``
+    like any other technology — build one with the ``celldega.pre`` module
+    (e.g. after running an alignment with
+    :func:`~celldega.align.serial_slices.align_serial_slices`, regenerate
+    LandscapeFiles from the aligned ``AnnData`` before visualizing it).
+    ``adata`` here is only ever used for cell attributes/metadata, never for
+    spatial positions.
+
     The AnnData input automatically extracts cell attributes (e.g., ``leiden``
     clusters), the corresponding colors (or derives them when missing), and any
     available UMAP coordinates.
@@ -881,6 +889,9 @@ class Yearbook(anywidget.AnyWidget):
         default_value=["leiden"],
     ).tag(sync=True)
 
+    # obs column driving the cluster color legend/meta_cluster_parquet key field
+    cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
+
     # Stateless front-end query, evaluated in the browser against LandscapeFiles
     # (no Python/AnnData required). Distinct from the Python-side
     # ``celldega.select`` query module. Supports:
@@ -1017,6 +1028,8 @@ class Yearbook(anywidget.AnyWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+
+        self.cluster_attr = cluster_attr
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df

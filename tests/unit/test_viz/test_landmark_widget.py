@@ -7,7 +7,7 @@ import pytest
 
 
 try:
-    from celldega.align import Landmark
+    from celldega.viz import Landmark
 except Exception as e:  # pragma: no cover - skip if deps missing
     pytest.skip(f"celldega modules unavailable: {e}", allow_module_level=True)
 

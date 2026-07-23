@@ -3,7 +3,7 @@ import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
 from celldega import align, clust, collection, dataset, select, set, viz
-from celldega.align import Landmark, align_serial_slices
+from celldega.align import align_serial_slices
 from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
 from celldega.nbhd import alpha_shape
@@ -11,7 +11,7 @@ from celldega.nbhd.collection import NeighborhoodCollection
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.set import SetCollection, concat_sets
-from celldega.viz import Clustergram, Landscape, Yearbook
+from celldega.viz import Clustergram, Landmark, Landscape, Yearbook
 
 
 warnings.filterwarnings("ignore", category=FutureWarning)

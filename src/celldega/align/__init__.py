@@ -17,9 +17,9 @@ computes landmarks from shared cluster labels (accepting a list of
 ``AnnData`` or one combined ``AnnData``, no manual per-slice loop needed),
 or a manually-placed landmark table in the same shape (a plain
 ``DataFrame``, not a ``GeoDataFrame`` of shapely geometry, so it stays
-trivially disk-portable; e.g. from :class:`Landmark`, a point-drawing widget
-pairing with ``Landscape``) can be used instead, or concatenated alongside
-it for a semi-manual mix. (2)
+trivially disk-portable; e.g. from :class:`~celldega.viz.Landmark`, a
+point-drawing widget pairing with ``Landscape``) can be used instead, or
+concatenated alongside it for a semi-manual mix. (2)
 :func:`calc_alignment_transform` fits a rigid Procrustes
 (:func:`fit_transform_procrustes`, always without scaling — see
 :mod:`celldega.align.serial_slices`) or non-rigid thin-plate-spline
@@ -66,11 +66,9 @@ from celldega.align.serial_slices import (
     align_serial_slices,
     calc_alignment_transform,
 )
-from celldega.align.widget import Landmark
 
 
 __all__ = [
-    "Landmark",
     "SerialAlignmentTransform",
     "align_serial_slices",
     "calc_alignment_transform",

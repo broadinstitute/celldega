@@ -446,6 +446,17 @@ export const landmark = async (model, el) => {
         state.pending_rename = null;
         sync_label_input();
       }
+      // Enter in the name field also saves the landmark, once at least one point
+      // is placed — the fluid "type name -> Enter" flow. (An accidental Enter
+      // before placing anything just keeps the name and stays in MARK.)
+      if (
+        committed &&
+        state.ui_mode === 'mark' &&
+        state.pending_points.size > 0
+      ) {
+        save_mark();
+        return;
+      }
       rebuild_lndmrk_bar();
       rebuild_slice_bar();
       apply_ui_mode();
@@ -614,12 +625,37 @@ export const landmark = async (model, el) => {
     refresh();
   }
 
+  // The next landmark the *active* slice is missing but its sister panel's
+  // slice already has — so MARK can auto-suggest replicating a set across
+  // slices (place, save, advance to the next missing one) instead of always
+  // naming a brand-new landmark. Null when nothing's missing.
+  function next_missing_label() {
+    const active = state.active_side;
+    const sister = active === 'a' ? 'b' : 'a';
+    const current = new Set(
+      state.features[active]
+        .filter((f) => !f.properties.draft)
+        .map((f) => f.properties.label)
+    );
+    for (const f of state.features[sister]) {
+      if (!f.properties.draft && !current.has(f.properties.label)) {
+        return f.properties.label;
+      }
+    }
+    return null;
+  }
+
   function enter_mark(label) {
+    // A fresh MARK (L / MARK button, label == null) pre-fills the next label the
+    // current slice is missing vs its sister panel, as an editable default —
+    // mark_target_label stays null, so typing names a *new* landmark rather than
+    // renaming the suggested one.
+    const suggested = label == null ? next_missing_label() : null;
     state.ui_mode = 'mark';
-    state.active_label = label;
-    // The label a bar-click targeted (vs. null for a fresh MARK-button
-    // click) — kept around so the textbox can tell "rename this existing
-    // landmark" apart from "name the new one about to be created."
+    state.active_label = label ?? suggested;
+    // The label a bar-click targeted (vs. null for a fresh/suggested MARK) —
+    // kept around so the textbox can tell "rename this existing landmark" apart
+    // from "name the new one about to be created."
     state.mark_target_label = label;
     state.pending_rename = null;
     state.pending_points = new Map();
@@ -631,6 +667,10 @@ export const landmark = async (model, el) => {
     rebuild_slice_bar();
     refresh_view_controllers();
     refresh();
+    // Focus the name field so you can type/accept the suggested name right away
+    // (Enter there commits + saves — see make_label_input's on_commit).
+    label_input.input.focus();
+    label_input.input.select();
   }
 
   // Enter (or retarget within) MODIFY. `label` is the landmark to edit, or
@@ -725,7 +765,15 @@ export const landmark = async (model, el) => {
     model.set('add_landmark_points', { label, points });
     model.save_changes();
 
-    enter_browse();
+    // Advance the queue: if the current slice is still missing landmarks its
+    // sister panel has, stay in MARK and suggest the next one (place, save,
+    // repeat) — the just-saved point was optimistically promoted above, so it's
+    // already excluded. Otherwise return to browse.
+    if (next_missing_label() != null) {
+      enter_mark(null);
+    } else {
+      enter_browse();
+    }
   }
 
   function save_modify() {

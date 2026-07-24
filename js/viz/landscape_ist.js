@@ -389,7 +389,16 @@ export const landscape_ist = async (
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
   viz_state.cats.meta_cell_id_set = null;
-  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
+  // Color cells by the requested `cluster_attr` when that column is present in
+  // the cell metadata; else fall back to the first attribute. Without this, a
+  // non-'leiden' cluster_attr would be ignored whenever 'leiden' also happened
+  // to be the first cell attribute.
+  const requested_cluster_attr =
+    typeof ini_model?.get === 'function' ? ini_model.get('cluster_attr') : null;
+  viz_state.cats.inst_cell_attr =
+    requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
+      ? requested_cluster_attr
+      : meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;

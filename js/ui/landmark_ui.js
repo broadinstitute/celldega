@@ -156,10 +156,12 @@ export const register_landmark_keyboard_shortcuts = ({
     if (ignores_landmark_shortcut(event)) return;
     const key = event.key?.toLowerCase();
 
-    if (key === 'm') {
+    // 'l' (not 'm') starts a landmark: Jupyter reserves 'm' for "make cell
+    // markdown". Enter (and 's') saves.
+    if (key === 'l') {
       event.preventDefault();
       on_mark_toggle();
-    } else if (key === 's') {
+    } else if (key === 's' || key === 'enter') {
       event.preventDefault();
       on_save();
     } else if (key === 'escape') {

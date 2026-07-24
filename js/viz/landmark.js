@@ -185,7 +185,12 @@ export const landmark = async (model, el) => {
   const panels_row = document.createElement('div');
   panels_row.style.width = `${width}px`;
   panels_row.style.height = `${height}px`;
-  const deck_ist = ini_deck(panels_row, width, height);
+  // Per-view controllers only (set via `create_landmark_views`) — no top-level
+  // controller, so the left panel's `dragPan:false` isn't overridden by a
+  // default-view controller (which made left-panel marker drags also pan).
+  const deck_ist = ini_deck(panels_row, width, height, '', {
+    per_view_controllers: true,
+  });
 
   // deck.gl's camera-pan controller and the custom onDrag handler below both
   // respond to the same pointer gesture, so a marker drag also pans the view
@@ -202,6 +207,10 @@ export const landmark = async (model, el) => {
 
   let dragging = null; // { side, label, is_draft }
 
+  // Assigned once the STEP-Z control is built (below); a no-op until then so
+  // set_active_side (defined earlier) can refresh the slice indicator's colors.
+  let update_step_z_label = () => {};
+
   // Recreating the views (to toggle dragPan) *during* a drag cancels the
   // in-progress gesture — that's why marker dragging wasn't working. So the
   // controllers are only ever set at discrete, non-drag moments (mode
@@ -211,13 +220,7 @@ export const landmark = async (model, el) => {
   // dragged to refine it without the camera panning too.
   function refresh_view_controllers() {
     if (state.ui_mode === 'modify') {
-      // Disable camera-pan on only the side being edited, mirroring MARK
-      // (which disables pan on just the side holding a draft, and works on
-      // both panels). Disabling pan on BOTH views appears to stop deck.gl
-      // dispatching drag events to the left view — the "can't modify on the
-      // left panel" bug. `active_side` follows whichever marker was last
-      // clicked (see enter_modify, called after set_active_side).
-      apply_views(state.active_label != null ? [state.active_side] : []);
+      apply_views(['a', 'b']);
       return;
     }
     if (state.ui_mode === 'mark') {
@@ -774,6 +777,7 @@ export const landmark = async (model, el) => {
           s === side ? '#4f80ff' : 'transparent';
       }
     });
+    update_step_z_label();
   };
 
   // Clicking a cell (or a CELL bar) highlights that whole *cluster* and dims
@@ -1333,9 +1337,31 @@ export const landmark = async (model, el) => {
   prev_slice_button.addEventListener('click', () => step_slices(-1));
   next_slice_button.addEventListener('click', () => step_slices(1));
 
+  // The two currently-shown slice ids (left:right), the focused/active panel's
+  // id in purple, the other in gray — so you always know where in Z you are.
+  const step_z_label = document.createElement('span');
+  step_z_label.style.cssText =
+    'font-size:12px;font-weight:700;font-family:monospace;min-width:36px;text-align:center;';
+  step_z_label.title = 'left : right slice (focused panel = purple)';
+  update_step_z_label = () => {
+    const a = model.get('slice_id_a');
+    const b = model.get('slice_id_b');
+    const la = slice_labels[a] ?? a;
+    const lb = slice_labels[b] ?? b;
+    const gray = '#9aa0a6';
+    const purple = '#8b5cf6';
+    const ca = state.active_side === 'a' ? purple : gray;
+    const cb = state.active_side === 'b' ? purple : gray;
+    step_z_label.innerHTML =
+      `<span style="color:${ca}">${la}</span>` +
+      `<span style="color:${gray}">:</span>` +
+      `<span style="color:${cb}">${lb}</span>`;
+  };
+  update_step_z_label();
+
   const pagination_control = document.createElement('div');
   pagination_control.style.cssText = 'display:flex;align-items:center;gap:4px;';
-  pagination_control.append(prev_slice_button, next_slice_button);
+  pagination_control.append(prev_slice_button, step_z_label, next_slice_button);
   update_pagination_enabled();
 
   control_row.append(
@@ -1382,24 +1408,47 @@ export const landmark = async (model, el) => {
     refresh_view_controllers();
     rebuild_slice_bar();
     update_pagination_enabled();
+    update_step_z_label();
   };
 
   const on_centroids_changed = async (side) => {
+    const view_id = view_id_for_side(side);
+    const prev = state.view_states[view_id];
+    const old_bbox = bbox_of_side(side); // pre-swap rows
+
     state.rows[side] = await decode_centroids(model, side);
     recompute_rotation_state(side);
 
-    const view_id = view_id_for_side(side);
     const fit = initial_view_state_for_centroids(
       state.rows[side],
       panel_width,
       height
     );
-    const prev = state.view_states[view_id];
-    // Preserve the user's current zoom across a slice swap (just recenter the
-    // target on the new slice's centroid) so paginating through Z doesn't yank
-    // the camera. Fit-to-slice only on a side's very first load.
+    const new_bbox = bbox_of_side(side);
+    // Preserve the user's zoom AND pan offset across a slice swap: keep the same
+    // fractional spot within the slice's bounding box, so paginating Z holds the
+    // view on the same anatomical region instead of recentering. Fit-to-slice
+    // only on a side's very first load.
     const first_load = !prev || !Number.isFinite(prev.zoom);
-    const new_view_state = first_load ? fit : { ...prev, target: fit.target };
+    let new_view_state;
+    if (first_load) {
+      new_view_state = fit;
+    } else if (old_bbox && new_bbox) {
+      const fx =
+        (prev.target[0] - old_bbox.minx) / (old_bbox.maxx - old_bbox.minx || 1);
+      const fy =
+        (prev.target[1] - old_bbox.miny) / (old_bbox.maxy - old_bbox.miny || 1);
+      new_view_state = {
+        ...prev,
+        target: [
+          new_bbox.minx + fx * (new_bbox.maxx - new_bbox.minx),
+          new_bbox.miny + fy * (new_bbox.maxy - new_bbox.miny),
+          0,
+        ],
+      };
+    } else {
+      new_view_state = { ...prev, target: fit.target };
+    }
     state.view_states = { ...state.view_states, [view_id]: new_view_state };
     if (first_load) sync_zoom_from(view_id, new_view_state.zoom);
     scale_bars[side].update({ zoom: new_view_state.zoom });

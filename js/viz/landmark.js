@@ -15,6 +15,7 @@ import {
 } from '../deck-gl/layers/landmark_cell_layer';
 import {
   ini_landmark_marker_layer,
+  ini_landmark_label_layer,
   features_to_geojson,
   geojson_to_features,
   resolve_landmark_color,
@@ -210,7 +211,13 @@ export const landmark = async (model, el) => {
   // dragged to refine it without the camera panning too.
   function refresh_view_controllers() {
     if (state.ui_mode === 'modify') {
-      apply_views(['a', 'b']);
+      // Disable camera-pan on only the side being edited, mirroring MARK
+      // (which disables pan on just the side holding a draft, and works on
+      // both panels). Disabling pan on BOTH views appears to stop deck.gl
+      // dispatching drag events to the left view — the "can't modify on the
+      // left panel" bug. `active_side` follows whichever marker was last
+      // clicked (see enter_modify, called after set_active_side).
+      apply_views(state.active_label != null ? [state.active_side] : []);
       return;
     }
     if (state.ui_mode === 'mark') {
@@ -259,6 +266,11 @@ export const landmark = async (model, el) => {
         focus_label: current_target_label(),
         color_overrides: model.get('landmark_colors') || {},
       }),
+      ini_landmark_label_layer(side, combined_features(side), {
+        rotation_state: state.rotation_state[side],
+        visible: state.marker_visible,
+        color_overrides: model.get('landmark_colors') || {},
+      }),
     ]);
 
   const refresh = () => {
@@ -299,6 +311,41 @@ export const landmark = async (model, el) => {
     };
   };
 
+  // Bounding box of a side's cells, for mapping a zoom focal point onto the
+  // equivalent relative spot in the other slice.
+  const bbox_of_side = (side) => {
+    const rows = state.rows[side];
+    if (!rows || !rows.length) return null;
+    let minx = Infinity;
+    let maxx = -Infinity;
+    let miny = Infinity;
+    let maxy = -Infinity;
+    for (const r of rows) {
+      if (r.x < minx) minx = r.x;
+      if (r.x > maxx) maxx = r.x;
+      if (r.y < miny) miny = r.y;
+      if (r.y > maxy) maxy = r.y;
+    }
+    return { minx, maxx, miny, maxy };
+  };
+
+  // Map a focal point (view target) in one side's slice to the same fractional
+  // position within the other side's slice, so zooming into e.g. the upper-left
+  // of the left panel brings up the upper-left of the right panel's slice
+  // rather than its center.
+  const map_focal_to_partner = (src_side, target, dst_side) => {
+    const src = bbox_of_side(src_side);
+    const dst = bbox_of_side(dst_side);
+    if (!src || !dst) return null;
+    const fx = (target[0] - src.minx) / (src.maxx - src.minx || 1);
+    const fy = (target[1] - src.miny) / (src.maxy - src.miny || 1);
+    return [
+      dst.minx + fx * (dst.maxx - dst.minx),
+      dst.miny + fy * (dst.maxy - dst.miny),
+      0,
+    ];
+  };
+
   const scale_bars = {
     a: create_scale_bar(1, ''),
     b: create_scale_bar(1, ''),
@@ -310,16 +357,32 @@ export const landmark = async (model, el) => {
   );
 
   const handle_view_state_change = ({ viewId, viewState }) => {
+    const prev = state.view_states[viewId] || {};
+    const zoom_changed =
+      Number.isFinite(prev.zoom) && prev.zoom !== viewState.zoom;
     state.view_states = { ...state.view_states, [viewId]: viewState };
-    sync_zoom_from(viewId, viewState.zoom);
-    deck_ist.setProps({ viewState: state.view_states });
+
     const side = side_for_viewport_id(viewId);
+    const partner_view = other_view_id(viewId);
+    const partner_side = side_for_viewport_id(partner_view);
+
+    // Zoom stays locked across both panels. On a zoom (which pulls the target
+    // toward the cursor) also move the partner's focal point to the matching
+    // relative spot in its own slice; a plain pan is left independent.
+    const partner_state = {
+      ...state.view_states[partner_view],
+      zoom: viewState.zoom,
+    };
+    if (zoom_changed && side && partner_side) {
+      const mapped = map_focal_to_partner(side, viewState.target, partner_side);
+      if (mapped) partner_state.target = mapped;
+    }
+    state.view_states = { ...state.view_states, [partner_view]: partner_state };
+
+    deck_ist.setProps({ viewState: state.view_states });
     if (side) scale_bars[side].update({ zoom: viewState.zoom });
-    const partner_side = side_for_viewport_id(other_view_id(viewId));
     if (partner_side) {
-      scale_bars[partner_side].update({
-        zoom: state.view_states[other_view_id(viewId)].zoom,
-      });
+      scale_bars[partner_side].update({ zoom: viewState.zoom });
     }
   };
 
@@ -585,7 +648,10 @@ export const landmark = async (model, el) => {
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
-    if (!was_modify) refresh_view_controllers();
+    // Always refresh (not just on entry): retargeting to a marker on the other
+    // side changes active_side, which is what the modify-mode pan-off follows.
+    // A click is a discrete, non-drag moment, so recreating the views is safe.
+    refresh_view_controllers();
     refresh();
   }
 
@@ -668,13 +734,15 @@ export const landmark = async (model, el) => {
   function delete_modify() {
     const label = state.active_label;
     if (!label) return;
-    const confirmed = window.confirm(
-      `Delete landmark "${label}" entirely, across every slice it appears in? This can't be undone.`
+    // DEL removes this landmark from the CURRENT slice only (the active panel),
+    // via the same per-side geojson round-trip a drag uses. Deleting it from
+    // *every* slice is the explicit shift-click on the LNDMRK bar. Single-slice
+    // delete is low-stakes (just re-mark it), so no confirm prompt.
+    const side = state.active_side;
+    state.features[side] = state.features[side].filter(
+      (f) => f.properties.draft || f.properties.label !== label
     );
-    if (!confirmed) return;
-    model.set('delete_landmark', '');
-    model.set('delete_landmark', label);
-    model.save_changes();
+    sync_side_to_model(side);
     enter_browse();
   }
 
@@ -1212,10 +1280,69 @@ export const landmark = async (model, el) => {
     return tag;
   };
 
+  // --- Slice pagination: step BOTH panels one slice in Z at once --------------
+  // The big pain in a 10-slice stack is "walking" 1->10: dropdown-picking each
+  // panel every step. These step both panels together (preserving their offset)
+  // so you can page up/down Z and keep marking.
+  const make_step_button = (label, title) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.title = title;
+    btn.style.cssText =
+      'font-size:14px;width:28px;height:24px;padding:0;line-height:1;' +
+      'border:1px solid #d3d3d3;border-radius:3px;background:#fff;color:#1e90ff;';
+    return btn;
+  };
+  const prev_slice_button = make_step_button(
+    '◀',
+    'Both panels one slice back in Z'
+  );
+  const next_slice_button = make_step_button(
+    '▶',
+    'Both panels one slice forward in Z'
+  );
+
+  const step_slices = (delta) => {
+    const ia = slice_ids.indexOf(model.get('slice_id_a'));
+    const ib = slice_ids.indexOf(model.get('slice_id_b'));
+    if (ia < 0 || ib < 0) return;
+    const na = ia + delta;
+    const nb = ib + delta;
+    // Keep the whole window in range so both panels always show a real slice.
+    if (na < 0 || nb < 0 || na >= slice_ids.length || nb >= slice_ids.length) {
+      return;
+    }
+    model.set('slice_id_a', slice_ids[na]);
+    model.set('slice_id_b', slice_ids[nb]);
+    model.save_changes();
+  };
+
+  const update_pagination_enabled = () => {
+    const ia = slice_ids.indexOf(model.get('slice_id_a'));
+    const ib = slice_ids.indexOf(model.get('slice_id_b'));
+    const at_start = Math.min(ia, ib) <= 0;
+    const at_end = Math.max(ia, ib) >= slice_ids.length - 1;
+    prev_slice_button.disabled = at_start;
+    next_slice_button.disabled = at_end;
+    prev_slice_button.style.opacity = at_start ? '0.35' : '1';
+    next_slice_button.style.opacity = at_end ? '0.35' : '1';
+    prev_slice_button.style.cursor = at_start ? 'default' : 'pointer';
+    next_slice_button.style.cursor = at_end ? 'default' : 'pointer';
+  };
+
+  prev_slice_button.addEventListener('click', () => step_slices(-1));
+  next_slice_button.addEventListener('click', () => step_slices(1));
+
+  const pagination_control = document.createElement('div');
+  pagination_control.style.cssText = 'display:flex;align-items:center;gap:4px;';
+  pagination_control.append(prev_slice_button, next_slice_button);
+  update_pagination_enabled();
+
   control_row.append(
     // The label textbox + color swatch are appended into `toolbar.container`
     // above, so they sit under the buttons here.
     make_section([toolbar.container], null),
+    make_section([make_tag('STEP Z'), pagination_control], null),
     make_section([lndmrk_toggle], lndmrk_bar_container),
     make_section([cell_toggle, opacity_slider.container], cell_bar_container),
     make_section([trx_toggle], trx_bar_container),
@@ -1254,6 +1381,7 @@ export const landmark = async (model, el) => {
     // so its pan-enabled state can change (see `refresh_view_controllers`).
     refresh_view_controllers();
     rebuild_slice_bar();
+    update_pagination_enabled();
   };
 
   const on_centroids_changed = async (side) => {
@@ -1261,13 +1389,19 @@ export const landmark = async (model, el) => {
     recompute_rotation_state(side);
 
     const view_id = view_id_for_side(side);
-    const new_view_state = initial_view_state_for_centroids(
+    const fit = initial_view_state_for_centroids(
       state.rows[side],
       panel_width,
       height
     );
+    const prev = state.view_states[view_id];
+    // Preserve the user's current zoom across a slice swap (just recenter the
+    // target on the new slice's centroid) so paginating through Z doesn't yank
+    // the camera. Fit-to-slice only on a side's very first load.
+    const first_load = !prev || !Number.isFinite(prev.zoom);
+    const new_view_state = first_load ? fit : { ...prev, target: fit.target };
     state.view_states = { ...state.view_states, [view_id]: new_view_state };
-    sync_zoom_from(view_id, new_view_state.zoom);
+    if (first_load) sync_zoom_from(view_id, new_view_state.zoom);
     scale_bars[side].update({ zoom: new_view_state.zoom });
     scale_bars[side === 'a' ? 'b' : 'a'].update({
       zoom: state.view_states[other_view_id(view_id)].zoom,

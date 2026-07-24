@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { ScatterplotLayer } from 'deck.gl';
+import { ScatterplotLayer, TextLayer } from 'deck.gl';
 
 import { hexToRgb } from '../../utils/hexToRgb';
 import { getModelMatrixProps } from '../../utils/rotation';
@@ -127,6 +127,43 @@ export const ini_landmark_marker_layer = (
       getFillColor: [color_overrides, focus_label],
       getLineColor: [color_overrides, focus_label],
     },
+    ...getModelMatrixProps(rotation_state),
+  });
+
+/**
+ * Small, semi-transparent text labels sitting just above each landmark marker,
+ * so a slice full of markers stays readable (which one is `tongue-3`?) without
+ * having to hover each. Same `rotation_state` modelMatrix as the marker layer,
+ * so labels ride along with a rotated slice. Not pickable — clicks/drags should
+ * always hit the marker disc underneath, never the text.
+ */
+export const ini_landmark_label_layer = (
+  side,
+  features,
+  { rotation_state, visible = true, color_overrides = {} } = {}
+) =>
+  new TextLayer({
+    id: `landmark-label-${side}`,
+    data: features,
+    visible,
+    getPosition: (f) => f.geometry.coordinates,
+    getText: (f) => String(f.properties.label),
+    getColor: (f) => {
+      const [r, g, b] = resolve_landmark_color(
+        f.properties.label,
+        color_overrides
+      );
+      return [r, g, b, 180];
+    },
+    getSize: 12,
+    sizeUnits: 'pixels',
+    getPixelOffset: [0, -11], // just above the disc
+    getTextAnchor: 'middle',
+    getAlignmentBaseline: 'bottom',
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
+    characterSet: 'auto',
+    pickable: false,
     ...getModelMatrixProps(rotation_state),
   });
 

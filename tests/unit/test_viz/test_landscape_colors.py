@@ -63,3 +63,28 @@ def test_landscape_does_not_mutate_passed_adata() -> None:
     assert list(adata.obs_names) == index_before
     assert list(adata.obs.columns) == columns_before  # cell_id not consumed into index
     assert set(adata.uns.keys()) == uns_keys_before
+
+
+def test_meta_cell_keyed_by_obs_names_not_cell_id_column() -> None:
+    # Regression: cell metadata must be keyed by obs_names (which match the
+    # DegaFiles cell_metadata `name` column), NOT a `cell_id` obs column whose
+    # values differ (here a reordered "cell__slice" form). Keying by the wrong
+    # column silently mismatched every cell -> cluster "N.A." -> culled cells.
+    import io
+
+    import pyarrow.parquet as pq
+
+    adata = ad.AnnData(np.zeros((3, 3)))
+    adata.obs_names = ["T1_E14_62_cell10000", "T1_E14_62_cell10001", "T1_E14_62_cell10002"]
+    adata.obs["cell_id"] = ["cell10000__T1_E14_62", "cell10001__T1_E14_62", "cell10002__T1_E14_62"]
+    adata.obs["leiden"] = pd.Categorical(["0", "1", "0"])
+
+    widget = Landscape(adata=adata, cluster_attr="leiden")
+
+    table = pq.read_table(io.BytesIO(widget.meta_cell_parquet))
+    key_field = next(
+        f for f in ("cell_id", "__index_level_0__", "index", "name") if f in table.schema.names
+    )
+    keys = {str(x) for x in table.column(key_field).to_pylist()}
+    assert keys == set(adata.obs_names)  # keyed by obs_names ...
+    assert not (keys & set(adata.obs["cell_id"]))  # ... not the cell_id column

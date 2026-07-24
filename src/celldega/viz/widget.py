@@ -436,13 +436,16 @@ class Landscape(anywidget.AnyWidget):
 
         if adata is not None:
             # Never mutate the caller's AnnData. Derive cell metadata from a
-            # copy/non-inplace view of obs, and never call scanpy plotting
-            # (sc.pl.umap writes `<attr>_colors` back into adata.uns).
+            # copy/view of obs, and never call scanpy plotting (sc.pl.umap
+            # writes `<attr>_colors` back into adata.uns).
+            #
+            # Key cell metadata by adata.obs_names (the canonical AnnData cell
+            # identifier) — that's what matches the DegaFiles cell_metadata
+            # `name` column. A `cell_id` obs *column* is intentionally NOT used
+            # as the key: when its values differ from obs_names (e.g. a
+            # reordered "cell__slice" form) it silently mismatches every cell,
+            # so cluster coloring resolves to "N.A." and point-cloud cells cull.
             obs = adata.obs
-            # If a cell_id column is present, key metadata by it — via a
-            # non-inplace set_index, so adata.obs's own index is untouched.
-            if "cell_id" in obs.columns:
-                obs = obs.set_index("cell_id")
 
             if "color" in obs.columns and "color" not in cell_attr:
                 cell_attr.append("color")
@@ -887,11 +890,10 @@ class Yearbook(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
-            # Never mutate the caller's AnnData (see Landscape): derive from a
-            # non-inplace view of obs and don't call scanpy plotting.
+            # Never mutate the caller's AnnData, and key cell metadata by
+            # obs_names (not a `cell_id` column) so it matches the DegaFiles
+            # cell_metadata `name` column — see Landscape for the full rationale.
             obs = adata.obs
-            if "cell_id" in obs.columns:
-                obs = obs.set_index("cell_id")
 
             cell_attr = [c for c in cell_attr if c in obs.columns]
             meta_cell_df = obs[cell_attr].copy()

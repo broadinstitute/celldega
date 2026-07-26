@@ -683,8 +683,12 @@ export const make_ist_ui_container = (
   );
 
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    ({ svg, color_dict, get_selected_array, bar_callback, container }) =>
     (bar_data) => {
+      // Read the current selection each time the bars redraw. Capturing it once
+      // at setup would freeze a stale array reference (the store replaces the
+      // array on every selection change rather than mutating it in place).
+      const selected_array = get_selected_array();
       const bar_height = 15;
       const svg_height = bar_height * (bar_data.length + 1);
       svg.attr('height', svg_height);
@@ -773,7 +777,7 @@ export const make_ist_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.cats.svg_bar_cluster,
       color_dict: viz_state.cats.color_dict_cluster,
-      selected_array: viz_state.cats.selected_cats,
+      get_selected_array: () => viz_state.obs_store.selected_cats.get(),
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
     }),
@@ -784,7 +788,7 @@ export const make_ist_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.genes.svg_bar_gene,
       color_dict: viz_state.genes.color_dict_gene,
-      selected_array: viz_state.genes.selected_genes,
+      get_selected_array: () => viz_state.obs_store.selected_genes.get(),
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
     }),

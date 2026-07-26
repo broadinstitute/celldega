@@ -69,6 +69,7 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
+import { bind_selection_to_store } from '../obs_store/bind_selection';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
@@ -439,6 +440,12 @@ export const landscape_ist = async (
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
   viz_state.genes.selected_gene_ids = new Set();
+
+  // Make obs_store the single source of truth for selection state:
+  // viz_state.cats.selected_cats and viz_state.genes.selected_genes now delegate
+  // to the store observables, so reads and writes can no longer drift apart.
+  bind_selection_to_store(viz_state);
+
   viz_state.genes.trx_ini_radius = trx_radius;
   viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];

@@ -2,6 +2,7 @@ import { create_clustergram_store } from '../obs_store/clustergram_store';
 import { ManualCategoryStore } from '../obs_store/manual_category_store';
 
 import { initialize_attr_state } from './attr_state';
+import { resolve_viz_mode } from './mat_data';
 
 /**
  * Parse entity specification from string or object.
@@ -221,6 +222,26 @@ export const set_mat_constants = (
   abs_vals.sort((a, b) => a - b);
   const perc_idx = Math.floor(0.99 * (abs_vals.length - 1));
   viz_state.mat.max_abs_value = abs_vals[perc_idx] || 1;
+
+  // Secondary matrix (dot-plot size channel) and its normalization scale.
+  const has_size_mat = Array.isArray(network.size_mat);
+  viz_state.mat.max_size_value = has_size_mat
+    ? network.size_mat.flat().reduce((m, x) => Math.max(m, Math.abs(x)), 0) || 1
+    : 1;
+
+  // Requested encoding mode (heatmap | size | dotplot); dotplot needs a size mat.
+  const requested_mode =
+    (model && typeof model.get === 'function' && model.get('viz_mode')) ||
+    'heatmap';
+  viz_state.mat.viz_mode = resolve_viz_mode(requested_mode, has_size_mat);
+
+  // Composition (stacked-bar) body configuration. `composition_normalized`
+  // defaults to true (each column normalized to 100%); set false for raw counts.
+  viz_state.mat.composition_normalized =
+    model && typeof model.get === 'function'
+      ? model.get('composition_normalized') !== false
+      : true;
+  viz_state.global_cat_colors = network.global_cat_colors || {};
 
   viz_state.order = {};
 

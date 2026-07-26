@@ -25,6 +25,15 @@ export const ini_mat_layer = (viz_state) => {
       duration: viz_state.animate.duration,
       easing: d3.easeCubic,
     },
+    // Animate size + opacity so switching viz_mode (heatmap/size/dotplot) is fun.
+    getRadius: {
+      duration: viz_state.animate.duration,
+      easing: d3.easeCubic,
+    },
+    getFillColor: {
+      duration: viz_state.animate.duration,
+      easing: d3.easeCubic,
+    },
   };
 
   const mat_layer = new CustomMatrixLayer({
@@ -32,6 +41,8 @@ export const ini_mat_layer = (viz_state) => {
     data: viz_state.mat.mat_data,
     getPosition: (d) => mat_layer_get_position(d, viz_state),
     getFillColor: (d) => d.color,
+    // Per-cell size scale in [0, 1] consumed by the custom vertex shader.
+    getRadius: (d) => d.size_scale,
     pickable: true,
     antialiasing: false,
     tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,

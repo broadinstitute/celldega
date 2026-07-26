@@ -19,6 +19,84 @@ from .boundary_tile import _get_name_mapping
 # to avoid OOM from ``partition_by`` materializing every non-empty tile at once.
 STREAMING_TILE_ASSIGN_ROW_THRESHOLD = 500_000
 
+# Columns that only exist to build ``geometry`` / carry source identifiers and are not
+# written to the tile parquets.
+_TILE_DROP_COLUMNS = ("transformed_x", "transformed_y", "cell_id", "transcript_id")
+
+
+def _transform_batch(chunk, sparse_matrix, image_scale):
+    """Apply the affine transform to a single polars batch.
+
+    The input ``chunk`` must contain ``x`` and ``y`` columns (micron space). The
+    returned frame replaces them with rounded ``transformed_x``/``transformed_y``
+    columns (image space) and keeps every other column untouched.
+
+    Parameters
+    ----------
+    chunk : polars.DataFrame
+        Batch of transcripts with ``x`` and ``y`` columns.
+    sparse_matrix : scipy.sparse matrix
+        Affine transformation matrix (micron -> image space).
+    image_scale : float
+        Scale factor applied after the affine transform.
+
+    Returns
+    -------
+    polars.DataFrame
+        ``chunk`` with ``x``/``y`` replaced by ``transformed_x``/``transformed_y``.
+    """
+    points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
+    transformed_points = sparse_matrix.dot(points.T).T[:, :2]
+
+    return chunk.with_columns(
+        [
+            (pl.Series(transformed_points[:, 0]) * image_scale).round(2).alias("transformed_x"),
+            (pl.Series(transformed_points[:, 1]) * image_scale).round(2).alias("transformed_y"),
+        ]
+    ).drop(["x", "y"])
+
+
+def _assign_tile_indices_and_geometry(trx, x_min, y_min, tile_size, n_tiles_x, n_tiles_y):
+    """Add clamped ``tile_x``/``tile_y`` indices and a ``geometry`` list column.
+
+    Tile indices are computed in a single vectorized pass (``O(n)``) and clamped to
+    the valid grid range so edge coordinates land in the last tile. The redundant
+    coordinate and identifier columns in :data:`_TILE_DROP_COLUMNS` are dropped.
+
+    Parameters
+    ----------
+    trx : polars.DataFrame
+        Transcripts with ``transformed_x`` and ``transformed_y`` columns.
+    x_min, y_min : float
+        Origin of the tile grid in image space.
+    tile_size : float
+        Size of each fine tile.
+    n_tiles_x, n_tiles_y : int
+        Number of tiles along each axis (used to clamp edge coordinates).
+
+    Returns
+    -------
+    polars.DataFrame
+        Frame with ``tile_x``, ``tile_y`` and ``geometry`` columns.
+    """
+    trx = trx.with_columns(
+        [
+            ((pl.col("transformed_x") - x_min) / tile_size).floor().cast(pl.Int32).alias("tile_x"),
+            ((pl.col("transformed_y") - y_min) / tile_size).floor().cast(pl.Int32).alias("tile_y"),
+        ]
+    )
+    trx = trx.with_columns(
+        [
+            pl.col("tile_x").clip(0, n_tiles_x - 1).alias("tile_x"),
+            pl.col("tile_y").clip(0, n_tiles_y - 1).alias("tile_y"),
+        ]
+    )
+    trx = trx.with_columns(
+        pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
+    )
+    columns_to_drop = [col for col in _TILE_DROP_COLUMNS if col in trx.columns]
+    return trx.drop(columns_to_drop)
+
 
 def _process_coarse_tile_transcripts(
     trx,
@@ -244,6 +322,13 @@ def _load_transcript_data_by_technology(technology, path_trx):
         ).select(["name", "x", "y"])
 
     if technology == "Xenium":
+        # Accept the native ``transcripts.zarr.zip`` spatial-grid bundle as an
+        # alternative to the flat ``transcripts.parquet``.
+        from .trx_zarr import is_zarr_transcript_path, load_zarr_transcripts
+
+        if is_zarr_transcript_path(path_trx):
+            return load_zarr_transcripts(path_trx)
+
         return pl.read_parquet(path_trx).select(
             [
                 pl.col("cell_id"),
@@ -293,18 +378,7 @@ def _transform_coordinates_in_chunks(trx_ini, chunk_size, transformation_matrix,
 
     for start_row in tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks"):
         chunk = trx_ini.slice(start_row, chunk_size)
-
-        points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
-        transformed_points = sparse_matrix.dot(points.T).T[:, :2]
-
-        # Create new transformed columns and drop original x, y columns
-        transformed_chunk = chunk.with_columns(
-            [
-                (pl.Series(transformed_points[:, 0]) * image_scale).round(2).alias("transformed_x"),
-                (pl.Series(transformed_points[:, 1]) * image_scale).round(2).alias("transformed_y"),
-            ]
-        ).drop(["x", "y"])
-        all_chunks.append(transformed_chunk)
+        all_chunks.append(_transform_batch(chunk, sparse_matrix, image_scale))
 
     # Concatenate all chunks after processing
     return pl.concat(all_chunks)
@@ -328,15 +402,7 @@ def _transform_coordinates_to_parquet_shards(
         tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks")
     ):
         chunk = trx_ini.slice(start_row, chunk_size)
-        points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
-        transformed_points = sparse_matrix.dot(points.T).T[:, :2]
-
-        transformed_chunk = chunk.with_columns(
-            [
-                (pl.Series(transformed_points[:, 0]) * image_scale).round(2).alias("transformed_x"),
-                (pl.Series(transformed_points[:, 1]) * image_scale).round(2).alias("transformed_y"),
-            ]
-        ).drop(["x", "y"])
+        transformed_chunk = _transform_batch(chunk, sparse_matrix, image_scale)
 
         row = transformed_chunk.select(
             [
@@ -366,27 +432,7 @@ def _spill_one_transform_shard_to_tiles(
     spill_root = Path(spill_root)
     trx = pl.read_parquet(shard_path)
 
-    trx = trx.with_columns(
-        [
-            ((pl.col("transformed_x") - x_min) / tile_size).floor().cast(pl.Int32).alias("tile_x"),
-            ((pl.col("transformed_y") - y_min) / tile_size).floor().cast(pl.Int32).alias("tile_y"),
-        ]
-    )
-    trx = trx.with_columns(
-        [
-            pl.col("tile_x").clip(0, n_tiles_x - 1).alias("tile_x"),
-            pl.col("tile_y").clip(0, n_tiles_y - 1).alias("tile_y"),
-        ]
-    )
-    trx = trx.with_columns(
-        pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
-    )
-    columns_to_drop = [
-        col
-        for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
-        if col in trx.columns
-    ]
-    trx = trx.drop(columns_to_drop)
+    trx = _assign_tile_indices_and_geometry(trx, x_min, y_min, tile_size, n_tiles_x, n_tiles_y)
 
     grouped = trx.partition_by(["tile_x", "tile_y"], as_dict=True)
     for (tx, ty), tile_df in grouped.items():
@@ -874,34 +920,8 @@ def _collect_tile_data_for_row_groups(
     print(f"Grid: {n_tiles_x} x {n_tiles_y} = {n_tiles_x * n_tiles_y} tiles")
     print("Calculating tile indices for all transcripts...")
 
-    # OPTIMIZED: Calculate tile indices for ALL transcripts at once (O(n))
-    trx = trx.with_columns(
-        [
-            ((pl.col("transformed_x") - x_min) / tile_size).floor().cast(pl.Int32).alias("tile_x"),
-            ((pl.col("transformed_y") - y_min) / tile_size).floor().cast(pl.Int32).alias("tile_y"),
-        ]
-    )
-
-    # Clamp to valid range (edge cases)
-    trx = trx.with_columns(
-        [
-            pl.col("tile_x").clip(0, n_tiles_x - 1).alias("tile_x"),
-            pl.col("tile_y").clip(0, n_tiles_y - 1).alias("tile_y"),
-        ]
-    )
-
-    # Add geometry column
-    trx = trx.with_columns(
-        pl.concat_list([pl.col("transformed_x"), pl.col("transformed_y")]).alias("geometry")
-    )
-
-    # Drop original coordinate columns
-    columns_to_drop = [
-        col
-        for col in ["transformed_x", "transformed_y", "cell_id", "transcript_id"]
-        if col in trx.columns
-    ]
-    trx = trx.drop(columns_to_drop)
+    # Calculate tile indices, clamp edges, and build geometry for ALL transcripts at once (O(n))
+    trx = _assign_tile_indices_and_geometry(trx, x_min, y_min, tile_size, n_tiles_x, n_tiles_y)
 
     print("Grouping transcripts by tile...")
 

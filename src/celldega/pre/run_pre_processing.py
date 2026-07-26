@@ -95,6 +95,7 @@ def _setup_preprocessing_paths(technology, path_dega_files, data_dir, sample=Non
             "meta_cell_image": landscape_path / "cell_metadata.parquet",
             "meta_gene": landscape_path / "meta_gene.parquet",
             "transcripts": data_path / "transcripts.parquet",
+            "transcripts_zarr": data_path / "transcripts.zarr.zip",
             "transcript_tiles": landscape_path / "transcript_tiles",
             "cell_boundaries": data_path / "cell_boundaries.parquet",
             "cell_segmentation": landscape_path / "cell_segmentation",
@@ -361,22 +362,39 @@ def main(
             need_trx_tiles = not trx_output_dir.exists()
             need_boundaries = not cell_output_dir.exists()
 
+            use_zarr_trx = technology == "Xenium" and Path(paths["transcripts_zarr"]).exists()
+
             if need_trx_tiles:
-                print("\n======== Transcript Tiles (Row Groups) ========")
-                tile_bounds, tile_grid_info, trx_chunk_info = dega.pre.make_trx_tiles_row_groups(
-                    technology,
-                    str(paths["transcripts"]),
-                    str(transform_out),
-                    str(trx_output_dir),
-                    coarse_tile_factor=10,
-                    tile_size=tile_size,
-                    chunk_size=100000,
-                    verbose=False,
-                    image_scale=1,
-                    max_workers=max_workers,
-                    path_dega_files=path_dega_files,
-                    max_row_groups_per_file=max_row_groups_per_file,
-                )
+                if use_zarr_trx:
+                    print("\n======== Transcript Tiles (Row Groups, Zarr grid) ========")
+                    tile_bounds, tile_grid_info, trx_chunk_info = dega.pre.make_trx_tiles_from_zarr(
+                        str(paths["transcripts_zarr"]),
+                        str(transform_out),
+                        str(trx_output_dir),
+                        tile_size=tile_size,
+                        image_scale=1,
+                        use_row_groups=True,
+                        max_row_groups_per_file=max_row_groups_per_file,
+                        path_dega_files=path_dega_files,
+                    )
+                else:
+                    print("\n======== Transcript Tiles (Row Groups) ========")
+                    tile_bounds, tile_grid_info, trx_chunk_info = (
+                        dega.pre.make_trx_tiles_row_groups(
+                            technology,
+                            str(paths["transcripts"]),
+                            str(transform_out),
+                            str(trx_output_dir),
+                            coarse_tile_factor=10,
+                            tile_size=tile_size,
+                            chunk_size=100000,
+                            verbose=False,
+                            image_scale=1,
+                            max_workers=max_workers,
+                            path_dega_files=path_dega_files,
+                            max_row_groups_per_file=max_row_groups_per_file,
+                        )
+                    )
                 print(f"tile bounds: {tile_bounds}")
             else:
                 print("Skipping transcript tiles, output already exists")
@@ -403,20 +421,34 @@ def main(
             need_trx_tiles = not _output_exists(paths["transcript_tiles"])
             need_boundaries = not _output_exists(paths["cell_segmentation"])
 
+            use_zarr_trx = technology == "Xenium" and Path(paths["transcripts_zarr"]).exists()
+
             if need_trx_tiles or need_boundaries:
-                print("\n======== Transcript Tiles========")
-                tile_bounds = dega.pre.make_trx_tiles(
-                    technology,
-                    str(paths["transcripts"]),
-                    str(transform_out),
-                    str(paths["transcript_tiles"]),
-                    coarse_tile_factor=10,
-                    tile_size=tile_size,
-                    chunk_size=100000,
-                    verbose=False,
-                    image_scale=1,
-                    max_workers=max_workers,
-                )
+                if use_zarr_trx:
+                    print("\n======== Transcript Tiles (Zarr grid) ========")
+                    tile_bounds, _, _ = dega.pre.make_trx_tiles_from_zarr(
+                        str(paths["transcripts_zarr"]),
+                        str(transform_out),
+                        str(paths["transcript_tiles"]),
+                        tile_size=tile_size,
+                        image_scale=1,
+                        use_row_groups=False,
+                        path_dega_files=path_dega_files,
+                    )
+                else:
+                    print("\n======== Transcript Tiles========")
+                    tile_bounds = dega.pre.make_trx_tiles(
+                        technology,
+                        str(paths["transcripts"]),
+                        str(transform_out),
+                        str(paths["transcript_tiles"]),
+                        coarse_tile_factor=10,
+                        tile_size=tile_size,
+                        chunk_size=100000,
+                        verbose=False,
+                        image_scale=1,
+                        max_workers=max_workers,
+                    )
                 print(f"tile bounds: {tile_bounds}")
             else:
                 print("Skipping transcript tiles, output already exists")

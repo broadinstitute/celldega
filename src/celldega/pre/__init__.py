@@ -39,6 +39,13 @@ from .landscape import (
 )
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
+from .trx_zarr import (
+    is_zarr_transcript_path,
+    iter_zarr_transcript_batches,
+    load_zarr_transcripts,
+    make_trx_tiles_from_zarr,
+    read_zarr_transcript_metadata,
+)
 
 
 def main(*args, **kwargs):
@@ -1812,11 +1819,18 @@ __all__ = [
     "add_clustering_from_adata",
     "boundary_tile",
     "get_image_info",
+    "is_zarr_transcript_path",
+    "iter_zarr_transcript_batches",
     "landscape",
+    "load_zarr_transcripts",
     "main",
     "make_trx_tiles",
+    "make_trx_tiles_from_zarr",
+    "make_trx_tiles_row_groups",
     "read_cbg_mtx",
+    "read_zarr_transcript_metadata",
     "resolve_xenium_morphology_ome_path",
     "trx_tile",
+    "trx_zarr",
     "write_identity_transform",
 ]

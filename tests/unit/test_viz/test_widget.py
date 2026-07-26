@@ -47,11 +47,14 @@ def test_export_viz_parquet_returns_bytes() -> None:
 
     expected_entity_keys = {"row_entity", "col_entity"}
 
-    assert set(pq) == expected_bytes_keys | expected_entity_keys | {"meta"}
+    # `dot_mat` is always present but empty unless a dot-size matrix was attached.
+    assert set(pq) == expected_bytes_keys | expected_entity_keys | {"meta", "dot_mat"}
 
     for key in expected_bytes_keys:
         assert isinstance(pq[key], bytes | bytearray)
         assert pq[key]  # non-empty
+    assert isinstance(pq["dot_mat"], bytes | bytearray)
+    assert pq["dot_mat"] == b""  # no dot matrix set on this fixture
     assert isinstance(pq["meta"], dict)
 
     # Entity info should be dicts with entity and attr keys

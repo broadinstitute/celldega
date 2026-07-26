@@ -254,6 +254,12 @@ class Matrix:
         self.meta_col: pd.DataFrame = pd.DataFrame()
         self.meta_row: pd.DataFrame = pd.DataFrame()
 
+        # Optional secondary matrix (aligned to the main matrix by row/col name)
+        # used as a per-cell *size* channel for dot-plot style Clustergrams —
+        # e.g. the fraction of cells in a cluster expressing each gene. See
+        # :meth:`set_dot_matrix`.
+        self.dot_mat: pd.DataFrame | None = None
+
         self.col_attr = col_attr or list(self.meta_col.columns)
         self.row_attr = row_attr or list(self.meta_row.columns)
 
@@ -929,6 +935,56 @@ class Matrix:
         )
         return self.export_viz_json_string()
 
+    def set_dot_matrix(self, dot: pd.DataFrame | np.ndarray | AnnData | Matrix) -> Matrix:
+        """Attach a secondary matrix that drives dot-plot *size* encoding.
+
+        The values are interpreted as a per-cell size channel (typically the
+        fraction of cells in a cluster expressing a gene, in ``[0, 1]``) that is
+        rendered as square/dot size in a dot-plot :class:`~celldega.viz.Clustergram`,
+        independently of the main matrix which continues to drive color/opacity
+        and the clustering order.
+
+        The dot matrix is aligned to the main matrix **by row and column name** at
+        export time, so it does not need to share the clustered ordering — only
+        the same labels. Missing entries become ``0`` (no dot).
+
+        Args:
+            dot: A ``DataFrame`` indexed by row names with columns of column
+                names, a 2D array matching the main matrix shape/order, an
+                ``AnnData`` (``X`` with ``obs_names`` rows / ``var_names`` cols),
+                or another ``Matrix``.
+
+        Returns:
+            ``self`` (to allow chaining, e.g. ``Matrix(df).set_dot_matrix(frac)``).
+        """
+        if isinstance(dot, Matrix):
+            dot = pd.DataFrame(
+                dot.dat["mat"],
+                index=dot.dat["nodes"][Axis.ROW.value],
+                columns=dot.dat["nodes"][Axis.COL.value],
+            )
+        elif isinstance(dot, AnnData):
+            values = dot.X.toarray() if hasattr(dot.X, "toarray") else np.asarray(dot.X)
+            dot = pd.DataFrame(
+                values,
+                index=dot.obs_names.astype(str),
+                columns=dot.var_names.astype(str),
+            )
+        elif not isinstance(dot, pd.DataFrame):
+            arr = np.asarray(dot)
+            row_names = self.dat["nodes"][Axis.ROW.value]
+            col_names = self.dat["nodes"][Axis.COL.value]
+            if arr.shape != (len(row_names), len(col_names)):
+                raise ValueError(
+                    "dot array shape "
+                    f"{arr.shape} does not match matrix shape "
+                    f"{(len(row_names), len(col_names))}; pass a DataFrame to align by name"
+                )
+            dot = pd.DataFrame(arr, index=row_names, columns=col_names)
+
+        self.dot_mat = dot
+        return self
+
     def export_viz_parquet(self) -> dict[str, bytes | str]:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
@@ -961,11 +1017,25 @@ class Matrix:
 
         viz = self.viz
 
+        row_names = self.dat["nodes"][Axis.ROW.value]
+        col_names = self.dat["nodes"][Axis.COL.value]
+
         mat_df = pd.DataFrame(
             self.dat["mat"],
-            index=self.dat["nodes"][Axis.ROW.value],
-            columns=self.dat["nodes"][Axis.COL.value],
+            index=row_names,
+            columns=col_names,
         ).reset_index(names="row")
+
+        # Optional dot-size matrix, aligned to the main matrix order by name so it
+        # lines up cell-for-cell in the front-end (fraction expressing, etc.).
+        dot_bytes = b""
+        if self.dot_mat is not None:
+            dot_aligned = (
+                self.dot_mat.reindex(index=row_names, columns=col_names)
+                .astype("float32")
+                .fillna(0.0)
+            )
+            dot_bytes = _to_bytes(dot_aligned.reset_index(names="row"))
 
         row_nodes_df = pd.DataFrame(viz.get("row_nodes", []))
         col_nodes_df = pd.DataFrame(viz.get("col_nodes", []))
@@ -980,6 +1050,7 @@ class Matrix:
 
         return {
             "mat": _to_bytes(mat_df),
+            "dot_mat": dot_bytes,
             "row_nodes": _to_bytes(row_nodes_df),
             "col_nodes": _to_bytes(col_nodes_df),
             "row_linkage": _to_bytes(row_link_df),
@@ -1044,6 +1115,8 @@ class Matrix:
 
         # Write parquet files
         (cgm_dir / "mat.parquet").write_bytes(pq_data["mat"])
+        if pq_data.get("dot_mat"):
+            (cgm_dir / "dot_mat.parquet").write_bytes(pq_data["dot_mat"])
         (cgm_dir / "row_nodes.parquet").write_bytes(pq_data["row_nodes"])
         (cgm_dir / "col_nodes.parquet").write_bytes(pq_data["col_nodes"])
         (cgm_dir / "row_linkage.parquet").write_bytes(pq_data["row_linkage"])

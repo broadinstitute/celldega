@@ -8,7 +8,7 @@ import {
 } from '../../global_variables/selected_genes';
 
 import { toggle_dendro_layer_visibility } from './dendro_layers';
-import { get_mat_layers_list } from './matrix_layers';
+import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = index.index;
@@ -164,13 +164,7 @@ const custom_label_reorder = (
   viz_state.order.current[other_axis] = 'custom';
 
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    updateTriggers: {
-      getPosition: [
-        viz_state.order.current.row,
-        viz_state.order.current.col,
-        name,
-      ],
-    },
+    updateTriggers: mat_reorder_triggers(viz_state, [name]),
   });
 
   if (other_axis === 'col') {

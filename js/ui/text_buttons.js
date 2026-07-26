@@ -6,7 +6,10 @@ import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import {
+  get_mat_layers_list,
+  mat_reorder_triggers,
+} from '../deck-gl/matrix/matrix_layers';
 
 import { toggle_slider } from './sliders';
 
@@ -69,9 +72,7 @@ const reorder_button_callback = (
     viz_state.order.current[axis] = button_name;
 
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
-      updateTriggers: {
-        getPosition: [viz_state.order.current.row, viz_state.order.current.col],
-      },
+      updateTriggers: mat_reorder_triggers(viz_state),
     });
 
     if (axis === 'row') {

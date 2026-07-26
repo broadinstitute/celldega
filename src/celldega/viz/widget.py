@@ -682,6 +682,255 @@ class Enrich(anywidget.AnyWidget):
         super().close()
 
 
+def _colors_from_adata(
+    adata: Any,
+    category: str | None,
+    categories: list[str],
+) -> dict[str, str]:
+    """Map populations to colors from ``adata.uns[f"{category}_colors"]``.
+
+    Colors are aligned to the categorical's ``categories`` order (scanpy
+    convention) so they stay correct even for >9 categories where a string sort
+    would not. Returns ``{}`` when no palette is available.
+    """
+    if adata is None or not category:
+        return {}
+    uns = getattr(adata, "uns", None)
+    obs = getattr(adata, "obs", None)
+    if uns is None or obs is None:
+        return {}
+    palette = uns.get(f"{category}_colors")
+    if palette is None or category not in obs:
+        return {}
+    series = obs[category]
+    source = (
+        list(series.cat.categories.astype(str))
+        if hasattr(series, "cat")
+        else list(pd.unique(series.astype(str)))
+    )
+    mapping = {str(cat): palette[i] for i, cat in enumerate(source) if i < len(palette)}
+    return {cat: mapping[cat] for cat in categories if cat in mapping}
+
+
+def _composition_matrix_inputs(
+    data: Any,
+    modality: str = "population",
+    category: str | None = None,
+    color_adata: Any = None,
+    group_attrs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build Matrix inputs for a composition Clustergram.
+
+    Accepts a Celldega collection / ``MuData`` (reads ``modality``), an
+    ``AnnData`` (obs = groups, var = populations), or a ``DataFrame``
+    (rows = groups, columns = populations). Returns a dict with:
+
+    * ``df`` - populations x groups DataFrame (Clustergram row/col orientation)
+    * ``meta_col`` - optional group (column) attribute table
+    * ``colors`` - ``{population: hex}`` palette
+    * ``normalized`` - default for ``composition_normalized``
+    * ``category`` - resolved population category name
+    """
+    meta_col: pd.DataFrame | None = None
+    collection_obs: pd.DataFrame | None = None
+
+    if isinstance(data, pd.DataFrame):
+        groups_x_pops = data.copy()
+        groups_x_pops.index = groups_x_pops.index.astype(str)
+        groups_x_pops.columns = groups_x_pops.columns.astype(str)
+        categories = list(groups_x_pops.columns)
+        colors = _colors_from_adata(color_adata, category, categories)
+        output = "proportion"
+        resolved_category = category
+    else:
+        if hasattr(data, "mod"):  # CelldegaCollection or MuData
+            available = list(data.mod)
+            if modality not in available:
+                raise KeyError(
+                    f"modality '{modality}' not found; available modalities: {available}"
+                )
+            adata = data.mod[modality]
+            collection_obs = getattr(data, "obs", None)
+        elif hasattr(data, "X") and hasattr(data, "var_names"):  # AnnData
+            adata = data
+        else:
+            raise TypeError(
+                "data must be a Celldega collection, MuData, AnnData, or DataFrame"
+            )
+
+        matrix = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+        groups_x_pops = pd.DataFrame(
+            np.nan_to_num(matrix.astype(float), nan=0.0),
+            index=pd.Index(adata.obs_names.astype(str), name=adata.obs.index.name),
+            columns=pd.Index(adata.var_names.astype(str), name=adata.var.index.name),
+        )
+        categories = list(groups_x_pops.columns)
+        resolved_category = category or adata.uns.get("category")
+
+        colors: dict[str, str] = {}
+        if "color" in adata.var.columns:
+            colors = {
+                cat: str(col)
+                for cat, col in zip(
+                    categories, adata.var["color"].astype(str), strict=False
+                )
+            }
+        else:
+            color_key = f"{resolved_category}_colors" if resolved_category else None
+            if color_key and color_key in adata.uns:
+                colors = {
+                    cat: str(col)
+                    for cat, col in zip(
+                        categories, list(adata.uns[color_key]), strict=False
+                    )
+                }
+        if not colors:
+            colors = _colors_from_adata(color_adata, resolved_category, categories)
+        output = str(adata.uns.get("output", "proportion"))
+
+    # Clustergram composition body: rows = populations, cols = groups.
+    df = groups_x_pops.T.copy()
+    df.index = df.index.astype(str)
+    df.columns = df.columns.astype(str)
+
+    if group_attrs:
+        # Prefer the collection's dataset/set obs (richer metadata) over the
+        # modality's obs, which is usually just n_cells.
+        source_obs = collection_obs if collection_obs is not None else None
+        if source_obs is None and not isinstance(data, pd.DataFrame):
+            source_obs = getattr(adata, "obs", None)  # type: ignore[name-defined]
+        if source_obs is not None:
+            missing = [c for c in group_attrs if c not in source_obs.columns]
+            if missing:
+                raise KeyError(f"group_attrs not found on obs: {missing}")
+            meta_col = source_obs.loc[df.columns, list(group_attrs)].copy()
+            meta_col.index = meta_col.index.astype(str)
+
+    return {
+        "df": df,
+        "meta_col": meta_col,
+        "col_attr": list(group_attrs) if group_attrs else [],
+        "colors": colors,
+        "normalized": output != "counts",
+        "category": resolved_category,
+    }
+
+
+def Composition(  # noqa: N802 - public factory matching Clustergram/Landscape casing
+    data: Any,
+    modality: str = "population",
+    *,
+    category: str | None = None,
+    colors: dict[str, str] | None = None,
+    adata: Any = None,
+    group_attrs: list[str] | None = None,
+    normalized: bool | None = None,
+    cluster: bool = True,
+    name: str = "composition",
+    width: int = 700,
+    height: int = 450,
+    **kwargs: Any,
+) -> "Clustergram":
+    """Composition view: count/proportion of categories compared across groups.
+
+    A thin convenience around :class:`Clustergram` with ``viz_mode="composition"``.
+    The body draws each group (dataset/sample) as a stacked bar whose segments
+    are populations (cell types), reusing the Clustergram's column-attribute
+    tracks, reorder buttons (``ini`` / ``sum`` / ``clust``), and click-to-sort.
+
+    "Composition shows the count or relative proportion of categories within
+    each group, and compares those compositions across groups."
+
+    Args:
+        data: A Celldega collection (``DatasetCollection`` / ``SetCollection``),
+            a ``MuData``, an ``AnnData`` (obs = groups, var = populations), or a
+            ``DataFrame`` (rows = groups, columns = populations) — typically the
+            output of ``calc_population``.
+        modality: Modality key on a collection/MuData (default ``"population"``).
+        category: Population ``obs`` column name used to resolve colors from
+            ``adata.uns[f"{category}_colors"]`` when the modality has none.
+        colors: Optional ``{population: hex}`` overrides.
+        adata: Optional source cell-level ``AnnData`` for its color palette.
+        group_attrs: Dataset/set ``obs`` columns to show as Clustergram column
+            attribute tracks (e.g. ``["condition", "timepoint"]``).
+        normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
+            proportion matrices and ``False`` for count matrices.
+        cluster: Run hierarchical clustering before display (default ``True``).
+        name: Clustergram registry name.
+        width / height: Widget size in pixels.
+        **kwargs: Forwarded to :class:`Clustergram`.
+
+    Returns:
+        A :class:`Clustergram` configured with ``viz_mode="composition"``.
+
+    Example::
+
+        dc = dega.DatasetCollection(adata, dataset_col="sample_id",
+                                    obs_columns=["condition"])
+        dc.calc_population(adata, category="cell_type")
+        dega.viz.Composition(
+            dc, category="cell_type", adata=adata, group_attrs=["condition"]
+        )
+    """
+    from celldega.clust.matrix import Matrix
+
+    payload = _composition_matrix_inputs(
+        data,
+        modality=modality,
+        category=category,
+        color_adata=adata,
+        group_attrs=group_attrs,
+    )
+    merged_colors = dict(payload["colors"])
+    if colors:
+        merged_colors.update(colors)
+
+    mat = Matrix(
+        payload["df"],
+        meta_col=payload["meta_col"],
+        col_attr=payload["col_attr"] or None,
+        row_entity={"entity": "cell_population", "attr": "name"},
+        col_entity={"entity": "dataset", "attr": "name"},
+        global_colors=merged_colors or None,
+        disable_processing=True,
+        name=name,
+    )
+    if cluster:
+        mat.clust()
+    else:
+        # Build viz nodes/ranks without hierarchical clustering so export works.
+        mat.make_viz()
+        mat._clustered = True
+
+    if normalized is None:
+        normalized = payload["normalized"]
+
+    kwargs.setdefault("viz_mode", "composition")
+    kwargs.setdefault("composition_normalized", bool(normalized))
+    if merged_colors:
+        kwargs.setdefault("composition_colors", merged_colors)
+        kwargs.setdefault("category_colors", merged_colors)
+    kwargs.setdefault("width", width)
+    kwargs.setdefault("height", height)
+    kwargs.setdefault("name", name)
+    return Clustergram(matrix=mat, **kwargs)
+
+
+def StackedBar(*args: Any, **kwargs: Any) -> "Clustergram":  # noqa: N802
+    """Deprecated alias for :func:`Composition`.
+
+    .. deprecated::
+       Use :func:`Composition` (a ``Clustergram`` with ``viz_mode="composition"``).
+    """
+    warnings.warn(
+        "StackedBar is deprecated; use dega.viz.Composition(...) instead "
+        "(a Clustergram with viz_mode='composition').",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return Composition(*args, **kwargs)
+
+
 class Yearbook(anywidget.AnyWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
@@ -1054,6 +1303,23 @@ class Clustergram(anywidget.AnyWidget):
     # categories, etc.
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
 
+    # How each matrix cell encodes its value / how the body is drawn:
+    #   "heatmap"     - color + opacity by value (classic; default)
+    #   "size"        - color by value, square size by magnitude (a.k.a. "height")
+    #   "dotplot"     - color/opacity by the main matrix (e.g. mean expression),
+    #                   square/dot size by the secondary `dot_mat` (e.g. fraction of
+    #                   cells expressing). Falls back to "heatmap" if no dot matrix.
+    #   "composition" - column-wise stacked bars (rows = populations, cols = groups).
+    #                   Reuses column attributes, reorder buttons, and click-to-sort.
+    # Changing this trait live re-encodes / rebuilds the body with a transition.
+    viz_mode = traitlets.Unicode("heatmap").tag(sync=True)
+
+    # Composition body options (used when viz_mode == "composition").
+    # Normalize each column to 100% (True) or keep raw counts (False).
+    composition_normalized = traitlets.Bool(True).tag(sync=True)
+    # Optional {population_name: hex} palette for stacked segments.
+    composition_colors = traitlets.Dict(default_value={}).tag(sync=True)
+
     def __init__(self, **kwargs):
         """
         Parameters
@@ -1108,6 +1374,8 @@ class Clustergram(anywidget.AnyWidget):
 
             parquet_traits = {
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
+                # Optional secondary matrix for dot-plot size encoding (may be empty)
+                "dot_mat_parquet": traitlets.Bytes(pq_data.get("dot_mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
                 "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
                 "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
@@ -1130,6 +1398,11 @@ class Clustergram(anywidget.AnyWidget):
         kwargs["name"] = name
         kwargs["manual_row_cat"] = manual_row_flag
         kwargs["manual_col_cat"] = manual_col_flag
+
+        # If a dot-size matrix came through and the caller didn't pick a mode,
+        # default to the dot-plot encoding so the extra channel is shown.
+        if pq_data is not None and pq_data.get("dot_mat") and "viz_mode" not in kwargs:
+            kwargs["viz_mode"] = "dotplot"
 
         super().__init__(**kwargs)
         _clustergram_registry[name] = self

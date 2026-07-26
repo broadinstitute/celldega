@@ -275,6 +275,7 @@ class SetCollection(CelldegaCollection):
         aggregate: str = "mean",
         normalization: str | None = "log1p_cpm",
         modality_name: str | None = None,
+        expr_threshold: float = 0.0,
     ) -> None:
         """Calculate and attach a set-by-feature signature (pseudobulk).
 
@@ -291,6 +292,13 @@ class SetCollection(CelldegaCollection):
         protein signature, or use ``layer`` for an alternative matrix over the same
         features (raw vs. normalized).
 
+        The ``aggregate="fraction"`` mode computes, for each set, the fraction of
+        member cells whose feature value exceeds ``expr_threshold`` (the classic
+        dot-plot "percent expressing" size channel). The result is already in
+        ``[0, 1]`` so library-size ``normalization`` is skipped for that mode.
+        Pair a ``mean`` signature (color) with a ``fraction`` signature (dot size)
+        to drive a dot-plot :class:`~celldega.viz.Clustergram`.
+
         Args:
             data: Cell-level ``AnnData``, or a ``MuData`` paired with
                 ``feature_type``. Cells are aligned to the membership ``var`` axis.
@@ -300,16 +308,22 @@ class SetCollection(CelldegaCollection):
             layer: ``adata`` layer to aggregate; ``None`` uses ``adata.X``.
             weights: Membership modality driving aggregation — ``"membership"``
                 (binary, hard assignment) or ``"weight"`` (soft/probabilistic).
-            aggregate: ``"mean"`` or ``"sum"`` across each set's member cells.
+            aggregate: ``"mean"``, ``"sum"``, or ``"fraction"`` across each set's
+                member cells. ``"fraction"`` returns the proportion of member
+                cells with value ``> expr_threshold``.
             normalization: ``None``, ``"cpm"``, or ``"log1p_cpm"`` per set row.
+                Ignored (forced to ``None``) when ``aggregate="fraction"``.
             modality_name: Key for the modality; defaults to ``"expression"`` for
-                genes and to ``feature_type`` otherwise.
+                gene ``mean``/``sum`` signatures, ``"fraction"`` for the
+                fraction-expressing mode, and to ``feature_type`` otherwise.
+            expr_threshold: A cell counts as expressing when its feature value is
+                strictly greater than this (only used for ``aggregate="fraction"``).
 
         Returns:
             ``None`` — the modality is attached to ``self.mod``.
         """
-        if aggregate not in {"sum", "mean"}:
-            raise ValueError("aggregate must be 'sum' or 'mean'")
+        if aggregate not in {"sum", "mean", "fraction"}:
+            raise ValueError("aggregate must be 'sum', 'mean', or 'fraction'")
         if weights not in self.mod:
             raise KeyError(f"membership modality '{weights}' not found")
         adata, feature_type = _resolve_feature_adata(data, feature_type)
@@ -326,12 +340,21 @@ class SetCollection(CelldegaCollection):
         weight_matrix = membership.X[:, cell_index.get_indexer(common)]
         matrix = adata.X if layer is None else adata.layers[layer]
         features = matrix[adata_cells.get_indexer(common), :]
+        if aggregate == "fraction":
+            # Binarize to a "detected / not detected" indicator, then the weighted
+            # per-set average of that indicator is the fraction of cells expressing.
+            features = (features > expr_threshold).astype(float)
         totals = _to_dense(weight_matrix @ features)
-        if aggregate == "mean":
+        if aggregate in {"mean", "fraction"}:
             per_set = np.asarray(weight_matrix.sum(axis=1)).ravel()
             nonzero = per_set > 0
             totals[nonzero, :] = totals[nonzero, :] / per_set[nonzero, None]
-        values = _normalize_rows(totals, normalization)
+        if aggregate == "fraction":
+            values = totals
+            normalization_used = None
+        else:
+            values = _normalize_rows(totals, normalization)
+            normalization_used = normalization
 
         var = adata.var.copy()
         var.index = adata.var_names.astype(str)
@@ -345,8 +368,9 @@ class SetCollection(CelldegaCollection):
             uns={
                 "feature_type": feature_type,
                 "aggregate": aggregate,
-                "normalization": normalization,
+                "normalization": normalization_used,
                 "layer": layer,
+                "expr_threshold": expr_threshold if aggregate == "fraction" else None,
             },
         )
         # Hint Matrix's axis-entity inference so a Clustergram of this signature
@@ -357,7 +381,14 @@ class SetCollection(CelldegaCollection):
                 "row_entity": {"entity": feature_type, "attr": "name"},
                 "col_entity": {"entity": self.element_type, "attr": self.set_col},
             }
-        resolved_name = modality_name or ("expression" if feature_type == "gene" else feature_type)
+        if modality_name is not None:
+            resolved_name = modality_name
+        elif aggregate == "fraction":
+            resolved_name = "fraction"
+        elif feature_type == "gene":
+            resolved_name = "expression"
+        else:
+            resolved_name = feature_type
         self.add_mod(resolved_name, signature, var_entity_type=feature_type)
 
     def calc_population(
@@ -420,6 +451,14 @@ class SetCollection(CelldegaCollection):
             var=var,
             uns={"feature_type": "cell_population", "category": category, "output": output},
         )
+        # Carry the category palette (e.g. adata.uns["cell_type_colors"]) so a
+        # StackedBar / Clustergram of this composition reuses the same colors as
+        # the source AnnData instead of falling back to an auto palette.
+        colors = _category_colors(data, category)
+        if colors:
+            resolved = [colors.get(str(c), "#808080") for c in population.var_names]
+            population.var["color"] = resolved
+            population.uns[f"{category}_colors"] = resolved
         self.add_mod(modality_name, population, var_entity_type="cell_population")
 
     def calc_overlap(

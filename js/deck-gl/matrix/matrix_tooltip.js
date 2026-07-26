@@ -49,8 +49,26 @@ export const get_tooltip = (viz_state, params) => {
       const row_name = row_entry?.display_name || row_entry?.name;
       const col_name = col_entry?.display_name || col_entry?.name;
 
+      // Mode-specific secondary lines: dotplot surfaces the size channel;
+      // composition labels the axes as population / dataset.
+      if (viz_state.mat.viz_mode === 'composition') {
+        return {
+          html: `Population: ${row_name}<br>Dataset: ${col_name}<br>Value: ${object.value.toFixed(
+            2
+          )}`,
+          style: { color: 'white' },
+        };
+      }
+
+      const size_line =
+        viz_state.mat.viz_mode === 'dotplot' && object.size_value != null
+          ? `<br> Size: ${object.size_value.toFixed(2)}`
+          : '';
+
       return {
-        html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(2)}`,
+        html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(
+          2
+        )}${size_line}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'row-attr-label-layer') {

@@ -30,6 +30,7 @@ import {
   ini_col_cat_layer,
   set_cat_layer_handlers,
 } from '../deck-gl/matrix/cat_layers';
+import { ini_composition_layer } from '../deck-gl/matrix/composition_layer';
 import { ini_deck } from '../deck-gl/matrix/deck_mat';
 import {
   ini_dendro_layer,
@@ -48,6 +49,7 @@ import {
 import {
   get_mat_layers_list,
   layer_filter,
+  mat_reorder_triggers,
 } from '../deck-gl/matrix/matrix_layers';
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip';
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change';
@@ -57,16 +59,22 @@ import {
   apply_manual_definitions_to_axis,
   refresh_attribute_layers,
 } from '../matrix/attr_state';
+import { set_composition_colors } from '../matrix/composition_data';
 import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
 import {
   set_row_label_data,
   set_col_label_data,
   update_label_display_names,
 } from '../matrix/label_data';
-import { set_mat_data } from '../matrix/mat_data';
+import {
+  set_mat_data,
+  apply_mat_encoding,
+  resolve_viz_mode,
+} from '../matrix/mat_data';
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
+import { render_composition_legend } from '../ui/composition_legend';
 import { make_matrix_ui_container } from '../ui/ui_containers';
 
 export const matrix_viz = async (
@@ -136,6 +144,70 @@ export const matrix_viz = async (
   viz_state.deck_mat = deck_mat;
   viz_state.layers_mat = layers_mat;
 
+  // ---------------------------------------------------------------------------
+  // Body mode: heatmap/size/dotplot (square grid) vs composition (stacked bars).
+  // Composition reuses the whole Clustergram (order, column attributes, labels,
+  // reorder) and only swaps the body geometry + hides population-side chrome.
+  // ---------------------------------------------------------------------------
+  const set_body_mode = (mode) => {
+    viz_state.mat.viz_mode = mode;
+
+    if (mode === 'composition') {
+      set_composition_colors(viz_state);
+      viz_state.mat._comp_cache = null;
+      layers_mat.mat_layer = ini_composition_layer(viz_state);
+      set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+
+      // Populations are shown as colored segments + legend, so hide the
+      // row labels / row attribute strip / dendrograms.
+      layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+        visible: false,
+      });
+      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+        visible: false,
+      });
+      layers_mat.row_dendro_layer = layers_mat.row_dendro_layer.clone({
+        visible: false,
+      });
+      layers_mat.col_dendro_layer = layers_mat.col_dendro_layer.clone({
+        visible: false,
+      });
+
+      if (!viz_state._composition_legend) {
+        viz_state._composition_legend = render_composition_legend(
+          el,
+          deck_mat,
+          layers_mat,
+          viz_state
+        );
+      }
+    } else {
+      apply_mat_encoding(viz_state);
+      layers_mat.mat_layer = ini_mat_layer(viz_state);
+      set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+
+      layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+        visible: true,
+      });
+      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+        visible: true,
+      });
+      layers_mat.row_dendro_layer = layers_mat.row_dendro_layer.clone({
+        visible: true,
+      });
+      layers_mat.col_dendro_layer = layers_mat.col_dendro_layer.clone({
+        visible: true,
+      });
+
+      if (viz_state._composition_legend) {
+        viz_state._composition_legend.remove();
+        viz_state._composition_legend = null;
+      }
+    }
+
+    deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+  };
+
   refresh_attribute_layers(deck_mat, layers_mat, viz_state);
 
   // ---------------------------------------------------------------------------
@@ -182,6 +254,11 @@ export const matrix_viz = async (
   deck_mat.setProps({
     layers: get_mat_layers_list(layers_mat),
   });
+
+  // Activate composition body once all standard layers/labels exist.
+  if (viz_state.mat.viz_mode === 'composition') {
+    set_body_mode('composition');
+  }
 
   // ---------------------------------------------------------------------------
   // JS -> PY sync: manual_cat + category_colors
@@ -323,6 +400,58 @@ export const matrix_viz = async (
 
     viz_state.model.on('change:top_n_genes', () => {
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
+    });
+
+    // Live body-mode switch. Crossing the composition boundary rebuilds the
+    // body layer (and toggles population-side chrome + legend); staying within
+    // the square modes (heatmap/size/dotplot) just re-encodes + animates.
+    viz_state.model.on('change:viz_mode', () => {
+      const has_size_mat =
+        viz_state.mat.max_size_value > 0 && !!network.size_mat;
+      const old_mode = viz_state.mat.viz_mode;
+      const new_mode = resolve_viz_mode(
+        viz_state.model.get('viz_mode'),
+        has_size_mat
+      );
+
+      const crossing =
+        (old_mode === 'composition') !== (new_mode === 'composition');
+
+      if (crossing) {
+        set_body_mode(new_mode);
+        return;
+      }
+
+      viz_state.mat.viz_mode = new_mode;
+
+      if (new_mode === 'composition') {
+        viz_state.mat._comp_cache = null;
+        layers_mat.mat_layer = layers_mat.mat_layer.clone({
+          updateTriggers: mat_reorder_triggers(viz_state),
+        });
+      } else {
+        apply_mat_encoding(viz_state);
+        layers_mat.mat_layer = layers_mat.mat_layer.clone({
+          data: viz_state.mat.mat_data.slice(),
+          updateTriggers: {
+            getFillColor: new_mode,
+            getRadius: new_mode,
+          },
+        });
+      }
+      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+    });
+
+    // Live proportion/count toggle for composition.
+    viz_state.model.on('change:composition_normalized', () => {
+      viz_state.mat.composition_normalized =
+        viz_state.model.get('composition_normalized') !== false;
+      if (viz_state.mat.viz_mode !== 'composition') return;
+      viz_state.mat._comp_cache = null;
+      layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        updateTriggers: mat_reorder_triggers(viz_state),
+      });
+      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
   }
 

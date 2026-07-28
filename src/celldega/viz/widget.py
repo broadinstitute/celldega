@@ -816,121 +816,6 @@ def _composition_matrix_inputs(
     }
 
 
-def Composition(  # noqa: N802 - public factory matching Clustergram/Landscape casing
-    data: Any,
-    modality: str = "population",
-    *,
-    category: str | None = None,
-    colors: dict[str, str] | None = None,
-    adata: Any = None,
-    group_attrs: list[str] | None = None,
-    normalized: bool | None = None,
-    cluster: bool = True,
-    name: str = "composition",
-    width: int = 700,
-    height: int = 450,
-    **kwargs: Any,
-) -> "Clustergram":
-    """Composition view: count/proportion of categories compared across groups.
-
-    A thin convenience around :class:`Clustergram` with ``viz_mode="composition"``.
-    The body draws each group (dataset/sample) as a stacked bar whose segments
-    are populations (cell types), reusing the Clustergram's column-attribute
-    tracks, reorder buttons (``ini`` / ``sum`` / ``clust``), and click-to-sort.
-
-    "Composition shows the count or relative proportion of categories within
-    each group, and compares those compositions across groups."
-
-    Args:
-        data: A Celldega collection (``DatasetCollection`` / ``SetCollection``),
-            a ``MuData``, an ``AnnData`` (obs = groups, var = populations), or a
-            ``DataFrame`` (rows = groups, columns = populations) — typically the
-            output of ``calc_population``.
-        modality: Modality key on a collection/MuData (default ``"population"``).
-        category: Population ``obs`` column name used to resolve colors from
-            ``adata.uns[f"{category}_colors"]`` when the modality has none.
-        colors: Optional ``{population: hex}`` overrides.
-        adata: Optional source cell-level ``AnnData`` for its color palette.
-        group_attrs: Dataset/set ``obs`` columns to show as Clustergram column
-            attribute tracks (e.g. ``["condition", "timepoint"]``).
-        normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
-            proportion matrices and ``False`` for count matrices.
-        cluster: Run hierarchical clustering before display (default ``True``).
-        name: Clustergram registry name.
-        width / height: Widget size in pixels.
-        **kwargs: Forwarded to :class:`Clustergram`.
-
-    Returns:
-        A :class:`Clustergram` configured with ``viz_mode="composition"``.
-
-    Example::
-
-        dc = dega.DatasetCollection(adata, dataset_col="sample_id",
-                                    obs_columns=["condition"])
-        dc.calc_population(adata, category="cell_type")
-        dega.viz.Composition(
-            dc, category="cell_type", adata=adata, group_attrs=["condition"]
-        )
-    """
-    from celldega.clust.matrix import Matrix
-
-    payload = _composition_matrix_inputs(
-        data,
-        modality=modality,
-        category=category,
-        color_adata=adata,
-        group_attrs=group_attrs,
-    )
-    merged_colors = dict(payload["colors"])
-    if colors:
-        merged_colors.update(colors)
-
-    mat = Matrix(
-        payload["df"],
-        meta_col=payload["meta_col"],
-        col_attr=payload["col_attr"] or None,
-        row_entity={"entity": "cell_population", "attr": "name"},
-        col_entity={"entity": "dataset", "attr": "name"},
-        global_colors=merged_colors or None,
-        disable_processing=True,
-        name=name,
-    )
-    if cluster:
-        mat.clust()
-    else:
-        # Build viz nodes/ranks without hierarchical clustering so export works.
-        mat.make_viz()
-        mat._clustered = True
-
-    if normalized is None:
-        normalized = payload["normalized"]
-
-    kwargs.setdefault("viz_mode", "composition")
-    kwargs.setdefault("composition_normalized", bool(normalized))
-    if merged_colors:
-        kwargs.setdefault("composition_colors", merged_colors)
-        kwargs.setdefault("category_colors", merged_colors)
-    kwargs.setdefault("width", width)
-    kwargs.setdefault("height", height)
-    kwargs.setdefault("name", name)
-    return Clustergram(matrix=mat, **kwargs)
-
-
-def StackedBar(*args: Any, **kwargs: Any) -> "Clustergram":  # noqa: N802
-    """Deprecated alias for :func:`Composition`.
-
-    .. deprecated::
-       Use :func:`Composition` (a ``Clustergram`` with ``viz_mode="composition"``).
-    """
-    warnings.warn(
-        "StackedBar is deprecated; use dega.viz.Composition(...) instead "
-        "(a Clustergram with viz_mode='composition').",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return Composition(*args, **kwargs)
-
-
 class Yearbook(anywidget.AnyWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
@@ -1314,9 +1199,16 @@ class Clustergram(anywidget.AnyWidget):
     # Changing this trait live re-encodes / rebuilds the body with a transition.
     viz_mode = traitlets.Unicode("heatmap").tag(sync=True)
 
+    # Dotplot-only: whether dot size encodes the secondary `dot_mat` (True,
+    # default) or is forced to a full tile, independent of color/opacity.
+    dot_size_encoded = traitlets.Bool(True).tag(sync=True)
+
     # Composition body options (used when viz_mode == "composition").
     # Normalize each column to 100% (True) or keep raw counts (False).
     composition_normalized = traitlets.Bool(True).tag(sync=True)
+    # Segment encoding: "height" (share -> segment height, full opacity;
+    # default) or "opacity" (equal-height slots, share -> fill alpha).
+    composition_encoding = traitlets.Unicode("height").tag(sync=True)
     # Optional {population_name: hex} palette for stacked segments.
     composition_colors = traitlets.Dict(default_value={}).tag(sync=True)
 
@@ -1570,3 +1462,121 @@ class Clustergram(anywidget.AnyWidget):
         with suppress(Exception):
             self.send({"event": "finalize"})
         super().close()
+
+
+class Composition(Clustergram):
+    """Composition view: count/proportion of categories compared across groups.
+
+    A `Clustergram` subclass with ``viz_mode="composition"``. The body draws
+    each group (dataset/sample) as a stacked bar whose segments are
+    populations (cell types), reusing the Clustergram's column-attribute
+    tracks, reorder buttons (``ini`` / ``sum`` / ``clust``), and control-panel
+    toggles (``PROPORTION``/``COUNTS``, ``HEIGHT``/``OPACITY``).
+
+    "Composition shows the count or relative proportion of categories within
+    each group, and compares those compositions across groups."
+
+    Example::
+
+        dc = dega.DatasetCollection(adata, dataset_col="sample_id",
+                                    obs_columns=["condition"])
+        dc.calc_population(adata, category="cell_type")
+        dega.viz.Composition(
+            dc, category="cell_type", adata=adata, group_attrs=["condition"]
+        )
+    """
+
+    def __init__(
+        self,
+        data: Any,
+        modality: str = "population",
+        *,
+        category: str | None = None,
+        colors: dict[str, str] | None = None,
+        adata: Any = None,
+        group_attrs: list[str] | None = None,
+        normalized: bool | None = None,
+        cluster: bool = True,
+        name: str = "composition",
+        width: int = 700,
+        height: int = 450,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Args:
+            data: A Celldega collection (``DatasetCollection`` / ``SetCollection``),
+                a ``MuData``, an ``AnnData`` (obs = groups, var = populations), or a
+                ``DataFrame`` (rows = groups, columns = populations) — typically the
+                output of ``calc_population``.
+            modality: Modality key on a collection/MuData (default ``"population"``).
+            category: Population ``obs`` column name used to resolve colors from
+                ``adata.uns[f"{category}_colors"]`` when the modality has none.
+            colors: Optional ``{population: hex}`` overrides.
+            adata: Optional source cell-level ``AnnData`` for its color palette.
+            group_attrs: Dataset/set ``obs`` columns to show as Clustergram column
+                attribute tracks (e.g. ``["condition", "timepoint"]``).
+            normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
+                proportion matrices and ``False`` for count matrices.
+            cluster: Run hierarchical clustering before display (default ``True``).
+            name: Clustergram registry name.
+            width / height: Widget size in pixels.
+            **kwargs: Forwarded to :class:`Clustergram`.
+        """
+        from celldega.clust.matrix import Matrix
+
+        payload = _composition_matrix_inputs(
+            data,
+            modality=modality,
+            category=category,
+            color_adata=adata,
+            group_attrs=group_attrs,
+        )
+        merged_colors = dict(payload["colors"])
+        if colors:
+            merged_colors.update(colors)
+
+        mat = Matrix(
+            payload["df"],
+            meta_col=payload["meta_col"],
+            col_attr=payload["col_attr"] or None,
+            row_entity={"entity": "cell_population", "attr": "name"},
+            col_entity={"entity": "dataset", "attr": "name"},
+            global_colors=merged_colors or None,
+            disable_processing=True,
+            name=name,
+        )
+        if cluster:
+            mat.clust()
+        else:
+            # Build viz nodes/ranks without hierarchical clustering so export works.
+            mat.make_viz()
+            mat._clustered = True
+
+        if normalized is None:
+            normalized = payload["normalized"]
+
+        kwargs.setdefault("viz_mode", "composition")
+        kwargs.setdefault("composition_normalized", bool(normalized))
+        if merged_colors:
+            kwargs.setdefault("composition_colors", merged_colors)
+            kwargs.setdefault("category_colors", merged_colors)
+        kwargs.setdefault("width", width)
+        kwargs.setdefault("height", height)
+        kwargs.setdefault("name", name)
+        super().__init__(matrix=mat, **kwargs)
+
+
+def StackedBar(*args: Any, **kwargs: Any) -> "Composition":  # noqa: N802
+    """Deprecated alias for :class:`Composition`.
+
+    .. deprecated::
+       Use :class:`Composition` (a ``Clustergram`` subclass with
+       ``viz_mode="composition"``).
+    """
+    warnings.warn(
+        "StackedBar is deprecated; use dega.viz.Composition(...) instead "
+        "(a Clustergram subclass with viz_mode='composition').",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return Composition(*args, **kwargs)

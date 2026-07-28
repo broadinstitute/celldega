@@ -12,7 +12,12 @@ import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
+import {
+  set_composition_encoding,
+  set_composition_normalized,
+} from '../deck-gl/matrix/composition_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
+import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
@@ -48,7 +53,9 @@ import {
 import {
   make_button,
   make_edit_button,
+  make_flag_toggle,
   make_reorder_button,
+  make_text_toggle_group,
 } from './text_buttons';
 
 export const make_ui_container = () => {
@@ -134,6 +141,29 @@ const get_axis_display_name = (viz_state, axis) => {
   return default_name;
 };
 
+/**
+ * Show/hide the DOT and HEIGHT|OPACITY / PROPORTION|COUNTS control-panel
+ * toggles per the current `viz_mode`. Call after any change to
+ * `viz_state.mat.viz_mode`.
+ *
+ * @param {object} viz_state - Visualization state.
+ */
+export const update_mode_button_visibility = (viz_state) => {
+  const buttons = viz_state.mode_buttons;
+  if (!buttons) return;
+
+  const is_dotplot = viz_state.mat.viz_mode === 'dotplot';
+  const is_composition = viz_state.mat.viz_mode === 'composition';
+
+  buttons.dot.node.style.display = is_dotplot ? 'inline-flex' : 'none';
+  buttons.encoding.container.style.display = is_composition
+    ? 'inline-flex'
+    : 'none';
+  buttons.normalized.container.style.display = is_composition
+    ? 'inline-flex'
+    : 'none';
+};
+
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const ui_container = make_ui_container();
   const ctrl_container = flex_container('button_container', 'column');
@@ -151,25 +181,21 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   axes.forEach((axis) => {
     const inst_container = flex_container(axis, 'row');
 
-    // Use entity name if available
+    // Use entity name if available. Non-clickable: black, plain text, no pill.
     const axis_label = get_axis_display_name(viz_state, axis);
 
     d3.select(inst_container)
       .append('div')
-      .text(axis_label)
+      .text(`${axis_label}:`)
       .style('width', `${label_width}px`)
       .style('height', '16px')
       .style('display', 'inline-flex')
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('text-align', 'center')
-      .style('cursor', 'pointer')
       .style('font-size', '9px')
       .style('font-weight', 'bold')
-      .style('color', '#47515b')
-      .style('border', '2px solid')
-      .style('border-color', 'white')
-      .style('border-radius', '8px')
+      .style('color', 'black')
       .style('margin-top', '4px')
       .style('margin-left', '3px')
       .style('padding', '2px 2px')
@@ -264,6 +290,59 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);
+
+  // ---------------------------------------------------------------------
+  // Body-mode toggles: DOT (dotplot only), HEIGHT|OPACITY and
+  // PROPORTION|COUNTS (composition only). Mounted to the right of the
+  // reorder buttons, always present but shown/hidden per `viz_mode` (see
+  // `update_mode_button_visibility`).
+  // ---------------------------------------------------------------------
+  const mode_container = flex_container('mode_container', 'row');
+  mode_container.style.alignItems = 'center';
+  mode_container.style.marginTop = '14px';
+  mode_container.style.marginLeft = '10px';
+
+  const dot_toggle = make_flag_toggle(
+    mode_container,
+    'dot',
+    viz_state.mat.dot_size_encoded,
+    (active) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, active),
+    viz_state
+  );
+
+  const encoding_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'height', value: 'height' },
+      { label: 'opacity', value: 'opacity' },
+    ],
+    viz_state.mat.composition_encoding,
+    (value) => set_composition_encoding(deck_mat, layers_mat, viz_state, value),
+    viz_state
+  );
+  encoding_toggle.container.style.marginLeft = '10px';
+
+  const normalized_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'proportion', value: true },
+      { label: 'counts', value: false },
+    ],
+    viz_state.mat.composition_normalized,
+    (value) =>
+      set_composition_normalized(deck_mat, layers_mat, viz_state, value),
+    viz_state
+  );
+  normalized_toggle.container.style.marginLeft = '10px';
+
+  viz_state.mode_buttons = {
+    dot: dot_toggle,
+    encoding: encoding_toggle,
+    normalized: normalized_toggle,
+  };
+  update_mode_button_visibility(viz_state);
+
+  ui_container.appendChild(mode_container);
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);

@@ -1,6 +1,9 @@
 import * as d3 from 'd3';
 
+import { apply_mat_encoding } from '../../matrix/mat_data';
+
 import { CustomMatrixLayer } from './custom_matrix_layer';
+import { get_mat_layers_list } from './matrix_layers';
 
 const mat_layer_get_position = (d, viz_state) => {
   const inst_order_rows = viz_state.order.current.row;
@@ -118,4 +121,37 @@ export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
     onClick: (event) =>
       mat_layer_onclick(event, deck_mat, layers_mat, viz_state),
   });
+};
+
+/**
+ * Toggle whether dotplot dot size encodes the secondary (fraction) matrix
+ * (true, default) or is forced to a full tile (false), independent of the
+ * color/opacity channel. No-op outside dotplot mode.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {boolean} value - New `dot_size_encoded` value.
+ */
+export const set_dot_size_encoded = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  value
+) => {
+  viz_state.mat.dot_size_encoded = value;
+
+  if (viz_state.model?.set) {
+    viz_state.model.set('dot_size_encoded', value);
+    viz_state.model.save_changes();
+  }
+
+  if (viz_state.mat.viz_mode !== 'dotplot') return;
+
+  apply_mat_encoding(viz_state);
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    data: viz_state.mat.mat_data.slice(),
+    updateTriggers: { getRadius: value },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };

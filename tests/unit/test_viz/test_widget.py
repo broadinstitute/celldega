@@ -18,6 +18,7 @@ try:
     from celldega.nbhd import NeighborhoodCollection
     from celldega.viz import (
         Clustergram,
+        Composition,
         Landscape,
         Yearbook,
     )
@@ -194,6 +195,41 @@ def test_clustergram_category_colors_from_matrix() -> None:
     mat.set_global_cat_colors({"dog": "#123456"})
     widget = Clustergram(matrix=mat)
     assert widget.category_colors.get("dog") == "#123456"
+
+
+def test_clustergram_dot_size_encoded_defaults_true() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat)
+    assert widget.dot_size_encoded is True
+
+
+def test_clustergram_composition_encoding_defaults_height() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat)
+    assert widget.composition_encoding == "height"
+
+
+def test_composition_is_a_clustergram_subclass() -> None:
+    df = pd.DataFrame(
+        {"T": [10, 20], "B": [5, 15]},
+        index=["s1", "s2"],
+    )
+    comp = Composition(df, category="cell_type")
+
+    assert isinstance(comp, Clustergram)
+    assert type(comp).__name__ == "Composition"
+    assert comp.viz_mode == "composition"
+    assert comp.composition_normalized is True
+    assert comp.composition_encoding == "height"
+
+
+def test_composition_normalized_false_for_counts_output() -> None:
+    df = pd.DataFrame(
+        {"T": [10, 20], "B": [5, 15]},
+        index=["s1", "s2"],
+    )
+    comp = Composition(df, category="cell_type", normalized=False)
+    assert comp.composition_normalized is False
 
 
 def test_landscape_nbhd_geojson_and_metadata() -> None:

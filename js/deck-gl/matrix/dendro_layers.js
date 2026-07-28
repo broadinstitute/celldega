@@ -119,9 +119,12 @@ export const update_dendro_layer_data = (layers_mat, viz_state, axis) => {
 
 export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
   // if viz_state.order.curent[axis] is 'clust' then the dendrogram is visible
-  let is_visible = false;
-  if (viz_state.order.current[axis] === 'clust') {
-    is_visible = true;
+  let is_visible = viz_state.order.current[axis] === 'clust';
+
+  // Rows aren't equal height in composition mode (stacked-bar segments), so
+  // a row dendrogram is never meaningful there regardless of row order.
+  if (axis === 'row' && viz_state.mat.viz_mode === 'composition') {
+    is_visible = false;
   }
 
   layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone(

@@ -203,12 +203,6 @@ def test_clustergram_dot_size_encoded_defaults_true() -> None:
     assert widget.dot_size_encoded is True
 
 
-def test_clustergram_composition_encoding_defaults_height() -> None:
-    mat = make_simple_matrix()
-    widget = Clustergram(matrix=mat)
-    assert widget.composition_encoding == "height"
-
-
 def test_composition_is_a_clustergram_subclass() -> None:
     df = pd.DataFrame(
         {"T": [10, 20], "B": [5, 15]},
@@ -220,7 +214,6 @@ def test_composition_is_a_clustergram_subclass() -> None:
     assert type(comp).__name__ == "Composition"
     assert comp.viz_mode == "composition"
     assert comp.composition_normalized is True
-    assert comp.composition_encoding == "height"
 
 
 def test_composition_normalized_false_for_counts_output() -> None:

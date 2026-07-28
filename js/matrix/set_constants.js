@@ -242,14 +242,6 @@ export const set_mat_constants = (
       ? model.get('composition_normalized') !== false
       : true;
 
-  // Composition segment encoding: "height" (share -> segment height, default)
-  // or "opacity" (equal-height slots, share -> color alpha).
-  viz_state.mat.composition_encoding =
-    (model &&
-      typeof model.get === 'function' &&
-      model.get('composition_encoding')) ||
-    'height';
-
   // Dotplot size channel toggle: true (default) -> dot size encodes the
   // secondary (fraction) matrix; false -> size is forced to full tile.
   viz_state.mat.dot_size_encoded =

@@ -30,7 +30,10 @@ import {
   ini_col_cat_layer,
   set_cat_layer_handlers,
 } from '../deck-gl/matrix/cat_layers';
-import { ini_composition_layer } from '../deck-gl/matrix/composition_layer';
+import {
+  ini_composition_layer,
+  set_composition_layer_onhover,
+} from '../deck-gl/matrix/composition_layer';
 import { ini_deck } from '../deck-gl/matrix/deck_mat';
 import {
   ini_dendro_layer,
@@ -163,6 +166,7 @@ export const matrix_viz = async (
       viz_state.mat._comp_cache = null;
       layers_mat.mat_layer = ini_composition_layer(viz_state);
       set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+      set_composition_layer_onhover(deck_mat, layers_mat, viz_state);
 
       // Populations are shown as colored bar segments (+ row labels where
       // they fit), so hide the row attribute strip. The row dendrogram is
@@ -179,6 +183,9 @@ export const matrix_viz = async (
 
       refresh_row_label_visibility(layers_mat, viz_state);
     } else {
+      clearTimeout(viz_state.mat._comp_hover_timer);
+      viz_state.mat.comp_hover_row = null;
+
       apply_mat_encoding(viz_state);
       layers_mat.mat_layer = ini_mat_layer(viz_state);
       set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
@@ -437,20 +444,6 @@ export const matrix_viz = async (
       const value = viz_state.model.get('composition_normalized') !== false;
       viz_state.mat.composition_normalized = value;
       viz_state.mode_buttons?.normalized?.setActive(value);
-      if (viz_state.mat.viz_mode !== 'composition') return;
-      viz_state.mat._comp_cache = null;
-      layers_mat.mat_layer = layers_mat.mat_layer.clone({
-        updateTriggers: mat_reorder_triggers(viz_state),
-      });
-      refresh_row_label_visibility(layers_mat, viz_state);
-      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
-    });
-
-    // Live height/opacity encoding toggle for composition.
-    viz_state.model.on('change:composition_encoding', () => {
-      const value = viz_state.model.get('composition_encoding') || 'height';
-      viz_state.mat.composition_encoding = value;
-      viz_state.mode_buttons?.encoding?.setActive(value);
       if (viz_state.mat.viz_mode !== 'composition') return;
       viz_state.mat._comp_cache = null;
       layers_mat.mat_layer = layers_mat.mat_layer.clone({

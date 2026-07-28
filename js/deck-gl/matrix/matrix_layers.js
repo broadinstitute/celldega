@@ -14,7 +14,6 @@ export const mat_reorder_triggers = (viz_state, extra = []) => {
     viz_state.order.current.col,
     viz_state.mat.viz_mode,
     viz_state.mat.composition_normalized,
-    viz_state.mat.composition_encoding,
     ...extra,
   ];
   return {

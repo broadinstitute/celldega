@@ -130,11 +130,12 @@ const reorder_button_callback = (
           getPosition: viz_state.order.current.col,
         },
       });
-
-      // Reordering columns can change which bar is leftmost, which can
-      // change which row labels fit their segment (composition mode only).
-      refresh_row_label_visibility(layers_mat, viz_state);
     }
+
+    // Composition mode: row labels are positioned by their actual segment
+    // (which moves on either a row or a column reorder) and filtered by fit,
+    // so refresh on any reorder. No-op outside composition mode.
+    refresh_row_label_visibility(layers_mat, viz_state);
 
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
 
@@ -188,53 +189,6 @@ export const make_reorder_button = (
 
 const BUTTON_FONT_FAMILY =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
-
-/**
- * A single boolean text-toggle control-panel button (e.g. "DOT"). Color alone
- * indicates state: blue = on, gray = off.
- *
- * @param {HTMLElement} container - Parent element to append into.
- * @param {string} label - Button text (rendered uppercase).
- * @param {boolean} initialActive - Initial on/off state.
- * @param {(active: boolean) => void} onToggle - Called with the new state on click.
- * @param {object} viz_state - Visualization state (for color constants).
- * @returns {{node: HTMLElement, setActive: (active: boolean) => void}}
- */
-export const make_flag_toggle = (
-  container,
-  label,
-  initialActive,
-  onToggle,
-  viz_state
-) => {
-  let active = initialActive;
-
-  const selection = d3
-    .select(container)
-    .append('div')
-    .text(label.toUpperCase())
-    .style('display', 'inline-flex')
-    .style('font-size', '9px')
-    .style('margin-top', '4px')
-    .style('margin-left', '3px')
-    .style('padding', '2px 4px')
-    .style('font-family', BUTTON_FONT_FAMILY)
-    .on('click', () => {
-      active = !active;
-      apply_state_button_style(selection, active, viz_state);
-      onToggle(active);
-    });
-
-  apply_state_button_style(selection, active, viz_state);
-
-  return {
-    node: selection.node(),
-    setActive: (value) => {
-      active = value;
-      apply_state_button_style(selection, active, viz_state);
-    },
-  };
-};
 
 /**
  * A row of mutually-exclusive text-toggle options rendered as

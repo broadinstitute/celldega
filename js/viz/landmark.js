@@ -691,10 +691,9 @@ export const landmark = async (model, el) => {
     rebuild_slice_bar();
     refresh_view_controllers();
     refresh();
-    // Focus the name field so you can type/accept the suggested name right away
-    // (Enter there commits + saves — see make_label_input's on_commit).
-    label_input.input.focus();
-    label_input.input.select();
+    // NB: the name field is deliberately NOT focused here — you place the
+    // landmark first, then it focuses (see place_draft), which feels more
+    // natural than naming before the point exists.
   }
 
   // Enter (or retarget within) MODIFY. `label` is the landmark to edit, or
@@ -731,6 +730,10 @@ export const landmark = async (model, el) => {
     // dragged to refine it (done here, not mid-drag, to avoid the race).
     refresh_view_controllers();
     refresh();
+    // Landmark placed — now focus the name field (with the suggested name
+    // selected) so you can accept/type a name and press Enter to finish.
+    label_input.input.focus();
+    label_input.input.select();
   }
 
   // One-shot whole-landmark rename (every slice it appears in). Fired only

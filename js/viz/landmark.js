@@ -80,14 +80,26 @@ export const landmark = async (model, el) => {
 
   // Take keyboard focus while interacting so the notebook's command-mode
   // shortcuts (m -> markdown, a/b -> insert cell, d d -> delete cell, …) don't
-  // fire over the widget. Focus on click (capture phase, so it wins even if a
-  // layer stops the event; skip form controls, which manage their own focus),
-  // and swallow unmodified keydowns so they never reach Jupyter's handlers —
-  // Ctrl/Cmd/Alt combos (run cell, save notebook) still pass through. The
-  // widget's own shortcuts are registered on root_container below, so they
-  // still fire (stopPropagation doesn't affect same-element listeners).
+  // fire over the widget, and so the widget's own shortcuts (registered on
+  // root_container below) work without an explicit click first.
   root_container.tabIndex = -1;
   root_container.style.outline = 'none';
+
+  // Grab focus as soon as the pointer is over the widget (so "l" etc. work on
+  // hover, no click needed) — but never yank focus out of a text field/editor
+  // the user is actively typing in, or out of one of the widget's own inputs.
+  const focus_root = () => {
+    const active = document.activeElement;
+    const tag = active?.tagName?.toLowerCase();
+    const is_typing =
+      active?.isContentEditable || tag === 'input' || tag === 'textarea';
+    if (!is_typing && !root_container.contains(active)) {
+      root_container.focus({ preventScroll: true });
+    }
+  };
+  root_container.addEventListener('mouseenter', focus_root);
+  // Also on click (capture phase, so it wins even if a layer stops the event),
+  // skipping form controls which manage their own focus.
   root_container.addEventListener(
     'pointerdown',
     (event) => {
@@ -97,8 +109,15 @@ export const landmark = async (model, el) => {
     },
     true
   );
+
+  // Swallow unmodified keydowns so they never reach Jupyter's command-mode
+  // handlers. Ctrl/Cmd/Alt combos and Shift+Enter (run cell / save notebook)
+  // still pass through. The widget's own shortcut handler is a separate
+  // listener on this same element, so it still fires (stopPropagation only
+  // stops propagation to *other* elements, not same-element listeners).
   root_container.addEventListener('keydown', (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'Enter' && event.shiftKey) return; // Shift+Enter: run cell
     event.stopPropagation();
   });
 
@@ -801,6 +820,14 @@ export const landmark = async (model, el) => {
     } else {
       enter_browse();
     }
+
+    // Return focus to the widget so the next landmark flows without a click:
+    // saving via Enter blurs the name box (and the mouse is already over the
+    // view, so `mouseenter` won't re-fire to re-grab focus). enter_mark above
+    // has already refreshed the name box to the next suggestion, so the input's
+    // blur -> on_commit(committed=false) that this triggers just re-stages that
+    // same value (a harmless no-op).
+    root_container.focus({ preventScroll: true });
   }
 
   function save_modify() {

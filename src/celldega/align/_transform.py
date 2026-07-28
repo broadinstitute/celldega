@@ -2,8 +2,8 @@
 
 Deliberately decoupled from *how* the paired points were obtained (shared
 cluster centroids in :mod:`celldega.align.serial_slices` today; manually
-placed landmarks in a future paired multi-Z/multi-modality Landscape view)
-so the same fit/apply code can be reused across alignment contexts, and from
+placed landmarks from :class:`~celldega.viz.Landmark` also) so the
+same fit/apply code can be reused across alignment contexts, and from
 *which orchestration* calls it (chain-walking slices, atlas registration,
 modality registration), so new fitting algorithms plug in as another
 ``fit(source, target) -> Transform`` callable rather than requiring changes
@@ -144,13 +144,35 @@ def fit_transform_procrustes(
 
 @dataclass(frozen=True)
 class ThinPlateSplineTransform:
-    """A non-rigid warp mapping source landmarks onto target landmarks."""
+    """A non-rigid warp mapping source landmarks onto target landmarks.
+
+    The source (domain) is normalized by ``source_center``/``source_scale``
+    before the spline is evaluated — see :func:`fit_transform_tps` for why
+    (it makes ``smoothing`` scale-free). ``source_center = [0, 0]`` and
+    ``source_scale = 1`` reproduce an un-normalized fit.
+
+    ``output_affine`` is an optional ``2x2`` linear correction (applied about
+    ``output_center``, in the target frame) *after* the spline — how
+    :func:`fit_transform_tps`'s ``area_regularization``/``shape_regularization``
+    pull the warp's global affine back toward area-/proportion-preserving.
+    ``output_affine = None`` (or identity) is a no-op.
+    """
 
     interpolator: RBFInterpolator
+    source_center: np.ndarray = None
+    source_scale: float = 1.0
+    output_center: np.ndarray = None
+    output_affine: np.ndarray = None
 
     def apply(self, points: np.ndarray) -> np.ndarray:
         """Apply this warp to an ``(n, 2)`` array of points."""
-        return self.interpolator(np.asarray(points, dtype=float))
+        points = np.asarray(points, dtype=float)
+        if self.source_center is not None:
+            points = (points - self.source_center) / self.source_scale
+        out = self.interpolator(points)
+        if self.output_center is not None and self.output_affine is not None:
+            out = self.output_center + (out - self.output_center) @ self.output_affine
+        return out
 
 
 def fit_transform_tps(
@@ -159,6 +181,9 @@ def fit_transform_tps(
     weights: np.ndarray | None = None,
     smoothing: float = 0.0,
     degree: int = 1,
+    normalize: bool = True,
+    area_regularization: float = 0.0,
+    shape_regularization: float = 0.0,
 ) -> ThinPlateSplineTransform:
     """Fit a thin-plate-spline warp that maps ``source`` landmarks onto ``target`` landmarks.
 
@@ -181,27 +206,84 @@ def fit_transform_tps(
             ``smoothing > 0`` — at ``smoothing = 0`` the spline interpolates
             every landmark exactly regardless of weight, since there's no
             such thing as a weighted *exact* interpolation.
-        smoothing: Bending-energy penalty. ``0`` (default) interpolates the
-            landmarks exactly; increase it to relax exact matching, which is
-            useful here since landmarks are noisy cluster-centroid estimates
-            rather than exact manual clicks.
+        smoothing: Bending-energy penalty trading exact landmark matching
+            (``0``, the default — the spline passes through every landmark,
+            which *overfits* noisy cluster-centroid landmarks by contorting
+            the tissue to hit each one) against a smoother, stiffer warp
+            (higher values relax the fit toward the plain affine transform,
+            preserving each slice's own shape). With ``normalize=True`` this
+            is measured in *normalized* domain units, so it's comparable
+            across datasets regardless of coordinate scale — useful values
+            are roughly ``0`` (exact) through ``~0.1`` to ``1`` (light local
+            warp) to ``~10``+ (nearly rigid/affine). Without normalization it
+            is in raw kernel units (``~distance² · log distance``), so for
+            micron coordinates it would need to be enormous (``~1e6``+) to
+            have any effect at all.
         degree: Degree of the polynomial term added to the spline (``1``
             gives an affine fallback away from the landmarks).
+        normalize: If ``True`` (default), the source (domain) is recentered
+            and scaled to unit RMS radius before fitting, and query points
+            are normalized the same way on apply. This makes ``smoothing``
+            scale-free (see above) and improves numerical conditioning. It
+            does *not* change a ``smoothing=0`` fit (exact interpolation is
+            exact in any units) — only the meaning of a nonzero ``smoothing``.
+        area_regularization: Penalty in ``[0, 1]`` on the warp's *total*
+            (global) area change. TPS's affine component freely rescales a
+            slice to make landmarks coincide, undesirable when slices are
+            genuinely different sizes. See below for how it and
+            ``shape_regularization`` are applied together.
+        shape_regularization: Penalty in ``[0, 1]`` on the warp's global
+            *proportion* change — the affine's anisotropy (its two singular
+            values' ratio, i.e. stretching one axis while squeezing the
+            other, plus shear). This is separate from area: an affine can
+            keep area constant while still distorting proportions (a taller,
+            pinched-in-the-middle look), which ``area_regularization`` alone
+            won't catch.
+
+            Both are applied as a single post-fit correction: the warp's
+            global affine ``A`` (best-fit linear map of the landmark cloud) is
+            SVD'd into a rotation and two singular values; the geometric-mean
+            scale is pulled toward 1 by ``area_regularization`` and the
+            anisotropy toward 1 by ``shape_regularization``, then a uniform
+            correction is applied about the output centroid — leaving
+            rotation, translation, and *local* (bending) warp untouched. At
+            ``0``/``0`` (default) the fit is unchanged; ``1``/``1`` makes the
+            global part rigid (rotation only — area and proportions both
+            preserved), leaving only local deformation.
 
     Returns:
         The fitted :class:`ThinPlateSplineTransform`.
 
     Raises:
         ValueError: If fewer than 3 point pairs are given, shapes mismatch,
-            ``weights`` has the wrong shape or non-positive entries, or the
-            landmarks are degenerate (e.g. collinear).
+            ``weights`` has the wrong shape or non-positive entries,
+            ``area_regularization``/``shape_regularization`` are negative, or
+            the landmarks are degenerate (e.g. collinear).
     """
     source, target = _validate_point_pairs(source, target, min_points=3)
     weights = _validate_weights(weights, source.shape[0])
+    if area_regularization < 0:
+        raise ValueError(f"area_regularization must be >= 0, got {area_regularization}")
+    if shape_regularization < 0:
+        raise ValueError(f"shape_regularization must be >= 0, got {shape_regularization}")
+
+    if normalize:
+        source_center = source.mean(axis=0)
+        rms_radius = float(np.sqrt(np.mean(((source - source_center) ** 2).sum(axis=1))))
+        source_scale = rms_radius if rms_radius > 0 else 1.0
+    else:
+        source_center = np.zeros(source.shape[1])
+        source_scale = 1.0
+    source_normalized = (source - source_center) / source_scale
+
     effective_smoothing = smoothing / weights
     try:
         interpolator = RBFInterpolator(
-            source, target, kernel="thin_plate_spline", smoothing=effective_smoothing, degree=degree
+            source_normalized,
+            target,
+            kernel="thin_plate_spline",
+            smoothing=effective_smoothing,
+            degree=degree,
         )
     except np.linalg.LinAlgError as exc:
         raise ValueError(
@@ -209,7 +291,40 @@ def fit_transform_tps(
             "or otherwise degenerate. Add more spatially spread-out landmarks."
         ) from exc
 
-    return ThinPlateSplineTransform(interpolator=interpolator)
+    output_center = None
+    output_affine = None
+    if area_regularization > 0 or shape_regularization > 0:
+        # The warp's global affine `A` (best-fit linear map source->output,
+        # row-vector convention: centered_source @ A ~ centered_output). SVD it
+        # into rotation * (two singular values = the two axis stretches); pull
+        # the geometric-mean scale toward 1 by `area_regularization` and the
+        # anisotropy toward 1 by `shape_regularization`, then correct the
+        # output so its global affine matches the regularized target. Rotation,
+        # translation, and local bending are untouched.
+        transformed = interpolator(source_normalized)
+        centered_source = source - source.mean(axis=0)
+        output_center = transformed.mean(axis=0)
+        centered_output = transformed - output_center
+        affine, *_ = np.linalg.lstsq(centered_source, centered_output, rcond=None)
+        u_mat, singular_values, vt_mat = np.linalg.svd(affine)
+        s1, s2 = singular_values
+        if s1 > 1e-12 and s2 > 1e-12:
+            scale = np.sqrt(s1 * s2)  # geometric-mean (area^0.5)
+            anisotropy = np.sqrt(s1 / s2)
+            scale_reg = scale ** (1.0 - area_regularization)
+            anisotropy_reg = anisotropy ** (1.0 - shape_regularization)
+            target_svals = np.array([scale_reg * anisotropy_reg, scale_reg / anisotropy_reg])
+            target_affine = (u_mat * target_svals) @ vt_mat
+            # correction C with A @ C = target_affine  ->  C = A^-1 @ target
+            output_affine = np.linalg.solve(affine, target_affine)
+
+    return ThinPlateSplineTransform(
+        interpolator=interpolator,
+        source_center=source_center,
+        source_scale=source_scale,
+        output_center=output_center if output_affine is not None else None,
+        output_affine=output_affine,
+    )
 
 
 def leave_one_out_residuals(
@@ -266,8 +381,8 @@ def save_transform(transform: Transform, path: str | Path) -> None:
     inspectable with any numpy install, and doesn't depend on matching library
     versions the way a pickled object graph would. A :class:`ThinPlateSplineTransform`
     is saved as the plain-array inputs (landmark positions, per-point smoothing,
-    kernel, epsilon, degree) that reconstruct an equivalent ``RBFInterpolator``,
-    not the fitted object itself.
+    kernel, epsilon, degree, plus the source normalization center/scale) that
+    reconstruct an equivalent ``RBFInterpolator``, not the fitted object itself.
 
     Args:
         transform: The transform to save.
@@ -290,6 +405,16 @@ def save_transform(transform: Transform, path: str | Path) -> None:
         interpolator = transform.interpolator
         powers = interpolator.powers
         degree = int(powers.sum(axis=1).max()) if powers.size else -1
+        n_dim = interpolator.y.shape[1]
+        source_center = (
+            transform.source_center if transform.source_center is not None else np.zeros(n_dim)
+        )
+        output_center = (
+            transform.output_center if transform.output_center is not None else np.zeros(n_dim)
+        )
+        output_affine = (
+            transform.output_affine if transform.output_affine is not None else np.eye(n_dim)
+        )
         np.savez(
             path,
             kind="tps",
@@ -299,6 +424,10 @@ def save_transform(transform: Transform, path: str | Path) -> None:
             epsilon=np.asarray(interpolator.epsilon),
             kernel=np.asarray(interpolator.kernel),
             degree=np.asarray(degree),
+            source_center=np.asarray(source_center),
+            source_scale=np.asarray(transform.source_scale),
+            output_center=np.asarray(output_center),
+            output_affine=np.asarray(output_affine),
         )
         return
     raise TypeError(f"don't know how to save a transform of type {type(transform)!r}")
@@ -336,5 +465,36 @@ def load_transform(path: str | Path) -> Transform:
                 epsilon=float(data["epsilon"]),
                 degree=int(data["degree"]),
             )
-            return ThinPlateSplineTransform(interpolator=interpolator)
+            # `source_center`/`source_scale` postdate this format — older
+            # saves (no normalization) default to the identity normalization.
+            source_center = (
+                data["source_center"]
+                if "source_center" in data
+                else np.zeros(interpolator.y.shape[1])
+            )
+            source_scale = float(data["source_scale"]) if "source_scale" in data else 1.0
+            # `output_*` (area/shape regularization) postdates the format.
+            # New saves carry `output_affine` (2x2); an older save may carry
+            # the isotropic `output_area_scale` (float) instead; oldest carry
+            # neither -> a no-op.
+            if "output_affine" in data:
+                output_affine = np.asarray(data["output_affine"])
+                if np.allclose(output_affine, np.eye(output_affine.shape[0])):
+                    output_affine = None
+            elif "output_area_scale" in data and float(data["output_area_scale"]) != 1.0:
+                output_affine = float(data["output_area_scale"]) * np.eye(interpolator.y.shape[1])
+            else:
+                output_affine = None
+            output_center = (
+                data["output_center"]
+                if "output_center" in data and output_affine is not None
+                else None
+            )
+            return ThinPlateSplineTransform(
+                interpolator=interpolator,
+                source_center=source_center,
+                source_scale=source_scale,
+                output_center=output_center,
+                output_affine=output_affine,
+            )
         raise ValueError(f"unknown transform kind {kind!r} in {path}")

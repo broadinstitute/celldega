@@ -69,6 +69,7 @@ import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
+import { bind_selection_to_store } from '../obs_store/bind_selection';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
@@ -255,6 +256,12 @@ export const landscape_ist = async (
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
 
+  // Named alignment variant (point-cloud only): selects the cell_metadata
+  // positions file independently of the segmentation-driven clusters/genes.
+  viz_state.alignment =
+    (typeof ini_model?.get === 'function' ? ini_model.get('alignment') : '') ||
+    '';
+
   viz_state.root = el;
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';
@@ -383,7 +390,16 @@ export const landscape_ist = async (
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
   viz_state.cats.meta_cell_id_set = null;
-  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
+  // Color cells by the requested `cluster_attr` when that column is present in
+  // the cell metadata; else fall back to the first attribute. Without this, a
+  // non-'leiden' cluster_attr would be ignored whenever 'leiden' also happened
+  // to be the first cell attribute.
+  const requested_cluster_attr =
+    typeof ini_model?.get === 'function' ? ini_model.get('cluster_attr') : null;
+  viz_state.cats.inst_cell_attr =
+    requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
+      ? requested_cluster_attr
+      : meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -424,6 +440,12 @@ export const landscape_ist = async (
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
   viz_state.genes.selected_gene_ids = new Set();
+
+  // Make obs_store the single source of truth for selection state:
+  // viz_state.cats.selected_cats and viz_state.genes.selected_genes now delegate
+  // to the store observables, so reads and writes can no longer drift apart.
+  bind_selection_to_store(viz_state);
+
   viz_state.genes.trx_ini_radius = trx_radius;
   viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];

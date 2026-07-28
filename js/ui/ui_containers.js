@@ -337,6 +337,11 @@ export const make_ist_ui_container = (
   const isChromium = technology === 'Chromium';
   const isPointCloud = is_point_cloud_technology(technology);
 
+  // Hide the gene panel (gene bar graph + gene search) for gene-less datasets
+  // (e.g. a point-cloud DegaFiles written without cbg data). set_meta_gene has
+  // already run, so an empty gene_names array reliably signals "no genes".
+  const hasGenes = (viz_state.genes.gene_names?.length || 0) > 0;
+
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(
       'image_layer_container',
@@ -678,8 +683,12 @@ export const make_ist_ui_container = (
   );
 
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    ({ svg, color_dict, get_selected_array, bar_callback, container }) =>
     (bar_data) => {
+      // Read the current selection each time the bars redraw. Capturing it once
+      // at setup would freeze a stale array reference (the store replaces the
+      // array on every selection change rather than mutating it in place).
+      const selected_array = get_selected_array();
       const bar_height = 15;
       const svg_height = bar_height * (bar_data.length + 1);
       svg.attr('height', svg_height);
@@ -768,7 +777,7 @@ export const make_ist_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.cats.svg_bar_cluster,
       color_dict: viz_state.cats.color_dict_cluster,
-      selected_array: viz_state.cats.selected_cats,
+      get_selected_array: () => viz_state.obs_store.selected_cats.get(),
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
     }),
@@ -779,7 +788,7 @@ export const make_ist_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.genes.svg_bar_gene,
       color_dict: viz_state.genes.color_dict_gene,
-      selected_array: viz_state.genes.selected_genes,
+      get_selected_array: () => viz_state.obs_store.selected_genes.get(),
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
     }),
@@ -840,7 +849,9 @@ export const make_ist_ui_container = (
     ctrl_container.appendChild(viz_state.containers.image);
   }
   ctrl_container.appendChild(cell_container);
-  ctrl_container.appendChild(gene_container);
+  if (hasGenes) {
+    ctrl_container.appendChild(gene_container);
+  }
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
@@ -1164,7 +1175,9 @@ export const make_ist_ui_container = (
     }
   }
 
-  ctrl_container.appendChild(viz_state.genes.gene_search);
+  if (hasGenes) {
+    ctrl_container.appendChild(viz_state.genes.gene_search);
+  }
 
   // === Add logo to top right === //
   const logo_button = document.createElement('div');

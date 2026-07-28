@@ -4,12 +4,13 @@ Computes one landmark per cluster label, decoupled from any particular
 alignment orchestration (:mod:`celldega.align.serial_slices` today; a future
 reference/atlas-registration method tomorrow, matching a query dataset's
 cluster centroids onto a reference dataset's). The output shape is the same
-one manually- or semi-manually-defined landmarks (e.g. from a future
-point-drawing widget) use, so the two are directly ``pandas.concat``-able.
-A plain ``DataFrame`` (rather than a ``GeoDataFrame`` of shapely geometry)
-keeps this trivially disk-portable (``to_parquet``/``to_csv`` with no WKB/WKT
-round-trip); a future geometry-based landmark source (e.g. GeoJSON points
-from a drawing widget) is a small ``x``/``y`` extraction away from this shape.
+one manually- or semi-manually-defined landmarks (e.g. from
+:class:`~celldega.viz.Landmark`) use, so the two are directly
+``pandas.concat``-able. A plain ``DataFrame`` (rather than a ``GeoDataFrame``
+of shapely geometry) keeps this trivially disk-portable
+(``to_parquet``/``to_csv`` with no WKB/WKT round-trip) — the GeoJSON points
+:class:`~celldega.viz.Landmark` collects are a small ``x``/``y``
+extraction away from this shape.
 
 Accepts the same two multi-slice input shapes as
 :func:`~celldega.align.serial_slices.align_serial_slices` (a list of

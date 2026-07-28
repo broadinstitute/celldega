@@ -17,9 +17,9 @@ computes landmarks from shared cluster labels (accepting a list of
 ``AnnData`` or one combined ``AnnData``, no manual per-slice loop needed),
 or a manually-placed landmark table in the same shape (a plain
 ``DataFrame``, not a ``GeoDataFrame`` of shapely geometry, so it stays
-trivially disk-portable; e.g. from a future point-drawing widget,
-tentatively named ``Landmark`` — pairs with ``Landscape``) can be used
-instead, or concatenated alongside it for a semi-manual mix. (2)
+trivially disk-portable; e.g. from :class:`~celldega.viz.Landmark`, a
+point-drawing widget pairing with ``Landscape``) can be used instead, or
+concatenated alongside it for a semi-manual mix. (2)
 :func:`calc_alignment_transform` fits a rigid Procrustes
 (:func:`fit_transform_procrustes`, always without scaling — see
 :mod:`celldega.align.serial_slices`) or non-rigid thin-plate-spline
@@ -35,7 +35,11 @@ alignment call) that can be applied to *other* point data tied to the same
 slices (segmentation-polygon vertices, transcript coordinates, eventually
 raster sampling grids) via ``.apply_to_points()``, and persisted with
 ``.save()``/``.load()`` (a plain directory of ``.npz``/``.parquet``/``.json``
-files, no ``pickle`` required, though it's picklable too). (3)
+files, no ``pickle`` required, though it's picklable too), and visually
+sanity-checked with :func:`plot_alignment` (also available as
+``transform.plot()``): a 2D before/after scatter of the fitted landmarks,
+so a bad fit (or a mislabeled landmark) is visible at a glance rather than
+only showing up downstream. (3)
 :func:`align_serial_slices` applies a given transform to a specific set of
 ``AnnData``, aligning ``obsm["spatial"]`` and assigning a Z coordinate;
 `landmarks_initial`/`landmarks_aligned`/fit parameters are also recorded in
@@ -55,6 +59,8 @@ from celldega.align._transform import (
     save_transform,
 )
 from celldega.align.landmarks import calc_landmarks
+from celldega.align.plot import plot_alignment
+from celldega.align.point_cloud import write_alignment_point_cloud
 from celldega.align.serial_slices import (
     SerialAlignmentTransform,
     align_serial_slices,
@@ -71,5 +77,7 @@ __all__ = [
     "fit_transform_tps",
     "leave_one_out_residuals",
     "load_transform",
+    "plot_alignment",
     "save_transform",
+    "write_alignment_point_cloud",
 ]

@@ -242,6 +242,14 @@ export const set_mat_constants = (
       ? model.get('composition_normalized') !== false
       : true;
 
+  // Optional {group_name: n_cells} true per-group magnitude for "counts"
+  // mode (see composition_data.js's build_composition_layout).
+  viz_state.mat.composition_col_weights =
+    (model &&
+      typeof model.get === 'function' &&
+      model.get('composition_col_weights')) ||
+    {};
+
   // Dotplot size channel toggle: true (default) -> dot size encodes the
   // secondary (fraction) matrix; false -> size is forced to full tile.
   viz_state.mat.dot_size_encoded =

@@ -730,9 +730,13 @@ def _composition_matrix_inputs(
     * ``colors`` - ``{population: hex}`` palette
     * ``normalized`` - default for ``composition_normalized``
     * ``category`` - resolved population category name
+    * ``col_weights`` - optional ``{group: n_cells}`` true per-group magnitude,
+      used to scale bar height in non-normalized ("counts") mode even when
+      the displayed matrix itself holds proportions
     """
     meta_col: pd.DataFrame | None = None
     collection_obs: pd.DataFrame | None = None
+    col_weights: dict[str, float] = {}
 
     if isinstance(data, pd.DataFrame):
         groups_x_pops = data.copy()
@@ -788,6 +792,25 @@ def _composition_matrix_inputs(
             colors = _colors_from_adata(color_adata, resolved_category, categories)
         output = str(adata.uns.get("output", "proportion"))
 
+        # True per-group cell count, independent of `output`: `calc_population`
+        # always stores this on the modality's own obs (collection.py), so
+        # "counts" mode can scale bar height correctly even when `df` itself
+        # holds proportions (every group's proportions sum to ~1.0 otherwise,
+        # making non-normalized mode indistinguishable from normalized mode).
+        n_cells_source = None
+        if "n_cells" in adata.obs.columns:
+            n_cells_source = adata.obs["n_cells"]
+        elif collection_obs is not None and "n_cells" in collection_obs.columns:
+            n_cells_source = collection_obs.reindex(adata.obs_names)["n_cells"]
+        if n_cells_source is not None:
+            col_weights = {
+                str(name): float(n)
+                for name, n in zip(
+                    adata.obs_names.astype(str), n_cells_source, strict=False
+                )
+                if pd.notna(n)
+            }
+
     # Clustergram composition body: rows = populations, cols = groups.
     df = groups_x_pops.T.copy()
     df.index = df.index.astype(str)
@@ -813,6 +836,7 @@ def _composition_matrix_inputs(
         "colors": colors,
         "normalized": output != "counts",
         "category": resolved_category,
+        "col_weights": col_weights,
     }
 
 
@@ -1208,6 +1232,11 @@ class Clustergram(anywidget.AnyWidget):
     composition_normalized = traitlets.Bool(True).tag(sync=True)
     # Optional {population_name: hex} palette for stacked segments.
     composition_colors = traitlets.Dict(default_value={}).tag(sync=True)
+    # Optional {group_name: n_cells} true per-group magnitude. Scales bar
+    # height in non-normalized ("counts") mode even when the displayed matrix
+    # holds proportions (e.g. from `DatasetCollection.calc_population`, whose
+    # default output already normalizes each group to sum to 1).
+    composition_col_weights = traitlets.Dict(default_value={}).tag(sync=True)
 
     def __init__(self, **kwargs):
         """
@@ -1467,8 +1496,8 @@ class Composition(Clustergram):
     A `Clustergram` subclass with ``viz_mode="composition"``. The body draws
     each group (dataset/sample) as a stacked bar whose segments are
     populations (cell types), reusing the Clustergram's column-attribute
-    tracks, reorder buttons (``ini`` / ``sum`` / ``clust``), and control-panel
-    toggles (``PROPORTION``/``COUNTS``, ``HEIGHT``/``OPACITY``).
+    tracks, reorder buttons (``ini`` / ``sum`` / ``clust``), and the
+    control-panel ``PROP``/``COUNTS`` normalization toggle.
 
     "Composition shows the count or relative proportion of categories within
     each group, and compares those compositions across groups."
@@ -1493,6 +1522,7 @@ class Composition(Clustergram):
         adata: Any = None,
         group_attrs: list[str] | None = None,
         normalized: bool | None = None,
+        col_weights: dict[str, float] | None = None,
         cluster: bool = True,
         name: str = "composition",
         width: int = 700,
@@ -1514,6 +1544,11 @@ class Composition(Clustergram):
                 attribute tracks (e.g. ``["condition", "timepoint"]``).
             normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
                 proportion matrices and ``False`` for count matrices.
+            col_weights: Optional ``{group: n_cells}`` true per-group magnitude,
+                used to scale bar height in non-normalized ("counts") mode.
+                Defaults to `DatasetCollection`/`calc_population`'s own
+                ``n_cells`` obs column when available — pass explicitly to
+                override, e.g. for a plain ``DataFrame`` input.
             cluster: Run hierarchical clustering before display (default ``True``).
             name: Clustergram registry name.
             width / height: Widget size in pixels.
@@ -1531,6 +1566,10 @@ class Composition(Clustergram):
         merged_colors = dict(payload["colors"])
         if colors:
             merged_colors.update(colors)
+
+        resolved_col_weights = (
+            col_weights if col_weights is not None else payload["col_weights"]
+        )
 
         mat = Matrix(
             payload["df"],
@@ -1554,6 +1593,8 @@ class Composition(Clustergram):
 
         kwargs.setdefault("viz_mode", "composition")
         kwargs.setdefault("composition_normalized", bool(normalized))
+        if resolved_col_weights:
+            kwargs.setdefault("composition_col_weights", resolved_col_weights)
         if merged_colors:
             kwargs.setdefault("composition_colors", merged_colors)
             kwargs.setdefault("category_colors", merged_colors)

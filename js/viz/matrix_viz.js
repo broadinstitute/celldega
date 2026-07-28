@@ -453,6 +453,20 @@ export const matrix_viz = async (
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
 
+    // Live per-group weights (e.g. true dataset cell counts) for composition
+    // "counts" mode bar height.
+    viz_state.model.on('change:composition_col_weights', () => {
+      viz_state.mat.composition_col_weights =
+        viz_state.model.get('composition_col_weights') || {};
+      if (viz_state.mat.viz_mode !== 'composition') return;
+      viz_state.mat._comp_cache = null;
+      layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        updateTriggers: mat_reorder_triggers(viz_state),
+      });
+      refresh_row_label_visibility(layers_mat, viz_state);
+      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+    });
+
     // Live DOT toggle: whether dotplot dot size encodes the secondary
     // (fraction) matrix, or is forced to a full tile.
     viz_state.model.on('change:dot_size_encoded', () => {

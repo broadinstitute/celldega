@@ -26,6 +26,11 @@ export class CompositionLayer extends ScatterplotLayer {
         size: 2,
         accessor: 'getSize',
         defaultValue: [0, 0],
+        // Without this, deck.gl's AttributeTransitionManager skips this
+        // attribute entirely (Attribute.supportsTransition() gates on it),
+        // so the `getSize` entry in `transitions` below is silently a
+        // no-op and segment height snaps to its final value instantly.
+        transition: true,
       },
     });
   }

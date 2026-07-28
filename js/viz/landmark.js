@@ -78,6 +78,30 @@ export const landmark = async (model, el) => {
   root_container.className = 'landmark-root';
   el.appendChild(root_container);
 
+  // Take keyboard focus while interacting so the notebook's command-mode
+  // shortcuts (m -> markdown, a/b -> insert cell, d d -> delete cell, …) don't
+  // fire over the widget. Focus on click (capture phase, so it wins even if a
+  // layer stops the event; skip form controls, which manage their own focus),
+  // and swallow unmodified keydowns so they never reach Jupyter's handlers —
+  // Ctrl/Cmd/Alt combos (run cell, save notebook) still pass through. The
+  // widget's own shortcuts are registered on root_container below, so they
+  // still fire (stopPropagation doesn't affect same-element listeners).
+  root_container.tabIndex = -1;
+  root_container.style.outline = 'none';
+  root_container.addEventListener(
+    'pointerdown',
+    (event) => {
+      const tag = event.target?.tagName?.toLowerCase();
+      if (['input', 'button', 'select', 'textarea'].includes(tag)) return;
+      root_container.focus({ preventScroll: true });
+    },
+    true
+  );
+  root_container.addEventListener('keydown', (event) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    event.stopPropagation();
+  });
+
   // One row of "sections" (toolbar, LNDMRK, CELL, TRX, SLICE), each its own
   // small column: top controls directly above that section's own bar box —
   // not two long, unaligned rows (wastes horizontal space and separates a
@@ -988,34 +1012,37 @@ export const landmark = async (model, el) => {
     },
   });
 
-  const cleanup_shortcuts = register_landmark_keyboard_shortcuts({
-    on_mark_toggle: () => {
-      if (state.ui_mode === 'browse') {
-        enter_mark(null);
-      } else {
+  const cleanup_shortcuts = register_landmark_keyboard_shortcuts(
+    {
+      on_mark_toggle: () => {
+        if (state.ui_mode === 'browse') {
+          enter_mark(null);
+        } else {
+          enter_browse();
+        }
+      },
+      on_save: () => {
+        if (state.ui_mode === 'mark') save_mark();
+        else if (state.ui_mode === 'modify') save_modify();
+      },
+      on_cancel: () => {
+        // Escape is a finer-grained undo than CANCEL: clear every pending
+        // (unsaved, across however many slices) point first, staying in
+        // 'mark', before falling back to a full exit.
+        if (state.ui_mode === 'mark' && state.pending_points.size > 0) {
+          state.pending_points = new Map();
+          set_save_button_active(toolbar.buttons, is_save_active());
+          refresh();
+          return;
+        }
         enter_browse();
-      }
+      },
+      on_delete: () => {
+        if (state.ui_mode === 'modify') delete_modify();
+      },
     },
-    on_save: () => {
-      if (state.ui_mode === 'mark') save_mark();
-      else if (state.ui_mode === 'modify') save_modify();
-    },
-    on_cancel: () => {
-      // Escape is a finer-grained undo than CANCEL: clear every pending
-      // (unsaved, across however many slices) point first, staying in
-      // 'mark', before falling back to a full exit.
-      if (state.ui_mode === 'mark' && state.pending_points.size > 0) {
-        state.pending_points = new Map();
-        set_save_button_active(toolbar.buttons, is_save_active());
-        refresh();
-        return;
-      }
-      enter_browse();
-    },
-    on_delete: () => {
-      if (state.ui_mode === 'modify') delete_modify();
-    },
-  });
+    root_container
+  );
 
   // --- One shared canvas + per-side "active" border overlay -------------------
 

@@ -146,12 +146,10 @@ const ignores_landmark_shortcut = (event) => {
  * selected committed pair — mirrors the guard + cleanup-callback pattern
  * `672602e0` established for Landscape's SKTCH shortcut.
  */
-export const register_landmark_keyboard_shortcuts = ({
-  on_mark_toggle,
-  on_save,
-  on_cancel,
-  on_delete,
-}) => {
+export const register_landmark_keyboard_shortcuts = (
+  { on_mark_toggle, on_save, on_cancel, on_delete },
+  target = document
+) => {
   const handler = (event) => {
     if (ignores_landmark_shortcut(event)) return;
     const key = event.key?.toLowerCase();
@@ -173,8 +171,8 @@ export const register_landmark_keyboard_shortcuts = ({
     }
   };
 
-  document.addEventListener('keydown', handler);
-  return () => document.removeEventListener('keydown', handler);
+  target.addEventListener('keydown', handler);
+  return () => target.removeEventListener('keydown', handler);
 };
 
 /** A coarse manual-rotation slider for one side, to assist visually lining

@@ -241,6 +241,22 @@ export const set_mat_constants = (
     model && typeof model.get === 'function'
       ? model.get('composition_normalized') !== false
       : true;
+
+  // Composition segment encoding: "height" (share -> segment height, default)
+  // or "opacity" (equal-height slots, share -> color alpha).
+  viz_state.mat.composition_encoding =
+    (model &&
+      typeof model.get === 'function' &&
+      model.get('composition_encoding')) ||
+    'height';
+
+  // Dotplot size channel toggle: true (default) -> dot size encodes the
+  // secondary (fraction) matrix; false -> size is forced to full tile.
+  viz_state.mat.dot_size_encoded =
+    model && typeof model.get === 'function'
+      ? model.get('dot_size_encoded') !== false
+      : true;
+
   viz_state.global_cat_colors = network.global_cat_colors || {};
 
   viz_state.order = {};
@@ -254,6 +270,10 @@ export const set_mat_constants = (
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';
   viz_state.buttons.gray = '#EEEEEE';
+  // Control-panel button text colors: state is shown by text color alone
+  // (no border/background), blue = active, gray = inactive.
+  viz_state.buttons.text_active = '#3355ff';
+  viz_state.buttons.text_inactive = '#9aa0a6';
 
   viz_state.click = {};
   viz_state.click.type = null;

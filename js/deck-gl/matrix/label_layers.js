@@ -6,6 +6,8 @@ import {
   sync_selected_rows,
   sync_selected_cols,
 } from '../../global_variables/selected_genes';
+import { refresh_row_label_visibility } from '../../matrix/composition_data';
+import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
 import { toggle_dendro_layer_visibility } from './dendro_layers';
 import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
@@ -56,16 +58,25 @@ export const ini_row_label_layer = (viz_state) => {
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
     getSize: viz_state.viz.font_size.rows,
-    getColor: [0, 0, 0],
+    // Per-instance so composition mode can hide labels that don't fit their
+    // segment (fully transparent, rather than removed from `data`, so
+    // reorder/index-keyed picking stays stable).
+    getColor: (d) => {
+      if (viz_state.mat.viz_mode !== 'composition') return [0, 0, 0, 255];
+      const visible = viz_state.labels.row_visibility;
+      return !visible || visible[d.index] !== false
+        ? [0, 0, 0, 255]
+        : [0, 0, 0, 0];
+    },
     getAngle: 0,
     getTextAnchor: 'end',
     getAlignmentBaseline: 'center',
     fontFamily: 'Arial',
     sizeUnits: 'pixels',
     sizeScale: 2,
-    // updateTriggers: {
-    //   getSize: viz_state.viz.ini_font_size,
-    // },
+    updateTriggers: {
+      getColor: viz_state.labels._row_vis_rev || 0,
+    },
     pickable: true,
     transitions,
   });
@@ -134,10 +145,7 @@ const custom_label_reorder = (
   const other_axis = axis === 'col' ? 'row' : 'col';
 
   // deactivate reordering buttons when setting a custom order
-  d3.select(viz_state.el)
-    .selectAll(`.button-${other_axis}`)
-    .classed('active', false)
-    .style('border-color', viz_state.buttons.gray);
+  deselect_reorder_buttons(viz_state, other_axis);
 
   if (axis === 'col') {
     tmp_arr = viz_state.mat.net_mat.map((inst_row) => inst_row[index]);
@@ -199,12 +207,19 @@ const custom_label_reorder = (
     toggle_dendro_layer_visibility(layers_mat, viz_state, 'row');
   }
 
+  // Reordering (in particular a column reorder, which can change which
+  // column is leftmost) can change which row labels fit their segment.
+  refresh_row_label_visibility(layers_mat, viz_state);
+
   deck_mat.setProps({
     layers: get_mat_layers_list(layers_mat),
   });
 };
 
 const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+  const visibility = viz_state.labels.row_visibility;
+  if (visibility && visibility[event.object.index] === false) return;
+
   viz_state.labels.clicks.row += 1;
 
   if (viz_state.labels.clicks.row === 1) {

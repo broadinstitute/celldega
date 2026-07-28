@@ -28,7 +28,8 @@ export const resolve_viz_mode = (mode, has_size_mat) => {
 };
 
 const encode_point = (p, viz_state) => {
-  const { max_abs_value, max_size_value, viz_mode } = viz_state.mat;
+  const { max_abs_value, max_size_value, viz_mode, dot_size_encoded } =
+    viz_state.mat;
   const magnitude = Math.min(1, Math.abs(p.value) / max_abs_value);
 
   let alpha;
@@ -39,10 +40,15 @@ const encode_point = (p, viz_state) => {
     size_scale = magnitude;
   } else if (viz_mode === 'dotplot') {
     alpha = magnitude;
-    // Fractions ([0, 1]) stay absolute so a full square == 100%; count-like
-    // matrices (max > 1) get normalized to their own maximum.
-    const denom = max_size_value > 1 ? max_size_value : 1;
-    size_scale = Math.max(0, Math.min(1, p.size_value / denom));
+    if (dot_size_encoded === false) {
+      // DOT toggle off: full-tile square, like heatmap.
+      size_scale = 1;
+    } else {
+      // Fractions ([0, 1]) stay absolute so a full square == 100%; count-like
+      // matrices (max > 1) get normalized to their own maximum.
+      const denom = max_size_value > 1 ? max_size_value : 1;
+      size_scale = Math.max(0, Math.min(1, p.size_value / denom));
+    }
   } else {
     alpha = magnitude;
     size_scale = 1;

@@ -35,6 +35,7 @@ import { ini_deck } from '../deck-gl/matrix/deck_mat';
 import {
   ini_dendro_layer,
   set_dendro_layer_onclick,
+  toggle_dendro_layer_visibility,
 } from '../deck-gl/matrix/dendro_layers';
 import {
   ini_row_label_layer,
@@ -59,7 +60,10 @@ import {
   apply_manual_definitions_to_axis,
   refresh_attribute_layers,
 } from '../matrix/attr_state';
-import { set_composition_colors } from '../matrix/composition_data';
+import {
+  refresh_row_label_visibility,
+  set_composition_colors,
+} from '../matrix/composition_data';
 import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
 import {
   set_row_label_data,
@@ -74,8 +78,10 @@ import {
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
-import { render_composition_legend } from '../ui/composition_legend';
-import { make_matrix_ui_container } from '../ui/ui_containers';
+import {
+  make_matrix_ui_container,
+  update_mode_button_visibility,
+} from '../ui/ui_containers';
 
 export const matrix_viz = async (
   model,
@@ -158,29 +164,20 @@ export const matrix_viz = async (
       layers_mat.mat_layer = ini_composition_layer(viz_state);
       set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
 
-      // Populations are shown as colored segments + legend, so hide the
-      // row labels / row attribute strip / dendrograms.
-      layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-        visible: false,
-      });
+      // Populations are shown as colored bar segments (+ row labels where
+      // they fit), so hide the row attribute strip. The row dendrogram is
+      // always meaningless here (rows aren't equal height once stacked), but
+      // the column dendrogram should behave normally (visible only when col
+      // order is 'clust').
       layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
         visible: false,
       });
       layers_mat.row_dendro_layer = layers_mat.row_dendro_layer.clone({
         visible: false,
       });
-      layers_mat.col_dendro_layer = layers_mat.col_dendro_layer.clone({
-        visible: false,
-      });
+      toggle_dendro_layer_visibility(layers_mat, viz_state, 'col');
 
-      if (!viz_state._composition_legend) {
-        viz_state._composition_legend = render_composition_legend(
-          el,
-          deck_mat,
-          layers_mat,
-          viz_state
-        );
-      }
+      refresh_row_label_visibility(layers_mat, viz_state);
     } else {
       apply_mat_encoding(viz_state);
       layers_mat.mat_layer = ini_mat_layer(viz_state);
@@ -192,19 +189,11 @@ export const matrix_viz = async (
       layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
         visible: true,
       });
-      layers_mat.row_dendro_layer = layers_mat.row_dendro_layer.clone({
-        visible: true,
-      });
-      layers_mat.col_dendro_layer = layers_mat.col_dendro_layer.clone({
-        visible: true,
-      });
-
-      if (viz_state._composition_legend) {
-        viz_state._composition_legend.remove();
-        viz_state._composition_legend = null;
-      }
+      toggle_dendro_layer_visibility(layers_mat, viz_state, 'row');
+      toggle_dendro_layer_visibility(layers_mat, viz_state, 'col');
     }
 
+    update_mode_button_visibility(viz_state);
     deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
   };
 
@@ -439,17 +428,49 @@ export const matrix_viz = async (
           },
         });
       }
+      update_mode_button_visibility(viz_state);
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
 
     // Live proportion/count toggle for composition.
     viz_state.model.on('change:composition_normalized', () => {
-      viz_state.mat.composition_normalized =
-        viz_state.model.get('composition_normalized') !== false;
+      const value = viz_state.model.get('composition_normalized') !== false;
+      viz_state.mat.composition_normalized = value;
+      viz_state.mode_buttons?.normalized?.setActive(value);
       if (viz_state.mat.viz_mode !== 'composition') return;
       viz_state.mat._comp_cache = null;
       layers_mat.mat_layer = layers_mat.mat_layer.clone({
         updateTriggers: mat_reorder_triggers(viz_state),
+      });
+      refresh_row_label_visibility(layers_mat, viz_state);
+      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+    });
+
+    // Live height/opacity encoding toggle for composition.
+    viz_state.model.on('change:composition_encoding', () => {
+      const value = viz_state.model.get('composition_encoding') || 'height';
+      viz_state.mat.composition_encoding = value;
+      viz_state.mode_buttons?.encoding?.setActive(value);
+      if (viz_state.mat.viz_mode !== 'composition') return;
+      viz_state.mat._comp_cache = null;
+      layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        updateTriggers: mat_reorder_triggers(viz_state),
+      });
+      refresh_row_label_visibility(layers_mat, viz_state);
+      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+    });
+
+    // Live DOT toggle: whether dotplot dot size encodes the secondary
+    // (fraction) matrix, or is forced to a full tile.
+    viz_state.model.on('change:dot_size_encoded', () => {
+      const value = viz_state.model.get('dot_size_encoded') !== false;
+      viz_state.mat.dot_size_encoded = value;
+      viz_state.mode_buttons?.dot?.setActive(value);
+      if (viz_state.mat.viz_mode !== 'dotplot') return;
+      apply_mat_encoding(viz_state);
+      layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        data: viz_state.mat.mat_data.slice(),
+        updateTriggers: { getRadius: value },
       });
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });

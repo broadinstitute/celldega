@@ -1,8 +1,10 @@
-import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
 import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { refresh_row_label_visibility } from '../matrix/composition_data';
+
+import { deselect_reorder_buttons } from './text_buttons';
 
 /**
  * Generates ordering based on category values for an axis.
@@ -109,10 +111,7 @@ const reorder_by_attribute = (
     }
 
     // Deselect all reorder buttons for this axis
-    d3.select(viz_state.el)
-      .selectAll(`.button-${axis}`)
-      .classed('active', false)
-      .style('border-color', viz_state.buttons.gray);
+    deselect_reorder_buttons(viz_state, axis);
 
     // Update layers
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
@@ -143,6 +142,10 @@ const reorder_by_attribute = (
           getPosition: viz_state.order.current.col,
         },
       });
+
+      // Reordering columns can change which bar is leftmost, which can
+      // change which row labels fit their segment (composition mode only).
+      refresh_row_label_visibility(layers_mat, viz_state);
     }
 
     // Hide dendro when not in clust order

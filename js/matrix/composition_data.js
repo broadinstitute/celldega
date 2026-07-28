@@ -49,7 +49,12 @@ const order_signature = (viz_state) => {
   const row_arr = viz_state.mat.orders.row[row_key] || [];
   const col_arr = viz_state.mat.orders.col[col_key] || [];
   const normalized = viz_state.mat.composition_normalized ? 1 : 0;
-  return `${row_key}|${col_key}|${normalized}|${row_arr.join(',')}|${col_arr.join(',')}`;
+  const weights = viz_state.mat.composition_col_weights || {};
+  const weights_sig = Object.keys(weights)
+    .sort()
+    .map((k) => `${k}:${weights[k]}`)
+    .join(',');
+  return `${row_key}|${col_key}|${normalized}|${weights_sig}|${row_arr.join(',')}|${col_arr.join(',')}`;
 };
 
 /**
@@ -78,7 +83,21 @@ export const build_composition_layout = (viz_state) => {
       if (v > 0) col_sums[c] += v;
     }
   }
-  const max_sum = Math.max(...col_sums, 1e-9);
+
+  // Per-column magnitude for non-normalized ("counts") mode: an explicit
+  // weight (e.g. a dataset's true cell count from `composition_col_weights`)
+  // when available, else the column's own sum. When no explicit weights are
+  // provided this reduces to exactly the previous (weights-less) formula, so
+  // a matrix that already holds raw counts behaves identically either way —
+  // explicit weights only matter when the matrix holds proportions (every
+  // column summing to ~1) and true magnitude would otherwise be lost.
+  const col_weights_by_name = viz_state.mat.composition_col_weights || {};
+  const col_weights = Array.from({ length: num_cols }, (_, c) => {
+    const name = viz_state.col_nodes[c]?.name;
+    const explicit = name != null ? col_weights_by_name[name] : undefined;
+    return explicit != null ? explicit : col_sums[c];
+  });
+  const max_weight = Math.max(...col_weights, 1e-9);
 
   // Stack rows top -> bottom following the current row order (smaller y-slot
   // sits higher, matching the heatmap's `num_rows - rank` convention).
@@ -94,12 +113,22 @@ export const build_composition_layout = (viz_state) => {
   for (let c = 0; c < num_cols; c++) {
     const x_index = num_cols - col_order[c];
     const x_center = col_width * (x_index + 0.5);
-    const denom = normalized ? col_sums[c] || 1 : max_sum;
+    const col_sum = col_sums[c] || 1;
+    // Bar's own height: full mat_height when normalized, else scaled by its
+    // share of the largest column weight (so datasets with more cells get
+    // taller bars, even when `net_mat` itself holds proportions).
+    const bar_height = normalized
+      ? mat_height
+      : (col_weights[c] / max_weight) * mat_height;
 
-    let cursor = y_top;
+    // Anchor at a shared bottom edge (y_top + mat_height), stacking upward —
+    // the standard bar-chart convention — rather than a shared top edge, so
+    // a shorter (non-normalized) bar leaves empty space above it, not below.
+    let cursor = y_top + (mat_height - bar_height);
     for (const r of rows_sorted) {
       const v = Math.max(0, net_mat[r][c] || 0);
-      const seg_h = (v / denom) * mat_height;
+      const share = v / col_sum;
+      const seg_h = share * bar_height;
       layout[`${r}_${c}`] = {
         position: [x_center, cursor + seg_h / 2],
         half: [half_width, seg_h / 2],
@@ -156,18 +185,17 @@ export const leftmost_composition_col = (viz_state) => {
   return leftmost_col;
 };
 
-// Minimum segment height, as a multiple of the row font size, for a row
-// label to be considered "fits" (roughly one line of text tall).
-const MIN_LABEL_HEIGHT_RATIO = 1.0;
+// A row label is only hidden when its segment is degenerate (the population
+// isn't present in that column at all) — labels are otherwise always shown,
+// however small, since zooming in on the `rows` viewport makes them legible
+// again in absolute screen-pixel terms (both the segment and its zoom-scaled
+// font grow together).
+const MIN_SEGMENT_HEIGHT = 1e-6;
 
 /**
- * Per-row visibility for population (row) labels in composition mode, based
- * on whether the leftmost displayed bar's segment for that row is tall
- * enough to hold a line of text. Both the segment height and the row font
- * size are world-space quantities scaled identically by zoom in the `rows`
- * viewport, so the ratio test is zoom-invariant and only needs recomputing
- * when the layout itself changes (reorder, normalization) — not on every
- * pan/zoom tick.
+ * Per-row visibility for population (row) labels in composition mode: hidden
+ * only when the leftmost displayed bar has no segment (or a zero-height one)
+ * for that row.
  *
  * @param {object} viz_state - Visualization state.
  * @returns {boolean[]} Indexed by raw row index (matches `row_label_data[i].index`).
@@ -177,11 +205,10 @@ export const compute_row_label_visibility = (viz_state) => {
   const layout = get_composition_layout(viz_state);
   const leftmost_col = leftmost_composition_col(viz_state);
 
-  const min_seg_h = viz_state.viz.font_size.rows * MIN_LABEL_HEIGHT_RATIO;
   const visible = new Array(num_rows).fill(false);
   for (let r = 0; r < num_rows; r++) {
     const seg = layout[`${r}_${leftmost_col}`];
-    visible[r] = !!seg && seg.half[1] * 2 >= min_seg_h;
+    visible[r] = !!seg && seg.half[1] * 2 >= MIN_SEGMENT_HEIGHT;
   }
   return visible;
 };

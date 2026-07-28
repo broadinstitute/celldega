@@ -130,7 +130,7 @@ const get_axis_display_name = (viz_state, axis) => {
       nbhd: 'Nbhd',
       cluster: 'Clust',
       hextile: 'Hex',
-      dataset: 'Dataset',
+      dataset: 'DSET',
       cell_population: 'POP',
     };
     return abbrev[entity] || entity.substring(0, 4).toUpperCase();
@@ -140,8 +140,10 @@ const get_axis_display_name = (viz_state, axis) => {
 };
 
 /**
- * Show/hide the "TILE: PROP|UNIT" and "PROP|COUNTS" control-panel toggles
- * per the current `viz_mode`. Call after any change to `viz_state.mat.viz_mode`.
+ * Show/hide viz_mode-dependent control-panel chrome: the "TILE: PROP|UNIT"
+ * and "PROP|COUNTS" toggles, and the row Dendro slider (never meaningful in
+ * composition mode, since rows aren't equal height once stacked). Call after
+ * any change to `viz_state.mat.viz_mode`.
  *
  * @param {object} viz_state - Visualization state.
  */
@@ -156,6 +158,10 @@ export const update_mode_button_visibility = (viz_state) => {
   buttons.normalized.container.style.display = is_composition
     ? 'inline-flex'
     : 'none';
+
+  if (viz_state.dendro?.sliders?.row) {
+    viz_state.dendro.sliders.row.style.display = is_composition ? 'none' : '';
+  }
 };
 
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
@@ -164,9 +170,11 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   const slider_container = flex_container('slider_container', 'column');
 
-  // Button widths for reorder controls (compact sizing)
+  // Button width for reorder controls (compact sizing).
   const button_width = 34;
-  const label_width = 40;
+  // Fixed label width (both axis rows use it) so reorder buttons start at
+  // the same x position regardless of entity name length.
+  const axis_label_width = 44;
 
   const axes = ['col', 'row'];
 
@@ -178,6 +186,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   axes.forEach((axis) => {
     const inst_container = flex_container(axis, 'row');
+    inst_container.style.alignItems = 'center';
     inst_container.style.marginTop = axis_row_margin_top[axis];
 
     // Use entity name if available. Non-clickable: black, plain text, no pill.
@@ -186,14 +195,11 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     d3.select(inst_container)
       .append('div')
       .text(`${axis_label}:`)
-      .style('width', `${label_width}px`)
-      .style('height', '16px')
-      .style('display', 'inline-flex')
-      .style('align-items', 'center')
+      .style('flex', `0 0 ${axis_label_width}px`)
+      .style('white-space', 'nowrap')
       .style('font-size', '9px')
       .style('font-weight', 'bold')
       .style('color', 'black')
-      .style('padding', '2px 2px')
       .style('user-select', 'none')
       .style(
         'font-family',
@@ -292,8 +298,11 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   // present but shown/hidden per `viz_mode` (see `update_mode_button_visibility`).
   // ---------------------------------------------------------------------
   const mode_container = flex_container('mode_container', 'row');
-  mode_container.style.alignItems = 'center';
-  mode_container.style.marginTop = '14px';
+  // Top-align with the first reorder-button row (ctrl_container's own
+  // marginTop, below), not vertically centered against the taller sibling
+  // columns to its left.
+  mode_container.style.alignItems = 'flex-start';
+  mode_container.style.marginTop = '10px';
   mode_container.style.marginLeft = '10px';
 
   // Titled group wrapper (e.g. "TILE:" + a toggle group), shown/hidden as one

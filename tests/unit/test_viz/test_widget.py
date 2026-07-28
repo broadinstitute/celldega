@@ -15,6 +15,7 @@ try:
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
+    from celldega.dataset import DatasetCollection
     from celldega.nbhd import NeighborhoodCollection
     from celldega.viz import (
         Clustergram,
@@ -223,6 +224,39 @@ def test_composition_normalized_false_for_counts_output() -> None:
     )
     comp = Composition(df, category="cell_type", normalized=False)
     assert comp.composition_normalized is False
+
+
+def test_composition_col_weights_default_empty_for_dataframe_input() -> None:
+    # A bare DataFrame carries no per-group cell-count metadata.
+    df = pd.DataFrame(
+        {"T": [10, 20], "B": [5, 15]},
+        index=["s1", "s2"],
+    )
+    comp = Composition(df, category="cell_type")
+    assert comp.composition_col_weights == {}
+
+
+def test_composition_col_weights_from_dataset_collection_n_cells() -> None:
+    obs = pd.DataFrame(
+        {
+            "sample_id": ["s1"] * 10 + ["s2"] * 40,
+            "cell_type": (["T"] * 6 + ["B"] * 4) + (["T"] * 20 + ["B"] * 20),
+        },
+        index=[f"c{i}" for i in range(50)],
+    )
+    adata = AnnData(X=np.zeros((50, 3)), obs=obs)
+
+    dc = DatasetCollection(adata, dataset_col="sample_id")
+    dc.calc_population(adata, category="cell_type")
+
+    comp = Composition(dc, category="cell_type", adata=adata)
+
+    assert comp.composition_col_weights == {"s1": 10.0, "s2": 40.0}
+    # Explicit override wins over the auto-derived n_cells.
+    comp_override = Composition(
+        dc, category="cell_type", adata=adata, col_weights={"s1": 1.0, "s2": 1.0}
+    )
+    assert comp_override.composition_col_weights == {"s1": 1.0, "s2": 1.0}
 
 
 def test_landscape_nbhd_geojson_and_metadata() -> None:

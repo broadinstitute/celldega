@@ -141,7 +141,11 @@ export const set_composition_normalized = (
  * @param {object} layers_mat - Layer registry.
  * @param {object} viz_state - Visualization state.
  */
-export const set_composition_layer_onhover = (deck_mat, layers_mat, viz_state) => {
+export const set_composition_layer_onhover = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
   const apply_hover_row = (row) => {
     if (viz_state.mat.comp_hover_row === row) return;
     viz_state.mat.comp_hover_row = row;

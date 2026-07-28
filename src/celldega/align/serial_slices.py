@@ -670,6 +670,7 @@ def align_serial_slices(
         "method": transform.method,
         "allow_reflection": transform.allow_reflection,
         "smoothing": transform.smoothing,
+        "degree": transform.degree,
         "area_regularization": transform.area_regularization,
         "shape_regularization": transform.shape_regularization,
         "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,

@@ -262,10 +262,10 @@ def fit_transform_tps(
     """
     source, target = _validate_point_pairs(source, target, min_points=3)
     weights = _validate_weights(weights, source.shape[0])
-    if area_regularization < 0:
-        raise ValueError(f"area_regularization must be >= 0, got {area_regularization}")
-    if shape_regularization < 0:
-        raise ValueError(f"shape_regularization must be >= 0, got {shape_regularization}")
+    if not (0.0 <= area_regularization <= 1.0):
+        raise ValueError(f"area_regularization must be in [0, 1], got {area_regularization}")
+    if not (0.0 <= shape_regularization <= 1.0):
+        raise ValueError(f"shape_regularization must be in [0, 1], got {shape_regularization}")
 
     if normalize:
         source_center = source.mean(axis=0)

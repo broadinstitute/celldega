@@ -15,6 +15,7 @@ import {
 } from '../deck-gl/layers/landmark_cell_layer';
 import {
   ini_landmark_marker_layer,
+  ini_landmark_label_layer,
   features_to_geojson,
   geojson_to_features,
   resolve_landmark_color,
@@ -76,6 +77,49 @@ export const landmark = async (model, el) => {
   const root_container = document.createElement('div');
   root_container.className = 'landmark-root';
   el.appendChild(root_container);
+
+  // Take keyboard focus while interacting so the notebook's command-mode
+  // shortcuts (m -> markdown, a/b -> insert cell, d d -> delete cell, …) don't
+  // fire over the widget, and so the widget's own shortcuts (registered on
+  // root_container below) work without an explicit click first.
+  root_container.tabIndex = -1;
+  root_container.style.outline = 'none';
+
+  // Grab focus as soon as the pointer is over the widget (so "l" etc. work on
+  // hover, no click needed) — but never yank focus out of a text field/editor
+  // the user is actively typing in, or out of one of the widget's own inputs.
+  const focus_root = () => {
+    const active = document.activeElement;
+    const tag = active?.tagName?.toLowerCase();
+    const is_typing =
+      active?.isContentEditable || tag === 'input' || tag === 'textarea';
+    if (!is_typing && !root_container.contains(active)) {
+      root_container.focus({ preventScroll: true });
+    }
+  };
+  root_container.addEventListener('mouseenter', focus_root);
+  // Also on click (capture phase, so it wins even if a layer stops the event),
+  // skipping form controls which manage their own focus.
+  root_container.addEventListener(
+    'pointerdown',
+    (event) => {
+      const tag = event.target?.tagName?.toLowerCase();
+      if (['input', 'button', 'select', 'textarea'].includes(tag)) return;
+      root_container.focus({ preventScroll: true });
+    },
+    true
+  );
+
+  // Swallow unmodified keydowns so they never reach Jupyter's command-mode
+  // handlers. Ctrl/Cmd/Alt combos and Shift+Enter (run cell / save notebook)
+  // still pass through. The widget's own shortcut handler is a separate
+  // listener on this same element, so it still fires (stopPropagation only
+  // stops propagation to *other* elements, not same-element listeners).
+  root_container.addEventListener('keydown', (event) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'Enter' && event.shiftKey) return; // Shift+Enter: run cell
+    event.stopPropagation();
+  });
 
   // One row of "sections" (toolbar, LNDMRK, CELL, TRX, SLICE), each its own
   // small column: top controls directly above that section's own bar box —
@@ -184,7 +228,12 @@ export const landmark = async (model, el) => {
   const panels_row = document.createElement('div');
   panels_row.style.width = `${width}px`;
   panels_row.style.height = `${height}px`;
-  const deck_ist = ini_deck(panels_row, width, height);
+  // Per-view controllers only (set via `create_landmark_views`) — no top-level
+  // controller, so the left panel's `dragPan:false` isn't overridden by a
+  // default-view controller (which made left-panel marker drags also pan).
+  const deck_ist = ini_deck(panels_row, width, height, '', {
+    per_view_controllers: true,
+  });
 
   // deck.gl's camera-pan controller and the custom onDrag handler below both
   // respond to the same pointer gesture, so a marker drag also pans the view
@@ -200,6 +249,10 @@ export const landmark = async (model, el) => {
   };
 
   let dragging = null; // { side, label, is_draft }
+
+  // Assigned once the STEP-Z control is built (below); a no-op until then so
+  // set_active_side (defined earlier) can refresh the slice indicator's colors.
+  let update_step_z_label = () => {};
 
   // Recreating the views (to toggle dragPan) *during* a drag cancels the
   // in-progress gesture — that's why marker dragging wasn't working. So the
@@ -259,6 +312,11 @@ export const landmark = async (model, el) => {
         focus_label: current_target_label(),
         color_overrides: model.get('landmark_colors') || {},
       }),
+      ini_landmark_label_layer(side, combined_features(side), {
+        rotation_state: state.rotation_state[side],
+        visible: state.marker_visible,
+        color_overrides: model.get('landmark_colors') || {},
+      }),
     ]);
 
   const refresh = () => {
@@ -299,6 +357,41 @@ export const landmark = async (model, el) => {
     };
   };
 
+  // Bounding box of a side's cells, for mapping a zoom focal point onto the
+  // equivalent relative spot in the other slice.
+  const bbox_of_side = (side) => {
+    const rows = state.rows[side];
+    if (!rows || !rows.length) return null;
+    let minx = Infinity;
+    let maxx = -Infinity;
+    let miny = Infinity;
+    let maxy = -Infinity;
+    for (const r of rows) {
+      if (r.x < minx) minx = r.x;
+      if (r.x > maxx) maxx = r.x;
+      if (r.y < miny) miny = r.y;
+      if (r.y > maxy) maxy = r.y;
+    }
+    return { minx, maxx, miny, maxy };
+  };
+
+  // Map a focal point (view target) in one side's slice to the same fractional
+  // position within the other side's slice, so zooming into e.g. the upper-left
+  // of the left panel brings up the upper-left of the right panel's slice
+  // rather than its center.
+  const map_focal_to_partner = (src_side, target, dst_side) => {
+    const src = bbox_of_side(src_side);
+    const dst = bbox_of_side(dst_side);
+    if (!src || !dst) return null;
+    const fx = (target[0] - src.minx) / (src.maxx - src.minx || 1);
+    const fy = (target[1] - src.miny) / (src.maxy - src.miny || 1);
+    return [
+      dst.minx + fx * (dst.maxx - dst.minx),
+      dst.miny + fy * (dst.maxy - dst.miny),
+      0,
+    ];
+  };
+
   const scale_bars = {
     a: create_scale_bar(1, ''),
     b: create_scale_bar(1, ''),
@@ -310,16 +403,32 @@ export const landmark = async (model, el) => {
   );
 
   const handle_view_state_change = ({ viewId, viewState }) => {
+    const prev = state.view_states[viewId] || {};
+    const zoom_changed =
+      Number.isFinite(prev.zoom) && prev.zoom !== viewState.zoom;
     state.view_states = { ...state.view_states, [viewId]: viewState };
-    sync_zoom_from(viewId, viewState.zoom);
-    deck_ist.setProps({ viewState: state.view_states });
+
     const side = side_for_viewport_id(viewId);
+    const partner_view = other_view_id(viewId);
+    const partner_side = side_for_viewport_id(partner_view);
+
+    // Zoom stays locked across both panels. On a zoom (which pulls the target
+    // toward the cursor) also move the partner's focal point to the matching
+    // relative spot in its own slice; a plain pan is left independent.
+    const partner_state = {
+      ...state.view_states[partner_view],
+      zoom: viewState.zoom,
+    };
+    if (zoom_changed && side && partner_side) {
+      const mapped = map_focal_to_partner(side, viewState.target, partner_side);
+      if (mapped) partner_state.target = mapped;
+    }
+    state.view_states = { ...state.view_states, [partner_view]: partner_state };
+
+    deck_ist.setProps({ viewState: state.view_states });
     if (side) scale_bars[side].update({ zoom: viewState.zoom });
-    const partner_side = side_for_viewport_id(other_view_id(viewId));
     if (partner_side) {
-      scale_bars[partner_side].update({
-        zoom: state.view_states[other_view_id(viewId)].zoom,
-      });
+      scale_bars[partner_side].update({ zoom: viewState.zoom });
     }
   };
 
@@ -379,6 +488,17 @@ export const landmark = async (model, el) => {
           state.mark_target_label = state.pending_rename;
         state.pending_rename = null;
         sync_label_input();
+      }
+      // Enter in the name field also saves the landmark, once at least one point
+      // is placed — the fluid "type name -> Enter" flow. (An accidental Enter
+      // before placing anything just keeps the name and stays in MARK.)
+      if (
+        committed &&
+        state.ui_mode === 'mark' &&
+        state.pending_points.size > 0
+      ) {
+        save_mark();
+        return;
       }
       rebuild_lndmrk_bar();
       rebuild_slice_bar();
@@ -548,12 +668,37 @@ export const landmark = async (model, el) => {
     refresh();
   }
 
+  // The next landmark the *active* slice is missing but its sister panel's
+  // slice already has — so MARK can auto-suggest replicating a set across
+  // slices (place, save, advance to the next missing one) instead of always
+  // naming a brand-new landmark. Null when nothing's missing.
+  function next_missing_label() {
+    const active = state.active_side;
+    const sister = active === 'a' ? 'b' : 'a';
+    const current = new Set(
+      state.features[active]
+        .filter((f) => !f.properties.draft)
+        .map((f) => f.properties.label)
+    );
+    for (const f of state.features[sister]) {
+      if (!f.properties.draft && !current.has(f.properties.label)) {
+        return f.properties.label;
+      }
+    }
+    return null;
+  }
+
   function enter_mark(label) {
+    // A fresh MARK (L / MARK button, label == null) pre-fills the next label the
+    // current slice is missing vs its sister panel, as an editable default —
+    // mark_target_label stays null, so typing names a *new* landmark rather than
+    // renaming the suggested one.
+    const suggested = label == null ? next_missing_label() : null;
     state.ui_mode = 'mark';
-    state.active_label = label;
-    // The label a bar-click targeted (vs. null for a fresh MARK-button
-    // click) — kept around so the textbox can tell "rename this existing
-    // landmark" apart from "name the new one about to be created."
+    state.active_label = label ?? suggested;
+    // The label a bar-click targeted (vs. null for a fresh/suggested MARK) —
+    // kept around so the textbox can tell "rename this existing landmark" apart
+    // from "name the new one about to be created."
     state.mark_target_label = label;
     state.pending_rename = null;
     state.pending_points = new Map();
@@ -565,6 +710,9 @@ export const landmark = async (model, el) => {
     rebuild_slice_bar();
     refresh_view_controllers();
     refresh();
+    // NB: the name field is deliberately NOT focused here — you place the
+    // landmark first, then it focuses (see place_draft), which feels more
+    // natural than naming before the point exists.
   }
 
   // Enter (or retarget within) MODIFY. `label` is the landmark to edit, or
@@ -585,7 +733,10 @@ export const landmark = async (model, el) => {
     apply_ui_mode();
     rebuild_lndmrk_bar();
     rebuild_slice_bar();
-    if (!was_modify) refresh_view_controllers();
+    // Always refresh (not just on entry): retargeting to a marker on the other
+    // side changes active_side, which is what the modify-mode pan-off follows.
+    // A click is a discrete, non-drag moment, so recreating the views is safe.
+    refresh_view_controllers();
     refresh();
   }
 
@@ -598,6 +749,10 @@ export const landmark = async (model, el) => {
     // dragged to refine it (done here, not mid-drag, to avoid the race).
     refresh_view_controllers();
     refresh();
+    // Landmark placed — now focus the name field (with the suggested name
+    // selected) so you can accept/type a name and press Enter to finish.
+    label_input.input.focus();
+    label_input.input.select();
   }
 
   // One-shot whole-landmark rename (every slice it appears in). Fired only
@@ -656,7 +811,23 @@ export const landmark = async (model, el) => {
     model.set('add_landmark_points', { label, points });
     model.save_changes();
 
-    enter_browse();
+    // Advance the queue: if the current slice is still missing landmarks its
+    // sister panel has, stay in MARK and suggest the next one (place, save,
+    // repeat) — the just-saved point was optimistically promoted above, so it's
+    // already excluded. Otherwise return to browse.
+    if (next_missing_label() != null) {
+      enter_mark(null);
+    } else {
+      enter_browse();
+    }
+
+    // Return focus to the widget so the next landmark flows without a click:
+    // saving via Enter blurs the name box (and the mouse is already over the
+    // view, so `mouseenter` won't re-fire to re-grab focus). enter_mark above
+    // has already refreshed the name box to the next suggestion, so the input's
+    // blur -> on_commit(committed=false) that this triggers just re-stages that
+    // same value (a harmless no-op).
+    root_container.focus({ preventScroll: true });
   }
 
   function save_modify() {
@@ -668,13 +839,15 @@ export const landmark = async (model, el) => {
   function delete_modify() {
     const label = state.active_label;
     if (!label) return;
-    const confirmed = window.confirm(
-      `Delete landmark "${label}" entirely, across every slice it appears in? This can't be undone.`
+    // DEL removes this landmark from the CURRENT slice only (the active panel),
+    // via the same per-side geojson round-trip a drag uses. Deleting it from
+    // *every* slice is the explicit shift-click on the LNDMRK bar. Single-slice
+    // delete is low-stakes (just re-mark it), so no confirm prompt.
+    const side = state.active_side;
+    state.features[side] = state.features[side].filter(
+      (f) => f.properties.draft || f.properties.label !== label
     );
-    if (!confirmed) return;
-    model.set('delete_landmark', '');
-    model.set('delete_landmark', label);
-    model.save_changes();
+    sync_side_to_model(side);
     enter_browse();
   }
 
@@ -706,6 +879,7 @@ export const landmark = async (model, el) => {
           s === side ? '#4f80ff' : 'transparent';
       }
     });
+    update_step_z_label();
   };
 
   // Clicking a cell (or a CELL bar) highlights that whole *cluster* and dims
@@ -868,34 +1042,37 @@ export const landmark = async (model, el) => {
     },
   });
 
-  const cleanup_shortcuts = register_landmark_keyboard_shortcuts({
-    on_mark_toggle: () => {
-      if (state.ui_mode === 'browse') {
-        enter_mark(null);
-      } else {
+  const cleanup_shortcuts = register_landmark_keyboard_shortcuts(
+    {
+      on_mark_toggle: () => {
+        if (state.ui_mode === 'browse') {
+          enter_mark(null);
+        } else {
+          enter_browse();
+        }
+      },
+      on_save: () => {
+        if (state.ui_mode === 'mark') save_mark();
+        else if (state.ui_mode === 'modify') save_modify();
+      },
+      on_cancel: () => {
+        // Escape is a finer-grained undo than CANCEL: clear every pending
+        // (unsaved, across however many slices) point first, staying in
+        // 'mark', before falling back to a full exit.
+        if (state.ui_mode === 'mark' && state.pending_points.size > 0) {
+          state.pending_points = new Map();
+          set_save_button_active(toolbar.buttons, is_save_active());
+          refresh();
+          return;
+        }
         enter_browse();
-      }
+      },
+      on_delete: () => {
+        if (state.ui_mode === 'modify') delete_modify();
+      },
     },
-    on_save: () => {
-      if (state.ui_mode === 'mark') save_mark();
-      else if (state.ui_mode === 'modify') save_modify();
-    },
-    on_cancel: () => {
-      // Escape is a finer-grained undo than CANCEL: clear every pending
-      // (unsaved, across however many slices) point first, staying in
-      // 'mark', before falling back to a full exit.
-      if (state.ui_mode === 'mark' && state.pending_points.size > 0) {
-        state.pending_points = new Map();
-        set_save_button_active(toolbar.buttons, is_save_active());
-        refresh();
-        return;
-      }
-      enter_browse();
-    },
-    on_delete: () => {
-      if (state.ui_mode === 'modify') delete_modify();
-    },
-  });
+    root_container
+  );
 
   // --- One shared canvas + per-side "active" border overlay -------------------
 
@@ -1212,10 +1389,91 @@ export const landmark = async (model, el) => {
     return tag;
   };
 
+  // --- Slice pagination: step BOTH panels one slice in Z at once --------------
+  // The big pain in a 10-slice stack is "walking" 1->10: dropdown-picking each
+  // panel every step. These step both panels together (preserving their offset)
+  // so you can page up/down Z and keep marking.
+  const make_step_button = (label, title) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.title = title;
+    btn.style.cssText =
+      'font-size:14px;width:28px;height:24px;padding:0;line-height:1;' +
+      'border:1px solid #d3d3d3;border-radius:3px;background:#fff;color:#1e90ff;';
+    return btn;
+  };
+  const prev_slice_button = make_step_button(
+    '◀',
+    'Both panels one slice back in Z'
+  );
+  const next_slice_button = make_step_button(
+    '▶',
+    'Both panels one slice forward in Z'
+  );
+
+  const step_slices = (delta) => {
+    const ia = slice_ids.indexOf(model.get('slice_id_a'));
+    const ib = slice_ids.indexOf(model.get('slice_id_b'));
+    if (ia < 0 || ib < 0) return;
+    const na = ia + delta;
+    const nb = ib + delta;
+    // Keep the whole window in range so both panels always show a real slice.
+    if (na < 0 || nb < 0 || na >= slice_ids.length || nb >= slice_ids.length) {
+      return;
+    }
+    model.set('slice_id_a', slice_ids[na]);
+    model.set('slice_id_b', slice_ids[nb]);
+    model.save_changes();
+  };
+
+  const update_pagination_enabled = () => {
+    const ia = slice_ids.indexOf(model.get('slice_id_a'));
+    const ib = slice_ids.indexOf(model.get('slice_id_b'));
+    const at_start = Math.min(ia, ib) <= 0;
+    const at_end = Math.max(ia, ib) >= slice_ids.length - 1;
+    prev_slice_button.disabled = at_start;
+    next_slice_button.disabled = at_end;
+    prev_slice_button.style.opacity = at_start ? '0.35' : '1';
+    next_slice_button.style.opacity = at_end ? '0.35' : '1';
+    prev_slice_button.style.cursor = at_start ? 'default' : 'pointer';
+    next_slice_button.style.cursor = at_end ? 'default' : 'pointer';
+  };
+
+  prev_slice_button.addEventListener('click', () => step_slices(-1));
+  next_slice_button.addEventListener('click', () => step_slices(1));
+
+  // The two currently-shown slice ids (left:right), the focused/active panel's
+  // id in purple, the other in gray — so you always know where in Z you are.
+  const step_z_label = document.createElement('span');
+  step_z_label.style.cssText =
+    'font-size:12px;font-weight:700;font-family:monospace;min-width:36px;text-align:center;';
+  step_z_label.title = 'left : right slice (focused panel = purple)';
+  update_step_z_label = () => {
+    const a = model.get('slice_id_a');
+    const b = model.get('slice_id_b');
+    const la = slice_labels[a] ?? a;
+    const lb = slice_labels[b] ?? b;
+    const gray = '#9aa0a6';
+    const purple = '#8b5cf6';
+    const ca = state.active_side === 'a' ? purple : gray;
+    const cb = state.active_side === 'b' ? purple : gray;
+    step_z_label.innerHTML =
+      `<span style="color:${ca}">${la}</span>` +
+      `<span style="color:${gray}">:</span>` +
+      `<span style="color:${cb}">${lb}</span>`;
+  };
+  update_step_z_label();
+
+  const pagination_control = document.createElement('div');
+  pagination_control.style.cssText = 'display:flex;align-items:center;gap:4px;';
+  pagination_control.append(prev_slice_button, step_z_label, next_slice_button);
+  update_pagination_enabled();
+
   control_row.append(
     // The label textbox + color swatch are appended into `toolbar.container`
     // above, so they sit under the buttons here.
     make_section([toolbar.container], null),
+    make_section([make_tag('STEP Z'), pagination_control], null),
     make_section([lndmrk_toggle], lndmrk_bar_container),
     make_section([cell_toggle, opacity_slider.container], cell_bar_container),
     make_section([trx_toggle], trx_bar_container),
@@ -1254,20 +1512,50 @@ export const landmark = async (model, el) => {
     // so its pan-enabled state can change (see `refresh_view_controllers`).
     refresh_view_controllers();
     rebuild_slice_bar();
+    update_pagination_enabled();
+    update_step_z_label();
   };
 
   const on_centroids_changed = async (side) => {
+    const view_id = view_id_for_side(side);
+    const prev = state.view_states[view_id];
+    const old_bbox = bbox_of_side(side); // pre-swap rows
+
     state.rows[side] = await decode_centroids(model, side);
     recompute_rotation_state(side);
 
-    const view_id = view_id_for_side(side);
-    const new_view_state = initial_view_state_for_centroids(
+    const fit = initial_view_state_for_centroids(
       state.rows[side],
       panel_width,
       height
     );
+    const new_bbox = bbox_of_side(side);
+    // Preserve the user's zoom AND pan offset across a slice swap: keep the same
+    // fractional spot within the slice's bounding box, so paginating Z holds the
+    // view on the same anatomical region instead of recentering. Fit-to-slice
+    // only on a side's very first load.
+    const first_load = !prev || !Number.isFinite(prev.zoom);
+    let new_view_state;
+    if (first_load) {
+      new_view_state = fit;
+    } else if (old_bbox && new_bbox) {
+      const fx =
+        (prev.target[0] - old_bbox.minx) / (old_bbox.maxx - old_bbox.minx || 1);
+      const fy =
+        (prev.target[1] - old_bbox.miny) / (old_bbox.maxy - old_bbox.miny || 1);
+      new_view_state = {
+        ...prev,
+        target: [
+          new_bbox.minx + fx * (new_bbox.maxx - new_bbox.minx),
+          new_bbox.miny + fy * (new_bbox.maxy - new_bbox.miny),
+          0,
+        ],
+      };
+    } else {
+      new_view_state = { ...prev, target: fit.target };
+    }
     state.view_states = { ...state.view_states, [view_id]: new_view_state };
-    sync_zoom_from(view_id, new_view_state.zoom);
+    if (first_load) sync_zoom_from(view_id, new_view_state.zoom);
     scale_bars[side].update({ zoom: new_view_state.zoom });
     scale_bars[side === 'a' ? 'b' : 'a'].update({
       zoom: state.view_states[other_view_id(view_id)].zoom,

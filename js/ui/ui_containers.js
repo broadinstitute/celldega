@@ -341,8 +341,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
           { label: 'unit', value: false },
         ],
         viz_state.mat.dot_size_encoded,
-        (value) =>
-          set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
+        (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
         viz_state
       )
   );

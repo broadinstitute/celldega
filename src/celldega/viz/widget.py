@@ -758,9 +758,7 @@ def _composition_matrix_inputs(
         elif hasattr(data, "X") and hasattr(data, "var_names"):  # AnnData
             adata = data
         else:
-            raise TypeError(
-                "data must be a Celldega collection, MuData, AnnData, or DataFrame"
-            )
+            raise TypeError("data must be a Celldega collection, MuData, AnnData, or DataFrame")
 
         matrix = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
         groups_x_pops = pd.DataFrame(
@@ -775,18 +773,14 @@ def _composition_matrix_inputs(
         if "color" in adata.var.columns:
             colors = {
                 cat: str(col)
-                for cat, col in zip(
-                    categories, adata.var["color"].astype(str), strict=False
-                )
+                for cat, col in zip(categories, adata.var["color"].astype(str), strict=False)
             }
         else:
             color_key = f"{resolved_category}_colors" if resolved_category else None
             if color_key and color_key in adata.uns:
                 colors = {
                     cat: str(col)
-                    for cat, col in zip(
-                        categories, list(adata.uns[color_key]), strict=False
-                    )
+                    for cat, col in zip(categories, list(adata.uns[color_key]), strict=False)
                 }
         if not colors:
             colors = _colors_from_adata(color_adata, resolved_category, categories)
@@ -805,9 +799,7 @@ def _composition_matrix_inputs(
         if n_cells_source is not None:
             col_weights = {
                 str(name): float(n)
-                for name, n in zip(
-                    adata.obs_names.astype(str), n_cells_source, strict=False
-                )
+                for name, n in zip(adata.obs_names.astype(str), n_cells_source, strict=False)
                 if pd.notna(n)
             }
 
@@ -1567,9 +1559,7 @@ class Composition(Clustergram):
         if colors:
             merged_colors.update(colors)
 
-        resolved_col_weights = (
-            col_weights if col_weights is not None else payload["col_weights"]
-        )
+        resolved_col_weights = col_weights if col_weights is not None else payload["col_weights"]
 
         mat = Matrix(
             payload["df"],

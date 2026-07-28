@@ -142,11 +142,12 @@ const reorder_by_attribute = (
           getPosition: viz_state.order.current.col,
         },
       });
-
-      // Reordering columns can change which bar is leftmost, which can
-      // change which row labels fit their segment (composition mode only).
-      refresh_row_label_visibility(layers_mat, viz_state);
     }
+
+    // Composition mode: row labels are positioned by their actual segment
+    // (which moves on either a row or a column reorder) and filtered by fit,
+    // so refresh on any reorder. No-op outside composition mode.
+    refresh_row_label_visibility(layers_mat, viz_state);
 
     // Hide dendro when not in clust order
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);

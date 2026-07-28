@@ -6,7 +6,10 @@ import {
   sync_selected_rows,
   sync_selected_cols,
 } from '../../global_variables/selected_genes';
-import { refresh_row_label_visibility } from '../../matrix/composition_data';
+import {
+  composition_row_label_position,
+  refresh_row_label_visibility,
+} from '../../matrix/composition_data';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
 import { toggle_dendro_layer_visibility } from './dendro_layers';
@@ -14,6 +17,14 @@ import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = index.index;
+
+  // Composition mode: position at the row's actual stacked-bar segment
+  // (next to the leftmost bar) so labels track reordering/normalization
+  // exactly, rather than a uniform heatmap-style slot.
+  if (viz_state.mat.viz_mode === 'composition') {
+    return composition_row_label_position(viz_state, inst_index);
+  }
+
   const inst_order = viz_state.order.current.row;
   const row_offset = 50; // 25
 

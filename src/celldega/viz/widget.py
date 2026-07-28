@@ -1206,9 +1206,6 @@ class Clustergram(anywidget.AnyWidget):
     # Composition body options (used when viz_mode == "composition").
     # Normalize each column to 100% (True) or keep raw counts (False).
     composition_normalized = traitlets.Bool(True).tag(sync=True)
-    # Segment encoding: "height" (share -> segment height, full opacity;
-    # default) or "opacity" (equal-height slots, share -> fill alpha).
-    composition_encoding = traitlets.Unicode("height").tag(sync=True)
     # Optional {population_name: hex} palette for stacked segments.
     composition_colors = traitlets.Dict(default_value={}).tag(sync=True)
 

@@ -166,14 +166,19 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   // Button widths for reorder controls (compact sizing)
   const button_width = 34;
-  const label_width = 28;
+  const label_width = 40;
 
   const axes = ['col', 'row'];
 
   const inst_orders = ['clust', 'sum', 'var', 'ini'];
 
+  // Match the vertical rhythm of the Dendro slider pair (10px between the
+  // two sliders) between the two reorder-button rows.
+  const axis_row_margin_top = { col: '0px', row: '10px' };
+
   axes.forEach((axis) => {
     const inst_container = flex_container(axis, 'row');
+    inst_container.style.marginTop = axis_row_margin_top[axis];
 
     // Use entity name if available. Non-clickable: black, plain text, no pill.
     const axis_label = get_axis_display_name(viz_state, axis);
@@ -185,13 +190,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .style('height', '16px')
       .style('display', 'inline-flex')
       .style('align-items', 'center')
-      .style('justify-content', 'center')
-      .style('text-align', 'center')
       .style('font-size', '9px')
       .style('font-weight', 'bold')
       .style('color', 'black')
-      .style('margin-top', '4px')
-      .style('margin-left', '3px')
       .style('padding', '2px 2px')
       .style('user-select', 'none')
       .style(

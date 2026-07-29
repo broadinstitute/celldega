@@ -3,7 +3,15 @@ import { OrthographicView } from 'deck.gl';
 export const ini_views = (viz_state) => {
   let switch_ratio;
 
-  if (viz_state.mat.num_rows > viz_state.mat.num_cols) {
+  if (viz_state.mat.viz_mode === 'composition') {
+    // Composition: columns (datasets/samples) should always stay fully
+    // visible; only rows (population detail) are zoomable. See the matching
+    // permanent lock in on_view_state_change.js — this shape-driven
+    // major/minor axis system otherwise always eventually unlocks to 'all'.
+    viz_state.zoom.major_zoom_axis = 'Y';
+    viz_state.zoom.minor_zoom_axis = 'none';
+    switch_ratio = 1;
+  } else if (viz_state.mat.num_rows > viz_state.mat.num_cols) {
     viz_state.zoom.major_zoom_axis = 'Y';
     viz_state.zoom.minor_zoom_axis = 'X';
     switch_ratio = viz_state.mat.num_rows / viz_state.mat.num_cols;

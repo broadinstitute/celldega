@@ -99,15 +99,19 @@ export const build_composition_layout = (viz_state) => {
   });
   const max_weight = Math.max(...col_weights, 1e-9);
 
-  // Stack rows top -> bottom following the current row order (smaller y-slot
-  // sits higher, matching the heatmap's `num_rows - rank` convention).
-  const y_slot = (r) => num_rows - row_order[r];
-  const rows_sorted = Array.from({ length: num_rows }, (_, i) => i).sort(
-    (a, b) => y_slot(a) - y_slot(b)
-  );
-
   const y_top = row_offset * 1.0; // top edge of the body region
   const half_width = col_width * 0.5 * 0.95; // small (5%) gap between bars
+
+  // Stack rows in the SAME order across every bar (row identity always maps
+  // to the same relative vertical band everywhere), driven by the shared
+  // "POP:" row order. Ascending by row_order — so double-clicking a column
+  // (which ranks the highest value as the largest row_order via the generic
+  // custom_label_reorder) puts that column's largest population at the
+  // bottom, matching the standard bar-chart "biggest at the base" look —
+  // without making each bar sort independently by its own local values.
+  const rows_sorted = Array.from({ length: num_rows }, (_, i) => i).sort(
+    (a, b) => row_order[a] - row_order[b]
+  );
 
   const layout = {};
   for (let c = 0; c < num_cols; c++) {

@@ -53,6 +53,7 @@ from celldega.align._transform import (
     load_transform,
     save_transform,
 )
+from celldega.align.plot import plot_alignment
 
 
 __all__ = ["SerialAlignmentTransform", "align_serial_slices", "calc_alignment_transform"]
@@ -142,7 +143,12 @@ def _pooled_neighbor_stats(
 
 
 def _resolve_fit_function(
-    method: str, allow_reflection: bool, smoothing: float
+    method: str,
+    allow_reflection: bool,
+    smoothing: float,
+    degree: int,
+    area_regularization: float,
+    shape_regularization: float,
 ) -> Callable[..., Transform]:
     if method == "procrustes":
 
@@ -163,7 +169,15 @@ def _resolve_fit_function(
         def _fit(
             source: np.ndarray, target: np.ndarray, weights: np.ndarray | None = None
         ) -> Transform:
-            return fit_transform_tps(source, target, weights=weights, smoothing=smoothing)
+            return fit_transform_tps(
+                source,
+                target,
+                weights=weights,
+                smoothing=smoothing,
+                degree=degree,
+                area_regularization=area_regularization,
+                shape_regularization=shape_regularization,
+            )
 
         return _fit
     raise ValueError(f"method must be one of {_METHODS}, got {method!r}")
@@ -237,6 +251,9 @@ class SerialAlignmentTransform:
     method: str
     allow_reflection: bool
     smoothing: float
+    degree: int
+    area_regularization: float
+    shape_regularization: float
     weight_by_adjacent_counts: bool
     alignment_window: int
 
@@ -248,6 +265,15 @@ class SerialAlignmentTransform:
         point data tied to that slice.
         """
         return self.transforms[slice_id].apply(points)
+
+    def plot(self, **kwargs) -> tuple[Any, Any]:
+        """2D before/after scatter of this alignment — a quick visual check
+        of fit quality. Pass ``adatas=`` (the slices this was fit from) to
+        overlay the actual cell centroids, which is what really shows whether
+        the tissue aligns; see :func:`~celldega.align.plot.plot_alignment`
+        for all accepted options.
+        """
+        return plot_alignment(self, **kwargs)
 
     def save(self, path: str | Path) -> None:
         """Save this transform to a directory of plain files — no ``pickle``.
@@ -266,6 +292,9 @@ class SerialAlignmentTransform:
             "method": self.method,
             "allow_reflection": self.allow_reflection,
             "smoothing": self.smoothing,
+            "degree": self.degree,
+            "area_regularization": self.area_regularization,
+            "shape_regularization": self.shape_regularization,
             "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
             "alignment_window": self.alignment_window,
         }
@@ -305,6 +334,12 @@ class SerialAlignmentTransform:
             method=metadata["method"],
             allow_reflection=metadata["allow_reflection"],
             smoothing=metadata["smoothing"],
+            # `degree`/`area_regularization` postdate this field's
+            # introduction -- default to the fit's previous behavior for
+            # older saves.
+            degree=metadata.get("degree", 1),
+            area_regularization=metadata.get("area_regularization", 0.0),
+            shape_regularization=metadata.get("shape_regularization", 0.0),
             weight_by_adjacent_counts=metadata["weight_by_adjacent_counts"],
             alignment_window=metadata["alignment_window"],
         )
@@ -319,6 +354,9 @@ def calc_alignment_transform(
     method: str = "procrustes",
     allow_reflection: bool = False,
     smoothing: float = 0.0,
+    degree: int = 1,
+    area_regularization: float = 0.0,
+    shape_regularization: float = 0.0,
     weight_by_adjacent_counts: bool = True,
     compute_residuals: bool = True,
 ) -> SerialAlignmentTransform:
@@ -370,8 +408,35 @@ def calc_alignment_transform(
             (default), disallow mirrored fits, since flipping a tissue
             section is not physically valid.
         smoothing: ``method="tps"`` only. Bending-energy penalty passed to
-            the thin-plate-spline fit; ``0`` (default) interpolates
-            landmarks exactly.
+            the thin-plate-spline fit; ``0`` (default) interpolates landmarks
+            exactly (which *overfits* noisy centroid landmarks — the warp
+            contorts the tissue to hit each one), and raising it relaxes
+            toward a stiffer, more affine warp that preserves each slice's
+            shape. The fit normalizes the domain first, so this is scale-free
+            (comparable across datasets): useful values are roughly ``0`` to
+            ``~0.1`` to ``1`` (light local warp) up to ``~10``+ (nearly rigid).
+            See :func:`~celldega.align._transform.fit_transform_tps`.
+        degree: ``method="tps"`` only. Degree of the polynomial term added
+            to the spline (see :func:`~celldega.align._transform.fit_transform_tps`).
+            ``1`` (default) includes a full affine fallback (translation,
+            rotation, *and scale*) away from the landmarks — the scale
+            component is exactly what lets area expand/shrink globally.
+            ``0`` drops it for a constant-offset fallback instead, which
+            tends to change area less overall, though TPS has no parameter
+            that *exactly* constrains area/Jacobian the way
+            ``method="procrustes"`` (always rigid, scale disabled — see
+            above) does; this only shifts the fit's default behavior, it
+            doesn't hard-enforce anything.
+        area_regularization: ``method="tps"`` only. Penalty in ``[0, 1]`` on
+            each slice's *total* (global) area change. TPS otherwise rescales
+            a slice freely to make landmarks coincide; this measures the net
+            area factor and applies a uniform rescale (about the aligned
+            centroid, so rotation/translation — the alignment pose — are
+            untouched) to pull it back. ``0`` (default) leaves the fit as-is;
+            ``1`` fully cancels the global area change so each slice keeps its
+            own area (local warp intact, at the cost of peripheral landmarks
+            coinciding a bit less tightly); values between partially penalize
+            it. See :func:`~celldega.align._transform.fit_transform_tps`.
         weight_by_adjacent_counts: If ``True`` (default), weight each shared
             landmark by the geometric mean of its cell count in the current
             slice and its neighbor window (a centroid from more cells is a
@@ -407,7 +472,9 @@ def calc_alignment_transform(
         raise ValueError(f"reference must be in [0, {n - 1}], got {reference}")
     if alignment_window < 1:
         raise ValueError(f"alignment_window must be >= 1, got {alignment_window}")
-    fit_transform = _resolve_fit_function(method, allow_reflection, smoothing)
+    fit_transform = _resolve_fit_function(
+        method, allow_reflection, smoothing, degree, area_regularization, shape_regularization
+    )
 
     all_stats = [_slice_landmarks(landmarks, slice_id, slice_attr) for slice_id in slice_ids]
 
@@ -497,6 +564,9 @@ def calc_alignment_transform(
         method=method,
         allow_reflection=allow_reflection,
         smoothing=smoothing,
+        degree=degree,
+        area_regularization=area_regularization,
+        shape_regularization=shape_regularization,
         weight_by_adjacent_counts=weight_by_adjacent_counts,
         alignment_window=alignment_window,
     )
@@ -600,6 +670,9 @@ def align_serial_slices(
         "method": transform.method,
         "allow_reflection": transform.allow_reflection,
         "smoothing": transform.smoothing,
+        "degree": transform.degree,
+        "area_regularization": transform.area_regularization,
+        "shape_regularization": transform.shape_regularization,
         "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,
         "z_space": z_space,
         "z_coord": z_coord,

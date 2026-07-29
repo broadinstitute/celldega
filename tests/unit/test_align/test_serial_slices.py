@@ -1,3 +1,4 @@
+import json
 import warnings
 
 import anndata as ad
@@ -583,6 +584,107 @@ def test_serial_alignment_transform_save_load_round_trip(tmp_path, method):
     assert reloaded.reference == transform.reference
     assert reloaded.landmarks_initial.equals(transform.landmarks_initial)
     assert reloaded.landmarks_aligned.equals(transform.landmarks_aligned)
+    assert reloaded.degree == transform.degree
+
+
+def test_serial_alignment_transform_load_defaults_degree_for_older_saves(tmp_path):
+    rng = np.random.default_rng(40)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=10, translation=(2.0, -1.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks, method="tps")
+
+    save_dir = tmp_path / "transform"
+    transform.save(save_dir)
+    # Simulate a transform saved before `degree` existed.
+    metadata_path = save_dir / "metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    del metadata["degree"]
+    metadata_path.write_text(json.dumps(metadata))
+
+    reloaded = SerialAlignmentTransform.load(save_dir)
+    assert reloaded.degree == 1
+
+
+def test_calc_alignment_transform_degree_changes_the_tps_fit():
+    rng = np.random.default_rng(41)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=15, translation=(4.0, -3.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+
+    transform_degree_1 = calc_alignment_transform(landmarks, method="tps", degree=1)
+    transform_degree_0 = calc_alignment_transform(landmarks, method="tps", degree=0)
+
+    assert transform_degree_1.degree == 1
+    assert transform_degree_0.degree == 0
+    far_point = np.array([[500.0, 500.0]])
+    assert not np.allclose(
+        transform_degree_1.apply_to_points(1, far_point),
+        transform_degree_0.apply_to_points(1, far_point),
+    )
+
+
+def test_calc_alignment_transform_area_regularization_preserves_slice_area(tmp_path):
+    rng = np.random.default_rng(42)
+    slice0 = _make_slice(rng)
+    # slice1 is genuinely ~0.6x the size of slice0 (a real area difference).
+    slice1 = _make_slice(rng, scale=0.6, rotation_deg=10, translation=(3.0, -2.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+
+    def area_factor(transform, slice_id):
+        # aligned landmark cloud area vs source (slice1's own coords)
+        src = np.array([_TRUE_CENTERS[k] for k in _TRUE_CENTERS])
+        out = transform.apply_to_points(slice_id, src * 0.6)
+        cov_out = np.linalg.det(np.cov(out, rowvar=False))
+        cov_src = np.linalg.det(np.cov(src * 0.6, rowvar=False))
+        return float(np.sqrt(cov_out / cov_src))
+
+    plain = calc_alignment_transform(landmarks, method="tps")
+    pinned = calc_alignment_transform(landmarks, method="tps", area_regularization=1.0)
+
+    assert plain.area_regularization == 0.0
+    assert pinned.area_regularization == 1.0
+    # Plain TPS blows slice1 up ~1/0.6 to match slice0; the penalty keeps its area.
+    assert area_factor(plain, 1) > 1.3
+    assert np.isclose(area_factor(pinned, 1), 1.0, atol=1e-6)
+
+    # area_regularization survives save/load.
+    save_dir = tmp_path / "t"
+    pinned.save(save_dir)
+    reloaded = SerialAlignmentTransform.load(save_dir)
+    assert reloaded.area_regularization == 1.0
+    fake = np.array([[1.0, 1.0], [2.0, 3.0]])
+    assert np.allclose(pinned.apply_to_points(1, fake), reloaded.apply_to_points(1, fake))
+
+
+def test_calc_alignment_transform_shape_regularization_preserves_proportions(tmp_path):
+    rng = np.random.default_rng(43)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng)
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    # Make slice 1's landmarks anisotropically stretched (1.4x in x, 0.7x in y)
+    # relative to slice 0 — a proportion change with ~unchanged area.
+    mask = landmarks["slice"] == 1
+    landmarks.loc[mask, "x"] *= 1.4
+    landmarks.loc[mask, "y"] *= 0.7
+
+    def anisotropy(transform, slice_id):
+        src = landmarks.loc[landmarks["slice"] == slice_id, ["x", "y"]].to_numpy()
+        out = transform.apply_to_points(slice_id, src)
+        linear, *_ = np.linalg.lstsq(src - src.mean(0), out - out.mean(0), rcond=None)
+        s = np.linalg.svd(linear, compute_uv=False)
+        return float(s[0] / s[1])
+
+    plain = calc_alignment_transform(landmarks, method="tps")
+    pinned = calc_alignment_transform(landmarks, method="tps", shape_regularization=1.0)
+
+    assert pinned.shape_regularization == 1.0
+    assert anisotropy(plain, 1) > 1.5  # plain TPS keeps the stretch
+    assert np.isclose(anisotropy(pinned, 1), 1.0, atol=1e-6)  # proportions restored
+
+    save_dir = tmp_path / "t"
+    pinned.save(save_dir)
+    assert SerialAlignmentTransform.load(save_dir).shape_regularization == 1.0
 
 
 def test_serial_alignment_transform_tps_save_load_preserves_exact_interpolation(tmp_path):

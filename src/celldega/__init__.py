@@ -11,7 +11,7 @@ from celldega.nbhd.collection import NeighborhoodCollection
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.set import SetCollection, concat_sets
-from celldega.viz import Clustergram, Landscape, Yearbook
+from celldega.viz import Clustergram, Landmark, Landscape, Yearbook
 
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -30,6 +30,7 @@ __all__ = [
     "CelldegaCollection",
     "Clustergram",
     "DatasetCollection",
+    "Landmark",
     "Landscape",
     "NeighborhoodCollection",
     "SetCollection",

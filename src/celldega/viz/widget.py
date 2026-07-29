@@ -15,10 +15,8 @@ import warnings
 
 import anywidget
 import geopandas as gpd
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
 
@@ -295,6 +293,12 @@ class Landscape(anywidget.AnyWidget):
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
+    # Named alignment variant for point-cloud technology. When set, cell
+    # positions are read from cell_metadata_<alignment>.parquet (written by
+    # celldega.align.write_alignment_point_cloud) while clusters/genes keep
+    # loading from their normal (segmentation-driven) paths.
+    alignment = traitlets.Unicode("").tag(sync=True)
+
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
 
@@ -431,15 +435,23 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
 
         if adata is not None:
-            if "color" in adata.obs.columns and "color" not in cell_attr:
+            # Never mutate the caller's AnnData. Derive cell metadata from a
+            # copy/view of obs, and never call scanpy plotting (sc.pl.umap
+            # writes `<attr>_colors` back into adata.uns).
+            #
+            # Key cell metadata by adata.obs_names (the canonical AnnData cell
+            # identifier) — that's what matches the DegaFiles cell_metadata
+            # `name` column. A `cell_id` obs *column* is intentionally NOT used
+            # as the key: when its values differ from obs_names (e.g. a
+            # reordered "cell__slice" form) it silently mismatches every cell,
+            # so cluster coloring resolves to "N.A." and point-cloud cells cull.
+            obs = adata.obs
+
+            if "color" in obs.columns and "color" not in cell_attr:
                 cell_attr.append("color")
 
-            # if cell_id is in the adata.obs, use it as index
-            if "cell_id" in adata.obs.columns:
-                adata.obs.set_index("cell_id", inplace=True)
-
-            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
-            meta_cell_df = adata.obs[cell_attr].copy()
+            cell_attr = [c for c in cell_attr if c in obs.columns]
+            meta_cell_df = obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -455,17 +467,12 @@ class Landscape(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if cluster_attr in adata.obs.columns:
-                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+            if cluster_attr in obs.columns:
+                cluster_counts = obs[cluster_attr].value_counts().sort_index()
+                # Use the caller's stored palette if present, else a
+                # deterministic HSV fallback — no scanpy call, so adata is left
+                # untouched.
                 colors = adata.uns.get(f"{cluster_attr}_colors")
-
-                if colors is None:
-                    with suppress(Exception):
-                        sc.pl.umap(adata, color=cluster_attr, show=False)
-                        plt.close()
-                        colors = adata.uns.get(f"{cluster_attr}_colors")
-
-                # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / n) for i in range(n)]
@@ -481,7 +488,7 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=obs.index)
 
                 # If cell_name_prefix is True, trim the prefix from cell names
                 if cell_name_prefix_setting:
@@ -883,12 +890,13 @@ class Yearbook(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
-            # if cell_id is in the adata.obs, use it as index
-            if "cell_id" in adata.obs.columns:
-                adata.obs.set_index("cell_id", inplace=True)
+            # Never mutate the caller's AnnData, and key cell metadata by
+            # obs_names (not a `cell_id` column) so it matches the DegaFiles
+            # cell_metadata `name` column — see Landscape for the full rationale.
+            obs = adata.obs
 
-            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
-            meta_cell_df = adata.obs[cell_attr].copy()
+            cell_attr = [c for c in cell_attr if c in obs.columns]
+            meta_cell_df = obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -904,17 +912,11 @@ class Yearbook(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if cluster_attr in adata.obs.columns:
-                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+            if cluster_attr in obs.columns:
+                cluster_counts = obs[cluster_attr].value_counts().sort_index()
                 colors = adata.uns.get(f"{cluster_attr}_colors")
 
-                if colors is None:
-                    with suppress(Exception):
-                        sc.pl.umap(adata, color=cluster_attr, show=False)
-                        plt.close()
-                        colors = adata.uns.get(f"{cluster_attr}_colors")
-
-                # backup color definition
+                # backup color definition (deterministic HSV; no scanpy call)
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / n) for i in range(n)]

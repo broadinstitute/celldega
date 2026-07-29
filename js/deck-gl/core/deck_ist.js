@@ -16,21 +16,30 @@ const getCursor = ({ isDragging }) => {
   return 'pointer';
 };
 
-export const ini_deck = (root, width, height, technology = '') => {
-  const controller = { doubleClickZoom: false };
-  if (is_point_cloud_technology(technology)) {
-    controller.type = OrbitController;
+export const ini_deck = (
+  root,
+  width,
+  height,
+  technology = '',
+  { per_view_controllers = false } = {}
+) => {
+  const deck_props = { parent: root, getCursor, width, height };
+
+  // A multi-view deck (e.g. Landmark's two side-by-side panels) manages a
+  // controller per view via the `views` prop. A top-level `controller` here
+  // would additionally bind to the default view at the canvas origin — which
+  // the first/left view (also at 0,0) then inherits instead of its own
+  // per-view `dragPan:false`, so dragging a marker on the left panel also pans
+  // the camera. Omit the top-level controller in that case.
+  if (!per_view_controllers) {
+    const controller = { doubleClickZoom: false };
+    if (is_point_cloud_technology(technology)) {
+      controller.type = OrbitController;
+    }
+    deck_props.controller = controller;
   }
 
-  const deck_ist = new Deck({
-    parent: root,
-    controller,
-    getCursor,
-    width,
-    height,
-  });
-
-  return deck_ist;
+  return new Deck(deck_props);
 };
 
 export const set_views_prop = (deck_ist, views) => {

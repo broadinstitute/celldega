@@ -243,6 +243,14 @@ export const landscape_ist = async (
 
   const viz_state = {};
 
+  // DegaFiles manifest to fetch. Defaults to landscape_parameters.json (every
+  // 2D technology); CellCloud/NeighborhoodCloud set it to their own filename.
+  // set_landscape_parameters falls back to landscape_parameters.json when the
+  // requested file is absent, so pre-rename datasets still render.
+  const manifest_name =
+    (typeof ini_model?.get === 'function' && ini_model.get('manifest_name')) ||
+    'landscape_parameters.json';
+
   viz_state.obs_store = create_obs_store();
 
   viz_state.highlighted_cells = new Set();
@@ -308,9 +316,12 @@ export const landscape_ist = async (
     });
 
     // fetch after initialization of aws client is apparently required?
-    const response = await viz_state.aws.fetch(
-      `${base_url}/landscape_parameters.json`
-    );
+    let response = await viz_state.aws.fetch(`${base_url}/${manifest_name}`);
+    if (!response.ok && manifest_name !== 'landscape_parameters.json') {
+      response = await viz_state.aws.fetch(
+        `${base_url}/landscape_parameters.json`
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`Fetch failed: ${response.statusText}`);
@@ -469,7 +480,12 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
+  await set_landscape_parameters(
+    viz_state.img,
+    base_url,
+    viz_state.aws,
+    manifest_name
+  );
   const { landscape_parameters } = viz_state.img;
   const {
     technology: tech,

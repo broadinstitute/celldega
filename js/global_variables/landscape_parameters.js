@@ -1,14 +1,27 @@
 import { options } from './fetch_options';
 
-export const set_landscape_parameters = async (img, base_url, aws) => {
-  const landscape_parameters_url = `${base_url}/landscape_parameters.json`;
-  const response = aws
-    ? await aws.fetch(landscape_parameters_url)
-    : await fetch(landscape_parameters_url, options.fetch);
+export const set_landscape_parameters = async (
+  img,
+  base_url,
+  aws,
+  manifest_name = 'landscape_parameters.json'
+) => {
+  const fetch_manifest = (name) => {
+    const url = `${base_url}/${name}`;
+    return aws ? aws.fetch(url) : fetch(url, options.fetch);
+  };
+
+  let response = await fetch_manifest(manifest_name);
+
+  // Fall back to the legacy manifest name so DegaFiles built before the
+  // cell_cloud.json / neighborhood_cloud.json rename still render.
+  if (!response.ok && manifest_name !== 'landscape_parameters.json') {
+    response = await fetch_manifest('landscape_parameters.json');
+  }
 
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch landscape_parameters.json: ${response.status} ${response.statusText}`
+      `Failed to fetch ${manifest_name}: ${response.status} ${response.statusText}`
     );
   }
 

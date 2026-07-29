@@ -6,6 +6,7 @@ import json
 
 from ipywidgets import HBox, Layout, VBox, jslink
 
+from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
 from .widget import Clustergram, Enrich, Landscape, Yearbook
@@ -355,10 +356,12 @@ def landscape_yearbook_clustergram(
 
 
 __all__ = [
+    "CellCloud",
     "Clustergram",
     "Enrich",
     "Landmark",
     "Landscape",
+    "NeighborhoodCloud",
     "Yearbook",
     "clustergram_enrich",
     "get_local_server",

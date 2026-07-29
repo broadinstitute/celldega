@@ -155,6 +155,20 @@ def _write_cbg_and_meta_gene(dega_files_dir: Path, adata) -> None:
     make_meta_gene(cbg, dega_files_dir / "meta_gene.parquet")
 
 
+# Manifest filenames written for a point-cloud DegaFiles. The ``CellCloud``
+# widget fetches ``cell_cloud.json``; ``landscape_parameters.json`` is still
+# written so pre-rename loaders (and DegaFiles built before ``CellCloud``) keep
+# working during the transition.
+_POINT_CLOUD_MANIFEST_NAMES = ("landscape_parameters.json", "cell_cloud.json")
+
+
+def _write_point_cloud_manifests(dega_files_dir: Path, params: dict) -> None:
+    """Write ``params`` under every point-cloud manifest filename."""
+    for name in _POINT_CLOUD_MANIFEST_NAMES:
+        with (dega_files_dir / name).open("w") as f:
+            json.dump(params, f, indent=2)
+
+
 def _register_alignment(params_path: Path, alignment_name: str) -> list[str]:
     """Add ``alignment_name`` to the ``"alignments"`` list in landscape params."""
     with params_path.open() as f:
@@ -167,14 +181,13 @@ def _register_alignment(params_path: Path, alignment_name: str) -> list[str]:
         alignments.append(alignment_name)
     params["alignments"] = alignments
 
-    with params_path.open("w") as f:
-        json.dump(params, f, indent=2)
+    _write_point_cloud_manifests(params_path.parent, params)
 
     return alignments
 
 
 def _write_point_cloud_landscape_parameters(params_path: Path, alignment_name: str) -> None:
-    """Write a minimal point-cloud ``landscape_parameters.json`` (create mode)."""
+    """Write a minimal point-cloud manifest (create mode)."""
     params = {
         "technology": "point-cloud",
         "segmentation_approach": ["default"],
@@ -185,8 +198,7 @@ def _write_point_cloud_landscape_parameters(params_path: Path, alignment_name: s
         "use_int_index": False,
         "alignments": [alignment_name],
     }
-    with params_path.open("w") as f:
-        json.dump(params, f, indent=2)
+    _write_point_cloud_manifests(params_path.parent, params)
 
 
 def write_alignment_point_cloud(

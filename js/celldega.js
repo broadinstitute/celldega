@@ -267,6 +267,13 @@ async function render({ model, el }) {
       case 'Landscape':
         cleanup = await render_landscape({ model, el });
         break;
+      case 'CellCloud':
+      case 'NeighborhoodCloud':
+        // 3D-orbit widgets reuse the ist render path; the orbit view, layers,
+        // and manifest filename are driven by the model's technology /
+        // manifest_name traits (see render_landscape_ist and landscape_ist).
+        cleanup = await render_landscape_ist({ model, el });
+        break;
       case 'Yearbook':
         cleanup = await render_yearbook({ model, el });
         break;

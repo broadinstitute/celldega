@@ -552,9 +552,13 @@ def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:
         "use_int_index": True,
         "use_row_groups": False,
     }
-    path_landscape_parameters = Path(path_dega_files) / "landscape_parameters.json"
-    with path_landscape_parameters.open("w") as f:
-        json.dump(landscape_parameters, f, indent=2)
+    # Write under both the new (neighborhood_cloud.json, fetched by the
+    # NeighborhoodCloud widget) and legacy (landscape_parameters.json) filenames
+    # so pre-rename loaders keep resolving the manifest during the transition.
+    root = Path(path_dega_files)
+    for name in ("landscape_parameters.json", "neighborhood_cloud.json"):
+        with (root / name).open("w") as f:
+            json.dump(landscape_parameters, f, indent=2)
 
 
 def write_meta_gene_for_nbhd_cloud(adata: ad.AnnData, path_dega_files: str | Path) -> None:

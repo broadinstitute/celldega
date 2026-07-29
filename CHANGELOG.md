@@ -4,22 +4,26 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.19.0a3] - 2026-07-22
+## [0.19.0] - 2026-07-29
 
-Alpha pre-release: interactive landmarking and 3D visualization of aligned
-data, building on the serial-slice alignment module from `0.19.0a1`. Published
-to make the `Landmark` widget and point-cloud alignment views easier to test.
+Introduces `celldega.align`, a new module for registering serial 3D tissue
+slices into a shared coordinate frame, and `celldega.viz.Landmark`, an
+interactive widget for manually marking and reviewing corresponding landmark
+points across slices. Also fixes an `AnnData`-mutation bug and a cell-metadata
+keying bug in `Landscape`/`Yearbook` that could silently break cluster
+coloring for any `cluster_attr` (not just `leiden`).
 
 ### Added
 
-- **`celldega.viz.Landmark`** — an interactive widget for manually marking
-  corresponding landmark points across slices. Two side-by-side panels (any
-  slice swappable into either via dropdowns) with MARK / MODIFY / SAVE / DEL,
-  per-landmark rename + color, and per-slice rotation. Centroids are colored by
-  an optional `cluster_key` and streamed over the widget comm channel (no
-  bucket reads). Emits `.landmarks` in the exact shape `calc_landmarks`
-  produces, so manual and automatic landmarks concatenate; `landmarks=`
-  reloads a prior table for review/extension.
+- **`celldega.align`** — registration of serial 3D tissue slices into a
+  shared coordinate frame. `calc_landmarks` derives per-slice landmarks from
+  shared cluster labels (or accepts manually-placed ones);
+  `calc_alignment_transform` chain-walk fits a rigid Procrustes or non-rigid
+  thin-plate-spline transform outward from a reference slice, returning a
+  reusable, persistable `SerialAlignmentTransform` (`.save()`/`.load()`,
+  `.apply_to_points()`); `align_serial_slices` applies a fitted transform to a
+  set of `AnnData`, aligning `obsm["spatial"]` and assigning each slice a `Z`
+  coordinate (`z_space` or explicit `z_coord`).
 - **Anti-overfit TPS controls** — `area_regularization` and
   `shape_regularization` (both `[0, 1]`) on `fit_transform_tps` /
   `calc_alignment_transform`, applied as a post-fit SVD correction that pulls
@@ -38,51 +42,50 @@ to make the `Landmark` widget and point-cloud alignment views easier to test.
   technology that loads a named alignment's positions
   (`cell_metadata_<name>.parquet`) while clusters/genes keep loading from
   their normal paths, so alignments can be swapped without a dropdown.
+- **`celldega.viz.Landmark`** — an interactive widget for manually marking
+  corresponding landmark points across slices. Two side-by-side panels (any
+  slice swappable into either via dropdowns) with MARK / MODIFY / SAVE / DEL,
+  per-landmark rename + color, and per-slice rotation. Centroids are colored by
+  an optional `cluster_key` and streamed over the widget comm channel (no
+  bucket reads). Emits `.landmarks` in the exact shape `calc_landmarks`
+  produces, so manual and automatic landmarks concatenate; `landmarks=`
+  reloads a prior table for review/extension. Includes keyboard shortcuts for
+  MARK/SAVE/CANCEL/DELETE (scoped to the widget so Jupyter's command-mode
+  shortcuts like `m`/`a`/`b`/`d d` don't fire over it, with focus following the
+  mouse/click), and Z-pagination (prev/next slice buttons with a slice-id
+  indicator) that preserves the current zoom/pan across a slice swap.
 
 ### Fixed
 
+- **`AnnData` mutation in `Landscape`/`Yearbook`** — both widgets called
+  `adata.obs.set_index(..., inplace=True)` and, when a cluster's colors were
+  missing, ran `sc.pl.umap(adata, ...)` just to harvest the `<attr>_colors` it
+  writes back — silently mutating the caller's `AnnData` in both its index and
+  `uns`. Cell metadata is now derived from a non-mutated view of `obs`, and
+  missing colors fall back to a deterministic HSV palette instead of a scanpy
+  plotting call.
+- **Cluster attribute lockin / mismatch on cell metadata keying** — cell
+  metadata was keyed by an `adata.obs["cell_id"]` column (when present) rather
+  than `adata.obs_names`. When that column's values didn't exactly match
+  `obs_names` (e.g. a reordered `"cell__slice"` form), every cell silently
+  mismatched the DegaFiles `cell_metadata` `name` column, so cluster coloring
+  (`leiden` or any other `cluster_attr`) resolved to "N.A." and point-cloud
+  cells were culled. Cell metadata is now always keyed by `obs_names`, the
+  canonical AnnData cell identifier.
 - **Gene panel shown for gene-less datasets** — the `Landscape` gene bar-graph
   and gene search are now hidden when a dataset has no gene expression (e.g. a
   point-cloud DegaFiles written without `cbg/`), instead of rendering an empty
   panel.
-
-## [0.19.0a2] - 2026-07-17
-
-### Fixed
-
 - **Unsigned `landscape_parameters.json` fetch with private-bucket creds** —
   `set_landscape_parameters` accepted an `aws` client (for SigV4-signed S3
   requests) but never actually used it, always issuing a plain unsigned
   `fetch`. Against a private bucket this 403s, and the XML error body then
   fails `response.json()` with a confusing `SyntaxError: Unexpected token
-  '<'`. A redundant signed "warm-up" fetch to the same URL earlier in init
-  likely masked this via browser HTTP caching in some environments. Now
-  `set_landscape_parameters` uses `aws.fetch(...)` when creds are provided
-  (matching the pattern already used for parquet/arrow requests) and throws
-  a clear error on a non-2xx response instead of trying to parse it as JSON.
-  Also fixes `landscape_h_e.js`, which never passed `viz_state.aws` through
-  to this call at all.
-
-## [0.19.0a1] - 2026-07-17
-
-Alpha pre-release: a new serial-slice alignment module, plus small front-end
-fixes needed to render stacked 2D alpha shapes in the 3D point-cloud
-`Landscape` view.
-
-### Added
-
-- **`celldega.align`** — registration of serial 3D tissue slices into a
-  shared coordinate frame. `calc_landmarks` derives per-slice landmarks from
-  shared cluster labels (or accepts manually-placed ones);
-  `calc_alignment_transform` chain-walk fits a rigid Procrustes or non-rigid
-  thin-plate-spline transform outward from a reference slice, returning a
-  reusable, persistable `SerialAlignmentTransform`
-  (`.save()`/`.load()`, `.apply_to_points()`); `align_serial_slices` applies
-  a fitted transform to a set of `AnnData`, aligning `obsm["spatial"]` and
-  assigning each slice a `Z` coordinate (`z_space` or explicit `z_coord`).
-
-### Fixed
-
+  '<'`. Now `set_landscape_parameters` uses `aws.fetch(...)` when creds are
+  provided (matching the pattern already used for parquet/arrow requests) and
+  throws a clear error on a non-2xx response instead of trying to parse it as
+  JSON. Also fixes `landscape_h_e.js`, which never passed `viz_state.aws`
+  through to this call at all.
 - **Widget crash on gene-less datasets** — `set_meta_gene`/
   `set_color_dict_gene` called `.getChild(...)` directly on the result of a
   failed `meta_gene.parquet` fetch (e.g. point-cloud datasets with no
@@ -91,6 +94,17 @@ fixes needed to render stacked 2D alpha shapes in the 3D point-cloud
   null-safe `table_accessors` helpers already used for cluster metadata, so
   a missing `meta_gene.parquet` degrades to an empty gene list instead of
   crashing.
+- **`Landmark` modify-mode drag on the left panel** — disabling camera-pan on
+  both panels while modifying a landmark stopped deck.gl from dispatching drag
+  events to the left view at all, so a marker on that side couldn't be
+  refined. Pan is now correctly disabled on both views without blocking drags.
+- **TPS regularization validation** — `fit_transform_tps` accepted any
+  `area_regularization`/`shape_regularization` `>= 0`, even though only
+  `[0, 1]` is meaningful; validation now enforces that range. `degree` was
+  also missing from the persisted `uns["align_serial_slices"]` metadata, so a
+  reloaded transform lost its fitted TPS degree.
+
+[0.19.0]: https://github.com/broadinstitute/celldega/compare/0.18.1...0.19.0
 
 ## [0.18.1] - 2026-07-15
 

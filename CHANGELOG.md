@@ -4,6 +4,41 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.20.0] - 2026-07-29
+
+Adds three new `Clustergram` body encodings — `size`, `dotplot`, and
+`composition` — and a new dedicated `Composition` widget for comparing
+category proportions/counts across groups as stacked bars, plus a control-panel
+restyle shared by both widgets.
+
+### Added
+
+- **`Clustergram.viz_mode`** — `"heatmap"` (opacity ∝ value, default), `"size"`
+  (square size ∝ value), or `"dotplot"` (opacity from the main matrix, size from
+  a secondary matrix — the classic "percent expressing" dot plot). Animates live.
+- **`Matrix.set_dot_matrix`** / **`SetCollection.calc_signature(aggregate="fraction")`**
+  — attach and compute the dot-plot secondary size channel.
+- **`dega.viz.Composition`** — a `Clustergram` subclass for count/proportion
+  comparison across groups: each group renders as a bottom-anchored stacked bar,
+  each category a colored segment, with a global (cross-bar-consistent) stacking
+  order, double-click-to-reorder, cross-bar hover highlight, and a `PROP`/`COUNTS`
+  toggle. `composition_col_weights` carries `DatasetCollection.calc_population`'s
+  true per-group cell counts so `COUNTS` mode reflects real dataset-size
+  differences even though the displayed matrix is proportions. Vertical-only zoom
+  keeps every group column visible while zooming into small populations.
+- **`SetCollection.calc_population`** now carries the source `AnnData`'s category
+  color palette (e.g. `uns["cell_type_colors"]`) onto the modality.
+- Two new example notebooks: `Clustergram_Visual_Encodings.ipynb` and
+  `Composition_Population_Proportions.ipynb`.
+
+### Changed
+
+- Clustergram control-panel buttons restyled across the board: capitalized text,
+  no border/background — active/inactive state shown by text color alone
+  (blue/gray); axis-name labels are fixed-width, colon-suffixed, and non-clickable.
+
+[0.20.0]: https://github.com/broadinstitute/celldega/compare/0.19.0...0.20.0
+
 ## [0.19.0] - 2026-07-29
 
 Introduces `celldega.align`, a new module for registering serial 3D tissue

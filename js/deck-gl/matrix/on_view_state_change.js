@@ -120,6 +120,12 @@ export const on_view_state_change = (
   zoom_curated_x = Math.max(0, zoom_curated_x);
   zoom_curated_y = Math.max(0, zoom_curated_y);
 
+  // Composition: pin X so columns/datasets always stay fully visible,
+  // regardless of any accumulated horizontal zoom/pan gesture.
+  if (viz_state.mat.viz_mode === 'composition') {
+    zoom_curated_x = viz_state.zoom.ini_zoom_x;
+  }
+
   const pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state);
   const pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state);
 
@@ -161,7 +167,11 @@ export const on_view_state_change = (
   });
 
   let zoom_mode;
-  if (viz_state.zoom.major_zoom_axis !== 'all') {
+  if (viz_state.mat.viz_mode === 'composition') {
+    // Permanent lock, unlike the shape-driven aspect-ratio delay below (which
+    // always eventually unlocks to 'all' once zoomed in enough).
+    zoom_mode = 'Y';
+  } else if (viz_state.zoom.major_zoom_axis !== 'all') {
     zoom_mode =
       zoom_factor < viz_state.zoom.switch_ratio
         ? viz_state.zoom.major_zoom_axis

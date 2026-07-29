@@ -201,7 +201,16 @@ export const matrix_viz = async (
     }
 
     update_mode_button_visibility(viz_state);
-    deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+
+    // Recompute the per-view zoomAxis lock (composition restricts zoom to
+    // vertical-only; see views.js/on_view_state_change.js) so a live mode
+    // switch takes effect immediately, not just after the next pan/zoom.
+    ini_views(viz_state);
+
+    deck_mat.setProps({
+      layers: get_mat_layers_list(layers_mat),
+      views: viz_state.views.views_list,
+    });
   };
 
   refresh_attribute_layers(deck_mat, layers_mat, viz_state);

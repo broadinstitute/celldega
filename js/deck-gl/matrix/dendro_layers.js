@@ -1,4 +1,3 @@
-import * as d3 from 'd3';
 import { PolygonLayer } from 'deck.gl';
 
 import {
@@ -161,14 +160,6 @@ export const set_dendro_highlight = (
 };
 
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
-  // Animates a trapezoid's shape (not just its fill color) whenever its
-  // underlying leaf span changes — e.g. the row dendrogram in composition
-  // mode resizing as bars are reordered/renormalized (see
-  // `refresh_composition_dendro`) — instead of snapping instantly.
-  const transitions = {
-    getPolygon: { duration: viz_state.animate.duration, easing: d3.easeCubic },
-  };
-
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
@@ -188,7 +179,13 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     lineWidthMinPixels: 0,
     pickable: true,
     antialiasing: false,
-    transitions,
+    // The stroke (outline) sublayer is purely decorative — leaving it
+    // pickable meant hovering the thin white outline vs. the fill counted as
+    // two DIFFERENT sublayers to deck.gl's picker, causing a spurious
+    // out-then-in onHover pair (clear, then immediately re-apply) whenever
+    // the cursor crossed that boundary. Routing all picking through the
+    // fill avoids that instability.
+    _subLayerProps: { stroke: { pickable: false } },
     // autoHighlight: true, // Highlight on hover
     // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
   });

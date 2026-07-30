@@ -56,10 +56,7 @@ export const layer_filter = ({ layer, viewport }) => {
     return true;
   } else if (viewport.id === 'cols' && layer.id === 'col-label-layer') {
     return true;
-  } else if (
-    (viewport.id === 'dendro_rows') &
-    (layer.id === 'row-dendro-layer')
-  ) {
+  } else if (viewport.id === 'dendro_rows' && layer.id === 'row-dendro-layer') {
     return true;
   } else if (viewport.id === 'dendro_cols' && layer.id === 'col-dendro-layer') {
     return true;

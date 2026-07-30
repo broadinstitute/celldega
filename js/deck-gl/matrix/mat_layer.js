@@ -3,7 +3,10 @@ import * as d3 from 'd3';
 import { apply_mat_encoding } from '../../matrix/mat_data';
 
 import { CustomMatrixLayer } from './custom_matrix_layer';
-import { dendro_highlight_alpha_factor } from './dendro_layers';
+import {
+  clear_dendro_hover,
+  dendro_highlight_alpha_factor,
+} from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
 
 const mat_layer_get_fill_color = (d, viz_state) => {
@@ -132,6 +135,27 @@ export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
     onClick: (event) =>
       mat_layer_onclick(event, deck_mat, layers_mat, viz_state),
   });
+};
+
+/**
+ * Proactively clear the dendrogram hover highlight whenever a cell/segment
+ * is actively hovered — the matrix body and the dendrogram (which sits
+ * beside it) can't both be legitimately hovered at once, so this covers the
+ * "moved from the dendrogram back onto the body" transition even if the
+ * dendrogram layer's own onHover(null) doesn't fire for some reason (e.g. a
+ * picking edge case at a viewport boundary).
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const set_mat_layer_onhover = (deck_mat, layers_mat, viz_state) => {
+  const on_hover = (info) => {
+    if (!info?.object) return;
+    clear_dendro_hover(deck_mat, layers_mat, viz_state);
+  };
+
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({ onHover: on_hover });
 };
 
 /**

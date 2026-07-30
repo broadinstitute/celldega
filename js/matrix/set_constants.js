@@ -106,6 +106,14 @@ export const set_mat_constants = (
   initialize_attr_state(viz_state, network);
 
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
+  // Mirrors `ini_deck`'s own `width + 100` buffer on the deck.gl canvas
+  // itself (already true of the height line above) — without this, the
+  // container div under-reports its true rendered width, so content past
+  // the under-reported edge (in practice, whatever sits furthest right —
+  // the row dendrogram) can end up outside the box the browser and host
+  // notebook UI think the widget occupies, causing mouse events there to
+  // misbehave.
+  viz_state.root.style.width = `${width + viz_state.viz.height_margin}px`;
 
   // height of attribute bars
   viz_state.viz.row_cat_offset = 9;

@@ -4,7 +4,10 @@ import { ScatterplotLayer } from 'deck.gl';
 import { comp_geom_for } from '../../matrix/composition_data';
 
 import { comp_vs, comp_fs } from './composition_shaders';
-import { dendro_highlight_alpha_factor } from './dendro_layers';
+import {
+  clear_dendro_hover,
+  dendro_highlight_alpha_factor,
+} from './dendro_layers';
 import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 /**
@@ -251,6 +254,12 @@ export const set_composition_layer_onhover = (
         clear_composition_hover(deck_mat, layers_mat, viz_state);
       return;
     }
+
+    // A bar segment is now actively hovered, so the dendrogram (to the
+    // right) can't be — clear its highlight proactively rather than relying
+    // solely on the dendro layer's own onHover(null) to fire for this
+    // transition.
+    clear_dendro_hover(deck_mat, layers_mat, viz_state);
 
     clearTimeout(viz_state.mat._comp_hover_timer);
     viz_state.mat._comp_hover_timer = setTimeout(

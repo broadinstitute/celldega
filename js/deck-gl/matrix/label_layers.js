@@ -19,6 +19,7 @@ import {
   HOVER_HIGHLIGHT_DELAY_MS,
 } from './composition_layer';
 import {
+  clear_dendro_hover,
   refresh_composition_dendro,
   toggle_dendro_layer_visibility,
 } from './dendro_layers';
@@ -386,6 +387,11 @@ export const set_row_label_layer_onhover = (
   viz_state
 ) => {
   const on_hover = (info) => {
+    // A label is now actively hovered, so the dendrogram can't be — clear its
+    // highlight proactively (in any viz_mode) rather than relying solely on
+    // the dendro layer's own onHover(null) to fire for this transition.
+    if (info?.object) clear_dendro_hover(deck_mat, layers_mat, viz_state);
+
     if (viz_state.mat.viz_mode !== 'composition') return;
 
     const row = info?.object ? info.object.index : null;
@@ -424,6 +430,11 @@ export const set_col_label_layer_onhover = (
   viz_state
 ) => {
   const on_hover = (info) => {
+    // A label is now actively hovered, so the dendrogram can't be — clear its
+    // highlight proactively (in any viz_mode) rather than relying solely on
+    // the dendro layer's own onHover(null) to fire for this transition.
+    if (info?.object) clear_dendro_hover(deck_mat, layers_mat, viz_state);
+
     if (viz_state.mat.viz_mode !== 'composition') return;
 
     const col = info?.object ? info.object.index : null;

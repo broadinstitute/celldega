@@ -57,6 +57,7 @@ import {
 import {
   ini_mat_layer,
   set_mat_layer_onclick,
+  set_mat_layer_onhover,
 } from '../deck-gl/matrix/mat_layer';
 import {
   get_mat_layers_list,
@@ -200,6 +201,7 @@ export const matrix_viz = async (
       apply_mat_encoding(viz_state);
       layers_mat.mat_layer = ini_mat_layer(viz_state);
       set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+      set_mat_layer_onhover(deck_mat, layers_mat, viz_state);
 
       layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         visible: true,
@@ -239,6 +241,7 @@ export const matrix_viz = async (
   const global_view_state = ini_view_state(viz_state);
 
   set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+  set_mat_layer_onhover(deck_mat, layers_mat, viz_state);
   set_row_label_layer_onclick(deck_mat, layers_mat, viz_state);
   set_col_label_layer_onclick(deck_mat, layers_mat, viz_state);
   set_row_label_layer_onhover(deck_mat, layers_mat, viz_state);

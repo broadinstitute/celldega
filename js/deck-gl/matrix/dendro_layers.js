@@ -175,17 +175,15 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
 
       return DEFAULT_FILL_COLOR;
     },
-    getLineColor: [255, 255, 255, 255],
-    lineWidthMinPixels: 0,
+    // No outline: it was purely decorative, and having it as a second,
+    // separately-pickable sublayer (fill + stroke) was a source of picking
+    // instability — hovering across the fill/stroke boundary counted as
+    // leaving one sublayer and entering another, firing a spurious
+    // out-then-in onHover pair. A single fill-only shape is simpler to pick
+    // correctly.
+    stroked: false,
     pickable: true,
     antialiasing: false,
-    // The stroke (outline) sublayer is purely decorative — leaving it
-    // pickable meant hovering the thin white outline vs. the fill counted as
-    // two DIFFERENT sublayers to deck.gl's picker, causing a spurious
-    // out-then-in onHover pair (clear, then immediately re-apply) whenever
-    // the cursor crossed that boundary. Routing all picking through the
-    // fill avoids that instability.
-    _subLayerProps: { stroke: { pickable: false } },
     // autoHighlight: true, // Highlight on hover
     // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
   });

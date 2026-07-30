@@ -32,6 +32,9 @@ def _calc_nbhd_by_gene(
     by: str = "cell",
     adata: AnnData | None = None,
     data_dir: str | None = None,
+    feature_col: str = "feature_name",
+    x_col: str = "x_location",
+    y_col: str = "y_location",
     nbhd_col: str = "name",
     min_cells: int = 1,
 ) -> AnnData:
@@ -41,45 +44,38 @@ def _calc_nbhd_by_gene(
     Internal spatial-computation kernel. The public entry point is
     :meth:`NeighborhoodCollection.calc_signature`.
 
-    Computes gene expression values for each neighborhood, either from cell-level
-    expression data (mean expression of cells within each neighborhood) or from
-    raw transcript counts (cell-free mode).
+    `by="cell"` averages cell-level expression per neighborhood; `by="cell-free"`
+    counts transcripts per neighborhood, streamed in batches from `data_dir`'s
+    `transcripts.parquet`.
 
     Parameters
     ----------
     gdf_nbhd : gpd.GeoDataFrame
-        GeoDataFrame containing neighborhood geometries. Must have a geometry column
-        and a column specified by `nbhd_col` for neighborhood identifiers.
+        Neighborhood geometries, with a `geometry` column and a `nbhd_col` id column.
     by : str, default "cell"
-        Method for calculating gene expression:
-        - "cell": Mean expression of cells within each neighborhood (requires `adata`)
-        - "cell-free": Transcript counts within each neighborhood (requires `data_dir`)
+        "cell" (requires `adata`) or "cell-free" (requires `data_dir`).
     adata : AnnData, optional
-        AnnData object with cell data. Required when `by="cell"`. Must have spatial
-        coordinates in `obsm["spatial"]`.
+        Cell-level data with spatial coordinates in `obsm["spatial"]`; required
+        for `by="cell"`.
     data_dir : str, optional
-        Path to directory containing `transcripts.parquet`. Required when
-        `by="cell-free"`.
+        Directory containing a transcripts parquet file — any file whose name
+        ends with `transcripts.parquet` (e.g. `transcripts.parquet`,
+        `data1_transcripts.parquet`), with columns named `feature_col`/
+        `x_col`/`y_col` (Xenium convention by default). Required for `by="cell-free"`.
+    feature_col : str, default "feature_name"
+        Gene/feature column in `data_dir`'s transcripts parquet file.
+    x_col, y_col : str, default "x_location", "y_location"
+        Transcript coordinate columns in `data_dir`'s `transcripts.parquet`.
     nbhd_col : str, default "name"
-        Column in `gdf_nbhd` containing neighborhood identifiers.
+        Neighborhood id column in `gdf_nbhd`.
     min_cells : int, default 1
-        Minimum number of cells/transcripts required within a neighborhood to
-        include it in the output. Only applies when `by="cell"`.
+        Minimum cells/transcripts for a neighborhood to be kept.
 
     Returns
     -------
     AnnData
-        AnnData object with shape (n_neighborhoods, n_genes) where:
-        - `X`: Matrix of gene expression values (mean for cell-derived, counts for cell-free)
-        - `obs`: DataFrame indexed by neighborhood names
-        - `var`: DataFrame indexed by gene names
-        - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
-        - `uns["by"]`: Method used ("cell" or "cell-free")
-
-    Notes
-    -----
-    For cluster-specific gene expression analysis, filter your AnnData object
-    to include only cells from the desired cluster before calling this function.
+        Shape (n_neighborhoods, n_genes); `obs["n_cells"]` (`by="cell"`) or
+        `obs["n_transcripts"]` (`by="cell-free"`).
     """
     if by == "cell":
         if adata is None:
@@ -135,26 +131,19 @@ def _calc_nbhd_by_gene(
         if data_dir is None:
             raise ValueError("data_dir is required when by='cell-free'")
 
-        print("Calculating neighborhood-by-gene (cell-free)")
-
-        df_trx = pd.read_parquet(
-            f"{data_dir}/transcripts.parquet",
-            columns=["feature_name", "x_location", "y_location"],
-            engine="pyarrow",
-        )
-        geometry = gpd.points_from_xy(df_trx["x_location"], df_trx["y_location"])
-        gdf_trx = gpd.GeoDataFrame(df_trx[["feature_name"]], geometry=geometry)
-        gdf_trx = gdf_trx.sjoin(
-            _nbhd_geometry_for_join(gdf_nbhd, nbhd_col),
-            how="left",
-            predicate="within",
-        )
+        print("Calculating neighborhood-by-gene (cell-free, streaming)")
+        from celldega.nbhd.trx_streaming import _assign_trx_to_entity_streaming_parquet
+        from celldega.nbhd.utils import _find_transcripts_parquet
 
         df_result = (
-            gdf_trx.groupby([nbhd_col, "feature_name"])
-            .size()
-            .unstack(fill_value=0)
-            .rename_axis(None, axis=1)
+            _assign_trx_to_entity_streaming_parquet(
+                _find_transcripts_parquet(data_dir),
+                gdf_nbhd,
+                id_col=nbhd_col,
+                x_col=x_col,
+                y_col=y_col,
+                gene_col=feature_col,
+            )
             .reindex(gdf_nbhd[nbhd_col])
             .fillna(0)
             .astype(int)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -313,6 +314,89 @@ class NeighborhoodCollection(CelldegaCollection):
         )
         return type(self)(gdf=gdf_rings, nbhd_type=nbhd_type, **kwargs)
 
+    def calc_expansion(
+        self,
+        gdf_bounds: gpd.GeoDataFrame,
+        radii_um: Sequence[float] = (0.5, 1, 1.5, 2, 2.5),
+        nbhd_type: str = "expansion",
+        *,
+        technology: str | None = None,
+        scale_um_per_pixel: float | None = None,
+        join_style: int = 2,
+        mitre_limit: float = 5.0,
+        add_colors: bool = True,
+        **kwargs: Any,
+    ) -> dict[float, NeighborhoodCollection]:
+        """Buffer every entity in this collection outward, clipped to its own bound.
+
+        Unlike :meth:`calc_gradient` (concentric rings from ONE dissolved ROI),
+        this grows **every** neighborhood independently — e.g. a segmented
+        nucleus growing into its cell — clipping each to a matching row in
+        ``gdf_bounds`` (joined by ``self.nbhd_col``). Returns one new
+        ``NeighborhoodCollection`` per radius, sharing the same observation axis
+        so downstream results stay comparable across radii.
+
+        Args:
+            gdf_bounds: Per-entity clipping boundary, with a column named
+                ``self.nbhd_col`` and a ``geometry`` column.
+            radii_um: Buffer distances in microns. ``0`` returns the original
+                (validity-repaired) entity geometry, clipped to its bound.
+            nbhd_type: Label recorded on each returned collection.
+            technology: Imaging platform used to look up ``scale_um_per_pixel``
+                (e.g. ``"Xenium"``). Ignored if ``scale_um_per_pixel`` is given.
+            scale_um_per_pixel: Microns per pixel — a micron distance is
+                *divided* by this to get the geometry's native units. Defaults
+                to ``1.0`` (geometry already in microns, i.e. no conversion).
+                If this collection's geometry is in pixel space and you only
+                have a pixels-per-micron factor, pass its reciprocal
+                (``1 / pixels_per_micron``).
+            join_style: Shapely buffer join style (``1``=round, ``2``=mitre
+                (default), ``3``=bevel).
+            mitre_limit: Shapely mitre limit, used when ``join_style=2``.
+            add_colors: If ``True`` (default), add a ``color`` column — one
+                shade per radius — for visualization.
+            **kwargs: Forwarded to each new ``NeighborhoodCollection``.
+
+        Returns:
+            A dict mapping each radius to a new ``NeighborhoodCollection`` of
+            that radius's buffered, clipped geometries.
+
+        Raises:
+            ValueError: If this collection has no geometry, or if ids fail to
+                match ``gdf_bounds``.
+
+        Examples:
+            >>> nbhd_nuclei = NeighborhoodCollection(gdf=gdf_nuclei, nbhd_col="cell_id")
+            >>> series = nbhd_nuclei.calc_expansion(gdf_cells, radii_um=[1, 2, 3])
+            >>> for radius, nbhd in series.items():
+            ...     nbhd.calc_signature(by="cell-free", data_dir=data_dir, drop_missing=False)
+        """
+        from celldega.nbhd.expansion import _calc_expansion
+
+        if self.gdf is None:
+            raise ValueError("gdf or geometry is required to calculate an expansion series")
+
+        if self.transformation_matrix is not None and "transformation_matrix" not in kwargs:
+            kwargs["transformation_matrix"] = self.transformation_matrix
+
+        per_radius_gdf = _calc_expansion(
+            self.gdf,
+            gdf_bounds,
+            radii_um=radii_um,
+            id_col=self.nbhd_col,
+            technology=technology,
+            scale_um_per_pixel=scale_um_per_pixel,
+            join_style=join_style,
+            mitre_limit=mitre_limit,
+            add_colors=add_colors,
+        )
+        return {
+            radius: type(self)(
+                gdf=gdf_radius, nbhd_type=nbhd_type, nbhd_col=self.nbhd_col, **kwargs
+            )
+            for radius, gdf_radius in per_radius_gdf.items()
+        }
+
     @property
     def geometry(self) -> gpd.GeoDataFrame | None:
         """Neighborhood geometry. Alias of :attr:`gdf` (single source of truth)."""
@@ -450,6 +534,9 @@ class NeighborhoodCollection(CelldegaCollection):
         modality_name: str | None = None,
         min_cells: int = 1,
         data_dir: str | None = None,
+        feature_col: str = "feature_name",
+        x_col: str = "x_location",
+        y_col: str = "y_location",
         drop_missing: bool = True,
     ) -> None:
         """Calculate a neighborhood-by-gene modality and attach it to ``self.mod``.
@@ -465,8 +552,18 @@ class NeighborhoodCollection(CelldegaCollection):
             modality_name: Key for the modality; defaults to ``"gene"``
                 (cell-derived) or ``"gene_cell_free"`` (transcript-derived).
             min_cells: Minimum cells/transcripts for a neighborhood to be kept.
-            data_dir: Transcript directory for ``by="cell-free"``; defaults to
-                ``self.data_dir``.
+            data_dir: Directory containing a transcripts parquet file — any
+                file whose name ends with ``transcripts.parquet`` (e.g.
+                ``transcripts.parquet``, ``data1_transcripts.parquet``), with
+                columns named ``feature_col``/``x_col``/``y_col`` (Xenium
+                convention by default), streamed in batches; defaults to
+                ``self.data_dir``. Required for ``by="cell-free"``.
+            feature_col: Gene/feature column in ``data_dir``'s
+                ``transcripts.parquet`` (default ``"feature_name"``).
+            x_col: Transcript x-coordinate column in ``data_dir``'s
+                ``transcripts.parquet`` (default ``"x_location"``).
+            y_col: Transcript y-coordinate column in ``data_dir``'s
+                ``transcripts.parquet`` (default ``"y_location"``).
             drop_missing: When ``True`` (default), neighborhoods with fewer than
                 ``min_cells`` cells (or transcripts) are removed from the
                 collection entirely. When ``False``, the collection keeps all
@@ -477,8 +574,8 @@ class NeighborhoodCollection(CelldegaCollection):
             ``None`` — the modality is attached to ``self.mod``.
 
         Raises:
-            ValueError: If ``adata`` is missing for ``by="cell"``, or ``data_dir``
-                is missing for ``by="cell-free"``.
+            ValueError: If ``adata`` is missing for ``by="cell"``, or
+                ``data_dir`` is missing for ``by="cell-free"``.
         """
         from celldega.nbhd.neighborhoods import (
             _calc_nbhd_by_gene,
@@ -499,6 +596,9 @@ class NeighborhoodCollection(CelldegaCollection):
             by=by,
             adata=adata,
             data_dir=resolved_data_dir,
+            feature_col=feature_col,
+            x_col=x_col,
+            y_col=y_col,
             nbhd_col=self.nbhd_col,
             min_cells=min_cells,
         )
@@ -592,8 +692,10 @@ class NeighborhoodCollection(CelldegaCollection):
     ) -> None:
         """Add per-neighborhood transcript-assignment columns to ``obs``.
 
-        From ``transcripts.parquet`` in ``data_dir``, adds three ``obs`` columns
-        (on the underlying MuData) for each neighborhood:
+        From the transcripts parquet file in ``data_dir`` (any file whose name
+        ends with ``transcripts.parquet``, e.g. ``transcripts.parquet`` or
+        ``data1_transcripts.parquet``), adds three ``obs`` columns (on the
+        underlying MuData) for each neighborhood:
 
         - ``total_transcripts`` — transcripts falling inside the neighborhood.
         - ``unassigned_transcripts`` — those with ``cell_id == "UNASSIGNED"``.
@@ -606,7 +708,8 @@ class NeighborhoodCollection(CelldegaCollection):
         Only transcripts are needed — no ``adata`` or cell polygons.
 
         Args:
-            data_dir: Directory containing ``transcripts.parquet``; defaults to
+            data_dir: Directory containing a transcripts parquet file (any
+                name ending with ``transcripts.parquet``); defaults to
                 ``self.data_dir``.
 
         Returns:

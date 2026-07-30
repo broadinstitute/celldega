@@ -194,6 +194,25 @@ def test_neighborhood_collection_transcript_assignment(tmp_path):
     assert obs["transcript_assignment_proportion"].loc["B"] == 0.0
 
 
+def test_transcript_assignment_finds_prefixed_transcripts_filename(tmp_path):
+    gdf, _adata = _synthetic_nbhd_inputs()
+    trx = pd.DataFrame(
+        {
+            "feature_name": ["g"] * 3,
+            "x_location": [1, 2, 11],
+            "y_location": [1, 2, 1],
+            "cell_id": ["c1", "c2", "UNASSIGNED"],
+        }
+    )
+    # not every transcripts file is literally named "transcripts.parquet"
+    trx.to_parquet(tmp_path / "aziz_1_20260217_5_transcripts.parquet")
+
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+    collection.calc_transcript_assignment(data_dir=str(tmp_path))
+
+    assert list(collection.obs["total_transcripts"]) == [2, 1]
+
+
 def test_transcript_assignment_warns_when_no_unassigned_sentinel(tmp_path):
     gdf, _adata = _synthetic_nbhd_inputs()
     # cell_id present but no "UNASSIGNED" sentinel -> warns (may be fully assigned)

@@ -10,6 +10,10 @@ from .utils import (
     _get_df_cell,
     _get_gdf_cell,
     _get_gdf_trx,
+    make_column_names_unique_fast,
+    safe_polygon,
+    simple_format,
+    transform_polygon,
 )
 
 
@@ -25,4 +29,8 @@ __all__ = [
     "filter_alpha_shapes",
     "generate_hextile",
     "hextile_niche",
+    "make_column_names_unique_fast",
+    "safe_polygon",
+    "simple_format",
+    "transform_polygon",
 ]

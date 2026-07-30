@@ -1,14 +1,16 @@
 """Helper and utility functions."""
 
 # Standard library imports
+from collections import defaultdict
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 # Third-party imports
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, base
+from shapely.geometry import Point, Polygon, base
 from shapely.ops import transform
 
 
@@ -105,6 +107,29 @@ def _get_gdf_cell(adata: Any) -> gpd.GeoDataFrame:
     )
 
 
+def _find_transcripts_parquet(data_dir: str) -> str:
+    """
+    Find the transcripts parquet file in `data_dir`.
+
+    Matches any file whose name ends with `transcripts.parquet` (e.g.
+    `transcripts.parquet`, `data1_transcripts.parquet`,
+    `aziz_1_20260217_5_transcripts.parquet`), not just the literal Xenium
+    convention `transcripts.parquet`.
+    """
+    candidates = sorted(
+        p for p in Path(data_dir).iterdir() if p.name.endswith("transcripts.parquet")
+    )
+    if not candidates:
+        raise FileNotFoundError(f"No file ending with 'transcripts.parquet' found in '{data_dir}'")
+    if len(candidates) > 1:
+        raise ValueError(
+            f"Multiple files ending with 'transcripts.parquet' found in '{data_dir}': "
+            f"{[p.name for p in candidates]}. Keep only one, or point data_dir at a "
+            "directory containing a single transcripts file."
+        )
+    return str(candidates[0])
+
+
 def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     """
     Load transcript data as a GeoDataFrame with spatial coordinates.
@@ -112,7 +137,7 @@ def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     No CRS is set since coordinates are in micron imaging space, not geospatial.
     """
     df_trx = pd.read_parquet(
-        f"{data_dir}/transcripts.parquet",
+        _find_transcripts_parquet(data_dir),
         columns=["feature_name", "x_location", "y_location", "cell_id"],
         engine="pyarrow",
     )
@@ -147,3 +172,50 @@ def _round_coordinates(
         return (round(x, precision), round(y, precision))
 
     return transform(round_coords, geometry)
+
+
+def safe_polygon(row: pd.Series) -> Polygon:
+    """Build a `Polygon` from a row's `vertex_x`/`vertex_y` coordinate lists; empty on failure."""
+    try:
+        return Polygon(zip(row["vertex_x"], row["vertex_y"], strict=True))
+    except Exception:
+        return Polygon()
+
+
+def simple_format(geometry: Sequence[Sequence[Sequence[float]]], image_scale: float) -> list:
+    """Rescale a nested polygon-ring coordinate list by dividing by `image_scale`."""
+    return [
+        [[coord[0] / image_scale, coord[1] / image_scale] for coord in polygon]
+        for polygon in geometry
+    ]
+
+
+def transform_polygon(polygon: Polygon) -> np.ndarray:
+    """Convert a `Polygon`'s exterior ring into a `[1, n_points, 2]` object array."""
+    exterior_coords = polygon.exterior.coords
+    original_format_coords = np.array([np.array(coord) for coord in exterior_coords])
+    return np.array([original_format_coords], dtype=object)
+
+
+def make_column_names_unique_fast(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename duplicate columns in place (`col`, `col_1`, `col_2`, ...) and return `df`."""
+    counts: dict[str, int] = defaultdict(int)
+    used: set[str] = set()
+    new_cols = []
+
+    for col in df.columns:
+        if col not in used:
+            new_cols.append(col)
+            used.add(col)
+            counts[col] += 1
+        else:
+            while True:
+                new_name = f"{col}_{counts[col]}"
+                counts[col] += 1
+                if new_name not in used:
+                    new_cols.append(new_name)
+                    used.add(new_name)
+                    break
+
+    df.columns = new_cols
+    return df

@@ -8,7 +8,8 @@ All notable changes to Celldega are documented here. This project follows
 
 Adds a new `Clustergram` body encoding — `dotplot` — and a new dedicated
 `Composition` widget for comparing category proportions/counts across groups
-as stacked bars, plus a control-panel restyle shared by both widgets.
+as stacked bars, plus a control-panel restyle shared by both widgets and a
+round of dendrogram/hover-interaction polish that touches both.
 
 ### Added
 
@@ -18,7 +19,9 @@ as stacked bars, plus a control-panel restyle shared by both widgets.
 - **`Matrix.set_dot_matrix`** / **`SetCollection.calc_signature(aggregate="fraction")`**
   — attach and compute the dot-plot secondary size channel. `Matrix(collection=...,
   color_by=..., size_by=...)` builds both directly from a collection, no manual
-  DataFrame wrangling needed (`dot_plot=` is accepted as an alias for `size_by=`).
+  DataFrame wrangling needed (`dot_plot=` is accepted as an alias for `size_by=`,
+  since `size_by` isn't limited to "fraction expressing" — any per-cell magnitude
+  works, e.g. a significance score).
 - **`dega.viz.Composition`** — a `Clustergram` subclass for count/proportion
   comparison across groups: each group renders as a bottom-anchored stacked bar,
   each category a colored segment, with a global (cross-bar-consistent) stacking
@@ -28,7 +31,21 @@ as stacked bars, plus a control-panel restyle shared by both widgets.
   differences even though the displayed matrix is proportions. Vertical-only zoom
   keeps every group column visible while zooming into small populations.
 - **`SetCollection.calc_population`** now carries the source `AnnData`'s category
-  color palette (e.g. `uns["cell_type_colors"]`) onto the modality.
+  color palette (e.g. `uns["cell_type_colors"]`) onto the modality — `Composition`
+  picks this up automatically from a `DatasetCollection`/`SetCollection` alone, no
+  separate `adata=` needed in the common case.
+- **Row dendrogram in `Composition`** — dynamically positioned from the rightmost
+  bar's actual (non-uniform) segment geometry, so clusters of co-regulated
+  populations across datasets are visible the same way a regular `Clustergram`
+  row dendrogram would show them. Recomputes on reorder/normalize/weight changes.
+  Both dendrograms' trapezoids animate their shape on resize.
+- **Dendrogram hover/click highlight** — hovering (after a short dwell delay,
+  matching every other hover-highlight in the widget) or clicking a dendrogram
+  trapezoid dims every row/column *not* covered by it, in both `Clustergram` and
+  `Composition`.
+- **Composition row/column label hover** — hovering a row or column label
+  cross-highlights it the same way hovering its bar segment does (`Composition`
+  only).
 - Two new example notebooks: `Clustergram_Visual_Encodings.ipynb` and
   `Composition_Population_Proportions.ipynb`.
 
@@ -37,6 +54,38 @@ as stacked bars, plus a control-panel restyle shared by both widgets.
 - Clustergram control-panel buttons restyled across the board: capitalized text,
   no border/background — active/inactive state shown by text color alone
   (blue/gray); axis-name labels are fixed-width, colon-suffixed, and non-clickable.
+- `viz_mode="composition"` is now only settable on a `Composition` instance
+  (`TraitError` on a plain `Clustergram`) — the composition body was always
+  designed to be reached through the dedicated widget, which handles the matrix
+  shape and reorder semantics it needs.
+- **`SetCollection.calc_signature`** now requires an explicit `modality_name`
+  (previously defaulted to `"expression"`/`"fraction"`/the feature type), so it's
+  always clear which modality a given call produces.
+- Composition-mode row labels are hidden when their segment is too short to fit
+  one line of text, and reveal themselves as you zoom in on rows (previously
+  always shown, however small, which cut off badly for small populations or in
+  `COUNTS` mode).
+- Column dendrogram trapezoids in `Composition` account for the gap between
+  bars (previously overshot each bar slightly).
+
+### Fixed
+
+- `Matrix.set_dot_matrix` wasn't transposing `AnnData` input, silently
+  misaligning the dot-plot size channel to zero for that input type.
+- A hover-highlight (composition bars, dendrogram, or categorical attribute
+  tiles) could get stuck showing its last state after the mouse left the
+  widget, if a pending delayed-highlight timer fired after the fact. Also
+  traced to, and fixed: the widget container's CSS width didn't account for
+  the deck.gl canvas's own rendering buffer, so content at the far right edge
+  (the row dendrogram) could fall outside the box the browser tracked mouse
+  events against.
+
+### Removed
+
+- `Clustergram.viz_mode="size"` (square size ∝ value, full opacity) — never
+  released; `"dotplot"` covers the same "size encodes a value" idea via a
+  proper secondary matrix. `StackedBar` (deprecated alias for `Composition`) —
+  also never released.
 
 [0.20.0]: https://github.com/broadinstitute/celldega/compare/0.19.0...0.20.0
 

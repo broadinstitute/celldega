@@ -1,6 +1,9 @@
 import * as d3 from 'd3-color';
 
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import {
+  get_mat_layers_list,
+  mat_reorder_triggers,
+} from '../deck-gl/matrix/matrix_layers';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 
 import { colorToRgba } from './cat_data';
@@ -239,12 +242,14 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
     tile_height: viz_state.viz.col_cat_height / 2,
   });
 
+  // Geometry (mat_height/col_width) may have changed with attribute count, so
+  // invalidate the composition layout cache before the body layer refreshes.
+  viz_state.mat._comp_cache = null;
+
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
     tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
     tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
-    updateTriggers: {
-      getPosition: [viz_state.order.current.row, viz_state.order.current.col],
-    },
+    updateTriggers: mat_reorder_triggers(viz_state),
   });
 
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({

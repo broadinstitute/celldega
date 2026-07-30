@@ -42,7 +42,7 @@ def test_membership_modality_shape_and_coords():
 def test_calc_signature_gene_default_and_protein_mudata():
     adata = _adata()
     clust = SetCollection(adata, set_col="leiden", name="leiden")
-    clust.calc_signature(adata)
+    clust.calc_signature(adata, modality_name="expression")
     expression = clust.mod["expression"]
     assert expression.n_obs == clust.obs.shape[0]
     assert expression.n_vars == adata.n_vars
@@ -54,7 +54,7 @@ def test_calc_signature_gene_default_and_protein_mudata():
         var=pd.DataFrame(index=[f"p{j}" for j in range(4)]),
     )
     mdata = MuData({"rna": adata.copy(), "protein": prot})
-    clust.calc_signature(mdata, feature_type="protein")
+    clust.calc_signature(mdata, modality_name="protein", feature_type="protein")
     assert clust.mod["protein"].n_vars == 4
     assert clust.mod["protein"].var["entity_type"].iloc[0] == "protein"
 
@@ -73,7 +73,7 @@ def test_obs_color_stored_from_category_colors():
     assert all(clust.obs.loc[s, "color"] == expected[s] for s in clust.obs.index)
 
     # color travels into the signature modality so Matrix can auto-color the Clustergram
-    clust.calc_signature(adata, normalization=None)
+    clust.calc_signature(adata, modality_name="expression", normalization=None)
     assert "color" in clust.mod["expression"].obs.columns
 
 
@@ -86,7 +86,7 @@ def test_obs_has_no_color_without_palette():
 def test_calc_signature_stamps_axis_entities_for_landscape_linking():
     adata = _adata()
     clust = SetCollection(adata, set_col="cell_type", name="rctd")
-    clust.calc_signature(adata, normalization=None)
+    clust.calc_signature(adata, modality_name="expression", normalization=None)
     axis = clust.mod["expression"].uns.get("axis_entities")
     assert axis is not None
     assert axis["row_entity"] == {"entity": "gene", "attr": "name"}
@@ -104,7 +104,7 @@ def test_calc_signature_requires_feature_type_for_mudata():
     clust = SetCollection(adata, set_col="leiden", name="leiden")
     mdata = MuData({"rna": adata.copy()})
     with pytest.raises(ValueError, match="feature_type is required"):
-        clust.calc_signature(mdata)
+        clust.calc_signature(mdata, modality_name="expression")
 
 
 def test_calc_population_proportions_sum_to_one():

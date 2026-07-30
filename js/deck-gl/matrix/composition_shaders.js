@@ -1,28 +1,29 @@
-export const vs = `#version 300 es
-#define SHADER_NAME scatterplot-layer-vertex-shader
+// Composition (stacked-bar) body shaders.
+//
+// Same square-fill approach as the heatmap body, but the per-instance size is a
+// world-space half-extent [halfWidth, halfHeight] (from `getSize`) instead of a
+// uniform tile size scaled by a single radius. This lets each segment have a
+// full-column width and an independent, value-driven height.
 
-// customize the vertex shader to allow for x and y scaling and zooming
+export const comp_vs = `#version 300 es
+#define SHADER_NAME composition-layer-vertex-shader
 
 in vec3 positions;
 in vec3 instancePositions;
 in vec3 instancePositions64Low;
 in vec3 instancePickingColors;
 in vec4 instanceFillColors;
-in float instanceRadius;
+in vec2 instanceSize;
 
 uniform float opacity;
-uniform float tile_height;
-uniform float tile_width;
 
 out vec4 vFillColor;
 out vec2 unitPosition;
 
 void main(void) {
 
-  // instanceRadius (from getRadius) is a per-cell size scale in [0, 1] that
-  // shrinks the square around its center for the "dotplot" encoding.
-  // It defaults to 1.0 (full tile) so the classic heatmap is unchanged.
-  vec3 scaled_positions = vec3(tile_width * positions.x * instanceRadius, tile_height * positions.y * instanceRadius, positions.z);
+  // instanceSize = [halfWidth, halfHeight] in world units for this segment.
+  vec3 scaled_positions = vec3(instanceSize.x * positions.x, instanceSize.y * positions.y, positions.z);
 
   vec3 positionCommon = project_position(instancePositions + scaled_positions , instancePositions64Low);
 
@@ -39,10 +40,8 @@ void main(void) {
 
 `;
 
-export const fs = `#version 300 es
-#define SHADER_NAME scatterplot-layer-fragment-shader
-
-// Customize the fragment shader to create square-shaped points
+export const comp_fs = `#version 300 es
+#define SHADER_NAME composition-layer-fragment-shader
 
 precision highp float;
 in vec4 vFillColor;

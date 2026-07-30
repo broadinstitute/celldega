@@ -1,3 +1,4 @@
+import * as d3 from 'd3';
 import { PolygonLayer } from 'deck.gl';
 
 import {
@@ -5,12 +6,44 @@ import {
   sync_selected_rows,
   sync_selected_cols,
 } from '../../global_variables/selected_genes';
+import {
+  calc_dendro_triangles,
+  calc_dendro_polygons,
+} from '../../matrix/dendro';
 
 import { get_mat_layers_list } from './matrix_layers';
 
 const DENDRO_AXES = ['row', 'col'];
 const DEFAULT_FILL_COLOR = [0, 0, 0, 90];
 const FOCUSED_FILL_COLOR = [0, 0, 0, 180];
+
+// Non-covered cells/segments are dimmed to this fraction of their normal
+// alpha while a dendrogram trapezoid is hovered or clicked.
+const DENDRO_HIGHLIGHT_DIM_ALPHA = 0.2;
+
+// Hover must dwell this long before the highlight kicks in (matches
+// composition's cross-bar hover-highlight delay); leaving clears instantly.
+const DENDRO_HOVER_DELAY_MS = 250;
+
+/**
+ * Alpha multiplier for a matrix cell / composition segment at (row, col)
+ * given the current dendrogram hover/click highlight — 1 (no change) unless
+ * a highlight is active and this row and/or column isn't covered by it.
+ * Shared by `mat_layer.js` (heatmap/size/dotplot) and `composition_layer.js`.
+ *
+ * @param {object} viz_state - Visualization state.
+ * @param {number} row - Raw row index.
+ * @param {number} col - Raw column index.
+ * @returns {number} Alpha multiplier in (0, 1].
+ */
+export const dendro_highlight_alpha_factor = (viz_state, row, col) => {
+  const highlight = viz_state.dendro?.highlight;
+  if (!highlight || (!highlight.row && !highlight.col)) return 1;
+
+  const row_ok = !highlight.row || highlight.row.has(row);
+  const col_ok = !highlight.col || highlight.col.has(col);
+  return row_ok && col_ok ? 1 : DENDRO_HIGHLIGHT_DIM_ALPHA;
+};
 
 const get_current_focus = (viz_state) => {
   const store_focus =
@@ -82,7 +115,64 @@ const apply_dendro_focus = (deck_mat, layers_mat, viz_state, focus) => {
   }
 };
 
+/**
+ * Set (or clear) the dendrogram-driven cell/segment highlight for one axis,
+ * and re-render the body layer (`mat_layer`, whichever layer class is
+ * currently assigned there — heatmap/dotplot or composition) so
+ * `dendro_highlight_alpha_factor` picks up the change. Converts the leaf
+ * name list into an index set once here, so the per-cell render accessor is
+ * just a fast `Set.has(index)` check.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {string} axis - "row" or "col".
+ * @param {string[]|null} names - Leaf names to highlight, or null to clear.
+ */
+export const set_dendro_highlight = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  axis,
+  names
+) => {
+  viz_state.dendro.highlight = viz_state.dendro.highlight || {
+    row: null,
+    col: null,
+  };
+
+  let indices = null;
+  if (names) {
+    const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+    const name_set = new Set(names);
+    indices = new Set();
+    nodes.forEach((node, i) => {
+      if (name_set.has(String(node.name))) indices.add(i);
+    });
+  }
+
+  viz_state.dendro.highlight[axis] = indices;
+  viz_state.dendro._highlight_rev = (viz_state.dendro._highlight_rev || 0) + 1;
+
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    updateTriggers: { getFillColor: viz_state.dendro._highlight_rev },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+};
+
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
+  // Animates a trapezoid's shape whenever its underlying leaf span changes
+  // (e.g. the row dendrogram in composition mode resizing as bars are
+  // reordered/renormalized — see `refresh_composition_dendro`) instead of
+  // snapping instantly. Safe now that there's no stroke sublayer: each
+  // polygon is a fixed 3-vertex triangle, so the fill's per-vertex
+  // interpolation is unambiguous — the earlier "white lines" glitch traced
+  // to the (now-removed) stroke's own path-based transition, a different,
+  // less predictable interpolation than a plain triangle fill.
+  const transitions = {
+    getPolygon: { duration: viz_state.animate.duration, easing: d3.easeCubic },
+  };
+
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
@@ -98,10 +188,16 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
 
       return DEFAULT_FILL_COLOR;
     },
-    getLineColor: [255, 255, 255, 255],
-    lineWidthMinPixels: 0,
+    // No outline: it was purely decorative, and having it as a second,
+    // separately-pickable sublayer (fill + stroke) was a source of picking
+    // instability — hovering across the fill/stroke boundary counted as
+    // leaving one sublayer and entering another, firing a spurious
+    // out-then-in onHover pair. A single fill-only shape is simpler to pick
+    // correctly.
+    stroked: false,
     pickable: true,
     antialiasing: false,
+    transitions,
     // autoHighlight: true, // Highlight on hover
     // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
   });
@@ -118,11 +214,11 @@ export const update_dendro_layer_data = (layers_mat, viz_state, axis) => {
 };
 
 export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
-  // if viz_state.order.curent[axis] is 'clust' then the dendrogram is visible
-  let is_visible = false;
-  if (viz_state.order.current[axis] === 'clust') {
-    is_visible = true;
-  }
+  // if viz_state.order.curent[axis] is 'clust' then the dendrogram is visible.
+  // In composition mode the row dendrogram's leaves are positioned from the
+  // rightmost bar's actual segments (see refresh_composition_dendro below),
+  // so it's just as meaningful as in heatmap mode — no special-case needed.
+  const is_visible = viz_state.order.current[axis] === 'clust';
 
   layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone(
     {
@@ -130,6 +226,43 @@ export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
       visible: is_visible,
     }
   );
+};
+
+/**
+ * Recompute BOTH axes' dendrogram triangles/polygons for the current
+ * `viz_mode` and push the fresh data into both dendro layers. Call once
+ * whenever `viz_mode` crosses the composition boundary — that's the only
+ * time the *shape* of the leaf-position formula itself changes (composition
+ * vs. uniform heatmap spacing); reorder/normalize/weight changes within
+ * composition mode are handled by the narrower `refresh_composition_dendro`.
+ *
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const refresh_dendro_for_viz_mode = (layers_mat, viz_state) => {
+  ['row', 'col'].forEach((axis) => {
+    calc_dendro_triangles(viz_state, axis);
+    calc_dendro_polygons(viz_state, axis);
+    update_dendro_layer_data(layers_mat, viz_state, axis);
+  });
+};
+
+/**
+ * Recompute just the row dendrogram's triangles/polygons in composition
+ * mode — needed whenever the rightmost bar's segment positions can change:
+ * column reorder (any mechanism), the PROP/COUNTS toggle, or
+ * `composition_col_weights` changing. No-op outside composition mode (column
+ * order there is always uniformly spaced, so its own dendrogram never needs
+ * recomputing beyond the one-time `refresh_dendro_for_viz_mode` above).
+ *
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const refresh_composition_dendro = (layers_mat, viz_state) => {
+  if (viz_state.mat.viz_mode !== 'composition') return;
+  calc_dendro_triangles(viz_state, 'row');
+  calc_dendro_polygons(viz_state, 'row');
+  update_dendro_layer_data(layers_mat, viz_state, 'row');
 };
 
 const focus_dendro_polygon = (
@@ -223,6 +356,19 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
     viz_state,
     axis,
     event.object.properties.name
+  );
+
+  // focus_dendro_polygon just toggled active_polygon; mirror that into the
+  // cell/segment highlight (clicking the already-focused polygon clears it).
+  const is_now_focused =
+    viz_state.dendro.active_polygon?.axis === axis &&
+    viz_state.dendro.active_polygon?.name === event.object.properties.name;
+  set_dendro_highlight(
+    deck_mat,
+    layers_mat,
+    viz_state,
+    axis,
+    is_now_focused ? selected_names : null
   );
 
   // Update dendro_selection in the store
@@ -350,4 +496,66 @@ export const set_dendro_layer_onclick = (
         dendro_layer_onclick(event, deck_mat, layers_mat, viz_state, axis),
     }
   );
+};
+
+/**
+ * Wire up hover-to-highlight for a dendrogram trapezoid: hovering a leaf
+ * group highlights every row/column it covers (dimming everything else)
+ * after a short dwell delay, so a quick pass-over doesn't flash; moving off
+ * clears the highlight immediately. Independent of click-focus — hovering a
+ * different trapezoid while one is click-focused just temporarily shows the
+ * hovered group's coverage instead.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {string} axis - "row" or "col".
+ */
+export const set_dendro_layer_onhover = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  axis
+) => {
+  const on_hover = (info) => {
+    clearTimeout(viz_state.dendro._hover_timer);
+
+    const names = info?.object ? info.object.properties.all_names : null;
+
+    if (!names) {
+      set_dendro_highlight(deck_mat, layers_mat, viz_state, axis, null);
+      return;
+    }
+
+    viz_state.dendro._hover_timer = setTimeout(() => {
+      set_dendro_highlight(deck_mat, layers_mat, viz_state, axis, names);
+    }, DENDRO_HOVER_DELAY_MS);
+  };
+
+  layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone(
+    {
+      onHover: on_hover,
+    }
+  );
+};
+
+/**
+ * Force-clear the dendrogram hover highlight (both axes), cancelling any
+ * pending delayed-highlight timer first. Without cancelling the timer, a
+ * highlight already armed (but not yet applied) when the pointer leaves
+ * would otherwise still fire a few hundred ms later, highlighting leaves the
+ * pointer isn't over anymore. Safe to call unconditionally (e.g. from a
+ * whole-widget pointer-leave failsafe) even when nothing is hovered.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const clear_dendro_hover = (deck_mat, layers_mat, viz_state) => {
+  clearTimeout(viz_state.dendro._hover_timer);
+  DENDRO_AXES.forEach((axis) => {
+    if (layers_mat[`${axis}_dendro_layer`]) {
+      set_dendro_highlight(deck_mat, layers_mat, viz_state, axis, null);
+    }
+  });
 };

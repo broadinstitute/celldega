@@ -19,10 +19,11 @@ import celldega as dega
 # Build one SetCollection per clustering "opinion" (the cells define the sets)
 clust = dega.set.SetCollection(adata, set_col="leiden", name="leiden")
 
-# Per-set expression signature (pseudobulk). feature_type is only required when
-# passing a MuData; for an AnnData it defaults to "gene" -> modality "expression".
-clust.calc_signature(adata)
-clust.calc_signature(mdata, feature_type="protein")   # protein modality of a MuData
+# Per-set expression signature (pseudobulk). modality_name is always required
+# (so it's always clear which modality a call produces); feature_type is only
+# required when passing a MuData -- for an AnnData it defaults to "gene".
+clust.calc_signature(adata, modality_name="expression")
+clust.calc_signature(mdata, modality_name="protein", feature_type="protein")   # protein modality of a MuData
 
 # Per-set cell-type composition (sets x populations)
 clust.calc_population(adata, category="cell_type")

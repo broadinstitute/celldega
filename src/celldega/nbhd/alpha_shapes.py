@@ -363,6 +363,35 @@ def _select_top_expressing_cells(
     return candidate_idx[top_within]
 
 
+def _subsample_mask_for_shape(
+    mask: np.ndarray,
+    shape_max_cells: int | None,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """A copy of boolean `mask` with at most `shape_max_cells` True entries
+    kept, chosen uniformly at random (`None` or a count at/above the current
+    total leaves `mask` unchanged).
+
+    Unlike `_select_top_expressing_cells` (which biases toward the
+    highest-expressing cells -- appropriate when picking cells to *display*),
+    the alpha shape itself only cares about spatial footprint: biasing toward
+    expression hotspots would shrink a broadly-but-shallowly-expressed gene's
+    true spatial extent down to just its hottest sub-region, while a uniform
+    random sample preserves the occupied area much more faithfully. This is
+    what actually bounds the expensive part (the Delaunay triangulation
+    inside `alpha_shape`) for broadly-expressed genes -- `min_expression`
+    alone does not, since a gene can still be at/above any fixed threshold in
+    hundreds of thousands of cells.
+    """
+    idx = np.flatnonzero(mask)
+    if shape_max_cells is None or idx.size <= shape_max_cells:
+        return mask
+    keep = rng.choice(idx, size=shape_max_cells, replace=False)
+    subsampled = np.zeros_like(mask)
+    subsampled[keep] = True
+    return subsampled
+
+
 def iter_gene_alpha_shapes(
     coords: np.ndarray,
     slice_ids: np.ndarray,
@@ -374,6 +403,8 @@ def iter_gene_alpha_shapes(
     min_cells: int = 4,
     z_jitter: float = 0.1,
     max_cells: int = 50_000,
+    shape_max_cells: int | None = 50_000,
+    random_state: int = 0,
 ) -> Iterator[tuple[str, gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Yield `(gene, gdf_gene, df_cells)` one gene at a time, from a
@@ -429,6 +460,20 @@ def iter_gene_alpha_shapes(
         Cap on the number of top-expressing cells selected per gene (across
         all slices combined). 0 (or `cell_ids=None`) skips cell selection
         entirely, yielding an always-empty `df_cells`.
+    shape_max_cells : int | None
+        Cap on the number of expressing cells (within one slice) that feed
+        the alpha shape's own geometry computation -- a real alpha shape's
+        cost scales with this count, and a broadly-expressed gene can have
+        far more expressing cells than are needed to describe its spatial
+        footprint. Above this many, a uniform random subsample is used
+        instead (see `_subsample_mask_for_shape` for why random rather than
+        top-expressing). `None` disables the cap (use every expressing
+        cell). Does not affect `mean_expression`/`cell_count`, which are
+        always computed from the full expressing population, or `df_cells`
+        (governed by `max_cells` instead).
+    random_state : int
+        Seed for the subsampling RNG, so results are reproducible run to
+        run for the same inputs.
 
     Yields
     ------
@@ -451,6 +496,7 @@ def iter_gene_alpha_shapes(
     z_values = np.asarray(z_values, dtype=float)
     cell_ids_arr = np.asarray(cell_ids) if cell_ids is not None else None
     unique_slice_ids = pd.unique(slice_ids)
+    rng = np.random.default_rng(random_state)
 
     # Each slice's Z stamped once, up front -- cheap (one value per slice),
     # and avoids recomputing it for every gene.
@@ -470,7 +516,8 @@ def iter_gene_alpha_shapes(
             if gene_mask.sum() < min_cells:
                 continue
 
-            points = coords[gene_mask, :2].astype(float)
+            shape_mask = _subsample_mask_for_shape(gene_mask, shape_max_cells, rng)
+            points = coords[shape_mask, :2].astype(float)
             geometry = alpha_shape(points, alpha)
             if geometry.is_empty:
                 # Either GEOS choked on this point configuration (see
@@ -540,6 +587,8 @@ def iter_gene_alpha_shapes_by_slice(
     min_cells: int = 4,
     z_jitter: float = 0.1,
     max_cells: int = 50_000,
+    shape_max_cells: int | None = 50_000,
+    random_state: int = 0,
 ) -> Iterator[tuple[str, gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Yield `(gene, gdf_gene, df_cells)` one gene at a time, instead of
@@ -569,6 +618,10 @@ def iter_gene_alpha_shapes_by_slice(
     max_cells : int
         Forwarded to `iter_gene_alpha_shapes` — cap on top-expressing cells
         selected per gene (0 skips cell selection).
+    shape_max_cells, random_state :
+        Forwarded to `iter_gene_alpha_shapes` — cap (via uniform random
+        subsample) on the expressing cells that feed the alpha shape's own
+        geometry computation, and the seed for that subsampling.
 
     Yields
     ------
@@ -618,6 +671,8 @@ def iter_gene_alpha_shapes_by_slice(
         min_cells=min_cells,
         z_jitter=z_jitter,
         max_cells=max_cells,
+        shape_max_cells=shape_max_cells,
+        random_state=random_state,
     )
 
 
@@ -630,6 +685,8 @@ def alpha_shape_gene_expression_by_slice(
     min_expression: float = 2.0,
     min_cells: int = 4,
     z_jitter: float = 0.1,
+    shape_max_cells: int | None = 50_000,
+    random_state: int = 0,
 ) -> gpd.GeoDataFrame:
     """
     Compute one alpha shape per (slice, gene) pair, built from expressing cells.
@@ -672,6 +729,16 @@ def alpha_shape_gene_expression_by_slice(
         Small per-gene Z offset, to avoid z-fighting between coplanar gene
         shapes that would otherwise sit at the exact same Z (see
         `_gene_z_offset`).
+    shape_max_cells : int | None
+        Cap (via uniform random subsample) on the expressing cells that feed
+        the alpha shape's own geometry computation, within one (slice, gene)
+        pair -- see `iter_gene_alpha_shapes`. `None` disables it. Even a
+        curated marker panel of 50-100 genes can include broadly-expressed
+        genes with far more expressing cells than needed to describe their
+        spatial footprint, so this caps the actual cost driver regardless of
+        how many genes are in `gene_list`.
+    random_state : int
+        Seed for the subsampling RNG.
 
     Returns
     -------
@@ -696,6 +763,8 @@ def alpha_shape_gene_expression_by_slice(
             min_cells=min_cells,
             z_jitter=z_jitter,
             max_cells=0,
+            shape_max_cells=shape_max_cells,
+            random_state=random_state,
         )
         if not gdf_gene.empty
     ]

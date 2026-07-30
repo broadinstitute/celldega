@@ -10,6 +10,7 @@ from celldega.nbhd import (
     iter_gene_alpha_shapes,
     iter_gene_alpha_shapes_by_slice,
 )
+from celldega.nbhd import alpha_shapes as _alpha_shapes_module
 
 
 def _synthetic_gene_expression_adata(seed=0, n_slices=2, n_cells=60, n_genes=2):
@@ -424,6 +425,134 @@ def test_iter_gene_alpha_shapes_max_cells_zero_disables_cell_selection():
 
     _gene, _gdf_gene, df_cells = results[0]
     assert df_cells.empty
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_subsamples_points_fed_to_the_shape():
+    """`shape_max_cells` must bound how many points reach the expensive
+    `alpha_shape` call, without changing `cell_count`/`mean_expression`
+    (which describe the true, full expressing population)."""
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=200)
+    expr = np.full(200, 5.0)  # every cell expresses -> 200 expressing cells
+
+    seen_point_counts = []
+    real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+    def spy_alpha_shape(points, inv_alpha):
+        seen_point_counts.append(len(points))
+        return real_alpha_shape(points, inv_alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+        results = list(
+            iter_gene_alpha_shapes(
+                coords,
+                slice_ids,
+                z_values,
+                [("Gene0", expr)],
+                alphas=(150,),
+                min_cells=4,
+                shape_max_cells=50,
+                random_state=0,
+            )
+        )
+
+    assert seen_point_counts == [50]
+    _gene, gdf_gene, _df_cells = results[0]
+    # cell_count/mean_expression reflect the full expressing population, not
+    # the subsample used for the shape's own geometry.
+    assert gdf_gene.iloc[0]["cell_count"] == 200
+    assert gdf_gene.iloc[0]["mean_expression"] == pytest.approx(5.0)
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_none_disables_the_cap():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=200)
+    expr = np.full(200, 5.0)
+
+    seen_point_counts = []
+    real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+    def spy_alpha_shape(points, inv_alpha):
+        seen_point_counts.append(len(points))
+        return real_alpha_shape(points, inv_alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+        list(
+            iter_gene_alpha_shapes(
+                coords,
+                slice_ids,
+                z_values,
+                [("Gene0", expr)],
+                alphas=(150,),
+                min_cells=4,
+                shape_max_cells=None,
+            )
+        )
+
+    assert seen_point_counts == [200]
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_leaves_small_populations_untouched():
+    """No subsampling should occur when the expressing population is already
+    at or below `shape_max_cells` -- every expressing cell's point must reach
+    the shape."""
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=20)
+    expr = np.full(20, 5.0)
+
+    seen_point_counts = []
+    real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+    def spy_alpha_shape(points, inv_alpha):
+        seen_point_counts.append(len(points))
+        return real_alpha_shape(points, inv_alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+        list(
+            iter_gene_alpha_shapes(
+                coords,
+                slice_ids,
+                z_values,
+                [("Gene0", expr)],
+                alphas=(150,),
+                min_cells=4,
+                shape_max_cells=50,
+            )
+        )
+
+    assert seen_point_counts == [20]
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_is_reproducible_for_the_same_seed():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=200)
+    expr = np.full(200, 5.0)
+
+    def points_seen(random_state):
+        seen = []
+        real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+        def spy_alpha_shape(points, inv_alpha):
+            seen.append(np.asarray(points).copy())
+            return real_alpha_shape(points, inv_alpha)
+
+        with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+            list(
+                iter_gene_alpha_shapes(
+                    coords,
+                    slice_ids,
+                    z_values,
+                    [("Gene0", expr)],
+                    alphas=(150,),
+                    min_cells=4,
+                    shape_max_cells=50,
+                    random_state=random_state,
+                )
+            )
+        return seen[0]
+
+    first_run = points_seen(random_state=0)
+    second_run = points_seen(random_state=0)
+    third_run = points_seen(random_state=1)
+
+    np.testing.assert_array_equal(first_run, second_run)
+    assert not np.array_equal(first_run, third_run)
 
 
 def test_iter_gene_alpha_shapes_cells_use_the_same_min_expression_threshold():

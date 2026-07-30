@@ -47,6 +47,8 @@ def write_nbhd_cloud(
     gene_min_expression: float = 2.0,
     gene_min_cells: int = 4,
     gene_max_cells: int = 50_000,
+    gene_shape_max_cells: int | None = 50_000,
+    gene_random_state: int = 0,
     gene_z_jitter: float | None = None,
     gene_progress_every: int = 500,
 ) -> Path:
@@ -113,6 +115,16 @@ def write_nbhd_cloud(
         Forwarded to `celldega.pre.write_gene_shapes_streaming` — see its
         docstring for `min_expression`/`min_cells`/`max_cells`/
         `progress_every`.
+    gene_shape_max_cells : int | None
+        Cap (via uniform random subsample) on the expressing cells that feed
+        a gene's alpha shape's own geometry computation, forwarded to
+        `write_gene_shapes_streaming`. This is what actually bounds the
+        expensive part of a broadly-expressed gene's shape -- even a small,
+        curated `gene_list` (tens to ~100 marker genes) can include a gene
+        expressed in far more cells than are needed to describe its spatial
+        footprint. `None` disables the cap. Default `50_000`.
+    gene_random_state : int
+        Seed for `gene_shape_max_cells`'s subsampling RNG.
     gene_z_jitter : float | None
         Per-gene Z offset (see `write_gene_shapes_streaming`). Defaults to
         `z_jitter` (the same value used for cluster shapes) if not given.
@@ -203,6 +215,8 @@ def write_nbhd_cloud(
             min_cells=gene_min_cells,
             z_jitter=gene_z_jitter if gene_z_jitter is not None else z_jitter,
             max_cells=gene_max_cells,
+            shape_max_cells=gene_shape_max_cells,
+            random_state=gene_random_state,
             progress_every=gene_progress_every,
         )
 

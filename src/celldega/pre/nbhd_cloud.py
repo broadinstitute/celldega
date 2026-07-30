@@ -363,6 +363,8 @@ def write_gene_shapes_streaming(
     min_cells: int = 4,
     z_jitter: float = 0.1,
     max_cells: int = 50_000,
+    shape_max_cells: int | None = 50_000,
+    random_state: int = 0,
     progress_every: int = 500,
 ) -> int:
     """Whole-transcriptome variant of `write_gene_shapes` — writes as it computes.
@@ -399,12 +401,21 @@ def write_gene_shapes_streaming(
         Cell-level AnnData, same requirements as
         `celldega.nbhd.alpha_shape_gene_expression_by_slice`.
     gene_list : Sequence[str]
-        Genes to compute shapes for — pass the full gene panel for a
-        whole-transcriptome run.
+        Genes to compute shapes for — typically a curated marker panel
+        (tens to ~100 genes), though this streams one gene at a time so it
+        scales to a whole-transcriptome list too.
     path_dega_files : str | Path
         DegaFiles root directory.
     slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter, max_cells :
         Forwarded to `iter_gene_alpha_shapes_by_slice` — see its docstring.
+    shape_max_cells, random_state :
+        Forwarded to `iter_gene_alpha_shapes_by_slice` — cap (via uniform
+        random subsample) on the expressing cells that feed each shape's own
+        geometry computation, and the seed for that subsampling. This is
+        what actually bounds the expensive part for a broadly-expressed
+        gene; `min_expression` alone does not, since a gene can still be
+        at/above any fixed threshold in far more cells than needed to
+        describe its spatial footprint.
     progress_every : int
         Print a progress line every this many genes processed (0 disables).
 
@@ -425,6 +436,8 @@ def write_gene_shapes_streaming(
             min_cells=min_cells,
             z_jitter=z_jitter,
             max_cells=max_cells,
+            shape_max_cells=shape_max_cells,
+            random_state=random_state,
         ),
         len(gene_list),
         out_dir / "shapes" / "by_gene",
@@ -446,6 +459,8 @@ def write_gene_shapes_from_cbg(
     min_cells: int = 4,
     z_jitter: float = 0.1,
     max_cells: int = 50_000,
+    shape_max_cells: int | None = 50_000,
+    random_state: int = 0,
     progress_every: int = 500,
 ) -> int:
     """Gene-shapes writer that reads each gene's expression directly from
@@ -488,6 +503,10 @@ def write_gene_shapes_from_cbg(
     slice_attr, z_attr, alphas, min_expression, min_cells, z_jitter, max_cells :
         Forwarded to `celldega.nbhd.iter_gene_alpha_shapes` — see its
         docstring.
+    shape_max_cells, random_state :
+        Forwarded to `celldega.nbhd.iter_gene_alpha_shapes` — cap (via
+        uniform random subsample) on the expressing cells that feed each
+        shape's own geometry computation, and the seed for that subsampling.
     progress_every : int
         Print a progress line every this many genes processed (0 disables).
 
@@ -525,6 +544,8 @@ def write_gene_shapes_from_cbg(
             min_cells=min_cells,
             z_jitter=z_jitter,
             max_cells=max_cells,
+            shape_max_cells=shape_max_cells,
+            random_state=random_state,
         ),
         len(gene_list),
         out_dir / "shapes" / "by_gene",

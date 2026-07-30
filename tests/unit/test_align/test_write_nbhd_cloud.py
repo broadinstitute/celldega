@@ -78,6 +78,28 @@ def test_write_nbhd_cloud_writes_cluster_shapes_only_by_default(tmp_path):
     assert not (tmp_path / "nbhd_cloud" / "cells" / "by_gene").exists()
 
 
+def test_write_nbhd_cloud_max_cell_scatter_caps_cluster_cells(tmp_path):
+    adata = _synthetic_dataset()
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z", max_cell_scatter=10)
+
+    cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_cluster"
+    for cluster_id in ("0", "1"):
+        df_cluster = pd.read_parquet(cells_dir / f"cluster_{cluster_id}.parquet")
+        assert len(df_cluster) == 10
+
+
+def test_write_nbhd_cloud_max_cell_scatter_none_writes_every_cell(tmp_path):
+    adata = _synthetic_dataset()
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z", max_cell_scatter=None)
+
+    df_cluster_0 = pd.read_parquet(
+        tmp_path / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet"
+    )
+    assert len(df_cluster_0) == 60  # both slices, 30 cells each, uncapped
+
+
 def test_write_nbhd_cloud_computes_gene_nbhds_when_requested(tmp_path):
     adata = _synthetic_dataset()
 

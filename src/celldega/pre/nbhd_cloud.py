@@ -40,7 +40,12 @@ import pandas as pd
 from scipy.sparse import issparse
 from shapely.geometry import mapping
 
-from celldega.nbhd.alpha_shapes import iter_gene_alpha_shapes, iter_gene_alpha_shapes_by_slice
+from celldega.nbhd.alpha_shapes import (
+    _GENE_CELL_COLUMNS,
+    _select_top_expressing_cells,
+    iter_gene_alpha_shapes,
+    iter_gene_alpha_shapes_by_slice,
+)
 from celldega.nbhd.collection import NeighborhoodCollection
 
 
@@ -112,6 +117,8 @@ def write_nbhd_cloud_cells(
     cluster_attr: str = "cluster",
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
+    max_cells: int | None = None,
+    random_state: int = 0,
 ) -> None:
     """Write `nbhd_cloud/cells/by_cluster/cluster_<id>.parquet`, one file per cluster.
 
@@ -131,6 +138,17 @@ def write_nbhd_cloud_cells(
         DegaFiles root directory.
     cluster_attr, slice_attr, z_attr : str, str, str | None
         See `write_meta_slice`.
+    max_cells : int | None
+        Cap on the number of cells written per cluster (across all its
+        slices combined). Above this many, a **uniform random** subsample is
+        written instead of every cell -- unlike a gene's top-expressing cell
+        cap (`max_cells` on the gene-shapes writers below), there's no
+        per-cell ranking signal within a cluster (every member is equally
+        "in" the cluster), so random is the only choice that doesn't bias
+        toward an arbitrary subset. `None` (default) writes every cell,
+        matching this function's original, uncapped behavior.
+    random_state : int
+        Seed for the subsampling RNG, so results are reproducible run to run.
     """
     obs = adata.obs
     coords = np.asarray(adata.obsm["spatial"])
@@ -151,6 +169,8 @@ def write_nbhd_cloud_cells(
     by_cluster_dir.mkdir(parents=True, exist_ok=True)
 
     for cluster_id, df_cluster in df_cells.groupby("cluster_id"):
+        if max_cells is not None and len(df_cluster) > max_cells:
+            df_cluster = df_cluster.sample(n=max_cells, random_state=random_state)
         df_cluster.to_parquet(by_cluster_dir / f"cluster_{cluster_id}.parquet", index=False)
 
 
@@ -524,12 +544,7 @@ def write_gene_shapes_from_cbg(
 
     def _gene_expression() -> Iterator[tuple[str, np.ndarray]]:
         for gene in gene_list:
-            col = pd.read_parquet(cbg_dir / f"{gene}.parquet").iloc[:, 0]
-            row_idx = cell_index.get_indexer(col.index.astype(str))
-            valid = row_idx >= 0
-            expr = np.zeros(n_cells, dtype=np.float32)
-            expr[row_idx[valid]] = col.to_numpy()[valid]
-            yield gene, expr
+            yield gene, _expr_from_cbg_file(cbg_dir, gene, cell_index, n_cells)
 
     out_dir = Path(path_dega_files) / "nbhd_cloud"
     return _write_gene_shapes_from_iter(
@@ -552,6 +567,130 @@ def write_gene_shapes_from_cbg(
         out_dir / "cells" / "by_gene",
         progress_every,
     )
+
+
+def _expr_from_cbg_file(cbg_dir: Path, gene: str, cell_index: pd.Index, n_cells: int) -> np.ndarray:
+    """Read one gene's `cbg_dir/<gene>.parquet` (a sparse, cell-id-indexed
+    single-column series) into a dense per-cell expression array aligned to
+    `cell_index`'s row order. Shared by every `_from_cbg` writer below."""
+    col = pd.read_parquet(cbg_dir / f"{gene}.parquet").iloc[:, 0]
+    row_idx = cell_index.get_indexer(col.index.astype(str))
+    valid = row_idx >= 0
+    expr = np.zeros(n_cells, dtype=np.float32)
+    expr[row_idx[valid]] = col.to_numpy()[valid]
+    return expr
+
+
+def write_gene_cell_scatter_from_cbg(
+    cbg_dir: str | Path,
+    gene_list: Sequence[str],
+    obs: pd.DataFrame,
+    coords: np.ndarray,
+    path_dega_files: str | Path,
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    min_expression: float = 2.0,
+    min_cells: int = 4,
+    max_cells: int = 50_000,
+    progress_every: int = 500,
+) -> int:
+    """Cheap gene-coloring writer: a capped, top-expressing cell scatter per
+    gene — no alpha shape.
+
+    A gene's real alpha shape (`write_gene_shapes_from_cbg`) is expensive
+    (a Delaunay triangulation + verification per slice) — expensive enough
+    that it only makes sense for a small, deliberately curated marker-gene
+    list. This function writes only the cheap half of that computation: the
+    capped, top-expressing cell selection (`celldega.nbhd._select_top_expressing_cells`,
+    an O(n) `argpartition`, no geometry at all), so "browse any gene" scales
+    to a much larger gene list than gene-nbhds ever could — a plain capped
+    point scatter instead of a filled polygon, but real single-cell
+    positions and expression values, colored the same way (per-cell
+    expression, red-alpha scheme) as gene-nbhds' own "peppered" cells.
+
+    Writes `nbhd_cloud/cells/by_gene/<gene>.parquet` (same schema as
+    `write_gene_shapes_from_cbg`'s cells file: `cell_id`, `gene`,
+    `slice_id`, `x`, `y`, `z`, `expression`) plus
+    `nbhd_cloud/cells/by_gene/available_gene_scatter.json` — `{gene:
+    max_expression}`, a separate manifest from `available_genes.json`
+    (shape-backed genes) so the frontend can distinguish "this gene has its
+    own alpha shape" from "this gene only has a cell scatter."
+
+    Parameters
+    ----------
+    cbg_dir : str | Path
+        Directory of per-gene `<gene>.parquet` files, e.g. `<point_cloud_dir>/cbg`.
+    gene_list : Sequence[str]
+        Genes to write a cell scatter for — each must have a `cbg_dir/<gene>.parquet`.
+    obs : pd.DataFrame
+        Cell-level metadata, indexed by cell id (matching `cbg_dir`'s files),
+        with `slice_attr` (and, if given, `z_attr`) columns.
+    coords : np.ndarray
+        Per-cell spatial coordinates, same row order as `obs`, shape `(n_cells, >=2)`.
+    path_dega_files : str | Path
+        DegaFiles root directory.
+    slice_attr, z_attr : str, str | None
+        See `write_meta_slice`.
+    min_expression : float
+        A cell counts as "expressing" a gene when its value is at least this.
+    min_cells : int
+        Minimum number of expressing cells (before capping) required to
+        write a gene's scatter at all; genes with fewer are silently skipped.
+    max_cells : int
+        Cap on the number of top-expressing cells written per gene (across
+        all slices combined) — same meaning as `write_gene_shapes_from_cbg`'s
+        `max_cells`.
+    progress_every : int
+        Print a progress line every this many genes processed (0 disables).
+
+    Returns
+    -------
+    int
+        Number of genes that had enough expressing cells and were written.
+    """
+    cbg_dir = Path(cbg_dir)
+    cell_index = pd.Index(obs.index.astype(str))
+    slice_ids = obs[slice_attr].to_numpy()
+    z_values = obs[z_attr].to_numpy(dtype=float) if z_attr is not None else np.zeros(len(obs))
+    cell_ids = cell_index.to_numpy()
+    n_cells = len(obs)
+
+    cells_out_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_gene"
+    cells_out_dir.mkdir(parents=True, exist_ok=True)
+
+    available_genes: dict[str, float] = {}
+    n_written = 0
+    for i, gene in enumerate(gene_list, start=1):
+        expr = _expr_from_cbg_file(cbg_dir, gene, cell_index, n_cells)
+
+        if int((expr >= min_expression).sum()) >= min_cells:
+            top_idx = _select_top_expressing_cells(expr, min_expression, max_cells)
+            df_cells = pd.DataFrame(
+                {
+                    "cell_id": cell_ids[top_idx],
+                    "gene": gene,
+                    "slice_id": slice_ids[top_idx],
+                    "x": coords[top_idx, 0].astype(float),
+                    "y": coords[top_idx, 1].astype(float),
+                    "z": z_values[top_idx],
+                    "expression": expr[top_idx].astype(float),
+                }
+            )[_GENE_CELL_COLUMNS]
+            df_cells.to_parquet(cells_out_dir / f"{gene}.parquet", index=False)
+            available_genes[str(gene)] = float(expr.max())
+            n_written += 1
+
+        if progress_every and i % progress_every == 0:
+            print(f"gene cell scatter: {i}/{len(gene_list)} genes processed, {n_written} written")
+
+    with (cells_out_dir / "available_gene_scatter.json").open("w") as f:
+        json.dump(available_genes, f, indent=2)
+
+    print(
+        f"gene cell scatter: wrote {n_written}/{len(gene_list)} genes to {cells_out_dir} "
+        "(no alpha shape -- capped top-expressing cell scatter only)"
+    )
+    return n_written
 
 
 def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:
@@ -620,6 +759,8 @@ def write_nbhd_cloud_dataset(
     cluster_attr: str = "cluster",
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
+    max_cells: int | None = None,
+    random_state: int = 0,
 ) -> None:
     """Write the full `neighborhood-cloud` DegaFile layout for one dataset.
 
@@ -641,6 +782,10 @@ def write_nbhd_cloud_dataset(
         Output DegaFiles root directory.
     cluster_attr, slice_attr, z_attr
         See `write_meta_slice` / `write_nbhd_cloud_cells`.
+    max_cells, random_state
+        Forwarded to `write_nbhd_cloud_cells` — cap (via uniform random
+        subsample) on cells written per cluster. `max_cells=None` (default)
+        writes every cell, unchanged from this function's original behavior.
     """
     write_meta_slice(adata, path_dega_files, slice_attr=slice_attr, z_attr=z_attr)
     write_nbhd_cloud_cells(
@@ -649,6 +794,8 @@ def write_nbhd_cloud_dataset(
         cluster_attr=cluster_attr,
         slice_attr=slice_attr,
         z_attr=z_attr,
+        max_cells=max_cells,
+        random_state=random_state,
     )
     write_nbhd_cloud_shapes_and_features(nbhd, path_dega_files)
     write_meta_gene_for_nbhd_cloud(adata, path_dega_files)

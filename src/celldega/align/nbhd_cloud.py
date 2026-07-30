@@ -42,6 +42,8 @@ def write_nbhd_cloud(
     z_jitter: float = 0.1,
     meta_cluster: pd.DataFrame | None = None,
     progress_every: int = 1,
+    max_cell_scatter: int | None = 50_000,
+    cell_scatter_random_state: int = 0,
     compute_gene_nbhds: bool = False,
     gene_list: Sequence[str] | None = None,
     gene_min_expression: float = 2.0,
@@ -103,6 +105,15 @@ def write_nbhd_cloud(
         shapes (default `1`, i.e. every slice — a real alpha shape per
         (slice, cluster) is the slow part of this call on a large aligned
         dataset with many slices). `0` disables it.
+    max_cell_scatter : int | None
+        Cap (via uniform random subsample) on the cells written per cluster
+        to `cells/by_cluster/cluster_<id>.parquet` — this is the same "cap
+        peppering to a scatter" idea used for genes (see `gene_max_cells`
+        below), applied to cluster cells, which today have no other bound.
+        `None` writes every cell in the cluster (the original, uncapped
+        behavior). Default `50_000`.
+    cell_scatter_random_state : int
+        Seed for `max_cell_scatter`'s subsampling RNG.
     compute_gene_nbhds : bool
         Whether to also compute and write gene-nbhds. Default `False` — see
         above. Requires `gene_list`.
@@ -195,6 +206,8 @@ def write_nbhd_cloud(
         cluster_attr=cluster_attr,
         slice_attr=slice_attr,
         z_attr=z_attr,
+        max_cells=max_cell_scatter,
+        random_state=cell_scatter_random_state,
     )
 
     if compute_gene_nbhds:

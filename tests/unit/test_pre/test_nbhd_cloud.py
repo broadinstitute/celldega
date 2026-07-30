@@ -12,6 +12,7 @@ from celldega.nbhd import (
 )
 from celldega.pre import (
     write_cell_clusters_meta,
+    write_gene_cell_scatter_from_cbg,
     write_gene_shapes,
     write_gene_shapes_from_cbg,
     write_gene_shapes_streaming,
@@ -98,6 +99,90 @@ def test_write_nbhd_cloud_cells_by_cluster(tmp_path):
     assert len(df_cluster_0) == 60  # cluster 0, both slices, 30 cells each
     assert set(df_cluster_0["slice_id"]) == {"s0", "s1"}
     assert {"cell_id", "x", "y", "z", "cluster_id", "slice_id"}.issubset(df_cluster_0.columns)
+
+
+def test_write_nbhd_cloud_cells_max_cells_none_writes_every_cell(tmp_path):
+    """Default (`max_cells=None`) must be unchanged from this function's
+    original, uncapped behavior."""
+    adata = _synthetic_dataset()
+
+    write_nbhd_cloud_cells(
+        adata, tmp_path, cluster_attr="cluster", slice_attr="slice_id", z_attr="z"
+    )
+
+    df_cluster_0 = pd.read_parquet(
+        tmp_path / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet"
+    )
+    assert len(df_cluster_0) == 60
+
+
+def test_write_nbhd_cloud_cells_caps_at_max_cells(tmp_path):
+    adata = _synthetic_dataset()
+
+    write_nbhd_cloud_cells(
+        adata,
+        tmp_path,
+        cluster_attr="cluster",
+        slice_attr="slice_id",
+        z_attr="z",
+        max_cells=10,
+    )
+
+    by_cluster_dir = tmp_path / "nbhd_cloud" / "cells" / "by_cluster"
+    for cluster_id in ("0", "1"):
+        df_cluster = pd.read_parquet(by_cluster_dir / f"cluster_{cluster_id}.parquet")
+        assert len(df_cluster) == 10
+
+
+def test_write_nbhd_cloud_cells_leaves_small_clusters_untouched(tmp_path):
+    """No subsampling should occur when a cluster is already at or below
+    `max_cells`."""
+    adata = _synthetic_dataset()
+
+    write_nbhd_cloud_cells(
+        adata,
+        tmp_path,
+        cluster_attr="cluster",
+        slice_attr="slice_id",
+        z_attr="z",
+        max_cells=1000,
+    )
+
+    df_cluster_0 = pd.read_parquet(
+        tmp_path / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet"
+    )
+    assert len(df_cluster_0) == 60
+
+
+def test_write_nbhd_cloud_cells_max_cells_is_reproducible_for_the_same_seed(tmp_path):
+    adata = _synthetic_dataset()
+
+    write_nbhd_cloud_cells(
+        adata,
+        tmp_path / "run1",
+        cluster_attr="cluster",
+        slice_attr="slice_id",
+        z_attr="z",
+        max_cells=10,
+        random_state=0,
+    )
+    write_nbhd_cloud_cells(
+        adata,
+        tmp_path / "run2",
+        cluster_attr="cluster",
+        slice_attr="slice_id",
+        z_attr="z",
+        max_cells=10,
+        random_state=0,
+    )
+
+    df_1 = pd.read_parquet(
+        tmp_path / "run1" / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet"
+    )
+    df_2 = pd.read_parquet(
+        tmp_path / "run2" / "nbhd_cloud" / "cells" / "by_cluster" / "cluster_0.parquet"
+    )
+    assert set(df_1["cell_id"]) == set(df_2["cell_id"])
 
 
 def test_write_nbhd_cloud_shapes_and_features(tmp_path):
@@ -527,6 +612,100 @@ def test_write_gene_shapes_from_cbg_caps_cells_at_max_cells(tmp_path):
         slice_attr="slice_id",
         z_attr="z",
         alphas=(150,),
+        min_cells=4,
+        max_cells=5,
+        progress_every=0,
+    )
+
+    df_cells = pd.read_parquet(tmp_path / "nbhd_cloud" / "cells" / "by_gene" / "Gene0.parquet")
+    assert len(df_cells) == 5
+    max_expr = expressing_mask.sum()
+    assert set(df_cells["expression"]) == set(range(max_expr - 4, max_expr + 1))
+
+
+def test_write_gene_cell_scatter_from_cbg_writes_cells_but_no_shape(tmp_path):
+    """The whole point of this writer: a gene gets a capped cell scatter,
+    never an alpha shape -- no `shapes/by_gene/` directory at all."""
+    adata = _synthetic_multi_gene_adata()
+    gene_list = ["Gene0", "Gene1", "Gene2"]
+
+    cbg_dir = tmp_path / "cbg"
+    _write_fake_cbg_dir(cbg_dir, adata)
+
+    n_written = write_gene_cell_scatter_from_cbg(
+        cbg_dir,
+        gene_list,
+        adata.obs,
+        adata.obsm["spatial"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
+        min_cells=4,
+        progress_every=0,
+    )
+
+    assert n_written == 3
+    assert not (tmp_path / "nbhd_cloud" / "shapes").exists()
+
+    cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
+    assert {p.name for p in cells_dir.glob("*.parquet")} == {
+        "Gene0.parquet",
+        "Gene1.parquet",
+        "Gene2.parquet",
+    }
+    df_cells = pd.read_parquet(cells_dir / "Gene0.parquet")
+    assert {"cell_id", "gene", "slice_id", "x", "y", "z", "expression"}.issubset(df_cells.columns)
+    assert (df_cells["gene"] == "Gene0").all()
+
+    with (cells_dir / "available_gene_scatter.json").open() as f:
+        manifest = json.load(f)
+    assert set(manifest) == {"Gene0", "Gene1", "Gene2"}
+
+
+def test_write_gene_cell_scatter_from_cbg_skips_genes_below_min_cells(tmp_path):
+    adata = _synthetic_multi_gene_adata(gene_names=("Gene0", "Gene1"))
+    adata.X[:, adata.var_names.get_loc("Gene1")] = 0
+
+    cbg_dir = tmp_path / "cbg"
+    _write_fake_cbg_dir(cbg_dir, adata)
+
+    n_written = write_gene_cell_scatter_from_cbg(
+        cbg_dir,
+        ["Gene0", "Gene1"],
+        adata.obs,
+        adata.obsm["spatial"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
+        min_cells=4,
+        progress_every=0,
+    )
+
+    assert n_written == 1
+    cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
+    assert {p.name for p in cells_dir.glob("*.parquet")} == {"Gene0.parquet"}
+    with (cells_dir / "available_gene_scatter.json").open() as f:
+        manifest = json.load(f)
+    assert set(manifest) == {"Gene0"}
+
+
+def test_write_gene_cell_scatter_from_cbg_caps_cells_at_max_cells(tmp_path):
+    adata = _synthetic_multi_gene_adata(n_slices=2, n_cells=20, gene_names=("Gene0",))
+    gene_col = adata.var_names.get_loc("Gene0")
+    expressing_mask = adata.X[:, gene_col] != 0
+    adata.X[expressing_mask, gene_col] = np.arange(1, expressing_mask.sum() + 1)
+
+    cbg_dir = tmp_path / "cbg"
+    _write_fake_cbg_dir(cbg_dir, adata)
+
+    write_gene_cell_scatter_from_cbg(
+        cbg_dir,
+        ["Gene0"],
+        adata.obs,
+        adata.obsm["spatial"],
+        tmp_path,
+        slice_attr="slice_id",
+        z_attr="z",
         min_cells=4,
         max_cells=5,
         progress_every=0,

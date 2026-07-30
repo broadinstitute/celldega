@@ -785,13 +785,16 @@ export const make_ist_ui_container = (
     .slice(0, max_num_gene_bars);
 
   if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
-    // Only the curated gene-shapes list actually does anything when
-    // selected (select_nbhd_cloud_gene) -- listing the generic top-gene
-    // panel here would give ~100 bars that are all silent no-ops.
+    // Only genes with a shape (available_gene_shapes) or cell scatter
+    // (available_gene_scatter) actually do anything when selected
+    // (select_nbhd_cloud_gene) -- listing the generic top-gene panel here
+    // would give ~100 bars that are all silent no-ops. Both kinds render
+    // the same flat red in the bar itself (see build_nbhd_cloud_gene_bar_data).
     const geneColorDict = Object.fromEntries(
-      [...(viz_state.nbhd_cloud.available_gene_shapes ?? new Map())].map(
-        ([gene]) => [gene, [255, 0, 0]]
-      )
+      [
+        ...(viz_state.nbhd_cloud.available_gene_scatter ?? new Map()),
+        ...(viz_state.nbhd_cloud.available_gene_shapes ?? new Map()),
+      ].map(([gene]) => [gene, [255, 0, 0]])
     );
 
     make_bar_graph(

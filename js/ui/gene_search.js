@@ -124,11 +124,17 @@ export const set_gene_search = async (
   layers_obj,
   viz_state
 ) => {
-  // neighborhood-cloud only ever responds to the curated gene-shapes list
-  // (see select_nbhd_cloud_gene) -- listing the full gene panel here would
-  // mean most entries silently do nothing when picked.
+  // neighborhood-cloud only ever responds to genes with a shape or a cell
+  // scatter (see select_nbhd_cloud_gene) -- listing the full gene panel
+  // here would mean most entries silently do nothing when picked.
   gene_search_options = viz_state.nbhd_cloud?.is_nbhd_cloud
-    ? ['cluster', ...(viz_state.nbhd_cloud.available_gene_shapes?.keys() ?? [])]
+    ? [
+        'cluster',
+        ...new Set([
+          ...(viz_state.nbhd_cloud.available_gene_shapes?.keys() ?? []),
+          ...(viz_state.nbhd_cloud.available_gene_scatter?.keys() ?? []),
+        ]),
+      ]
     : ['cluster', ...viz_state.genes.gene_names];
 
   viz_state.genes.gene_search.style.width = '115px';

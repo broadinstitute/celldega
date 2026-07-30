@@ -32,6 +32,7 @@ import {
 import { make_image_layers } from '../deck-gl/layers/image_layers';
 import { ini_nbhd_cloud_cell_layer } from '../deck-gl/layers/nbhd_cloud_cell_layer';
 import {
+  fetch_available_gene_scatter,
   fetch_available_gene_shapes,
   ini_nbhd_cloud_shapes_layer,
   set_nbhd_cloud_shapes_layer_onclick,
@@ -624,8 +625,11 @@ export const landscape_ist = async (
     viz_state.nbhd_cloud.gene_fill_opacity = 0.75;
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_shapes_mode = false;
+    viz_state.nbhd_cloud.gene_scatter_mode = false;
     viz_state.nbhd_cloud.available_gene_shapes =
       await fetch_available_gene_shapes(base_url, viz_state.aws);
+    viz_state.nbhd_cloud.available_gene_scatter =
+      await fetch_available_gene_scatter(base_url, viz_state.aws);
   }
 
   viz_state.views = set_views(tech);

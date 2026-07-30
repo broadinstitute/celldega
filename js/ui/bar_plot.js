@@ -22,12 +22,15 @@ export const make_bar_container = () => {
 };
 
 // The NBHD slider controls cluster-color opacity; the repurposed TRX slider
-// controls gene-shapes opacity (sliders.js) -- only one mode is ever active
-// at a time, so only one slider should ever be enabled. Called after any
-// action that can change `nbhd_cloud.gene_shapes_mode` (cluster select, gene
-// select, shape click).
+// controls gene opacity, for either gene mode (sliders.js) -- only one mode
+// is ever active at a time, so only one slider should ever be enabled.
+// Called after any action that can change `nbhd_cloud.gene_shapes_mode`/
+// `gene_scatter_mode` (cluster select, gene select, shape click).
 export const sync_nbhd_cloud_opacity_sliders = (viz_state) => {
-  const geneMode = Boolean(viz_state.nbhd_cloud.gene_shapes_mode);
+  const geneMode = Boolean(
+    viz_state.nbhd_cloud.gene_shapes_mode ||
+      viz_state.nbhd_cloud.gene_scatter_mode
+  );
   toggle_slider(viz_state.sliders.nbhd, !geneMode);
   toggle_slider(viz_state.sliders.trx, geneMode);
 };
@@ -92,10 +95,13 @@ export const bar_callback_gene = async (
     refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_cell_layer');
     sync_nbhd_cloud_opacity_sliders(_viz_state);
 
-    // A gene without precomputed shapes is a no-op (select_nbhd_cloud_gene
-    // leaves state untouched) -- don't relabel this bar as "selected" for a
-    // click that didn't actually do anything.
-    if (!isReset && !_viz_state.nbhd_cloud.available_gene_shapes?.has(d.name)) {
+    // A gene with neither a shape nor a cell scatter is a no-op
+    // (select_nbhd_cloud_gene leaves state untouched) -- don't relabel this
+    // bar as "selected" for a click that didn't actually do anything.
+    const isAvailable =
+      _viz_state.nbhd_cloud.available_gene_shapes?.has(d.name) ||
+      _viz_state.nbhd_cloud.available_gene_scatter?.has(d.name);
+    if (!isReset && !isAvailable) {
       return;
     }
 
@@ -316,11 +322,11 @@ export const bar_callback_nbhd_cloud_slice = async (
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
 
   // Same "whichever is currently relevant" split for cells -- gene mode's
-  // peppered cells live in a different per-gene cache than cluster cells, so
-  // re-filtering cluster cells here would silently do nothing while gene
-  // mode is active (the bug: slice isolation had no visible effect on
-  // peppered cells).
-  if (nbhd_cloud.gene_shapes_mode) {
+  // cells (peppered, shape-backed, or scatter-only) live in a different
+  // per-gene cache than cluster cells, so re-filtering cluster cells here
+  // would silently do nothing while a gene mode is active (the bug: slice
+  // isolation had no visible effect on gene cells).
+  if (nbhd_cloud.gene_shapes_mode || nbhd_cloud.gene_scatter_mode) {
     await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
   } else {
     await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);

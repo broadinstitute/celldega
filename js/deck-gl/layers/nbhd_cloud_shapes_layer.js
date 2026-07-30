@@ -23,13 +23,25 @@ const GENE_COLOR_RGB = [255, 0, 0];
 // need to agree on "the curated gene-shapes list" as the bar data for
 // neighborhood-cloud, or the viewport publisher would silently overwrite
 // the curated bars with the generic top-gene panel on the first pan/zoom.
-export const build_nbhd_cloud_gene_bar_data = (nbhd_cloud) =>
-  [...(nbhd_cloud?.available_gene_shapes ?? new Map())].map(
-    ([gene, maxExpression]) => ({
-      name: gene,
-      value: maxExpression,
-    })
-  );
+//
+// Merges shape-backed genes (`available_gene_shapes`) and cell-scatter-only
+// genes (`available_gene_scatter`, no alpha shape -- see
+// `write_gene_cell_scatter_from_cbg`) into one bar list -- both are
+// selectable via `select_nbhd_cloud_gene`, just with a different (shape vs.
+// points-only) result. The two are meant to stay disjoint by convention
+// (a caller wouldn't normally run both writers over the same gene), but if
+// a gene somehow appears in both, the shape-backed entry wins since that's
+// checked first in `select_nbhd_cloud_gene`.
+export const build_nbhd_cloud_gene_bar_data = (nbhd_cloud) => {
+  const merged = new Map([
+    ...(nbhd_cloud?.available_gene_scatter ?? new Map()),
+    ...(nbhd_cloud?.available_gene_shapes ?? new Map()),
+  ]);
+  return [...merged].map(([gene, maxExpression]) => ({
+    name: gene,
+    value: maxExpression,
+  }));
+};
 
 // Applied to every shape outside the selected cluster (bar click or direct
 // shape click) when a selection is active -- fully transparent, not just
@@ -44,6 +56,27 @@ const UNSELECTED_DIM_FACTOR = 0;
 // resolves to an empty Map rather than throwing on a 404/network failure.
 export const fetch_available_gene_shapes = async (base_url, aws) => {
   const url = `${base_url}/nbhd_cloud/shapes/by_gene/available_genes.json`;
+  try {
+    const response = aws
+      ? await aws.fetch(url)
+      : await fetch(url, options.fetch);
+    if (!response.ok) {
+      return new Map();
+    }
+    const genes = await response.json();
+    return new Map(Object.entries(genes));
+  } catch {
+    return new Map();
+  }
+};
+
+// The cheap sibling of fetch_available_gene_shapes -- a manifest of genes
+// with only a capped, top-expressing cell scatter (no alpha shape at all,
+// see `write_gene_cell_scatter_from_cbg`). Same `{gene: max_expression}`
+// shape and same missing-is-normal handling, just a different file: a
+// dataset can have either manifest, both, or neither.
+export const fetch_available_gene_scatter = async (base_url, aws) => {
+  const url = `${base_url}/nbhd_cloud/cells/by_gene/available_gene_scatter.json`;
   try {
     const response = aws
       ? await aws.fetch(url)
@@ -134,6 +167,11 @@ const get_current_base_features = (viz_state) => {
   if (nbhd_cloud.gene_shapes_mode && nbhd_cloud.selected_gene) {
     return nbhd_cloud.gene_shapes_cache?.get(nbhd_cloud.selected_gene) ?? [];
   }
+  // Scatter-only genes have no shape at all -- the shapes layer shows
+  // nothing while one is selected (just the cell-scatter layer on top).
+  if (nbhd_cloud.gene_scatter_mode) {
+    return [];
+  }
   return nbhd_cloud.shapes_features;
 };
 
@@ -179,6 +217,7 @@ export const update_nbhd_cloud_shapes_fill_color = (layers_obj, viz_state) => {
         getFillColor: [
           viz_state.nbhd_cloud.selected_gene,
           viz_state.nbhd_cloud.gene_shapes_mode,
+          viz_state.nbhd_cloud.gene_scatter_mode,
           viz_state.nbhd_cloud.gene_fill_opacity,
           viz_state.nbhd_cloud.manual_fill_opacity,
           // Not just `.size` -- switching from cluster A to cluster B is a
@@ -217,8 +256,9 @@ export const toggle_nbhd_cloud_cluster_selection = (
 
   nbhd_cloud.selected_gene = null;
 
-  if (nbhd_cloud.gene_shapes_mode) {
+  if (nbhd_cloud.gene_shapes_mode || nbhd_cloud.gene_scatter_mode) {
     nbhd_cloud.gene_shapes_mode = false;
+    nbhd_cloud.gene_scatter_mode = false;
     restore_cluster_shapes_data(viz_state, layers_obj);
   }
 
@@ -281,21 +321,19 @@ export const set_nbhd_cloud_shapes_layer_onclick = (layers_obj, viz_state) => {
   );
 };
 
-// Backs the gene bar's click (and gene search) -- a gene either has
-// precomputed alpha shapes (the small curated marker-gene list from
-// write_gene_shapes) or it doesn't; there's no per-neighborhood mean
-// recolor fallback for the rest of the gene panel (that data isn't computed
-// or written anymore -- it was dead weight once gene-shapes worked, since
-// nothing else read it). Selecting an unavailable gene is a no-op: nothing
-// fetched, nothing changed.
+// Backs the gene bar's click (and gene search) -- a gene is one of three
+// things: shape-backed (the small curated marker-gene list from
+// write_gene_shapes -- its own filled alpha shape, peppered with cells),
+// cell-scatter-only (write_gene_cell_scatter_from_cbg -- no shape, just a
+// capped, top-expressing cell scatter, for a much larger "browse any gene"
+// list), or unavailable (neither manifest has it -- a no-op, nothing
+// fetched, nothing changed).
 //
-// Selecting a gene-shapes gene always clears any active cluster selection
+// Selecting either kind of gene always clears any active cluster selection
 // -- gene view is tissue-wide, not filtered to (or occluded from above by)
-// one cluster's cells. Its own cells (a bounded, expression-colored subset
-// of that gene's own highest-expressing cells -- see
-// refresh_nbhd_cloud_gene_cells) replace the cluster cells in the same
-// layer; resetting back out of gene mode restores cluster-cell display
-// (empty, since cluster selection was cleared on entry).
+// one cluster's cells. Its own cells replace the cluster cells in the same
+// point-cloud layer either way; resetting back out of gene mode restores
+// cluster-cell display (empty, since cluster selection was cleared on entry).
 export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
   const { nbhd_cloud } = viz_state;
   const isReset = gene === nbhd_cloud.selected_gene;
@@ -303,6 +341,7 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
   if (isReset) {
     nbhd_cloud.selected_gene = null;
     nbhd_cloud.gene_shapes_mode = false;
+    nbhd_cloud.gene_scatter_mode = false;
     restore_cluster_shapes_data(viz_state, layers_obj);
     nbhd_cloud.selected_cluster_ids?.clear();
     await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
@@ -321,14 +360,27 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
 
     nbhd_cloud.selected_gene = gene;
     nbhd_cloud.gene_shapes_mode = true;
+    nbhd_cloud.gene_scatter_mode = false;
+    apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
+
+    nbhd_cloud.selected_cluster_ids?.clear();
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+  } else if (nbhd_cloud.available_gene_scatter?.has(gene)) {
+    // No alpha shape for this gene -- the shapes layer shows nothing
+    // (get_current_base_features/gene_scatter_mode) while its capped cell
+    // scatter (same cells/by_gene/<gene>.parquet schema and cache as the
+    // shape-backed path) becomes the only visible thing for it.
+    nbhd_cloud.selected_gene = gene;
+    nbhd_cloud.gene_shapes_mode = false;
+    nbhd_cloud.gene_scatter_mode = true;
     apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
 
     nbhd_cloud.selected_cluster_ids?.clear();
     await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
   } else {
-    // No precomputed shapes for this gene -- nothing to show, so leave
-    // whatever was already displayed alone rather than clearing a valid
-    // selection out from under the user.
+    // No precomputed shape or cell scatter for this gene -- nothing to
+    // show, so leave whatever was already displayed alone rather than
+    // clearing a valid selection out from under the user.
     return;
   }
 

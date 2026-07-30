@@ -32,7 +32,7 @@ const CELL_OPACITY_SCALE = 0.7;
 // independently-tuned opacity of their own).
 const get_cell_layer_opacity = (viz_state) => {
   const { nbhd_cloud } = viz_state;
-  if (nbhd_cloud.gene_shapes_mode) {
+  if (nbhd_cloud.gene_shapes_mode || nbhd_cloud.gene_scatter_mode) {
     return nbhd_cloud.gene_fill_opacity ?? 1;
   }
   return (nbhd_cloud.manual_fill_opacity ?? 1) * CELL_OPACITY_SCALE;
@@ -236,7 +236,13 @@ export const refresh_nbhd_cloud_gene_cells = async (viz_state, layers_obj) => {
       ? nbhd_cloud.selected_slice_ids
       : null;
   const filtered = buildFilteredGeneCells(mergedCells, sliceIdFilter);
-  const maxExpression = nbhd_cloud.available_gene_shapes?.get(gene) ?? 0;
+  // Shape-backed genes normalize against available_gene_shapes; scatter-only
+  // genes (no shape entry at all) fall back to available_gene_scatter --
+  // same {gene: max_expression} shape, different manifest.
+  const maxExpression =
+    nbhd_cloud.available_gene_shapes?.get(gene) ??
+    nbhd_cloud.available_gene_scatter?.get(gene) ??
+    0;
   const colors = buildExpressionColorBuffer(
     filtered.expressions,
     maxExpression

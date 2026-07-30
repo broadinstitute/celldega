@@ -291,4 +291,49 @@ describe('neighborhood-cloud gene-selected cell centroid loading ("peppering")',
 
     expect(layers_obj.nbhd_cloud_cell_layer.opacity).toBe(0.5);
   });
+
+  test('a scatter-only gene (no shape entry) normalizes against available_gene_scatter instead', async () => {
+    cellsBox.value = {
+      length: 1,
+      positions: new Float32Array([1, 1, 1]),
+      sliceIds: ['s0'],
+      expressions: [30],
+    };
+
+    const viz_state = {
+      nbhd_cloud: {
+        gene_shapes_mode: false,
+        gene_scatter_mode: true,
+        selected_gene: 'Actb',
+        available_gene_shapes: new Map(), // no shape entry for Actb
+        available_gene_scatter: new Map([['Actb', 30]]),
+      },
+      global_base_url: 'http://example.test',
+      aws: null,
+    };
+    const layers_obj = makeLayersObj();
+
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+
+    expect(fetchedUrls).toEqual([
+      'http://example.test/nbhd_cloud/cells/by_gene/Actb.parquet',
+    ]);
+    const colors = Array.from(
+      layers_obj.nbhd_cloud_cell_layer.data.attributes.getColor.value
+    );
+    // Expression equals the scatter manifest's max -> full alpha, same as
+    // the shape-backed path would give at its own manifest's max.
+    expect(colors).toEqual([255, 0, 0, 255]);
+  });
+
+  test('gene_scatter_mode opacity also skips cluster-mode dampening, same as gene_shapes_mode', () => {
+    const viz_state = {
+      nbhd_cloud: { gene_scatter_mode: true, gene_fill_opacity: 0.5 },
+    };
+    const layers_obj = makeLayersObj();
+
+    update_nbhd_cloud_cell_layer_opacity(layers_obj, viz_state);
+
+    expect(layers_obj.nbhd_cloud_cell_layer.opacity).toBe(0.5);
+  });
 });

@@ -1,3 +1,4 @@
+import * as d3 from 'd3';
 import { PolygonLayer } from 'deck.gl';
 
 import {
@@ -160,6 +161,18 @@ export const set_dendro_highlight = (
 };
 
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
+  // Animates a trapezoid's shape whenever its underlying leaf span changes
+  // (e.g. the row dendrogram in composition mode resizing as bars are
+  // reordered/renormalized — see `refresh_composition_dendro`) instead of
+  // snapping instantly. Safe now that there's no stroke sublayer: each
+  // polygon is a fixed 3-vertex triangle, so the fill's per-vertex
+  // interpolation is unambiguous — the earlier "white lines" glitch traced
+  // to the (now-removed) stroke's own path-based transition, a different,
+  // less predictable interpolation than a plain triangle fill.
+  const transitions = {
+    getPolygon: { duration: viz_state.animate.duration, easing: d3.easeCubic },
+  };
+
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
@@ -184,6 +197,7 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     stroked: false,
     pickable: true,
     antialiasing: false,
+    transitions,
     // autoHighlight: true, // Highlight on hover
     // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
   });

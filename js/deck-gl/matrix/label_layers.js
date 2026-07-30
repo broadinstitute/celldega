@@ -13,6 +13,12 @@ import {
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
 import {
+  apply_composition_hover_col,
+  apply_composition_hover_row,
+  clear_composition_hover,
+  HOVER_HIGHLIGHT_DELAY_MS,
+} from './composition_layer';
+import {
   refresh_composition_dendro,
   toggle_dendro_layer_visibility,
 } from './dendro_layers';
@@ -359,5 +365,83 @@ export const set_col_label_layer_onclick = (
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     onClick: (event) =>
       col_label_layer_onclick(event, deck_mat, layers_mat, viz_state),
+  });
+};
+
+/**
+ * Composition-only: hovering a row label highlights that population across
+ * every bar, after the same short dwell delay as hovering a bar segment
+ * directly (`set_composition_layer_onhover`) — the two are equivalent ways
+ * to reach the same cross-bar highlight, so they share its delay/apply/clear
+ * functions for a consistent feel. No-op outside composition mode (plain
+ * Clustergram row labels aren't part of this interaction).
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const set_row_label_layer_onhover = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  const on_hover = (info) => {
+    if (viz_state.mat.viz_mode !== 'composition') return;
+
+    const row = info?.object ? info.object.index : null;
+
+    if (row === null || row === viz_state.mat.comp_hover_row) {
+      if (row === null)
+        clear_composition_hover(deck_mat, layers_mat, viz_state);
+      return;
+    }
+
+    clearTimeout(viz_state.mat._comp_hover_timer);
+    viz_state.mat._comp_hover_timer = setTimeout(
+      () => apply_composition_hover_row(deck_mat, layers_mat, viz_state, row),
+      HOVER_HIGHLIGHT_DELAY_MS
+    );
+  };
+
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    onHover: on_hover,
+  });
+};
+
+/**
+ * Composition-only: hovering a column (dataset) label highlights that bar
+ * (dims every other bar) after the same short dwell delay used everywhere
+ * else in composition's hover-highlight family. No-op outside composition
+ * mode.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const set_col_label_layer_onhover = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  const on_hover = (info) => {
+    if (viz_state.mat.viz_mode !== 'composition') return;
+
+    const col = info?.object ? info.object.index : null;
+
+    if (col === null || col === viz_state.mat.comp_hover_col) {
+      if (col === null)
+        clear_composition_hover(deck_mat, layers_mat, viz_state);
+      return;
+    }
+
+    clearTimeout(viz_state.mat._comp_hover_col_timer);
+    viz_state.mat._comp_hover_col_timer = setTimeout(
+      () => apply_composition_hover_col(deck_mat, layers_mat, viz_state, col),
+      HOVER_HIGHLIGHT_DELAY_MS
+    );
+  };
+
+  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    onHover: on_hover,
   });
 };

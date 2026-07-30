@@ -286,6 +286,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   // add top margin to ctrl_container and slider_container
   ctrl_container.style.marginTop = '10px';
+  // Small gap so the entity-title label (e.g. "DSET:") isn't flush against
+  // the control panel's left border.
+  ctrl_container.style.marginLeft = '6px';
   slider_container.style.marginTop = '0px';
   slider_container.style.marginLeft = '5px';
 

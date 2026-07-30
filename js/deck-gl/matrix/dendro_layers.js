@@ -1,3 +1,4 @@
+import * as d3 from 'd3';
 import { PolygonLayer } from 'deck.gl';
 
 import {
@@ -160,6 +161,14 @@ export const set_dendro_highlight = (
 };
 
 export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
+  // Animates a trapezoid's shape (not just its fill color) whenever its
+  // underlying leaf span changes — e.g. the row dendrogram in composition
+  // mode resizing as bars are reordered/renormalized (see
+  // `refresh_composition_dendro`) — instead of snapping instantly.
+  const transitions = {
+    getPolygon: { duration: viz_state.animate.duration, easing: d3.easeCubic },
+  };
+
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
@@ -179,6 +188,7 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     lineWidthMinPixels: 0,
     pickable: true,
     antialiasing: false,
+    transitions,
     // autoHighlight: true, // Highlight on hover
     // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
   });
@@ -518,4 +528,25 @@ export const set_dendro_layer_onhover = (
       onHover: on_hover,
     }
   );
+};
+
+/**
+ * Force-clear the dendrogram hover highlight (both axes), cancelling any
+ * pending delayed-highlight timer first. Without cancelling the timer, a
+ * highlight already armed (but not yet applied) when the pointer leaves
+ * would otherwise still fire a few hundred ms later, highlighting leaves the
+ * pointer isn't over anymore. Safe to call unconditionally (e.g. from a
+ * whole-widget pointer-leave failsafe) even when nothing is hovered.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const clear_dendro_hover = (deck_mat, layers_mat, viz_state) => {
+  clearTimeout(viz_state.dendro._hover_timer);
+  DENDRO_AXES.forEach((axis) => {
+    if (layers_mat[`${axis}_dendro_layer`]) {
+      set_dendro_highlight(deck_mat, layers_mat, viz_state, axis, null);
+    }
+  });
 };

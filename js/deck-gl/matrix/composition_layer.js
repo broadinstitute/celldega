@@ -54,7 +54,15 @@ const FILL_COLOR_TRANSITION_MS = 200;
 
 // Hover must dwell this long before the cross-bar highlight kicks in, so a
 // quick mouse pass-over doesn't flash; leaving a segment clears instantly.
-const HOVER_HIGHLIGHT_DELAY_MS = 250;
+// Exported so row/col label hover (`label_layers.js`) uses the identical
+// delay for a consistent feel across every hover-highlight in composition mode.
+export const HOVER_HIGHLIGHT_DELAY_MS = 250;
+
+const hover_trigger_key = (viz_state) => [
+  viz_state.mat.viz_mode,
+  viz_state.mat.comp_hover_row,
+  viz_state.mat.comp_hover_col,
+];
 
 export const ini_composition_layer = (viz_state) => {
   const transitions = {
@@ -81,14 +89,17 @@ export const ini_composition_layer = (viz_state) => {
     getFillColor: (d) => {
       const base = viz_state.mat.comp_colors[d.row] || [128, 128, 128, 255];
       const hover_row = viz_state.mat.comp_hover_row;
-      const hover_factor =
+      const hover_col = viz_state.mat.comp_hover_col;
+      const row_factor =
         hover_row == null || hover_row === d.row ? 1 : HOVER_DIM_ALPHA;
+      const col_factor =
+        hover_col == null || hover_col === d.col ? 1 : HOVER_DIM_ALPHA;
       const dendro_factor = dendro_highlight_alpha_factor(
         viz_state,
         d.row,
         d.col
       );
-      const alpha_factor = hover_factor * dendro_factor;
+      const alpha_factor = row_factor * col_factor * dendro_factor;
       if (alpha_factor === 1) return base;
       return [
         base[0],
@@ -103,8 +114,7 @@ export const ini_composition_layer = (viz_state) => {
       getPosition: trig,
       getSize: trig,
       getFillColor: [
-        viz_state.mat.viz_mode,
-        viz_state.mat.comp_hover_row,
+        ...hover_trigger_key(viz_state),
         viz_state.dendro?._highlight_rev || 0,
       ],
     },
@@ -145,6 +155,80 @@ export const set_composition_normalized = (
 };
 
 /**
+ * Set (or clear, with `row = null`) composition's cross-bar hover-highlighted
+ * population, re-rendering the body layer so `getFillColor` picks it up.
+ * Exported (rather than a private closure) so a failsafe "pointer left the
+ * whole widget" handler can force-clear it directly — see
+ * `clear_composition_hover`.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {number|null} row - Raw row index to highlight, or null to clear.
+ */
+export const apply_composition_hover_row = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  row
+) => {
+  if (viz_state.mat.comp_hover_row === row) return;
+  viz_state.mat.comp_hover_row = row;
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    updateTriggers: { getFillColor: hover_trigger_key(viz_state) },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+};
+
+/**
+ * Set (or clear, with `col = null`) composition's hover-highlighted group
+ * (dataset) — dims every other bar's segments, the column analogue of
+ * `apply_composition_hover_row`. Driven by hovering a column label (see
+ * `label_layers.js`); there's no bar-segment equivalent since a segment
+ * hover already identifies a row, and column identity is visually obvious
+ * from which bar it's in.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {number|null} col - Raw column index to highlight, or null to clear.
+ */
+export const apply_composition_hover_col = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  col
+) => {
+  if (viz_state.mat.comp_hover_col === col) return;
+  viz_state.mat.comp_hover_col = col;
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    updateTriggers: { getFillColor: hover_trigger_key(viz_state) },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+};
+
+/**
+ * Force-clear composition's cross-bar hover highlight (both row and column),
+ * cancelling any pending delayed-highlight timers first. Without cancelling
+ * the timers, a hover-highlight already armed (but not yet applied) when the
+ * pointer leaves would otherwise still fire a few hundred ms later —
+ * applying a highlight for a segment/label the pointer isn't over anymore —
+ * which is exactly the "leaves the highlight in a previous state" symptom
+ * this guards against. Safe to call unconditionally (e.g. from a
+ * whole-widget pointer-leave failsafe) even when nothing is highlighted.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const clear_composition_hover = (deck_mat, layers_mat, viz_state) => {
+  clearTimeout(viz_state.mat._comp_hover_timer);
+  clearTimeout(viz_state.mat._comp_hover_col_timer);
+  apply_composition_hover_row(deck_mat, layers_mat, viz_state, null);
+  apply_composition_hover_col(deck_mat, layers_mat, viz_state, null);
+};
+
+/**
  * Wire up composition's cross-bar hover highlight: hovering a segment
  * dims every other population's segments (across all bars) after a short
  * dwell delay, so the hovered population's share is easy to compare bar to
@@ -159,29 +243,18 @@ export const set_composition_layer_onhover = (
   layers_mat,
   viz_state
 ) => {
-  const apply_hover_row = (row) => {
-    if (viz_state.mat.comp_hover_row === row) return;
-    viz_state.mat.comp_hover_row = row;
-    layers_mat.mat_layer = layers_mat.mat_layer.clone({
-      updateTriggers: {
-        getFillColor: [viz_state.mat.viz_mode, viz_state.mat.comp_hover_row],
-      },
-    });
-    deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
-  };
-
   const on_hover = (info) => {
-    clearTimeout(viz_state.mat._comp_hover_timer);
-
     const row = info?.object ? info.object.row : null;
 
     if (row === null || row === viz_state.mat.comp_hover_row) {
-      if (row === null) apply_hover_row(null);
+      if (row === null)
+        clear_composition_hover(deck_mat, layers_mat, viz_state);
       return;
     }
 
+    clearTimeout(viz_state.mat._comp_hover_timer);
     viz_state.mat._comp_hover_timer = setTimeout(
-      () => apply_hover_row(row),
+      () => apply_composition_hover_row(deck_mat, layers_mat, viz_state, row),
       HOVER_HIGHLIGHT_DELAY_MS
     );
   };

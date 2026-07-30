@@ -7,7 +7,6 @@
 // `viz_mode` decides how the main matrix value (and the optional secondary
 // `size_mat`) map onto those channels:
 //   - "heatmap": opacity ~ |value|, full-size squares (classic Clustergram).
-//   - "size":    color at full opacity, square size ~ |value| (a.k.a. height).
 //   - "dotplot": opacity ~ |value| (e.g. mean expression) and square/dot size ~
 //                the secondary matrix (e.g. fraction of cells expressing).
 
@@ -22,7 +21,7 @@
 export const resolve_viz_mode = (mode, has_size_mat) => {
   const requested = mode || 'heatmap';
   if (requested === 'dotplot' && !has_size_mat) return 'heatmap';
-  if (!['heatmap', 'size', 'dotplot', 'composition'].includes(requested))
+  if (!['heatmap', 'dotplot', 'composition'].includes(requested))
     return 'heatmap';
   return requested;
 };
@@ -35,10 +34,7 @@ const encode_point = (p, viz_state) => {
   let alpha;
   let size_scale;
 
-  if (viz_mode === 'size') {
-    alpha = 1;
-    size_scale = magnitude;
-  } else if (viz_mode === 'dotplot') {
+  if (viz_mode === 'dotplot') {
     alpha = magnitude;
     if (dot_size_encoded === false) {
       // DOT toggle off: full-tile square, like heatmap.

@@ -101,36 +101,61 @@ const cat_layer_onclick = (event, viz_state, axis) => {
   }
 };
 
+// Hover must dwell this long before a category tile's cross-matrix highlight
+// kicks in, matching every other hover-highlight in the widget (composition
+// bars/labels, dendrogram trapezoids) for a consistent feel; leaving a tile
+// clears instantly.
+const CAT_HOVER_DELAY_MS = 250;
+
+const apply_cat_hover = (deck_mat, layers_mat, viz_state, hovered) => {
+  const prev_hovered = viz_state.hovered_cat;
+  if (
+    prev_hovered?.axis === hovered?.axis &&
+    prev_hovered?.level === hovered?.level &&
+    prev_hovered?.name === hovered?.name
+  ) {
+    return;
+  }
+
+  viz_state.hovered_cat = hovered;
+
+  // Trigger re-render of both cat layers to update transparency
+  layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+    updateTriggers: { getFillColor: [hovered] },
+  });
+  layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+    updateTriggers: { getFillColor: [hovered] },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+
+  // Also update obs_store for other listeners
+  if (viz_state.obs_store?.hovered_category) {
+    const attr_name = hovered
+      ? viz_state.attr.names[hovered.axis]?.[hovered.level]
+      : null;
+    viz_state.obs_store.hovered_category.set(
+      hovered
+        ? {
+            axis: hovered.axis,
+            attr_name,
+            attr_index: hovered.level,
+            value: hovered.name,
+          }
+        : null
+    );
+  }
+};
+
 /**
  * Handle category tile hover - for highlighting.
  * Updates viz_state.hovered_cat and triggers layer re-render.
  */
 const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
-  const prev_hovered = viz_state.hovered_cat;
+  clearTimeout(viz_state._cat_hover_timer);
 
   if (!info.object) {
-    // Mouse left the tile - clear hover state
-    if (prev_hovered) {
-      viz_state.hovered_cat = null;
-
-      // Trigger re-render of both cat layers to restore normal colors
-      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-        updateTriggers: {
-          getFillColor: [null],
-        },
-      });
-      layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-        updateTriggers: {
-          getFillColor: [null],
-        },
-      });
-      deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
-
-      // Clear obs_store hovered_category so bar graphs update
-      if (viz_state.obs_store?.hovered_category) {
-        viz_state.obs_store.hovered_category.set(null);
-      }
-    }
+    // Mouse left the tile - clear hover state immediately.
+    apply_cat_hover(deck_mat, layers_mat, viz_state, null);
     return;
   }
 
@@ -139,45 +164,36 @@ const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
 
   if (attr_index === undefined || value === undefined) return;
 
-  // Check if already hovering this exact tile
+  const hovered = { axis, name: value, level: attr_index };
+  const prev_hovered = viz_state.hovered_cat;
+
+  // Already hovering this exact tile (highlight already applied) - no-op.
   if (
-    prev_hovered?.axis === axis &&
-    prev_hovered?.level === attr_index &&
-    prev_hovered?.name === value
+    prev_hovered?.axis === hovered.axis &&
+    prev_hovered?.level === hovered.level &&
+    prev_hovered?.name === hovered.name
   ) {
-    return; // Already hovering this tile
+    return;
   }
 
-  // Set new hover state
-  viz_state.hovered_cat = {
-    axis,
-    name: value,
-    level: attr_index,
-  };
+  viz_state._cat_hover_timer = setTimeout(() => {
+    apply_cat_hover(deck_mat, layers_mat, viz_state, hovered);
+  }, CAT_HOVER_DELAY_MS);
+};
 
-  // Trigger re-render of both cat layers to update transparency
-  layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-    updateTriggers: {
-      getFillColor: [viz_state.hovered_cat],
-    },
-  });
-  layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-    updateTriggers: {
-      getFillColor: [viz_state.hovered_cat],
-    },
-  });
-  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
-
-  // Also update obs_store for other listeners
-  if (viz_state.obs_store?.hovered_category) {
-    const attr_name = viz_state.attr.names[axis]?.[attr_index];
-    viz_state.obs_store.hovered_category.set({
-      axis,
-      attr_name,
-      attr_index,
-      value,
-    });
-  }
+/**
+ * Force-clear the categorical attribute hover highlight, cancelling any
+ * pending delayed-highlight timer first. See `clear_composition_hover` /
+ * `clear_dendro_hover` for why cancelling the timer (not just clearing
+ * current state) matters. Safe to call unconditionally.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const clear_cat_hover = (deck_mat, layers_mat, viz_state) => {
+  clearTimeout(viz_state._cat_hover_timer);
+  apply_cat_hover(deck_mat, layers_mat, viz_state, null);
 };
 
 export const ini_row_cat_layer = (viz_state) => {

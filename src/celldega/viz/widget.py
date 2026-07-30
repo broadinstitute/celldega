@@ -1206,7 +1206,6 @@ class Clustergram(anywidget.AnyWidget):
 
     # How each matrix cell encodes its value / how the body is drawn:
     #   "heatmap"     - color + opacity by value (classic; default)
-    #   "size"        - color by value, square size by magnitude (a.k.a. "height")
     #   "dotplot"     - color/opacity by the main matrix (e.g. mean expression),
     #                   square/dot size by the secondary `dot_mat` (e.g. fraction of
     #                   cells expressing). Falls back to "heatmap" if no dot matrix.
@@ -1231,6 +1230,11 @@ class Clustergram(anywidget.AnyWidget):
     # default output already normalizes each group to sum to 1).
     composition_col_weights = traitlets.Dict(default_value={}).tag(sync=True)
 
+    #: Supported `viz_mode` values. "size" (square size ∝ value alone, full
+    #: opacity) isn't supported — use "dotplot" instead, which covers the
+    #: same "size encodes a value" idea via a proper secondary matrix.
+    _VALID_VIZ_MODES = ("heatmap", "dotplot", "composition")
+
     @traitlets.validate("viz_mode")
     def _validate_viz_mode(self, proposal):
         """Composition mode is only supported through :class:`Composition`.
@@ -1243,6 +1247,10 @@ class Clustergram(anywidget.AnyWidget):
         and reorder semantics for it.
         """
         value = proposal["value"]
+        if value not in self._VALID_VIZ_MODES:
+            raise traitlets.TraitError(
+                f"viz_mode={value!r} is not supported; use one of {self._VALID_VIZ_MODES}."
+            )
         if value == "composition" and not isinstance(self, Composition):
             raise traitlets.TraitError(
                 "viz_mode='composition' is only supported via celldega.viz.Composition, "

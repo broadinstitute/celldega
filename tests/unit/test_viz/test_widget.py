@@ -217,6 +217,18 @@ def test_clustergram_rejects_composition_viz_mode() -> None:
         widget.viz_mode = "composition"
 
 
+def test_clustergram_rejects_size_viz_mode() -> None:
+    # standalone "size" mode isn't supported -- use "dotplot" instead.
+    mat = make_simple_matrix()
+
+    with pytest.raises(traitlets.TraitError):
+        Clustergram(matrix=mat, viz_mode="size")
+
+    widget = Clustergram(matrix=mat)
+    with pytest.raises(traitlets.TraitError):
+        widget.viz_mode = "size"
+
+
 def test_composition_is_a_clustergram_subclass() -> None:
     df = pd.DataFrame(
         {"T": [10, 20], "B": [5, 15]},

@@ -418,10 +418,10 @@ class TestMatrix:
             dot_df.loc[genes, sets].to_numpy(), frac.X.T, rtol=1e-5, atol=1e-6
         )
 
-    def test_matrix_from_collection_dot_plot(self) -> None:
-        """`Matrix(collection=..., modality=..., dot_plot=True)` should build the
-        main matrix and auto-discover + attach the paired fraction modality as
-        the dot-plot size channel, with no manual DataFrame wrangling."""
+    def test_matrix_from_collection_color_by_size_by(self) -> None:
+        """`Matrix(collection=..., color_by=..., size_by=...)` should build the
+        main matrix and attach the named size-channel modality, with no manual
+        DataFrame wrangling. `dot_plot=` is an alias for `size_by=`."""
         from anndata import AnnData
 
         from celldega.set import SetCollection
@@ -434,23 +434,34 @@ class TestMatrix:
 
         setc = SetCollection(adata, set_col="leiden", name="leiden")
         setc.calc_signature(adata, modality_name="expression")
-        setc.calc_signature(adata, modality_name="fraction", aggregate="fraction")
+        setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
 
-        mat = Matrix(collection=setc, modality="expression", dot_plot=True)
+        mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
         assert mat.data.shape == (5, 3)
         assert mat.dot_mat is not None
         assert list(mat.dot_mat.index) == list(mat.data.index)
         assert list(mat.dot_mat.columns) == list(mat.data.columns)
 
+        # dot_plot= is an alias for size_by=
+        mat_alias = Matrix(collection=setc, color_by="expression", dot_plot="fraction_expressing")
+        assert mat_alias.dot_mat is not None
+
+        # size_by/dot_plot are mutually exclusive
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(
+                collection=setc,
+                color_by="expression",
+                size_by="fraction_expressing",
+                dot_plot="fraction_expressing",
+            )
+
         # data/collection are mutually exclusive
         with pytest.raises(ValueError, match="not both"):
-            Matrix(data=adata, collection=setc, modality="expression")
+            Matrix(data=adata, collection=setc, color_by="expression")
 
-        # dot_plot=True with no fraction modality raises a clear error
-        setc2 = SetCollection(adata, set_col="leiden", name="leiden2")
-        setc2.calc_signature(adata, modality_name="expression")
-        with pytest.raises(ValueError, match="no fraction-expressing modality"):
-            Matrix(collection=setc2, modality="expression", dot_plot=True)
+        # unknown size_by modality raises a clear error
+        with pytest.raises(KeyError, match="size_by"):
+            Matrix(collection=setc, color_by="expression", size_by="nope")
 
     def test_matrix_error_handling(self) -> None:
         """Test Matrix error handling and edge cases."""

@@ -26,16 +26,19 @@
 // SOFTWARE.
 
 import {
+  clear_cat_hover,
   ini_row_cat_layer,
   ini_col_cat_layer,
   set_cat_layer_handlers,
 } from '../deck-gl/matrix/cat_layers';
 import {
+  clear_composition_hover,
   ini_composition_layer,
   set_composition_layer_onhover,
 } from '../deck-gl/matrix/composition_layer';
 import { ini_deck } from '../deck-gl/matrix/deck_mat';
 import {
+  clear_dendro_hover,
   ini_dendro_layer,
   refresh_composition_dendro,
   refresh_dendro_for_viz_mode,
@@ -48,6 +51,8 @@ import {
   ini_col_label_layer,
   set_row_label_layer_onclick,
   set_col_label_layer_onclick,
+  set_row_label_layer_onhover,
+  set_col_label_layer_onhover,
 } from '../deck-gl/matrix/label_layers';
 import {
   ini_mat_layer,
@@ -236,10 +241,27 @@ export const matrix_viz = async (
   set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
   set_row_label_layer_onclick(deck_mat, layers_mat, viz_state);
   set_col_label_layer_onclick(deck_mat, layers_mat, viz_state);
+  set_row_label_layer_onhover(deck_mat, layers_mat, viz_state);
+  set_col_label_layer_onhover(deck_mat, layers_mat, viz_state);
   set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, 'row');
   set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, 'col');
   set_dendro_layer_onhover(deck_mat, layers_mat, viz_state, 'row');
   set_dendro_layer_onhover(deck_mat, layers_mat, viz_state, 'col');
+
+  // Failsafe: deck.gl's own per-layer onHover(null) on pointer-leave can be
+  // skipped in edge cases (moving fast across a viewport boundary, an
+  // in-canvas DOM overlay swallowing the pointermove that would have
+  // reported "left"), leaving a hover highlight — or a still-pending delayed
+  // one, which would apply itself a moment later — stuck after the pointer
+  // has actually left the widget. `root` is the same element deck.gl's own
+  // EventManager listens on (`parent` in `ini_deck`), so this fires at
+  // exactly the boundary deck.gl already tracks, just without depending on
+  // its per-layer picking diff to get there.
+  viz_state.root.addEventListener('pointerleave', () => {
+    clear_composition_hover(deck_mat, layers_mat, viz_state);
+    clear_dendro_hover(deck_mat, layers_mat, viz_state);
+    clear_cat_hover(deck_mat, layers_mat, viz_state);
+  });
 
   deck_mat.setProps({
     onViewStateChange: (params) =>

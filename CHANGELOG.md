@@ -6,18 +6,19 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.20.0] - 2026-07-29
 
-Adds three new `Clustergram` body encodings — `size`, `dotplot`, and
-`composition` — and a new dedicated `Composition` widget for comparing
-category proportions/counts across groups as stacked bars, plus a control-panel
-restyle shared by both widgets.
+Adds a new `Clustergram` body encoding — `dotplot` — and a new dedicated
+`Composition` widget for comparing category proportions/counts across groups
+as stacked bars, plus a control-panel restyle shared by both widgets.
 
 ### Added
 
-- **`Clustergram.viz_mode`** — `"heatmap"` (opacity ∝ value, default), `"size"`
-  (square size ∝ value), or `"dotplot"` (opacity from the main matrix, size from
-  a secondary matrix — the classic "percent expressing" dot plot). Animates live.
+- **`Clustergram.viz_mode`** — `"heatmap"` (opacity ∝ value, default) or
+  `"dotplot"` (opacity from the main matrix, size from a secondary matrix — the
+  classic "percent expressing" dot plot). Animates live.
 - **`Matrix.set_dot_matrix`** / **`SetCollection.calc_signature(aggregate="fraction")`**
-  — attach and compute the dot-plot secondary size channel.
+  — attach and compute the dot-plot secondary size channel. `Matrix(collection=...,
+  color_by=..., size_by=...)` builds both directly from a collection, no manual
+  DataFrame wrangling needed (`dot_plot=` is accepted as an alias for `size_by=`).
 - **`dega.viz.Composition`** — a `Clustergram` subclass for count/proportion
   comparison across groups: each group renders as a bottom-anchored stacked bar,
   each category a colored segment, with a global (cross-bar-consistent) stacking

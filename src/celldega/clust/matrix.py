@@ -151,41 +151,6 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
         return f"cgm_{id(data)}"
 
 
-def _find_dot_modality(collection: Any, main: AnnData, main_modality: str) -> str:
-    """Auto-discover the "fraction expressing" modality paired with `main` on a
-    collection, for `Matrix(collection=..., dot_plot=True)`.
-
-    A match is a modality (other than `main_modality` itself) stamped by
-    `calc_signature(aggregate="fraction")` (``uns["aggregate"] == "fraction"``)
-    with the same ``feature_type`` as `main` (so a protein fraction signature
-    isn't matched onto a gene expression main modality, or vice versa, when a
-    collection carries both).
-    """
-    main_feature_type = main.uns.get("feature_type")
-    candidates = [
-        name
-        for name, mod in collection.mod.items()
-        if name != main_modality
-        and mod.uns.get("aggregate") == "fraction"
-        and mod.uns.get("feature_type") == main_feature_type
-    ]
-    if len(candidates) == 1:
-        return candidates[0]
-
-    available = list(collection.mod)
-    if not candidates:
-        raise ValueError(
-            f"dot_plot=True: no fraction-expressing modality found paired with '{main_modality}' "
-            f"(looked for uns['aggregate'] == 'fraction' and matching feature_type "
-            f"'{main_feature_type}'); available modalities: {available}. Call "
-            "calc_signature(aggregate='fraction', ...) first, or pass dot_modality= explicitly."
-        )
-    raise ValueError(
-        f"dot_plot=True: multiple fraction-expressing modalities match '{main_modality}': "
-        f"{candidates}; pass dot_modality= to disambiguate."
-    )
-
-
 class Matrix:
     """
     High-performance matrix class for single-cell genomics data processing.
@@ -227,9 +192,9 @@ class Matrix:
         *,
         # Celldega collection convenience path (alternative to `data`)
         collection: Any = None,
-        modality: str | None = None,
-        dot_plot: bool = False,
-        dot_modality: str | None = None,
+        color_by: str | None = None,
+        size_by: str | None = None,
+        dot_plot: str | None = None,
     ):
         """
         Create Matrix with automatic processing unless disabled.
@@ -258,18 +223,15 @@ class Matrix:
             name: Name for the matrix (default: None)
             collection: A Celldega collection (``SetCollection``/``DatasetCollection``/etc.)
                 to build ``data`` from, in place of passing ``data`` directly —
-                equivalent to ``data=collection.mod[modality]``. Requires `modality`.
-            modality: Modality key on `collection` to use as the main matrix.
-            dot_plot: When `collection` is given, also auto-discover and attach the
-                paired "fraction expressing" modality (from `calc_signature(aggregate=
-                "fraction", ...)`) as the dot-plot size channel — equivalent to calling
-                ``.set_dot_matrix(collection.mod[<fraction modality>])`` after
-                construction. The paired modality is found by matching
-                ``uns["aggregate"] == "fraction"`` and the same ``feature_type`` as
-                `modality`; raises if none or more than one match. Pass `dot_modality`
-                to skip auto-discovery.
-            dot_modality: Explicit modality key for the dot-plot size channel (with
-                `collection`), instead of auto-discovering it. Implies `dot_plot`.
+                equivalent to ``data=collection.mod[color_by]``. Requires `color_by`.
+            color_by: Modality key on `collection` driving color/opacity (the main
+                matrix).
+            size_by: Optional modality key on `collection` driving the secondary
+                *size* channel (dot-plot size, e.g. fraction of cells expressing —
+                but any per-cell magnitude works, e.g. significance) — equivalent to
+                calling ``.set_dot_matrix(collection.mod[size_by])`` after
+                construction. Omit for a matrix with no size channel.
+            dot_plot: Alias for `size_by` (pass either, not both).
 
         Examples:
             # Automatic processing (recommended)
@@ -284,8 +246,8 @@ class Matrix:
 
             # Dot plot directly from a SetCollection, no manual DataFrame wrangling
             setc.calc_signature(adata, modality_name="expression")
-            setc.calc_signature(adata, modality_name="fraction", aggregate="fraction")
-            mat = Matrix(collection=setc, modality="expression", dot_plot=True)
+            setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
+            mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
 
             # Raw matrix without data
             mat = Matrix()  # Empty matrix for manual loading
@@ -303,20 +265,24 @@ class Matrix:
                 row_entity={"entity": "cell", "attr": "leiden"},
                 col_entity={"entity": "nbhd", "attr": "name"})
         """
+        if size_by is not None and dot_plot is not None:
+            raise ValueError("pass either `size_by` or `dot_plot` (alias), not both")
+        size_by = size_by if size_by is not None else dot_plot
+
         if collection is not None:
             if data is not None:
                 raise ValueError("pass either `data` or `collection`, not both")
-            if modality is None:
+            if color_by is None:
                 raise ValueError(
-                    "`modality` is required when constructing Matrix from `collection`"
+                    "`color_by` is required when constructing Matrix from `collection`"
                 )
-            if modality not in collection.mod:
+            if color_by not in collection.mod:
                 raise KeyError(
-                    f"modality '{modality}' not found; available modalities: {list(collection.mod)}"
+                    f"color_by '{color_by}' not found; available modalities: {list(collection.mod)}"
                 )
-            data = collection.mod[modality]
-        elif modality is not None or dot_modality is not None:
-            raise ValueError("`modality`/`dot_modality` require `collection`")
+            data = collection.mod[color_by]
+        elif color_by is not None or size_by is not None:
+            raise ValueError("`color_by`/`size_by` require `collection`")
 
         axis_entities_defaulted = _is_default_entity_pair(row_entity, col_entity)
         if isinstance(data, AnnData) and axis_entities_defaulted:
@@ -402,21 +368,15 @@ class Matrix:
         # Step 3: Always assign colors (auto-generated if not provided)
         self.set_global_cat_colors(global_colors)
 
-        # Step 4: Optional dot-plot size channel from the same collection
-        if dot_modality is not None:
+        # Step 4: Optional size channel from the same collection
+        if size_by is not None:
             if collection is None:
-                raise ValueError("`dot_modality` requires `collection`")
-            if dot_modality not in collection.mod:
+                raise ValueError("`size_by`/`dot_plot` require `collection`")
+            if size_by not in collection.mod:
                 raise KeyError(
-                    f"dot_modality '{dot_modality}' not found; "
-                    f"available modalities: {list(collection.mod)}"
+                    f"size_by '{size_by}' not found; available modalities: {list(collection.mod)}"
                 )
-            self.set_dot_matrix(collection.mod[dot_modality])
-        elif dot_plot:
-            if collection is None:
-                raise ValueError("`dot_plot=True` requires `collection`")
-            resolved_dot_modality = _find_dot_modality(collection, data, modality)
-            self.set_dot_matrix(collection.mod[resolved_dot_modality])
+            self.set_dot_matrix(collection.mod[size_by])
 
     @property
     def dat(self) -> dict[str, Any]:

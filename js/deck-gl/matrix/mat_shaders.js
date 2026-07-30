@@ -20,7 +20,7 @@ out vec2 unitPosition;
 void main(void) {
 
   // instanceRadius (from getRadius) is a per-cell size scale in [0, 1] that
-  // shrinks the square around its center for "size" / "dotplot" encodings.
+  // shrinks the square around its center for the "dotplot" encoding.
   // It defaults to 1.0 (full tile) so the classic heatmap is unchanged.
   vec3 scaled_positions = vec3(tile_width * positions.x * instanceRadius, tile_height * positions.y * instanceRadius, positions.z);
 

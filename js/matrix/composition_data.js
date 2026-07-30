@@ -165,6 +165,22 @@ export const comp_geom_for = (viz_state, d) => {
   return layout[`${d.row}_${d.col}`] || { position: [0, 0], half: [0, 0] };
 };
 
+const edge_composition_col = (viz_state, is_better) => {
+  const { num_cols, orders } = viz_state.mat;
+  const col_order = orders.col[viz_state.order.current.col];
+
+  let best_col = 0;
+  let best_x_index = null;
+  for (let c = 0; c < num_cols; c++) {
+    const x_index = num_cols - col_order[c];
+    if (best_x_index === null || is_better(x_index, best_x_index)) {
+      best_x_index = x_index;
+      best_col = c;
+    }
+  }
+  return best_col;
+};
+
 /**
  * The currently-leftmost displayed column (smallest displayed x_index under
  * the current col order). Used both to decide which row labels fit and to
@@ -173,33 +189,39 @@ export const comp_geom_for = (viz_state, d) => {
  * @param {object} viz_state - Visualization state.
  * @returns {number} Raw column index.
  */
-export const leftmost_composition_col = (viz_state) => {
-  const { num_cols, orders } = viz_state.mat;
-  const col_order = orders.col[viz_state.order.current.col];
+export const leftmost_composition_col = (viz_state) =>
+  edge_composition_col(viz_state, (x_index, best) => x_index < best);
 
-  let leftmost_col = 0;
-  let min_x_index = Infinity;
-  for (let c = 0; c < num_cols; c++) {
-    const x_index = num_cols - col_order[c];
-    if (x_index < min_x_index) {
-      min_x_index = x_index;
-      leftmost_col = c;
-    }
-  }
-  return leftmost_col;
-};
+/**
+ * The currently-rightmost displayed column (largest displayed x_index under
+ * the current col order). Used to dynamically position the row dendrogram in
+ * composition mode, which sits to the right of the matrix body.
+ *
+ * @param {object} viz_state - Visualization state.
+ * @returns {number} Raw column index.
+ */
+export const rightmost_composition_col = (viz_state) =>
+  edge_composition_col(viz_state, (x_index, best) => x_index > best);
 
-// A row label is only hidden when its segment is degenerate (the population
-// isn't present in that column at all) — labels are otherwise always shown,
-// however small, since zooming in on the `rows` viewport makes them legible
-// again in absolute screen-pixel terms (both the segment and its zoom-scaled
-// font grow together).
-const MIN_SEGMENT_HEIGHT = 1e-6;
+// A row label is hidden unless its segment is at least one line of text
+// tall. In composition mode the row label's `getSize` is a fixed screen-pixel
+// value — unlike heatmap mode, it is deliberately NOT rescaled by the `rows`
+// viewport's 2^zoom_y factor (see `on_view_state_change.js`) — so zooming in
+// grows a segment's on-screen height without growing the label past it,
+// letting small populations' labels reveal themselves as the user zooms in.
+// That means, unlike the heatmap case, this fit ratio is zoom-DEPENDENT and
+// must be recomputed on every zoom tick, not just on layout changes.
+const MIN_FIT_RATIO = 1.0;
+
+const composition_row_zoom_factor = (viz_state) =>
+  2 ** (viz_state.zoom?.zoom_data?.matrix?.zoom_y || 0);
 
 /**
  * Per-row visibility for population (row) labels in composition mode: hidden
- * only when the leftmost displayed bar has no segment (or a zero-height one)
- * for that row.
+ * whenever the leftmost displayed bar's segment for that row is too short to
+ * fit one line of label text at the current zoom (or absent entirely), so
+ * small populations' labels don't overlap/overflow their segment — but do
+ * reappear once zooming in on rows gives them enough room.
  *
  * @param {object} viz_state - Visualization state.
  * @returns {boolean[]} Indexed by raw row index (matches `row_label_data[i].index`).
@@ -208,11 +230,14 @@ export const compute_row_label_visibility = (viz_state) => {
   const { num_rows } = viz_state.mat;
   const layout = get_composition_layout(viz_state);
   const leftmost_col = leftmost_composition_col(viz_state);
+  const zoom_factor = composition_row_zoom_factor(viz_state);
+  const min_height =
+    (viz_state.viz.font_size.rows * MIN_FIT_RATIO) / zoom_factor;
 
   const visible = new Array(num_rows).fill(false);
   for (let r = 0; r < num_rows; r++) {
     const seg = layout[`${r}_${leftmost_col}`];
-    visible[r] = !!seg && seg.half[1] * 2 >= MIN_SEGMENT_HEIGHT;
+    visible[r] = !!seg && seg.half[1] * 2 >= min_height;
   }
   return visible;
 };
@@ -238,10 +263,12 @@ export const composition_row_label_position = (viz_state, row_index) => {
  * Recompute row-label fit/visibility and position for composition mode, and
  * re-trigger the row label layer's per-instance color + position accessors.
  * No-op outside composition mode. Call after any action that can change the
- * composition layout: row/col reorder, normalization toggle. Kept here
- * (rather than alongside the `TextLayer` in `label_layers.js`) so it has no
- * dependency on the UI button modules, which need to call it without
- * introducing an import cycle.
+ * composition layout (row/col reorder, normalization toggle) as well as on
+ * every `rows`-viewport zoom tick, since the fit check is zoom-dependent
+ * there (see `compute_row_label_visibility`). Kept here (rather than
+ * alongside the `TextLayer` in `label_layers.js`) so it has no dependency on
+ * the UI button modules, which need to call it without introducing an import
+ * cycle.
  *
  * @param {object} layers_mat - Layer registry.
  * @param {object} viz_state - Visualization state.

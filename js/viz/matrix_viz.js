@@ -37,7 +37,10 @@ import {
 import { ini_deck } from '../deck-gl/matrix/deck_mat';
 import {
   ini_dendro_layer,
+  refresh_composition_dendro,
+  refresh_dendro_for_viz_mode,
   set_dendro_layer_onclick,
+  set_dendro_layer_onhover,
   toggle_dendro_layer_visibility,
 } from '../deck-gl/matrix/dendro_layers';
 import {
@@ -161,6 +164,11 @@ export const matrix_viz = async (
   const set_body_mode = (mode) => {
     viz_state.mat.viz_mode = mode;
 
+    // Leaf-position formula (composition vs. uniform heatmap spacing) is
+    // keyed on viz_mode, which was just updated above, so this always
+    // reflects the mode we're switching *into*.
+    refresh_dendro_for_viz_mode(layers_mat, viz_state);
+
     if (mode === 'composition') {
       set_composition_colors(viz_state);
       viz_state.mat._comp_cache = null;
@@ -169,16 +177,14 @@ export const matrix_viz = async (
       set_composition_layer_onhover(deck_mat, layers_mat, viz_state);
 
       // Populations are shown as colored bar segments (+ row labels where
-      // they fit), so hide the row attribute strip. The row dendrogram is
-      // always meaningless here (rows aren't equal height once stacked), but
-      // the column dendrogram should behave normally (visible only when col
-      // order is 'clust').
+      // they fit), so hide the row attribute strip. Both dendrograms behave
+      // normally (visible only when their axis order is 'clust') — the row
+      // dendrogram's leaves are now positioned from the rightmost bar's
+      // actual segments (see refresh_dendro_for_viz_mode above).
       layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
         visible: false,
       });
-      layers_mat.row_dendro_layer = layers_mat.row_dendro_layer.clone({
-        visible: false,
-      });
+      toggle_dendro_layer_visibility(layers_mat, viz_state, 'row');
       toggle_dendro_layer_visibility(layers_mat, viz_state, 'col');
 
       refresh_row_label_visibility(layers_mat, viz_state);
@@ -232,6 +238,8 @@ export const matrix_viz = async (
   set_col_label_layer_onclick(deck_mat, layers_mat, viz_state);
   set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, 'row');
   set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, 'col');
+  set_dendro_layer_onhover(deck_mat, layers_mat, viz_state, 'row');
+  set_dendro_layer_onhover(deck_mat, layers_mat, viz_state, 'col');
 
   deck_mat.setProps({
     onViewStateChange: (params) =>
@@ -459,6 +467,7 @@ export const matrix_viz = async (
         updateTriggers: mat_reorder_triggers(viz_state),
       });
       refresh_row_label_visibility(layers_mat, viz_state);
+      refresh_composition_dendro(layers_mat, viz_state);
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
 
@@ -473,6 +482,7 @@ export const matrix_viz = async (
         updateTriggers: mat_reorder_triggers(viz_state),
       });
       refresh_row_label_visibility(layers_mat, viz_state);
+      refresh_composition_dendro(layers_mat, viz_state);
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
 

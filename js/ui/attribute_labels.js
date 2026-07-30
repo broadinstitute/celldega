@@ -1,6 +1,9 @@
 import { TextLayer } from 'deck.gl';
 
-import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
+import {
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { refresh_row_label_visibility } from '../matrix/composition_data';
 
@@ -146,8 +149,10 @@ const reorder_by_attribute = (
 
     // Composition mode: row labels are positioned by their actual segment
     // (which moves on either a row or a column reorder) and filtered by fit,
-    // so refresh on any reorder. No-op outside composition mode.
+    // so refresh on any reorder. No-op outside composition mode. Same for the
+    // row dendrogram, whose leaves come from the rightmost bar's segments.
     refresh_row_label_visibility(layers_mat, viz_state);
+    refresh_composition_dendro(layers_mat, viz_state);
 
     // Hide dendro when not in clust order
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);

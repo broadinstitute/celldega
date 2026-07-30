@@ -8,7 +8,7 @@ from ipywidgets import HBox, Layout, VBox, jslink
 
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
-from .widget import Clustergram, Composition, Enrich, Landscape, StackedBar, Yearbook
+from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
 def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
@@ -360,7 +360,6 @@ __all__ = [
     "Enrich",
     "Landmark",
     "Landscape",
-    "StackedBar",
     "Yearbook",
     "clustergram_enrich",
     "get_local_server",

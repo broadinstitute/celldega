@@ -1,3 +1,8 @@
+import {
+  get_composition_layout,
+  rightmost_composition_col,
+} from './composition_data';
+
 export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
   let clust_a;
   let clust_b;
@@ -55,44 +60,48 @@ export const calc_dendro_triangles = (viz_state, axis) => {
   const triangle_info = {};
 
   const inst_nodes = viz_state[`${axis}_nodes`];
+  const inst_order = viz_state.order.current[axis];
+  const is_composition = viz_state.mat.viz_mode === 'composition';
 
-  // var heat_shift
-  let heat_size;
-  let tri_width;
-  const num_labels = viz_state.mat[`num_${axis}s`]; // params.labels['num_'+axis]
-
-  if (axis === 'row') {
-    heat_size = viz_state.viz.mat_width; // params.viz_dim.heat_size.y
-    tri_width = heat_size / num_labels;
-  } else {
-    heat_size = viz_state.viz.mat_height; // params.viz_dim.heat_size.x
-    tri_width = heat_size / num_labels;
-  }
-
-  const inst_order = viz_state.order.current[axis]; // params.order.inst[axis]
+  // Composition mode: row (population) leaf spans come from that row's
+  // actual stacked-bar segment in the rightmost bar (non-uniform,
+  // value-driven heights), not a uniform per-row slot. Column (dataset) leaf
+  // spans stay uniformly spaced (columns are always evenly spaced) but need
+  // the same small gap `build_composition_layout` renders between bars, or
+  // the trapezoid edges visibly overshoot each bar.
+  const composition_layout = is_composition
+    ? get_composition_layout(viz_state)
+    : null;
+  const rightmost_col = is_composition
+    ? rightmost_composition_col(viz_state)
+    : null;
 
   inst_nodes.forEach((inst_node, index) => {
-    // var order_index = inst_node[inst_order]
-
-    // new way of getting group
-    ////////////////////////////////////////////
     const inst_group = inst_node.group_links;
 
     let inst_top;
+    let inst_bot;
 
-    if (axis === 'row') {
+    if (axis === 'row' && is_composition) {
+      const seg = composition_layout[`${index}_${rightmost_col}`];
+      inst_top = seg ? seg.position[1] - seg.half[1] : 0;
+      inst_bot = seg ? seg.position[1] + seg.half[1] : 0;
+    } else if (axis === 'row') {
       const inst_row_index =
         viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index];
-
+      // +1.0 (not the +1.5 cell-center convention used elsewhere) since this
+      // is the leaf's TOP edge, half a slot above its center.
       inst_top = viz_state.viz.row_offset * (inst_row_index + 1.0);
+      inst_bot = inst_top + viz_state.viz.row_offset;
     } else {
       const inst_col_index =
         viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index];
-
-      inst_top = viz_state.viz.col_offset * (inst_col_index + 0.0);
+      const center = viz_state.viz.col_offset * (inst_col_index + 0.5);
+      const gap_factor = is_composition ? 0.95 : 1.0; // matches composition_data.js's bar gap
+      const half = (viz_state.viz.col_offset * gap_factor) / 2;
+      inst_top = center - half;
+      inst_bot = center + half;
     }
-
-    const inst_bot = inst_top + tri_width;
 
     let inst_name = inst_node.name;
 
@@ -156,6 +165,10 @@ export const ini_dendro = (viz_state) => {
   viz_state.dendro.selected_clust_names = [];
 
   viz_state.dendro.group_info = {};
+
+  viz_state.dendro.highlight = { row: null, col: null };
+  viz_state.dendro._highlight_rev = 0;
+  viz_state.dendro._hover_timer = null;
 
   viz_state.dendro.default_link_level = 0.5;
 

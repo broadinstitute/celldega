@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 import pytest
+import traitlets
 
 
 try:
@@ -202,6 +203,18 @@ def test_clustergram_dot_size_encoded_defaults_true() -> None:
     mat = make_simple_matrix()
     widget = Clustergram(matrix=mat)
     assert widget.dot_size_encoded is True
+
+
+def test_clustergram_rejects_composition_viz_mode() -> None:
+    # composition is only supported via the dedicated Composition widget.
+    mat = make_simple_matrix()
+
+    with pytest.raises(traitlets.TraitError):
+        Clustergram(matrix=mat, viz_mode="composition")
+
+    widget = Clustergram(matrix=mat)
+    with pytest.raises(traitlets.TraitError):
+        widget.viz_mode = "composition"
 
 
 def test_composition_is_a_clustergram_subclass() -> None:

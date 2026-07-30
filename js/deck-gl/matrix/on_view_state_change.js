@@ -1,5 +1,7 @@
 import { OrthographicView } from 'deck.gl';
 
+import { refresh_row_label_visibility } from '../../matrix/composition_data';
+
 import { curate_pan_x, curate_pan_y } from './curate_pan';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
@@ -151,11 +153,20 @@ export const on_view_state_change = (
     zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x);
   }
 
-  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    getSize:
-      viz_state.viz.font_size.rows *
-      Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
-  });
+  if (viz_state.mat.viz_mode === 'composition') {
+    // Row label size is deliberately fixed (not rescaled with zoom) in
+    // composition mode, so zooming in on rows grows a segment relative to its
+    // label instead of both growing together — see `compute_row_label_visibility`
+    // in `composition_data.js`. Re-run the fit check every tick so labels
+    // reveal themselves as soon as there's room.
+    refresh_row_label_visibility(layers_mat, viz_state);
+  } else {
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      getSize:
+        viz_state.viz.font_size.rows *
+        Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
+    });
+  }
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     getSize:

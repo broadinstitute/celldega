@@ -4,6 +4,7 @@ import { ScatterplotLayer } from 'deck.gl';
 import { comp_geom_for } from '../../matrix/composition_data';
 
 import { comp_vs, comp_fs } from './composition_shaders';
+import { dendro_highlight_alpha_factor } from './dendro_layers';
 import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 /**
@@ -80,12 +81,20 @@ export const ini_composition_layer = (viz_state) => {
     getFillColor: (d) => {
       const base = viz_state.mat.comp_colors[d.row] || [128, 128, 128, 255];
       const hover_row = viz_state.mat.comp_hover_row;
-      if (hover_row == null || hover_row === d.row) return base;
+      const hover_factor =
+        hover_row == null || hover_row === d.row ? 1 : HOVER_DIM_ALPHA;
+      const dendro_factor = dendro_highlight_alpha_factor(
+        viz_state,
+        d.row,
+        d.col
+      );
+      const alpha_factor = hover_factor * dendro_factor;
+      if (alpha_factor === 1) return base;
       return [
         base[0],
         base[1],
         base[2],
-        Math.round((base[3] ?? 255) * HOVER_DIM_ALPHA),
+        Math.round((base[3] ?? 255) * alpha_factor),
       ];
     },
     pickable: true,
@@ -93,7 +102,11 @@ export const ini_composition_layer = (viz_state) => {
     updateTriggers: {
       getPosition: trig,
       getSize: trig,
-      getFillColor: [viz_state.mat.viz_mode, viz_state.mat.comp_hover_row],
+      getFillColor: [
+        viz_state.mat.viz_mode,
+        viz_state.mat.comp_hover_row,
+        viz_state.dendro?._highlight_rev || 0,
+      ],
     },
     transitions,
   });

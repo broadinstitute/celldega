@@ -12,7 +12,10 @@ import {
 } from '../../matrix/composition_data';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
-import { toggle_dendro_layer_visibility } from './dendro_layers';
+import {
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from './dendro_layers';
 import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 const row_label_get_position = (d, index, viz_state) => {
@@ -219,8 +222,10 @@ const custom_label_reorder = (
   }
 
   // Reordering (in particular a column reorder, which can change which
-  // column is leftmost) can change which row labels fit their segment.
+  // column is leftmost/rightmost) can change which row labels fit their
+  // segment, and where the row dendrogram's leaves sit.
   refresh_row_label_visibility(layers_mat, viz_state);
+  refresh_composition_dendro(layers_mat, viz_state);
 
   deck_mat.setProps({
     layers: get_mat_layers_list(layers_mat),

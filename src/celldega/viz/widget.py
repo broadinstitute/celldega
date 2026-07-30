@@ -1211,7 +1211,8 @@ class Clustergram(anywidget.AnyWidget):
     #                   square/dot size by the secondary `dot_mat` (e.g. fraction of
     #                   cells expressing). Falls back to "heatmap" if no dot matrix.
     #   "composition" - column-wise stacked bars (rows = populations, cols = groups).
-    #                   Reuses column attributes, reorder buttons, and click-to-sort.
+    #                   Only settable on a `Composition` instance; see
+    #                   `_validate_viz_mode` below.
     # Changing this trait live re-encodes / rebuilds the body with a transition.
     viz_mode = traitlets.Unicode("heatmap").tag(sync=True)
 
@@ -1229,6 +1230,25 @@ class Clustergram(anywidget.AnyWidget):
     # holds proportions (e.g. from `DatasetCollection.calc_population`, whose
     # default output already normalizes each group to sum to 1).
     composition_col_weights = traitlets.Dict(default_value={}).tag(sync=True)
+
+    @traitlets.validate("viz_mode")
+    def _validate_viz_mode(self, proposal):
+        """Composition mode is only supported through :class:`Composition`.
+
+        The composition-specific traits above still have to live on
+        `Clustergram` (the front end has no notion of a Python subclass, it
+        only reads whatever traits are synced), but a plain `Clustergram`
+        instance isn't a supported way to reach that body — use
+        :class:`Composition`, which handles building the right `Matrix` shape
+        and reorder semantics for it.
+        """
+        value = proposal["value"]
+        if value == "composition" and not isinstance(self, Composition):
+            raise traitlets.TraitError(
+                "viz_mode='composition' is only supported via celldega.viz.Composition, "
+                "not a plain Clustergram."
+            )
+        return value
 
     def __init__(self, **kwargs):
         """
@@ -1496,12 +1516,18 @@ class Composition(Clustergram):
 
     Example::
 
-        dc = dega.DatasetCollection(adata, dataset_col="sample_id",
-                                    obs_columns=["condition"])
-        dc.calc_population(adata, category="cell_type")
+        dset = dega.DatasetCollection(adata, dataset_col="sample_id",
+                                       obs_columns=["condition"])
+        dset.calc_population(adata, category="cell_type")
         dega.viz.Composition(
-            dc, category="cell_type", adata=adata, group_attrs=["condition"]
+            dset, category="cell_type", group_attrs=["condition"]
         )
+
+    Note: ``calc_population`` already copies ``adata.uns[f"{category}_colors"]``
+    onto the population modality it builds, so ``Composition`` picks up the
+    same colors from ``dset`` alone — passing ``adata=`` is only needed as a
+    fallback (e.g. a plain ``DataFrame`` input, or an ``AnnData``/modality that
+    has no color palette of its own).
     """
 
     def __init__(
@@ -1531,7 +1557,11 @@ class Composition(Clustergram):
             category: Population ``obs`` column name used to resolve colors from
                 ``adata.uns[f"{category}_colors"]`` when the modality has none.
             colors: Optional ``{population: hex}`` overrides.
-            adata: Optional source cell-level ``AnnData`` for its color palette.
+            adata: Optional source cell-level ``AnnData`` to fall back to for
+                its color palette. Usually unnecessary: ``calc_population``
+                already copies the category's colors onto the modality it
+                builds, so a ``DatasetCollection``/``SetCollection`` that has
+                already run it carries its own colors.
             group_attrs: Dataset/set ``obs`` columns to show as Clustergram column
                 attribute tracks (e.g. ``["condition", "timepoint"]``).
             normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
@@ -1592,19 +1622,3 @@ class Composition(Clustergram):
         kwargs.setdefault("height", height)
         kwargs.setdefault("name", name)
         super().__init__(matrix=mat, **kwargs)
-
-
-def StackedBar(*args: Any, **kwargs: Any) -> "Composition":  # noqa: N802
-    """Deprecated alias for :class:`Composition`.
-
-    .. deprecated::
-       Use :class:`Composition` (a ``Clustergram`` subclass with
-       ``viz_mode="composition"``).
-    """
-    warnings.warn(
-        "StackedBar is deprecated; use dega.viz.Composition(...) instead "
-        "(a Clustergram subclass with viz_mode='composition').",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return Composition(*args, **kwargs)

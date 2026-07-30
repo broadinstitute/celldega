@@ -5,7 +5,10 @@ import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_la
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
-import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
+import {
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from '../deck-gl/matrix/dendro_layers';
 import {
   get_mat_layers_list,
   mat_reorder_triggers,
@@ -134,8 +137,10 @@ const reorder_button_callback = (
 
     // Composition mode: row labels are positioned by their actual segment
     // (which moves on either a row or a column reorder) and filtered by fit,
-    // so refresh on any reorder. No-op outside composition mode.
+    // so refresh on any reorder. No-op outside composition mode. Same for the
+    // row dendrogram, whose leaves come from the rightmost bar's segments.
     refresh_row_label_visibility(layers_mat, viz_state);
+    refresh_composition_dendro(layers_mat, viz_state);
 
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
 

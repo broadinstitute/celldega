@@ -269,12 +269,13 @@ class SetCollection(CelldegaCollection):
     def calc_signature(
         self,
         data: AnnData | MuData,
+        *,
+        modality_name: str,
         feature_type: str | None = None,
         layer: str | None = None,
         weights: str = "membership",
         aggregate: str = "mean",
         normalization: str | None = "log1p_cpm",
-        modality_name: str | None = None,
         expr_threshold: float = 0.0,
     ) -> None:
         """Calculate and attach a set-by-feature signature (pseudobulk).
@@ -302,6 +303,11 @@ class SetCollection(CelldegaCollection):
         Args:
             data: Cell-level ``AnnData``, or a ``MuData`` paired with
                 ``feature_type``. Cells are aligned to the membership ``var`` axis.
+            modality_name: Key the resulting modality is stored under (``self.mod[modality_name]``).
+                Required, and explicit on every call, so it's always clear
+                which signature a given call produces — e.g. ``"expression"``
+                for a gene mean signature, ``"fraction"`` for the
+                fraction-expressing (dot-plot size) mode.
             feature_type: Output feature label / ``MuData`` modality selector.
                 Required for ``MuData``; optional for ``AnnData`` (default
                 ``"gene"``).
@@ -313,9 +319,6 @@ class SetCollection(CelldegaCollection):
                 cells with value ``> expr_threshold``.
             normalization: ``None``, ``"cpm"``, or ``"log1p_cpm"`` per set row.
                 Ignored (forced to ``None``) when ``aggregate="fraction"``.
-            modality_name: Key for the modality; defaults to ``"expression"`` for
-                gene ``mean``/``sum`` signatures, ``"fraction"`` for the
-                fraction-expressing mode, and to ``feature_type`` otherwise.
             expr_threshold: A cell counts as expressing when its feature value is
                 strictly greater than this (only used for ``aggregate="fraction"``).
 
@@ -381,15 +384,7 @@ class SetCollection(CelldegaCollection):
                 "row_entity": {"entity": feature_type, "attr": "name"},
                 "col_entity": {"entity": self.element_type, "attr": self.set_col},
             }
-        if modality_name is not None:
-            resolved_name = modality_name
-        elif aggregate == "fraction":
-            resolved_name = "fraction"
-        elif feature_type == "gene":
-            resolved_name = "expression"
-        else:
-            resolved_name = feature_type
-        self.add_mod(resolved_name, signature, var_entity_type=feature_type)
+        self.add_mod(modality_name, signature, var_entity_type=feature_type)
 
     def calc_population(
         self,
@@ -452,8 +447,8 @@ class SetCollection(CelldegaCollection):
             uns={"feature_type": "cell_population", "category": category, "output": output},
         )
         # Carry the category palette (e.g. adata.uns["cell_type_colors"]) so a
-        # StackedBar / Clustergram of this composition reuses the same colors as
-        # the source AnnData instead of falling back to an auto palette.
+        # Composition of this population modality reuses the same colors as the
+        # source AnnData instead of falling back to an auto palette.
         colors = _category_colors(data, category)
         if colors:
             resolved = [colors.get(str(c), "#808080") for c in population.var_names]

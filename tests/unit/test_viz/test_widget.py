@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 import pytest
+import traitlets
 
 
 try:
@@ -15,9 +16,11 @@ try:
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
+    from celldega.dataset import DatasetCollection
     from celldega.nbhd import NeighborhoodCollection
     from celldega.viz import (
         Clustergram,
+        Composition,
         Landscape,
         Yearbook,
     )
@@ -47,11 +50,14 @@ def test_export_viz_parquet_returns_bytes() -> None:
 
     expected_entity_keys = {"row_entity", "col_entity"}
 
-    assert set(pq) == expected_bytes_keys | expected_entity_keys | {"meta"}
+    # `dot_mat` is always present but empty unless a dot-size matrix was attached.
+    assert set(pq) == expected_bytes_keys | expected_entity_keys | {"meta", "dot_mat"}
 
     for key in expected_bytes_keys:
         assert isinstance(pq[key], bytes | bytearray)
         assert pq[key]  # non-empty
+    assert isinstance(pq["dot_mat"], bytes | bytearray)
+    assert pq["dot_mat"] == b""  # no dot matrix set on this fixture
     assert isinstance(pq["meta"], dict)
 
     # Entity info should be dicts with entity and attr keys
@@ -191,6 +197,91 @@ def test_clustergram_category_colors_from_matrix() -> None:
     mat.set_global_cat_colors({"dog": "#123456"})
     widget = Clustergram(matrix=mat)
     assert widget.category_colors.get("dog") == "#123456"
+
+
+def test_clustergram_dot_size_encoded_defaults_true() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat)
+    assert widget.dot_size_encoded is True
+
+
+def test_clustergram_rejects_composition_viz_mode() -> None:
+    # composition is only supported via the dedicated Composition widget.
+    mat = make_simple_matrix()
+
+    with pytest.raises(traitlets.TraitError):
+        Clustergram(matrix=mat, viz_mode="composition")
+
+    widget = Clustergram(matrix=mat)
+    with pytest.raises(traitlets.TraitError):
+        widget.viz_mode = "composition"
+
+
+def test_clustergram_rejects_size_viz_mode() -> None:
+    # standalone "size" mode isn't supported -- use "dotplot" instead.
+    mat = make_simple_matrix()
+
+    with pytest.raises(traitlets.TraitError):
+        Clustergram(matrix=mat, viz_mode="size")
+
+    widget = Clustergram(matrix=mat)
+    with pytest.raises(traitlets.TraitError):
+        widget.viz_mode = "size"
+
+
+def test_composition_is_a_clustergram_subclass() -> None:
+    df = pd.DataFrame(
+        {"T": [10, 20], "B": [5, 15]},
+        index=["s1", "s2"],
+    )
+    comp = Composition(df, category="cell_type")
+
+    assert isinstance(comp, Clustergram)
+    assert type(comp).__name__ == "Composition"
+    assert comp.viz_mode == "composition"
+    assert comp.composition_normalized is True
+
+
+def test_composition_normalized_false_for_counts_output() -> None:
+    df = pd.DataFrame(
+        {"T": [10, 20], "B": [5, 15]},
+        index=["s1", "s2"],
+    )
+    comp = Composition(df, category="cell_type", normalized=False)
+    assert comp.composition_normalized is False
+
+
+def test_composition_col_weights_default_empty_for_dataframe_input() -> None:
+    # A bare DataFrame carries no per-group cell-count metadata.
+    df = pd.DataFrame(
+        {"T": [10, 20], "B": [5, 15]},
+        index=["s1", "s2"],
+    )
+    comp = Composition(df, category="cell_type")
+    assert comp.composition_col_weights == {}
+
+
+def test_composition_col_weights_from_dataset_collection_n_cells() -> None:
+    obs = pd.DataFrame(
+        {
+            "sample_id": ["s1"] * 10 + ["s2"] * 40,
+            "cell_type": (["T"] * 6 + ["B"] * 4) + (["T"] * 20 + ["B"] * 20),
+        },
+        index=[f"c{i}" for i in range(50)],
+    )
+    adata = AnnData(X=np.zeros((50, 3)), obs=obs)
+
+    dc = DatasetCollection(adata, dataset_col="sample_id")
+    dc.calc_population(adata, category="cell_type")
+
+    comp = Composition(dc, category="cell_type", adata=adata)
+
+    assert comp.composition_col_weights == {"s1": 10.0, "s2": 40.0}
+    # Explicit override wins over the auto-derived n_cells.
+    comp_override = Composition(
+        dc, category="cell_type", adata=adata, col_weights={"s1": 1.0, "s2": 1.0}
+    )
+    assert comp_override.composition_col_weights == {"s1": 1.0, "s2": 1.0}
 
 
 def test_landscape_nbhd_geojson_and_metadata() -> None:

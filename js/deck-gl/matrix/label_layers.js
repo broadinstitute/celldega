@@ -6,12 +6,35 @@ import {
   sync_selected_rows,
   sync_selected_cols,
 } from '../../global_variables/selected_genes';
+import {
+  composition_row_label_position,
+  refresh_row_label_visibility,
+} from '../../matrix/composition_data';
+import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
-import { toggle_dendro_layer_visibility } from './dendro_layers';
-import { get_mat_layers_list } from './matrix_layers';
+import {
+  apply_composition_hover_col,
+  apply_composition_hover_row,
+  clear_composition_hover,
+  HOVER_HIGHLIGHT_DELAY_MS,
+} from './composition_layer';
+import {
+  clear_dendro_hover,
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from './dendro_layers';
+import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = index.index;
+
+  // Composition mode: position at the row's actual stacked-bar segment
+  // (next to the leftmost bar) so labels track reordering/normalization
+  // exactly, rather than a uniform heatmap-style slot.
+  if (viz_state.mat.viz_mode === 'composition') {
+    return composition_row_label_position(viz_state, inst_index);
+  }
+
   const inst_order = viz_state.order.current.row;
   const row_offset = 50; // 25
 
@@ -56,16 +79,25 @@ export const ini_row_label_layer = (viz_state) => {
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
     getSize: viz_state.viz.font_size.rows,
-    getColor: [0, 0, 0],
+    // Per-instance so composition mode can hide labels that don't fit their
+    // segment (fully transparent, rather than removed from `data`, so
+    // reorder/index-keyed picking stays stable).
+    getColor: (d) => {
+      if (viz_state.mat.viz_mode !== 'composition') return [0, 0, 0, 255];
+      const visible = viz_state.labels.row_visibility;
+      return !visible || visible[d.index] !== false
+        ? [0, 0, 0, 255]
+        : [0, 0, 0, 0];
+    },
     getAngle: 0,
     getTextAnchor: 'end',
     getAlignmentBaseline: 'center',
     fontFamily: 'Arial',
     sizeUnits: 'pixels',
     sizeScale: 2,
-    // updateTriggers: {
-    //   getSize: viz_state.viz.ini_font_size,
-    // },
+    updateTriggers: {
+      getColor: viz_state.labels._row_vis_rev || 0,
+    },
     pickable: true,
     transitions,
   });
@@ -134,10 +166,7 @@ const custom_label_reorder = (
   const other_axis = axis === 'col' ? 'row' : 'col';
 
   // deactivate reordering buttons when setting a custom order
-  d3.select(viz_state.el)
-    .selectAll(`.button-${other_axis}`)
-    .classed('active', false)
-    .style('border-color', viz_state.buttons.gray);
+  deselect_reorder_buttons(viz_state, other_axis);
 
   if (axis === 'col') {
     tmp_arr = viz_state.mat.net_mat.map((inst_row) => inst_row[index]);
@@ -164,13 +193,7 @@ const custom_label_reorder = (
   viz_state.order.current[other_axis] = 'custom';
 
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    updateTriggers: {
-      getPosition: [
-        viz_state.order.current.row,
-        viz_state.order.current.col,
-        name,
-      ],
-    },
+    updateTriggers: mat_reorder_triggers(viz_state, [name]),
   });
 
   if (other_axis === 'col') {
@@ -205,12 +228,21 @@ const custom_label_reorder = (
     toggle_dendro_layer_visibility(layers_mat, viz_state, 'row');
   }
 
+  // Reordering (in particular a column reorder, which can change which
+  // column is leftmost/rightmost) can change which row labels fit their
+  // segment, and where the row dendrogram's leaves sit.
+  refresh_row_label_visibility(layers_mat, viz_state);
+  refresh_composition_dendro(layers_mat, viz_state);
+
   deck_mat.setProps({
     layers: get_mat_layers_list(layers_mat),
   });
 };
 
 const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+  const visibility = viz_state.labels.row_visibility;
+  if (visibility && visibility[event.object.index] === false) return;
+
   viz_state.labels.clicks.row += 1;
 
   if (viz_state.labels.clicks.row === 1) {
@@ -334,5 +366,93 @@ export const set_col_label_layer_onclick = (
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     onClick: (event) =>
       col_label_layer_onclick(event, deck_mat, layers_mat, viz_state),
+  });
+};
+
+/**
+ * Composition-only: hovering a row label highlights that population across
+ * every bar, after the same short dwell delay as hovering a bar segment
+ * directly (`set_composition_layer_onhover`) — the two are equivalent ways
+ * to reach the same cross-bar highlight, so they share its delay/apply/clear
+ * functions for a consistent feel. No-op outside composition mode (plain
+ * Clustergram row labels aren't part of this interaction).
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const set_row_label_layer_onhover = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  const on_hover = (info) => {
+    // A label is now actively hovered, so the dendrogram can't be — clear its
+    // highlight proactively (in any viz_mode) rather than relying solely on
+    // the dendro layer's own onHover(null) to fire for this transition.
+    if (info?.object) clear_dendro_hover(deck_mat, layers_mat, viz_state);
+
+    if (viz_state.mat.viz_mode !== 'composition') return;
+
+    const row = info?.object ? info.object.index : null;
+
+    if (row === null || row === viz_state.mat.comp_hover_row) {
+      if (row === null)
+        clear_composition_hover(deck_mat, layers_mat, viz_state);
+      return;
+    }
+
+    clearTimeout(viz_state.mat._comp_hover_timer);
+    viz_state.mat._comp_hover_timer = setTimeout(
+      () => apply_composition_hover_row(deck_mat, layers_mat, viz_state, row),
+      HOVER_HIGHLIGHT_DELAY_MS
+    );
+  };
+
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    onHover: on_hover,
+  });
+};
+
+/**
+ * Composition-only: hovering a column (dataset) label highlights that bar
+ * (dims every other bar) after the same short dwell delay used everywhere
+ * else in composition's hover-highlight family. No-op outside composition
+ * mode.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const set_col_label_layer_onhover = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  const on_hover = (info) => {
+    // A label is now actively hovered, so the dendrogram can't be — clear its
+    // highlight proactively (in any viz_mode) rather than relying solely on
+    // the dendro layer's own onHover(null) to fire for this transition.
+    if (info?.object) clear_dendro_hover(deck_mat, layers_mat, viz_state);
+
+    if (viz_state.mat.viz_mode !== 'composition') return;
+
+    const col = info?.object ? info.object.index : null;
+
+    if (col === null || col === viz_state.mat.comp_hover_col) {
+      if (col === null)
+        clear_composition_hover(deck_mat, layers_mat, viz_state);
+      return;
+    }
+
+    clearTimeout(viz_state.mat._comp_hover_col_timer);
+    viz_state.mat._comp_hover_col_timer = setTimeout(
+      () => apply_composition_hover_col(deck_mat, layers_mat, viz_state, col),
+      HOVER_HIGHLIGHT_DELAY_MS
+    );
+  };
+
+  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    onHover: on_hover,
   });
 };

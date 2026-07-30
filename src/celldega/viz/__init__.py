@@ -9,7 +9,7 @@ from ipywidgets import HBox, Layout, VBox, jslink
 from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
-from .widget import Clustergram, Enrich, Landscape, Yearbook
+from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
 def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
@@ -358,6 +358,7 @@ def landscape_yearbook_clustergram(
 __all__ = [
     "CellCloud",
     "Clustergram",
+    "Composition",
     "Enrich",
     "Landmark",
     "Landscape",

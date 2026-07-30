@@ -189,6 +189,12 @@ class Matrix:
         # Visualization parameters
         global_colors: dict[str, str] | pd.DataFrame | None = None,
         name: str | None = None,
+        *,
+        # Celldega collection convenience path (alternative to `data`)
+        collection: Any = None,
+        color_by: str | None = None,
+        size_by: str | None = None,
+        dot_plot: str | None = None,
     ):
         """
         Create Matrix with automatic processing unless disabled.
@@ -215,6 +221,17 @@ class Matrix:
             disable_processing: Skip automatic processing (default: False)
             global_colors: Global category color mapping (dict or DataFrame with 'color' column)
             name: Name for the matrix (default: None)
+            collection: A Celldega collection (``SetCollection``/``DatasetCollection``/etc.)
+                to build ``data`` from, in place of passing ``data`` directly —
+                equivalent to ``data=collection.mod[color_by]``. Requires `color_by`.
+            color_by: Modality key on `collection` driving color/opacity (the main
+                matrix).
+            size_by: Optional modality key on `collection` driving the secondary
+                *size* channel (dot-plot size, e.g. fraction of cells expressing —
+                but any per-cell magnitude works, e.g. significance) — equivalent to
+                calling ``.set_dot_matrix(collection.mod[size_by])`` after
+                construction. Omit for a matrix with no size channel.
+            dot_plot: Alias for `size_by` (pass either, not both).
 
         Examples:
             # Automatic processing (recommended)
@@ -226,6 +243,11 @@ class Matrix:
 
             # No processing
             mat = Matrix(adata, disable_processing=True)
+
+            # Dot plot directly from a SetCollection, no manual DataFrame wrangling
+            setc.calc_signature(adata, modality_name="expression")
+            setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
+            mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
 
             # Raw matrix without data
             mat = Matrix()  # Empty matrix for manual loading
@@ -243,6 +265,25 @@ class Matrix:
                 row_entity={"entity": "cell", "attr": "leiden"},
                 col_entity={"entity": "nbhd", "attr": "name"})
         """
+        if size_by is not None and dot_plot is not None:
+            raise ValueError("pass either `size_by` or `dot_plot` (alias), not both")
+        size_by = size_by if size_by is not None else dot_plot
+
+        if collection is not None:
+            if data is not None:
+                raise ValueError("pass either `data` or `collection`, not both")
+            if color_by is None:
+                raise ValueError(
+                    "`color_by` is required when constructing Matrix from `collection`"
+                )
+            if color_by not in collection.mod:
+                raise KeyError(
+                    f"color_by '{color_by}' not found; available modalities: {list(collection.mod)}"
+                )
+            data = collection.mod[color_by]
+        elif color_by is not None or size_by is not None:
+            raise ValueError("`color_by`/`size_by` require `collection`")
+
         axis_entities_defaulted = _is_default_entity_pair(row_entity, col_entity)
         if isinstance(data, AnnData) and axis_entities_defaulted:
             inferred_entities = _infer_axis_entities_from_adata(data)
@@ -253,6 +294,12 @@ class Matrix:
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()
         self.meta_row: pd.DataFrame = pd.DataFrame()
+
+        # Optional secondary matrix (aligned to the main matrix by row/col name)
+        # used as a per-cell *size* channel for dot-plot style Clustergrams —
+        # e.g. the fraction of cells in a cluster expressing each gene. See
+        # :meth:`set_dot_matrix`.
+        self.dot_mat: pd.DataFrame | None = None
 
         self.col_attr = col_attr or list(self.meta_col.columns)
         self.row_attr = row_attr or list(self.meta_row.columns)
@@ -320,6 +367,16 @@ class Matrix:
 
         # Step 3: Always assign colors (auto-generated if not provided)
         self.set_global_cat_colors(global_colors)
+
+        # Step 4: Optional size channel from the same collection
+        if size_by is not None:
+            if collection is None:
+                raise ValueError("`size_by`/`dot_plot` require `collection`")
+            if size_by not in collection.mod:
+                raise KeyError(
+                    f"size_by '{size_by}' not found; available modalities: {list(collection.mod)}"
+                )
+            self.set_dot_matrix(collection.mod[size_by])
 
     @property
     def dat(self) -> dict[str, Any]:
@@ -929,6 +986,61 @@ class Matrix:
         )
         return self.export_viz_json_string()
 
+    def set_dot_matrix(self, dot: pd.DataFrame | np.ndarray | AnnData | Matrix) -> Matrix:
+        """Attach a secondary matrix that drives dot-plot *size* encoding.
+
+        The values are interpreted as a per-cell size channel (typically the
+        fraction of cells in a cluster expressing a gene, in ``[0, 1]``) that is
+        rendered as square/dot size in a dot-plot :class:`~celldega.viz.Clustergram`,
+        independently of the main matrix which continues to drive color/opacity
+        and the clustering order.
+
+        The dot matrix is aligned to the main matrix **by row and column name** at
+        export time, so it does not need to share the clustered ordering — only
+        the same labels. Missing entries become ``0`` (no dot).
+
+        Args:
+            dot: A ``DataFrame`` indexed by row names with columns of column
+                names, a 2D array matching the main matrix shape/order, an
+                ``AnnData`` (``X`` with ``obs_names`` rows / ``var_names`` cols),
+                or another ``Matrix``.
+
+        Returns:
+            ``self`` (to allow chaining, e.g. ``Matrix(df).set_dot_matrix(frac)``).
+        """
+        if isinstance(dot, Matrix):
+            dot = pd.DataFrame(
+                dot.dat["mat"],
+                index=dot.dat["nodes"][Axis.ROW.value],
+                columns=dot.dat["nodes"][Axis.COL.value],
+            )
+        elif isinstance(dot, AnnData):
+            # Transposed to match `load_adata`'s convention for the main matrix
+            # (features/var as rows, cells-or-sets/obs as columns) — without
+            # this, `X`'s natural obs x var orientation is exactly backwards
+            # from the main matrix's row/col names and `reindex` silently
+            # aligns nothing (see `export_viz_parquet`).
+            values = dot.X.toarray() if hasattr(dot.X, "toarray") else np.asarray(dot.X)
+            dot = pd.DataFrame(
+                values.T,
+                index=dot.var_names.astype(str),
+                columns=dot.obs_names.astype(str),
+            )
+        elif not isinstance(dot, pd.DataFrame):
+            arr = np.asarray(dot)
+            row_names = self.dat["nodes"][Axis.ROW.value]
+            col_names = self.dat["nodes"][Axis.COL.value]
+            if arr.shape != (len(row_names), len(col_names)):
+                raise ValueError(
+                    "dot array shape "
+                    f"{arr.shape} does not match matrix shape "
+                    f"{(len(row_names), len(col_names))}; pass a DataFrame to align by name"
+                )
+            dot = pd.DataFrame(arr, index=row_names, columns=col_names)
+
+        self.dot_mat = dot
+        return self
+
     def export_viz_parquet(self) -> dict[str, bytes | str]:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
@@ -961,11 +1073,25 @@ class Matrix:
 
         viz = self.viz
 
+        row_names = self.dat["nodes"][Axis.ROW.value]
+        col_names = self.dat["nodes"][Axis.COL.value]
+
         mat_df = pd.DataFrame(
             self.dat["mat"],
-            index=self.dat["nodes"][Axis.ROW.value],
-            columns=self.dat["nodes"][Axis.COL.value],
+            index=row_names,
+            columns=col_names,
         ).reset_index(names="row")
+
+        # Optional dot-size matrix, aligned to the main matrix order by name so it
+        # lines up cell-for-cell in the front-end (fraction expressing, etc.).
+        dot_bytes = b""
+        if self.dot_mat is not None:
+            dot_aligned = (
+                self.dot_mat.reindex(index=row_names, columns=col_names)
+                .astype("float32")
+                .fillna(0.0)
+            )
+            dot_bytes = _to_bytes(dot_aligned.reset_index(names="row"))
 
         row_nodes_df = pd.DataFrame(viz.get("row_nodes", []))
         col_nodes_df = pd.DataFrame(viz.get("col_nodes", []))
@@ -980,6 +1106,7 @@ class Matrix:
 
         return {
             "mat": _to_bytes(mat_df),
+            "dot_mat": dot_bytes,
             "row_nodes": _to_bytes(row_nodes_df),
             "col_nodes": _to_bytes(col_nodes_df),
             "row_linkage": _to_bytes(row_link_df),
@@ -1044,6 +1171,8 @@ class Matrix:
 
         # Write parquet files
         (cgm_dir / "mat.parquet").write_bytes(pq_data["mat"])
+        if pq_data.get("dot_mat"):
+            (cgm_dir / "dot_mat.parquet").write_bytes(pq_data["dot_mat"])
         (cgm_dir / "row_nodes.parquet").write_bytes(pq_data["row_nodes"])
         (cgm_dir / "col_nodes.parquet").write_bytes(pq_data["col_nodes"])
         (cgm_dir / "row_linkage.parquet").write_bytes(pq_data["row_linkage"])

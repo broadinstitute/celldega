@@ -4,22 +4,153 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.19.0a3] - 2026-07-22
+## [0.21.0] - 2026-07-30
 
-Alpha pre-release: interactive landmarking and 3D visualization of aligned
-data, building on the serial-slice alignment module from `0.19.0a1`. Published
-to make the `Landmark` widget and point-cloud alignment views easier to test.
+Adds dedicated 3D-orbit widgets — `CellCloud` and `NeighborhoodCloud` — and a
+new `neighborhood-cloud` DegaFiles writer, so 3D point-cloud and
+neighborhood-cloud visualizations move off the `Landscape` widget onto their
+own entry points. Direct new usage to `CellCloud` for point-cloud
+visualizations of 3D data, and to `NeighborhoodCloud` for visualizations of
+very large 3D datasets (precomputed, per-slice alpha-shape neighborhoods that
+stay cheap to load regardless of cell count).
 
 ### Added
 
-- **`celldega.viz.Landmark`** — an interactive widget for manually marking
-  corresponding landmark points across slices. Two side-by-side panels (any
-  slice swappable into either via dropdowns) with MARK / MODIFY / SAVE / DEL,
-  per-landmark rename + color, and per-slice rotation. Centroids are colored by
-  an optional `cluster_key` and streamed over the widget comm channel (no
-  bucket reads). Emits `.landmarks` in the exact shape `calc_landmarks`
-  produces, so manual and automatic landmarks concatenate; `landmarks=`
-  reloads a prior table for review/extension.
+- **`celldega.viz.CellCloud`** — a dedicated widget for 3D point-cloud
+  visualization, replacing `Landscape(technology="point-cloud")`. Reads a
+  `cell_cloud.json` manifest (falling back to `landscape_parameters.json` for
+  DegaFiles written before the rename, so existing datasets keep rendering).
+- **`celldega.viz.NeighborhoodCloud`** — a dedicated widget for the
+  `neighborhood-cloud` technology, replacing
+  `Landscape(technology="neighborhood-cloud")`. Shows a bounded, precomputed
+  alpha-shape neighborhood per cluster/slice at low zoom — cheap to load in
+  full regardless of dataset size — and streams in real cells only when
+  zoomed into a slice. Reads a `neighborhood_cloud.json` manifest with the
+  same fallback behavior as `CellCloud`.
+- **`_SpatialWidget`** — an internal base class shared by `Landscape`,
+  `CellCloud`, and `NeighborhoodCloud`, holding the trait surface and
+  AnnData→parquet plumbing common to every celldega spatial widget.
+- **`celldega.align.write_nbhd_cloud`** — a one-call writer that turns an
+  aligned 3D `AnnData` into a `neighborhood-cloud` DegaFiles directory,
+  mirroring `write_alignment_point_cloud`'s ergonomics: computes per-slice
+  alpha-shape neighborhoods, writes cluster shapes, and optionally computes
+  and writes gene-nbhd expression (`compute_gene_nbhds=True`) for coloring
+  neighborhoods by gene. Reports progress by default (`progress_every`).
+- **`celldega.nbhd.alpha_shape_cell_clusters_by_slice`** gained a
+  `progress_every` parameter (off by default) for reporting progress on
+  large, many-slice datasets.
+
+### Changed
+
+- **JS `is_point_cloud_technology` renamed to `is_orbit_technology`** — the
+  predicate now covers both the `point-cloud` and `neighborhood-cloud`
+  technology families, which share the same 3D-orbit camera behavior.
+
+## [0.20.0] - 2026-07-29
+
+Adds a new `Clustergram` body encoding — `dotplot` — and a new dedicated
+`Composition` widget for comparing category proportions/counts across groups
+as stacked bars, plus a control-panel restyle shared by both widgets and a
+round of dendrogram/hover-interaction polish that touches both.
+
+### Added
+
+- **`Clustergram.viz_mode`** — `"heatmap"` (opacity ∝ value, default) or
+  `"dotplot"` (opacity from the main matrix, size from a secondary matrix — the
+  classic "percent expressing" dot plot). Animates live.
+- **`Matrix.set_dot_matrix`** / **`SetCollection.calc_signature(aggregate="fraction")`**
+  — attach and compute the dot-plot secondary size channel. `Matrix(collection=...,
+  color_by=..., size_by=...)` builds both directly from a collection, no manual
+  DataFrame wrangling needed (`dot_plot=` is accepted as an alias for `size_by=`,
+  since `size_by` isn't limited to "fraction expressing" — any per-cell magnitude
+  works, e.g. a significance score).
+- **`dega.viz.Composition`** — a `Clustergram` subclass for count/proportion
+  comparison across groups: each group renders as a bottom-anchored stacked bar,
+  each category a colored segment, with a global (cross-bar-consistent) stacking
+  order, double-click-to-reorder, cross-bar hover highlight, and a `PROP`/`COUNTS`
+  toggle. `composition_col_weights` carries `DatasetCollection.calc_population`'s
+  true per-group cell counts so `COUNTS` mode reflects real dataset-size
+  differences even though the displayed matrix is proportions. Vertical-only zoom
+  keeps every group column visible while zooming into small populations.
+- **`SetCollection.calc_population`** now carries the source `AnnData`'s category
+  color palette (e.g. `uns["cell_type_colors"]`) onto the modality — `Composition`
+  picks this up automatically from a `DatasetCollection`/`SetCollection` alone, no
+  separate `adata=` needed in the common case.
+- **Row dendrogram in `Composition`** — dynamically positioned from the rightmost
+  bar's actual (non-uniform) segment geometry, so clusters of co-regulated
+  populations across datasets are visible the same way a regular `Clustergram`
+  row dendrogram would show them. Recomputes on reorder/normalize/weight changes.
+  Both dendrograms' trapezoids animate their shape on resize.
+- **Dendrogram hover/click highlight** — hovering (after a short dwell delay,
+  matching every other hover-highlight in the widget) or clicking a dendrogram
+  trapezoid dims every row/column *not* covered by it, in both `Clustergram` and
+  `Composition`.
+- **Composition row/column label hover** — hovering a row or column label
+  cross-highlights it the same way hovering its bar segment does (`Composition`
+  only).
+- Two new example notebooks: `Clustergram_Visual_Encodings.ipynb` and
+  `Composition_Population_Proportions.ipynb`.
+
+### Changed
+
+- Clustergram control-panel buttons restyled across the board: capitalized text,
+  no border/background — active/inactive state shown by text color alone
+  (blue/gray); axis-name labels are fixed-width, colon-suffixed, and non-clickable.
+- `viz_mode="composition"` is now only settable on a `Composition` instance
+  (`TraitError` on a plain `Clustergram`) — the composition body was always
+  designed to be reached through the dedicated widget, which handles the matrix
+  shape and reorder semantics it needs.
+- **`SetCollection.calc_signature`** now requires an explicit `modality_name`
+  (previously defaulted to `"expression"`/`"fraction"`/the feature type), so it's
+  always clear which modality a given call produces.
+- Composition-mode row labels are hidden when their segment is too short to fit
+  one line of text, and reveal themselves as you zoom in on rows (previously
+  always shown, however small, which cut off badly for small populations or in
+  `COUNTS` mode).
+- Column dendrogram trapezoids in `Composition` account for the gap between
+  bars (previously overshot each bar slightly).
+
+### Fixed
+
+- `Matrix.set_dot_matrix` wasn't transposing `AnnData` input, silently
+  misaligning the dot-plot size channel to zero for that input type.
+- A hover-highlight (composition bars, dendrogram, or categorical attribute
+  tiles) could get stuck showing its last state after the mouse left the
+  widget, if a pending delayed-highlight timer fired after the fact. Also
+  traced to, and fixed: the widget container's CSS width didn't account for
+  the deck.gl canvas's own rendering buffer, so content at the far right edge
+  (the row dendrogram) could fall outside the box the browser tracked mouse
+  events against.
+
+### Removed
+
+- `Clustergram.viz_mode="size"` (square size ∝ value, full opacity) — never
+  released; `"dotplot"` covers the same "size encodes a value" idea via a
+  proper secondary matrix. `StackedBar` (deprecated alias for `Composition`) —
+  also never released.
+
+[0.20.0]: https://github.com/broadinstitute/celldega/compare/0.19.0...0.20.0
+
+## [0.19.0] - 2026-07-29
+
+Introduces `celldega.align`, a new module for registering serial 3D tissue
+slices into a shared coordinate frame, and `celldega.viz.Landmark`, an
+interactive widget for manually marking and reviewing corresponding landmark
+points across slices. Also fixes an `AnnData`-mutation bug and a cell-metadata
+keying bug in `Landscape`/`Yearbook` that could silently break cluster
+coloring for any `cluster_attr` (not just `leiden`).
+
+### Added
+
+- **`celldega.align`** — registration of serial 3D tissue slices into a
+  shared coordinate frame. `calc_landmarks` derives per-slice landmarks from
+  shared cluster labels (or accepts manually-placed ones);
+  `calc_alignment_transform` chain-walk fits a rigid Procrustes or non-rigid
+  thin-plate-spline transform outward from a reference slice, returning a
+  reusable, persistable `SerialAlignmentTransform` (`.save()`/`.load()`,
+  `.apply_to_points()`); `align_serial_slices` applies a fitted transform to a
+  set of `AnnData`, aligning `obsm["spatial"]` and assigning each slice a `Z`
+  coordinate (`z_space` or explicit `z_coord`).
 - **Anti-overfit TPS controls** — `area_regularization` and
   `shape_regularization` (both `[0, 1]`) on `fit_transform_tps` /
   `calc_alignment_transform`, applied as a post-fit SVD correction that pulls
@@ -38,51 +169,50 @@ to make the `Landmark` widget and point-cloud alignment views easier to test.
   technology that loads a named alignment's positions
   (`cell_metadata_<name>.parquet`) while clusters/genes keep loading from
   their normal paths, so alignments can be swapped without a dropdown.
+- **`celldega.viz.Landmark`** — an interactive widget for manually marking
+  corresponding landmark points across slices. Two side-by-side panels (any
+  slice swappable into either via dropdowns) with MARK / MODIFY / SAVE / DEL,
+  per-landmark rename + color, and per-slice rotation. Centroids are colored by
+  an optional `cluster_key` and streamed over the widget comm channel (no
+  bucket reads). Emits `.landmarks` in the exact shape `calc_landmarks`
+  produces, so manual and automatic landmarks concatenate; `landmarks=`
+  reloads a prior table for review/extension. Includes keyboard shortcuts for
+  MARK/SAVE/CANCEL/DELETE (scoped to the widget so Jupyter's command-mode
+  shortcuts like `m`/`a`/`b`/`d d` don't fire over it, with focus following the
+  mouse/click), and Z-pagination (prev/next slice buttons with a slice-id
+  indicator) that preserves the current zoom/pan across a slice swap.
 
 ### Fixed
 
+- **`AnnData` mutation in `Landscape`/`Yearbook`** — both widgets called
+  `adata.obs.set_index(..., inplace=True)` and, when a cluster's colors were
+  missing, ran `sc.pl.umap(adata, ...)` just to harvest the `<attr>_colors` it
+  writes back — silently mutating the caller's `AnnData` in both its index and
+  `uns`. Cell metadata is now derived from a non-mutated view of `obs`, and
+  missing colors fall back to a deterministic HSV palette instead of a scanpy
+  plotting call.
+- **Cluster attribute lockin / mismatch on cell metadata keying** — cell
+  metadata was keyed by an `adata.obs["cell_id"]` column (when present) rather
+  than `adata.obs_names`. When that column's values didn't exactly match
+  `obs_names` (e.g. a reordered `"cell__slice"` form), every cell silently
+  mismatched the DegaFiles `cell_metadata` `name` column, so cluster coloring
+  (`leiden` or any other `cluster_attr`) resolved to "N.A." and point-cloud
+  cells were culled. Cell metadata is now always keyed by `obs_names`, the
+  canonical AnnData cell identifier.
 - **Gene panel shown for gene-less datasets** — the `Landscape` gene bar-graph
   and gene search are now hidden when a dataset has no gene expression (e.g. a
   point-cloud DegaFiles written without `cbg/`), instead of rendering an empty
   panel.
-
-## [0.19.0a2] - 2026-07-17
-
-### Fixed
-
 - **Unsigned `landscape_parameters.json` fetch with private-bucket creds** —
   `set_landscape_parameters` accepted an `aws` client (for SigV4-signed S3
   requests) but never actually used it, always issuing a plain unsigned
   `fetch`. Against a private bucket this 403s, and the XML error body then
   fails `response.json()` with a confusing `SyntaxError: Unexpected token
-  '<'`. A redundant signed "warm-up" fetch to the same URL earlier in init
-  likely masked this via browser HTTP caching in some environments. Now
-  `set_landscape_parameters` uses `aws.fetch(...)` when creds are provided
-  (matching the pattern already used for parquet/arrow requests) and throws
-  a clear error on a non-2xx response instead of trying to parse it as JSON.
-  Also fixes `landscape_h_e.js`, which never passed `viz_state.aws` through
-  to this call at all.
-
-## [0.19.0a1] - 2026-07-17
-
-Alpha pre-release: a new serial-slice alignment module, plus small front-end
-fixes needed to render stacked 2D alpha shapes in the 3D point-cloud
-`Landscape` view.
-
-### Added
-
-- **`celldega.align`** — registration of serial 3D tissue slices into a
-  shared coordinate frame. `calc_landmarks` derives per-slice landmarks from
-  shared cluster labels (or accepts manually-placed ones);
-  `calc_alignment_transform` chain-walk fits a rigid Procrustes or non-rigid
-  thin-plate-spline transform outward from a reference slice, returning a
-  reusable, persistable `SerialAlignmentTransform`
-  (`.save()`/`.load()`, `.apply_to_points()`); `align_serial_slices` applies
-  a fitted transform to a set of `AnnData`, aligning `obsm["spatial"]` and
-  assigning each slice a `Z` coordinate (`z_space` or explicit `z_coord`).
-
-### Fixed
-
+  '<'`. Now `set_landscape_parameters` uses `aws.fetch(...)` when creds are
+  provided (matching the pattern already used for parquet/arrow requests) and
+  throws a clear error on a non-2xx response instead of trying to parse it as
+  JSON. Also fixes `landscape_h_e.js`, which never passed `viz_state.aws`
+  through to this call at all.
 - **Widget crash on gene-less datasets** — `set_meta_gene`/
   `set_color_dict_gene` called `.getChild(...)` directly on the result of a
   failed `meta_gene.parquet` fetch (e.g. point-cloud datasets with no
@@ -91,6 +221,17 @@ fixes needed to render stacked 2D alpha shapes in the 3D point-cloud
   null-safe `table_accessors` helpers already used for cluster metadata, so
   a missing `meta_gene.parquet` degrades to an empty gene list instead of
   crashing.
+- **`Landmark` modify-mode drag on the left panel** — disabling camera-pan on
+  both panels while modifying a landmark stopped deck.gl from dispatching drag
+  events to the left view at all, so a marker on that side couldn't be
+  refined. Pan is now correctly disabled on both views without blocking drags.
+- **TPS regularization validation** — `fit_transform_tps` accepted any
+  `area_regularization`/`shape_regularization` `>= 0`, even though only
+  `[0, 1]` is meaningful; validation now enforces that range. `degree` was
+  also missing from the persisted `uns["align_serial_slices"]` metadata, so a
+  reloaded transform lost its fitted TPS degree.
+
+[0.19.0]: https://github.com/broadinstitute/celldega/compare/0.18.1...0.19.0
 
 ## [0.18.1] - 2026-07-15
 

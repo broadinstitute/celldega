@@ -13,7 +13,9 @@ import { build_nbhd_cloud_gene_bar_data } from '../deck-gl/layers/nbhd_cloud_sha
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
+import { set_composition_normalized } from '../deck-gl/matrix/composition_layer';
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
+import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
@@ -52,6 +54,7 @@ import {
   make_button,
   make_edit_button,
   make_reorder_button,
+  make_text_toggle_group,
 } from './text_buttons';
 
 export const make_ui_container = () => {
@@ -130,11 +133,38 @@ const get_axis_display_name = (viz_state, axis) => {
       nbhd: 'Nbhd',
       cluster: 'Clust',
       hextile: 'Hex',
+      dataset: 'DSET',
+      cell_population: 'POP',
     };
     return abbrev[entity] || entity.substring(0, 4).toUpperCase();
   }
 
   return default_name;
+};
+
+/**
+ * Show/hide viz_mode-dependent control-panel chrome: the "TILE: PROP|UNIT"
+ * and "PROP|COUNTS" toggles, and the row Dendro slider (never meaningful in
+ * composition mode, since rows aren't equal height once stacked). Call after
+ * any change to `viz_state.mat.viz_mode`.
+ *
+ * @param {object} viz_state - Visualization state.
+ */
+export const update_mode_button_visibility = (viz_state) => {
+  const buttons = viz_state.mode_buttons;
+  if (!buttons) return;
+
+  const is_dotplot = viz_state.mat.viz_mode === 'dotplot';
+  const is_composition = viz_state.mat.viz_mode === 'composition';
+
+  buttons.dot.container.style.display = is_dotplot ? 'inline-flex' : 'none';
+  buttons.normalized.container.style.display = is_composition
+    ? 'inline-flex'
+    : 'none';
+
+  if (viz_state.dendro?.sliders?.row) {
+    viz_state.dendro.sliders.row.style.display = is_composition ? 'none' : '';
+  }
 };
 
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
@@ -143,39 +173,36 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   const slider_container = flex_container('slider_container', 'column');
 
-  // Button widths for reorder controls (compact sizing)
+  // Button width for reorder controls (compact sizing).
   const button_width = 34;
-  const label_width = 28;
+  // Fixed label width (both axis rows use it) so reorder buttons start at
+  // the same x position regardless of entity name length.
+  const axis_label_width = 44;
 
   const axes = ['col', 'row'];
 
   const inst_orders = ['clust', 'sum', 'var', 'ini'];
 
+  // Match the vertical rhythm of the Dendro slider pair (10px between the
+  // two sliders) between the two reorder-button rows.
+  const axis_row_margin_top = { col: '0px', row: '10px' };
+
   axes.forEach((axis) => {
     const inst_container = flex_container(axis, 'row');
+    inst_container.style.alignItems = 'center';
+    inst_container.style.marginTop = axis_row_margin_top[axis];
 
-    // Use entity name if available
+    // Use entity name if available. Non-clickable: black, plain text, no pill.
     const axis_label = get_axis_display_name(viz_state, axis);
 
     d3.select(inst_container)
       .append('div')
-      .text(axis_label)
-      .style('width', `${label_width}px`)
-      .style('height', '16px')
-      .style('display', 'inline-flex')
-      .style('align-items', 'center')
-      .style('justify-content', 'center')
-      .style('text-align', 'center')
-      .style('cursor', 'pointer')
+      .text(`${axis_label}:`)
+      .style('flex', `0 0 ${axis_label_width}px`)
+      .style('white-space', 'nowrap')
       .style('font-size', '9px')
       .style('font-weight', 'bold')
-      .style('color', '#47515b')
-      .style('border', '2px solid')
-      .style('border-color', 'white')
-      .style('border-radius', '8px')
-      .style('margin-top', '4px')
-      .style('margin-left', '3px')
-      .style('padding', '2px 2px')
+      .style('color', 'black')
       .style('user-select', 'none')
       .style(
         'font-family',
@@ -262,11 +289,89 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   // add top margin to ctrl_container and slider_container
   ctrl_container.style.marginTop = '10px';
+  // Small gap so the entity-title label (e.g. "DSET:") isn't flush against
+  // the control panel's left border.
+  ctrl_container.style.marginLeft = '6px';
   slider_container.style.marginTop = '0px';
   slider_container.style.marginLeft = '5px';
 
   ui_container.appendChild(ctrl_container);
   ui_container.appendChild(slider_container);
+
+  // ---------------------------------------------------------------------
+  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
+  // (composition only). Mounted to the right of the reorder buttons, always
+  // present but shown/hidden per `viz_mode` (see `update_mode_button_visibility`).
+  // ---------------------------------------------------------------------
+  const mode_container = flex_container('mode_container', 'row');
+  // Top-align with the first reorder-button row (ctrl_container's own
+  // marginTop, below), not vertically centered against the taller sibling
+  // columns to its left.
+  mode_container.style.alignItems = 'flex-start';
+  mode_container.style.marginTop = '10px';
+  mode_container.style.marginLeft = '10px';
+
+  // Titled group wrapper (e.g. "TILE:" + a toggle group), shown/hidden as one
+  // unit so a title never dangles without its buttons.
+  const make_titled_group = (title, build_group) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'inline-flex';
+    wrapper.style.alignItems = 'center';
+    mode_container.appendChild(wrapper);
+
+    d3.select(wrapper)
+      .append('div')
+      .text(title)
+      .style('font-size', '9px')
+      .style('font-weight', 'bold')
+      .style('color', 'black')
+      .style(
+        'font-family',
+        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+      );
+
+    const group = build_group(wrapper);
+    group.container.style.marginLeft = '4px';
+    return { wrapper, group };
+  };
+
+  // dot_size_encoded: true -> size encodes the fraction/dot matrix ("PROP"),
+  // false -> forced to a full, unit-scaled tile ("UNIT").
+  const { wrapper: dot_wrapper, group: dot_toggle } = make_titled_group(
+    'TILE:',
+    (container) =>
+      make_text_toggle_group(
+        container,
+        [
+          { label: 'prop', value: true },
+          { label: 'unit', value: false },
+        ],
+        viz_state.mat.dot_size_encoded,
+        (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
+        viz_state
+      )
+  );
+
+  const normalized_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'prop', value: true },
+      { label: 'counts', value: false },
+    ],
+    viz_state.mat.composition_normalized,
+    (value) =>
+      set_composition_normalized(deck_mat, layers_mat, viz_state, value),
+    viz_state
+  );
+  normalized_toggle.container.style.marginLeft = '10px';
+
+  viz_state.mode_buttons = {
+    dot: { container: dot_wrapper, setActive: dot_toggle.setActive },
+    normalized: normalized_toggle,
+  };
+  update_mode_button_visibility(viz_state);
+
+  ui_container.appendChild(mode_container);
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);

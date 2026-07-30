@@ -14,6 +14,7 @@ from celldega.set import SetCollection, concat_sets
 from celldega.viz import (
     CellCloud,
     Clustergram,
+    Composition,
     Landmark,
     Landscape,
     NeighborhoodCloud,
@@ -37,6 +38,7 @@ __all__ = [
     "CellCloud",
     "CelldegaCollection",
     "Clustergram",
+    "Composition",
     "DatasetCollection",
     "Landmark",
     "Landscape",

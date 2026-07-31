@@ -1,6 +1,7 @@
 import { Deck, OrbitController } from 'deck.gl';
 
 import { is_orbit_technology } from '../../global_variables/image_info';
+import { check_nbhd_cloud_camera_side } from '../layers/nbhd_cloud_shapes_layer';
 import { make_tooltip } from '../utils/tooltips';
 
 import {
@@ -63,6 +64,10 @@ export const set_deck_on_view_state_change = (
   deck_ist.setProps({
     onViewStateChange: (params) => {
       pause_point_cloud_pickability(deck_ist, layers_obj, viz_state);
+      // Runs on every raw frame, not behind on_view_state_change's 200ms
+      // debounce -- see check_nbhd_cloud_camera_side's own comment for why
+      // that's safe.
+      check_nbhd_cloud_camera_side(params.viewState, layers_obj, viz_state);
       on_view_state_change(params, deck_ist, layers_obj, viz_state);
     },
   });

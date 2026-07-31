@@ -126,6 +126,20 @@ describe('neighborhood-cloud parquet table parsing', () => {
     ]);
   });
 
+  test('parse_shapes_table_to_features carries the area column through, for draw-order tiebreaking', () => {
+    const geometry = { type: 'Point', coordinates: [1, 2, 3] };
+    const table = makeTable({
+      neighborhood_id: ['s0__0'],
+      cluster_id: ['0'],
+      slice_id: ['s0'],
+      color: ['#ff0000'],
+      area: [42.5],
+      geometry_geojson: [JSON.stringify(geometry)],
+    });
+
+    expect(parse_shapes_table_to_features(table)[0].properties.area).toBe(42.5);
+  });
+
   test('parse_shapes_table_to_features skips rows with unparsable geometry', () => {
     const table = makeTable({
       neighborhood_id: ['a', 'b'],

@@ -581,6 +581,58 @@ def _expr_from_cbg_file(cbg_dir: Path, gene: str, cell_index: pd.Index, n_cells:
     return expr
 
 
+def _write_gene_cell_scatter_from_expr_iter(
+    gene_expression_iter: Iterator[tuple[str, np.ndarray]],
+    n_genes: int,
+    coords: np.ndarray,
+    slice_ids: np.ndarray,
+    z_values: np.ndarray,
+    cell_ids: np.ndarray,
+    cells_out_dir: Path,
+    min_expression: float,
+    min_cells: int,
+    max_cells: int,
+    progress_every: int,
+) -> int:
+    """Shared write loop behind both gene-cell-scatter writers below -- the
+    only difference between them is how each `(gene, expr)` pair is produced
+    (from an in-memory `AnnData` column vs. a freshly-read
+    `cbg/<gene>.parquet`), not what happens with it once produced."""
+    cells_out_dir.mkdir(parents=True, exist_ok=True)
+
+    available_genes: dict[str, float] = {}
+    n_written = 0
+    for i, (gene, expr) in enumerate(gene_expression_iter, start=1):
+        if int((expr >= min_expression).sum()) >= min_cells:
+            top_idx = _select_top_expressing_cells(expr, min_expression, max_cells)
+            df_cells = pd.DataFrame(
+                {
+                    "cell_id": cell_ids[top_idx],
+                    "gene": gene,
+                    "slice_id": slice_ids[top_idx],
+                    "x": coords[top_idx, 0].astype(float),
+                    "y": coords[top_idx, 1].astype(float),
+                    "z": z_values[top_idx],
+                    "expression": expr[top_idx].astype(float),
+                }
+            )[_GENE_CELL_COLUMNS]
+            df_cells.to_parquet(cells_out_dir / f"{gene}.parquet", index=False)
+            available_genes[str(gene)] = float(expr.max())
+            n_written += 1
+
+        if progress_every and i % progress_every == 0:
+            print(f"gene cell scatter: {i}/{n_genes} genes processed, {n_written} written")
+
+    with (cells_out_dir / "available_gene_scatter.json").open("w") as f:
+        json.dump(available_genes, f, indent=2)
+
+    print(
+        f"gene cell scatter: wrote {n_written}/{n_genes} genes to {cells_out_dir} "
+        "(no alpha shape -- capped top-expressing cell scatter only)"
+    )
+    return n_written
+
+
 def write_gene_cell_scatter_from_cbg(
     cbg_dir: str | Path,
     gene_list: Sequence[str],
@@ -607,6 +659,13 @@ def write_gene_cell_scatter_from_cbg(
     point scatter instead of a filled polygon, but real single-cell
     positions and expression values, colored the same way (per-cell
     expression, red-alpha scheme) as gene-nbhds' own "peppered" cells.
+
+    Reads each gene's expression directly from `cbg_dir/<gene>.parquet`, one
+    gene at a time — no combined multi-gene matrix or `AnnData` is ever
+    assembled. If you already have (or are willing to build) an `AnnData`
+    with every gene in `gene_list` loaded into `.X`, use `write_gene_cell_scatter`
+    instead — same output, sourced from `adata.X` columns rather than
+    per-gene files.
 
     Writes `nbhd_cloud/cells/by_gene/<gene>.parquet` (same schema as
     `write_gene_shapes_from_cbg`'s cells file: `cell_id`, `gene`,
@@ -655,42 +714,106 @@ def write_gene_cell_scatter_from_cbg(
     cell_ids = cell_index.to_numpy()
     n_cells = len(obs)
 
+    def _gene_expression() -> Iterator[tuple[str, np.ndarray]]:
+        for gene in gene_list:
+            yield gene, _expr_from_cbg_file(cbg_dir, gene, cell_index, n_cells)
+
     cells_out_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_gene"
-    cells_out_dir.mkdir(parents=True, exist_ok=True)
-
-    available_genes: dict[str, float] = {}
-    n_written = 0
-    for i, gene in enumerate(gene_list, start=1):
-        expr = _expr_from_cbg_file(cbg_dir, gene, cell_index, n_cells)
-
-        if int((expr >= min_expression).sum()) >= min_cells:
-            top_idx = _select_top_expressing_cells(expr, min_expression, max_cells)
-            df_cells = pd.DataFrame(
-                {
-                    "cell_id": cell_ids[top_idx],
-                    "gene": gene,
-                    "slice_id": slice_ids[top_idx],
-                    "x": coords[top_idx, 0].astype(float),
-                    "y": coords[top_idx, 1].astype(float),
-                    "z": z_values[top_idx],
-                    "expression": expr[top_idx].astype(float),
-                }
-            )[_GENE_CELL_COLUMNS]
-            df_cells.to_parquet(cells_out_dir / f"{gene}.parquet", index=False)
-            available_genes[str(gene)] = float(expr.max())
-            n_written += 1
-
-        if progress_every and i % progress_every == 0:
-            print(f"gene cell scatter: {i}/{len(gene_list)} genes processed, {n_written} written")
-
-    with (cells_out_dir / "available_gene_scatter.json").open("w") as f:
-        json.dump(available_genes, f, indent=2)
-
-    print(
-        f"gene cell scatter: wrote {n_written}/{len(gene_list)} genes to {cells_out_dir} "
-        "(no alpha shape -- capped top-expressing cell scatter only)"
+    return _write_gene_cell_scatter_from_expr_iter(
+        _gene_expression(),
+        len(gene_list),
+        coords,
+        slice_ids,
+        z_values,
+        cell_ids,
+        cells_out_dir,
+        min_expression,
+        min_cells,
+        max_cells,
+        progress_every,
     )
-    return n_written
+
+
+def write_gene_cell_scatter(
+    adata: ad.AnnData,
+    gene_list: Sequence[str],
+    path_dega_files: str | Path,
+    slice_attr: str = "slice_id",
+    z_attr: str | None = None,
+    min_expression: float = 2.0,
+    min_cells: int = 4,
+    max_cells: int = 50_000,
+    progress_every: int = 500,
+) -> int:
+    """`AnnData`-sourcing sibling of `write_gene_cell_scatter_from_cbg` — same
+    cheap, no-alpha-shape capped cell scatter per gene, but reads each gene's
+    expression directly from an already-loaded `adata.X` column instead of a
+    per-gene `cbg/<gene>.parquet` file.
+
+    Mirrors the `write_gene_shapes_streaming` / `write_gene_shapes_from_cbg`
+    split: use this one when you already have (or are willing to build) an
+    `AnnData` with every gene in `gene_list` loaded into `.X` (e.g. the same
+    `adata` passed to `write_nbhd_cloud_dataset`); use
+    `write_gene_cell_scatter_from_cbg` instead when genes instead live in
+    per-gene files and assembling a combined multi-gene `AnnData` just for
+    this would itself be the expensive/wasteful step.
+
+    Writes the same `nbhd_cloud/cells/by_gene/<gene>.parquet` files and
+    `available_gene_scatter.json` manifest as `write_gene_cell_scatter_from_cbg`
+    — see its docstring for the full file/column description.
+
+    Parameters
+    ----------
+    adata : AnnData
+        Cell-level AnnData with spatial coordinates in `obsm["spatial"]`, a
+        `slice_attr` (and, if given, `z_attr`) column in `obs`, and every
+        gene in `gene_list` present in `adata.var_names`.
+    gene_list : Sequence[str]
+        Genes to write a cell scatter for.
+    path_dega_files : str | Path
+        DegaFiles root directory.
+    slice_attr, z_attr, min_expression, min_cells, max_cells, progress_every :
+        Same meaning as `write_gene_cell_scatter_from_cbg`.
+
+    Returns
+    -------
+    int
+        Number of genes that had enough expressing cells and were written.
+    """
+    missing = [gene for gene in gene_list if gene not in adata.var_names]
+    if missing:
+        raise ValueError(f"genes not found in adata.var_names: {missing}")
+
+    obs = adata.obs
+    coords = np.asarray(adata.obsm["spatial"])
+    slice_ids = obs[slice_attr].to_numpy()
+    z_values = obs[z_attr].to_numpy(dtype=float) if z_attr is not None else np.zeros(len(obs))
+    cell_ids = adata.obs_names.astype(str).to_numpy()
+    gene_positions = {gene: adata.var_names.get_loc(gene) for gene in gene_list}
+
+    def _gene_column(gene: str) -> np.ndarray:
+        col = adata.X[:, gene_positions[gene]]
+        col = col.toarray() if hasattr(col, "toarray") else np.asarray(col)
+        return col.ravel()
+
+    def _gene_expression() -> Iterator[tuple[str, np.ndarray]]:
+        for gene in gene_list:
+            yield gene, _gene_column(gene)
+
+    cells_out_dir = Path(path_dega_files) / "nbhd_cloud" / "cells" / "by_gene"
+    return _write_gene_cell_scatter_from_expr_iter(
+        _gene_expression(),
+        len(gene_list),
+        coords,
+        slice_ids,
+        z_values,
+        cell_ids,
+        cells_out_dir,
+        min_expression,
+        min_cells,
+        max_cells,
+        progress_every,
+    )
 
 
 def _write_nbhd_cloud_landscape_parameters(path_dega_files: str | Path) -> None:

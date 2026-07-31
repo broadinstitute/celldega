@@ -4,6 +4,28 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.21.2] - 2026-07-31
+
+Standardizes `neighborhood-cloud`'s per-gene DegaFile writers on `AnnData`
+as the single source of gene expression, and adds a cheap `AnnData`-native
+cell-scatter writer for genes without a precomputed alpha shape.
+
+### Added
+
+- **`write_gene_cell_scatter`** — writes a capped, top-expressing cell
+  scatter per gene (no alpha shape) directly from an already-loaded
+  `adata.X` column, mirroring `write_gene_shapes_streaming`'s `AnnData`
+  sourcing. Lets "browse any gene" scale to a much larger gene list than
+  curated gene-nbhds, without requiring a per-gene `cbg/<gene>.parquet`
+  file on disk first.
+
+### Removed
+
+- **`write_gene_shapes_from_cbg`, `write_gene_cell_scatter_from_cbg`** — the
+  per-gene-`cbg/`-file writers are gone; `write_gene_shapes_streaming` and
+  `write_gene_cell_scatter` now cover both use cases directly from an
+  `AnnData`, since `neighborhood-cloud` DegaFiles are always built from one.
+
 ## [0.21.1] - 2026-07-31
 
 Bug-fix release for `NeighborhoodCloud`'s beneath-view transparency artifact

@@ -271,9 +271,7 @@ def test_iter_gene_alpha_shapes_matches_the_annData_wrapper():
     """`iter_gene_alpha_shapes_by_slice` is documented as a thin AnnData-
     sourcing wrapper around `iter_gene_alpha_shapes` -- feeding the same
     coords/slice/expression data through both paths must produce the same
-    result, since this is exactly the guarantee
-    `write_gene_shapes_from_cbg` relies on to skip the AnnData step
-    entirely."""
+    result."""
     adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=2)
     coords = np.asarray(adata.obsm["spatial"])
     slice_ids = adata.obs["slice_id"].to_numpy()

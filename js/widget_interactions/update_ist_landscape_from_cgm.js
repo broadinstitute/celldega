@@ -39,6 +39,39 @@ const reset_to_cluster_mode = (viz_state, layers_obj) => {
 };
 
 /**
+ * Helper to reset neighborhood layer to categorical cluster coloring.
+ * Call this when selecting neighborhoods from dendrogram (not by attribute).
+ */
+const reset_nbhd_to_cluster_mode = (viz_state) => {
+  if (!viz_state.nbhd) return;
+
+  // Reset to categorical coloring
+  viz_state.nbhd.color_mode = 'cluster';
+  viz_state.nbhd.gene_expression = null;
+  viz_state.nbhd.current_gene = null;
+
+  // Show bar graph if it exists
+  if (viz_state.containers?.bar_nbhd) {
+    viz_state.containers.bar_nbhd.style.display = 'flex';
+  }
+
+  // Show opacity slider
+  if (viz_state.sliders?.nbhd) {
+    // Import toggle_slider dynamically is tricky, so just show the container
+    const slider_container = viz_state.sliders.nbhd?.container;
+    if (slider_container) {
+      slider_container.style.display = 'flex';
+    }
+  }
+
+  // Reset the dropdown to 'cluster' if it exists
+  const dropdown = document.getElementById('nbhd-attr-dropdown');
+  if (dropdown) {
+    dropdown.value = 'cluster';
+  }
+};
+
+/**
  * Check if a click value represents a cell cluster selection.
  * Supports both legacy format (row_entity === 'cell_cluster') and
  * new format (entity === 'cell' && attr === 'leiden').
@@ -71,8 +104,39 @@ export const is_neighborhood = (clickValue) => {
   return clickValue.entity === 'nbhd' || clickValue.entity === 'hextile';
 };
 
+
 /**
- * Check if a click value represents a gene selection.
+ * Check if a click value represents a nbhd_var entity (or nbhd_gene).
+ * Rows are attributes from nbhd_adata.var - clicking ALWAYS colors neighborhoods.
+ * nbhd_gene is a special case where rows are genes aggregated at neighborhood level.
+ */
+export const is_nbhd_var = (clickValue) => {
+  if (!clickValue) return false;
+  return (
+    clickValue.entity === 'nbhd_var' ||
+    clickValue.entity === 'nbhd_attr' ||
+    clickValue.entity === 'nbhd_gene'
+  );
+};
+
+/**
+ * Check if a click value represents gene data (for enrichment purposes).
+ * This is true for entity='gene' OR entity='nbhd_gene' OR data_type='gene'.
+ */
+export const is_gene_data = (clickValue) => {
+  if (!clickValue) return false;
+  // Direct gene entity
+  if (clickValue.entity === 'gene') return true;
+  // nbhd_gene - genes at neighborhood level
+  if (clickValue.entity === 'nbhd_gene') return true;
+  // Explicit data_type (most flexible)
+  if (clickValue.data_type === 'gene') return true;
+  return false;
+};
+
+/**
+ * Check if a click value represents a gene entity.
+ * For strict entity check only - use is_gene_data() for enrichment purposes.
  */
 export const is_gene = (clickValue) => {
   if (!clickValue) return false;
@@ -119,8 +183,44 @@ export const update_ist_landscape_from_cgm = async (
   // add try catch block
   try {
     if (click_type === 'row_label') {
+      // Check if this is a nbhd_var/nbhd_gene entity (attribute from nbhd_adata.var)
+      // This ALWAYS colors neighborhoods - no fallback to cells
+      if (is_nbhd_var(click_info.value)) {
+        const attr_name = click_info.value.name;
+        const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
+
+        if (has_nbhd_adata) {
+          // Send request to Python backend to get nbhd attribute data
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            viz_state.model.set('nbhd_attr_request', attr_name);
+            viz_state.model.save_changes();
+          }
+
+          // Show neighborhood layer, hide cell layer coloring
+          viz_state.obs_store.viz_nbhd_layer.set(true);
+          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+          // Clear cell selections
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+
+          // Update gene display name (for UI purposes only)
+          if (viz_state.genes) {
+            viz_state.genes.inst_gene = attr_name;
+          }
+
+          // If this is gene data (nbhd_gene or data_type='gene'), update local state
+          // Note: Don't sync to Python here - the Clustergram handles that
+          if (is_gene_data(click_info.value) && viz_state.genes) {
+            viz_state.genes.selected_genes = [attr_name];
+            viz_state.obs_store.selected_genes.set([attr_name]);
+          }
+
+          // DON'T refresh layer here - the traitlet handler will do it
+          // after data arrives from Python via change:nbhd_attr_data
+        }
       // Check if this is a neighborhood selection
-      if (is_neighborhood(click_info.value)) {
+      } else if (is_neighborhood(click_info.value)) {
         const new_nbhd = click_info.value.name;
         const prev_selected = viz_state.obs_store.selected_nbhds.get();
 
@@ -157,29 +257,91 @@ export const update_ist_landscape_from_cgm = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       } else if (is_cell_cluster(click_info.value)) {
-        // Cell cluster selection
-        inst_gene = 'cluster';
-        new_cat = click_info.value.name;
+        console.log('Entered is_cell_cluster block');
+        // Cell cluster/population entity - can color nbhds OR highlight cells
+        const attr_name = click_info.value.name;
+        console.log('attr_name:', attr_name);
+        const nbhd_is_active = viz_state.obs_store?.viz_nbhd_layer?.get() || false;
+        console.log('nbhd_is_active:', nbhd_is_active);
+        const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata || false;
+        console.log('has_nbhd_adata:', has_nbhd_adata);
 
-        // Clear selected cells when switching to cluster mode
-        viz_state.obs_store.selected_cells.set([]);
+        console.log('row_label click - is_cell_cluster:', {
+          attr_name,
+          nbhd_is_active,
+          has_nbhd_adata,
+          entity: click_info.value.entity,
+          attr: click_info.value.attr,
+        });
+
+        if (nbhd_is_active && has_nbhd_adata) {
+          // NBHD active: Color neighborhoods by this attribute
+          console.log('Sending nbhd_attr_request:', attr_name);
+          update_selected_genes(viz_state.genes, [attr_name], viz_state.obs_store);
+
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            viz_state.model.set('nbhd_attr_request', attr_name);
+            viz_state.model.save_changes();
+          }
 
         update_cat(viz_state.cats, 'cluster');
-        update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+          refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        } else {
+          // CELL active: Highlight cells with this population/cluster
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [attr_name], viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'trx_layer');
+        }
       } else {
-        // Treat as gene selection
+        // Treat as gene selection (or nbhd attribute if NBHD is active)
         inst_gene = click_info.value.name;
 
+        // Check if NBHD layer is active - if so, color nbhds instead of cells
+        const nbhd_is_active = viz_state.obs_store.viz_nbhd_layer.get();
+        const nbhd_has_adata = viz_state.nbhd?.has_nbhd_adata;
+
+        console.log('row_label click - else block (gene/other):', {
+          inst_gene,
+          nbhd_is_active,
+          nbhd_has_adata,
+          entity: click_info.value.entity,
+          attr: click_info.value.attr,
+        });
+
+        if (nbhd_is_active && nbhd_has_adata) {
+          // MUTUALLY EXCLUSIVE: Color neighborhoods by this attribute
+          console.log('Sending nbhd_attr_request from else block:', inst_gene);
+          update_selected_genes(
+            viz_state.genes,
+            [inst_gene],
+            viz_state.obs_store
+          );
+
+          // Request neighborhood attribute data from Python
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            viz_state.model.set('nbhd_attr_request', inst_gene);
+            viz_state.model.save_changes();
+          }
+
+          // Keep cells in cluster mode (don't color by gene)
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+
+          refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        } else {
+          // MUTUALLY EXCLUSIVE: Color cells by gene expression
         new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-        // Clear highlighted cells immediately (without triggering subscription refresh)
-        // This prevents the old gene data from showing during loading
+          // Clear highlighted cells immediately
         viz_state.highlighted_cells = new Set();
 
         update_cat(viz_state.cats, new_cat);
@@ -189,8 +351,7 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.obs_store
         );
 
-        // Load gene expression data BEFORE updating selected_cats
-        // This ensures cell_exp_array is populated before the cell layer refreshes
+          // Load gene expression data for cells
         await update_cell_exp_array(
           viz_state.cats,
           viz_state.genes,
@@ -202,21 +363,21 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.row_group_readers?.cbg
         );
 
-        // Clear selected cells in obs_store (after data is loaded to avoid flash)
         viz_state.obs_store.selected_cells.set([]);
 
-        // Update selected_cats after cell_exp_array has been populated
         update_selected_cats(
           viz_state.cats,
           new_cat === 'cluster' ? [] : [inst_gene],
           viz_state.obs_store
         );
 
+          // Hide nbhd layer when coloring cells
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
+        }
       }
     } else if (click_type === 'col_label') {
       // Check if this is a neighborhood selection
@@ -301,6 +462,9 @@ export const update_ist_landscape_from_cgm = async (
       const col_entity_full =
         click_info.value.col_entity_full || click_info.value;
       if (is_neighborhood(col_entity_full)) {
+        // Reset to categorical cluster coloring (not attribute coloring)
+        reset_nbhd_to_cluster_mode(viz_state);
+
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
@@ -380,6 +544,39 @@ export const update_ist_landscape_from_cgm = async (
             .selectAll('rect')
             .style('opacity', (d) => (new_cats.includes(d.name) ? 1.0 : 0.2));
         }
+      } else if (is_nbhd_var(row_entity_full)) {
+        // nbhd_var/nbhd_gene selection from row dendrogram - ALWAYS color neighborhoods
+        const has_nbhd_adata = viz_state.nbhd?.has_nbhd_adata;
+
+        if (has_nbhd_adata) {
+          // Send attr names to Python (comma-separated for averaging if multiple)
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            viz_state.model.set('nbhd_attr_request', new_cats.join(','));
+            viz_state.model.save_changes();
+          }
+
+          // Show neighborhood layer
+          viz_state.obs_store.viz_nbhd_layer.set(true);
+          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+          // Update gene display name (for UI purposes)
+          if (viz_state.genes) {
+            viz_state.genes.inst_gene = new_cats.length === 1
+              ? new_cats[0]
+              : `avg(${new_cats.length} attrs)`;
+          }
+
+          // Clear cell selections
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+
+          // If this is gene data (nbhd_gene or data_type='gene'), update local state
+          // Note: Don't sync to Python here - the Clustergram handles that
+          if (is_gene_data(row_entity_full) && viz_state.genes) {
+            viz_state.genes.selected_genes = new_cats;
+            viz_state.obs_store.selected_genes.set(new_cats);
+          }
+        }
       } else if (is_cell_cluster(row_entity_full)) {
         viz_state.highlighted_cells = new Set();
         viz_state.obs_store.selected_cells.set([]);
@@ -400,16 +597,32 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.genes.selected_genes = new_cats;
         viz_state.obs_store.selected_genes.set(new_cats);
 
+        // Check if NBHD layer is active - mutually exclusive behavior
+        const nbhd_is_active = viz_state.obs_store.viz_nbhd_layer.get();
+        const nbhd_has_adata = viz_state.nbhd?.has_nbhd_adata;
+
+        if (nbhd_is_active && nbhd_has_adata) {
+          // MUTUALLY EXCLUSIVE: Color neighborhoods by gene(s)
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            viz_state.model.set('nbhd_attr_request', new_cats.join(','));
+            viz_state.model.save_changes();
+          }
+
+          // Keep cells in cluster mode
+          update_cat(viz_state.cats, 'cluster');
+          update_selected_cats(viz_state.cats, [], viz_state.obs_store);
+
+          refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        } else {
+          // MUTUALLY EXCLUSIVE: Color cells by gene expression
         if (new_cats.length === 1) {
           inst_gene = new_cats[0];
           new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-          // Clear highlighted cells immediately (without triggering subscription refresh)
           viz_state.highlighted_cells = new Set();
-
           update_cat(viz_state.cats, new_cat);
 
-          // Load gene expression data BEFORE updating selected_cats
           await update_cell_exp_array(
             viz_state.cats,
             viz_state.genes,
@@ -420,28 +633,46 @@ export const update_ist_landscape_from_cgm = async (
             viz_state.aws
           );
 
-          // Clear selected cells in obs_store (after data is loaded)
           viz_state.obs_store.selected_cells.set([]);
-
-          // Update selected_cats after cell_exp_array has been populated
           update_selected_cats(
             viz_state.cats,
             new_cat === 'cluster' ? [] : [inst_gene],
             viz_state.obs_store
           );
         } else {
-          // Multiple genes selected - just switch to cluster mode for now
+            // Multiple genes - switch to cluster mode for cells
           viz_state.highlighted_cells = new Set();
           viz_state.obs_store.selected_cells.set([]);
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
         }
 
+          // Hide nbhd layer when coloring cells
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
+        }
+      } else {
+        // Other entity types (population, etc.) - treat as neighborhood attribute
+        // This handles nbhd x population matrices where clicking population colors nbhds
+        const nbhd_has_adata = viz_state.nbhd?.has_nbhd_adata;
+
+        if (nbhd_has_adata && new_cats.length > 0) {
+          // Request neighborhood attribute data for selected items
+          if (viz_state.model && typeof viz_state.model.set === 'function') {
+            viz_state.model.set('nbhd_attr_request', new_cats.join(','));
+            viz_state.model.save_changes();
+          }
+
+          // Show neighborhood layer and set to attribute mode
+          viz_state.nbhd.color_mode = 'gene';
+          viz_state.obs_store.viz_nbhd_layer.set(true);
+          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+
+          refresh_layer(viz_state, layers_obj, 'nbhd_layer');
+        }
       }
     } else if (click_type === 'cat_value') {
       // Category bar/tile click - highlight cells in that category

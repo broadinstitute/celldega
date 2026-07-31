@@ -21,11 +21,18 @@ class AxisEntity(TypedDict, total=False):
     Describes what entity a clustergram axis represents.
 
     Attributes:
-        entity: The type of entity (cell, gene, nbhd, cluster, etc.)
+        entity: The type of entity (cell, gene, nbhd, nbhd_gene, cluster, etc.)
         attr: The attribute of that entity (name, leiden, custom_column, etc.)
             - For cells: 'leiden' means cell clusters, 'name' means individual cells
             - For nbhd: 'name' means specific neighborhoods
             - For genes: typically 'name'
+        data_type: The underlying data type for analysis purposes (optional).
+            - 'gene': Row/col names are gene symbols (enables enrichment analysis)
+            - 'population': Row/col names are population/cluster names
+            - None or omitted: Inferred from entity (gene entity → gene data_type)
+            This is useful when the spatial context differs from the analysis type.
+            For example, nbhd_gene has entity='nbhd_gene' (spatial context is
+            neighborhood), but data_type='gene' (for enrichment purposes).
 
     Examples:
         # Clustergram with cell clusters on rows (cells grouped by leiden)
@@ -40,6 +47,9 @@ class AxisEntity(TypedDict, total=False):
         # Clustergram with genes on rows
         {"entity": "gene", "attr": "name"}
 
+        # Neighborhoods with gene expression (enables enrichment)
+        {"entity": "nbhd_gene", "attr": "name", "data_type": "gene"}
+
         # Hextile neighborhoods by cell clusters
         row: {"entity": "cell", "attr": "leiden"}
         col: {"entity": "hextile", "attr": "nbhd_cluster"}
@@ -47,6 +57,7 @@ class AxisEntity(TypedDict, total=False):
 
     entity: str
     attr: str
+    data_type: str  # Optional: 'gene', 'population', etc.
 
 
 def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> AxisEntity:
@@ -59,29 +70,36 @@ def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> Axis
     Args:
         value: Entity specification - can be:
             - str: Shorthand format with implicit attr (see mapping below)
-            - tuple: Compact format (entity, attr) e.g., ("nbhd", "name")
-            - dict/AxisEntity: Full format with entity and attr keys
-            - None: Returns default {"entity": "gene", "attr": "name"}
+            - tuple: Compact format (entity, attr) or (entity, attr, data_type)
+            - dict/AxisEntity: Full format with entity, attr, and optional data_type
+            - None: Returns default {"entity": "gene", "attr": "name", "data_type": "gene"}
 
     String Shorthand Mapping:
         When a string is provided, the following implicit attr values are used:
-        - "gene" → {"entity": "gene", "attr": "name"}
+        - "gene" → {"entity": "gene", "attr": "name", "data_type": "gene"}
         - "nbhd" → {"entity": "nbhd", "attr": "name"}
         - "cell" → {"entity": "cell", "attr": "name"}
         - "hextile" → {"entity": "hextile", "attr": "name"}
         - "cell_cluster" or "cluster" → {"entity": "cell", "attr": "leiden"}
+        - "nbhd_gene" → {"entity": "nbhd_gene", "attr": "name", "data_type": "gene"}
+          (neighborhoods with gene data - enables enrichment analysis)
+        - "nbhd_var" → {"entity": "nbhd_var", "attr": "name"}
+          (generic neighborhood variables - no enrichment)
         - any other string → {"entity": <string>, "attr": "name"}
 
     Returns:
-        AxisEntity with entity and attr keys
+        AxisEntity with entity, attr, and optionally data_type keys
 
     Examples:
         # String shorthand (attr is implicit)
         >>> normalize_axis_entity("gene")
-        {"entity": "gene", "attr": "name"}
+        {"entity": "gene", "attr": "name", "data_type": "gene"}
 
         >>> normalize_axis_entity("nbhd")
         {"entity": "nbhd", "attr": "name"}
+
+        >>> normalize_axis_entity("nbhd_gene")
+        {"entity": "nbhd_gene", "attr": "name", "data_type": "gene"}
 
         >>> normalize_axis_entity("cell_cluster")
         {"entity": "cell", "attr": "leiden"}
@@ -96,25 +114,43 @@ def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> Axis
         # Dict format (most explicit)
         >>> normalize_axis_entity({"entity": "cell", "attr": "leiden"})
         {"entity": "cell", "attr": "leiden"}
+
+        # Dict with data_type for enrichment
+        >>> normalize_axis_entity({"entity": "nbhd_var", "attr": "name", "data_type": "gene"})
+        {"entity": "nbhd_var", "attr": "name", "data_type": "gene"}
     """
     if value is None:
-        return {"entity": "gene", "attr": "name"}
+        return {"entity": "gene", "attr": "name", "data_type": "gene"}
 
     if isinstance(value, str):
         # Legacy string format - convert to new structure
         # Map legacy strings to new entity/attr pairs
         legacy_mapping: dict[str, AxisEntity] = {
-            "gene": {"entity": "gene", "attr": "name"},
+            "gene": {"entity": "gene", "attr": "name", "data_type": "gene"},
             "cell_cluster": {"entity": "cell", "attr": "leiden"},
             "cluster": {"entity": "cell", "attr": "leiden"},
             "nbhd": {"entity": "nbhd", "attr": "name"},
             "cell": {"entity": "cell", "attr": "name"},
             "hextile": {"entity": "hextile", "attr": "name"},
+            # nbhd_gene: Rows are genes aggregated at neighborhood level
+            # This enables enrichment analysis when rows are selected
+            "nbhd_gene": {"entity": "nbhd_gene", "attr": "name", "data_type": "gene"},
+            # nbhd_var: Generic rows from nbhd_adata.var - no enrichment
+            # Clicking ALWAYS looks up in nbhd_adata and colors neighborhoods
+            "nbhd_var": {"entity": "nbhd_var", "attr": "name"},
+            "nbhd_attr": {"entity": "nbhd_var", "attr": "name"},
+            # Population shorthand - also treated as nbhd_var
+            "population": {"entity": "nbhd_var", "attr": "name"},
         }
         return legacy_mapping.get(value, {"entity": value, "attr": "name"})
 
     if isinstance(value, tuple):
-        # Compact tuple format: (entity, attr)
+        # Compact tuple format: (entity, attr) or (entity, attr, data_type)
+        if len(value) >= 3:
+            result: AxisEntity = {"entity": str(value[0]), "attr": str(value[1])}
+            if value[2]:
+                result["data_type"] = str(value[2])
+            return result
         if len(value) >= 2:
             return {"entity": str(value[0]), "attr": str(value[1])}
         if len(value) == 1:
@@ -125,7 +161,11 @@ def normalize_axis_entity(value: str | tuple | dict | AxisEntity | None) -> Axis
         # Already in dict format, ensure it has required keys
         entity = value.get("entity", "custom")
         attr = value.get("attr", "name")
-        return {"entity": entity, "attr": attr}
+        result: AxisEntity = {"entity": entity, "attr": attr}
+        # Preserve data_type if provided
+        if "data_type" in value and value["data_type"]:
+            result["data_type"] = value["data_type"]
+        return result
 
     # Fallback
     return {"entity": "custom", "attr": "name"}

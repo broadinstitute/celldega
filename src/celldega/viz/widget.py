@@ -229,6 +229,15 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
             are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
             that should be trimmed when mapping to LandscapeFiles. Default: False.
+        nbhd_adata (AnnData, optional): Neighborhood attribute data matrix.
+            Neighborhoods as obs (rows), attributes as var (columns).
+            Can contain genes (from ``calc_nbhd_by_gene()``), populations
+            (from ``calc_nbhd_by_pop()``), or any numerical attributes.
+            When linked to a Clustergram, clicking row labels looks up the
+            attribute and colors neighborhoods. The semantic meaning of rows
+            comes from the Clustergram's row_entity setting. A
+            dropdown will appear in the UI to switch between cluster-based and
+            gene-expression-based neighborhood coloring.
 
     A point-cloud (3D) view requires a real, pre-built DegaFiles ``base_url``
     like any other technology — build one with the ``celldega.pre`` module
@@ -270,10 +279,36 @@ class Landscape(anywidget.AnyWidget):
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)
 
+    # List of numerical attributes available in nbhd GeoDataFrame for coloring
+    # Automatically extracted, excluding geometry/color columns
+    nbhd_gdf_attrs = traitlets.List(
+        trait=traitlets.Unicode(), default_value=[]
+    ).tag(sync=True)
+
     # Enable editing of neighborhoods when True
     nbhd_edit = traitlets.Bool(False).tag(sync=True)
 
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
+
+    # Neighborhood AnnData - neighborhoods as obs, attributes as var
+    # Can contain genes, populations, or any numerical attributes
+    # The semantic meaning comes from the Clustergram's row entity
+    _nbhd_adata = traitlets.Any(allow_none=True)
+
+    # Flag indicating nbhd_adata is available (synced to frontend)
+    has_nbhd_adata = traitlets.Bool(False).tag(sync=True)
+
+    # Traitlet for requesting neighborhood attribute data from frontend
+    # Can be a gene name, comma-separated genes, or other attribute names
+    nbhd_attr_request = traitlets.Unicode("").tag(sync=True)
+
+    # Traitlet for sending neighborhood attribute data to frontend
+    # Format: {attr: str, values: {nbhd_name: float}, max_val: float, min_val: float}
+    nbhd_attr_data = traitlets.Dict({}).tag(sync=True)
+
+    # Legacy alias for backwards compatibility
+    nbhd_gene_request = traitlets.Unicode("").tag(sync=True)
+    nbhd_gene_expression = traitlets.Dict({}).tag(sync=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
@@ -317,6 +352,8 @@ class Landscape(anywidget.AnyWidget):
         transform = kwargs.pop("transform", None)
         image_scale = kwargs.pop("image_scale", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
+        nbhd_adata = kwargs.pop("nbhd_adata", None)
+
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
@@ -538,6 +575,11 @@ class Landscape(anywidget.AnyWidget):
         self.nbhd = nbhd_gdf
         self.nbhd_edit = nbhd_edit
         self.umap = umap_df
+
+        # Store neighborhood AnnData (neighborhoods as obs, any attributes as var)
+        self._nbhd_adata = nbhd_adata
+        self.has_nbhd_adata = nbhd_adata is not None
+
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
 
@@ -557,6 +599,20 @@ class Landscape(anywidget.AnyWidget):
             gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
 
             self.nbhd_geojson = json.loads(gdf_viz.to_json())
+
+            # Extract numerical attributes from nbhd GDF for coloring dropdown
+            # Exclude geometry-related and color columns
+            exclude_patterns = ["geometry", "color", "cat", "name"]
+            numeric_cols = []
+            for col in self.nbhd.columns:
+                # Skip if column name contains excluded patterns
+                if any(pat in col.lower() for pat in exclude_patterns):
+                    continue
+                # Only include numeric columns
+                if pd.api.types.is_numeric_dtype(self.nbhd[col]):
+                    numeric_cols.append(col)
+            self.nbhd_gdf_attrs = numeric_cols
+
         elif self.nbhd_edit:
             self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
 
@@ -595,6 +651,169 @@ class Landscape(anywidget.AnyWidget):
             pass
 
         self.nbhd = gdf
+
+    @traitlets.observe("nbhd_gene_request")
+    def _on_nbhd_gene_request(self, change):
+        """Legacy handler - forwards to nbhd_attr_request."""
+        if change["new"]:
+            self.nbhd_attr_request = change["new"]
+
+    @traitlets.observe("nbhd_attr_request")
+    def _on_nbhd_attr_request(self, change):
+        """Provide neighborhood attribute data when requested from frontend.
+
+        Supports:
+        - Single attribute: "GENE1" or "area" or "cluster_5"
+        - Multi-attribute averaging: "GENE1,GENE2,GENE3" (comma-separated)
+
+        Looks up attributes in nbhd_adata.var (columns) first, then nbhd_adata.obs.
+        """
+        attr_request = change["new"]
+        if not attr_request or self._nbhd_adata is None:
+            return
+
+        try:
+            adata = self._nbhd_adata
+            nbhd_names = list(adata.obs.index)
+
+            # Check if this is a multi-attribute request (comma-separated)
+            attr_names = [a.strip() for a in attr_request.split(",") if a.strip()]
+
+            if len(attr_names) == 0:
+                return
+
+            # Try to find attributes in var (columns) or obs
+            values = None
+            display_name = None
+
+            if len(attr_names) == 1:
+                attr_name = attr_names[0]
+
+                # Check var_names first (genes, populations, etc.)
+                if attr_name in adata.var_names:
+                    attr_idx = list(adata.var_names).index(attr_name)
+                    if hasattr(adata.X, "toarray"):
+                        values = adata.X[:, attr_idx].toarray().flatten()
+                    else:
+                        values = adata.X[:, attr_idx].flatten()
+                    display_name = attr_name
+
+                # Check obs columns (area, n_cells, etc.)
+                elif attr_name in adata.obs.columns:
+                    values = adata.obs[attr_name].values.astype(float)
+                    display_name = attr_name
+
+                else:
+                    self.nbhd_attr_data = {"error": f"Attribute '{attr_name}' not found"}
+                    self.nbhd_gene_expression = self.nbhd_attr_data  # Legacy
+                    return
+
+            else:
+                # Multi-attribute averaging - only works for var attributes
+                valid_attrs = [a for a in attr_names if a in adata.var_names]
+                if len(valid_attrs) == 0:
+                    self.nbhd_attr_data = {"error": "No valid attributes found in matrix"}
+                    self.nbhd_gene_expression = self.nbhd_attr_data
+                    return
+
+                attr_indices = [list(adata.var_names).index(a) for a in valid_attrs]
+
+                if hasattr(adata.X, "toarray"):
+                    attr_matrix = adata.X[:, attr_indices].toarray()
+                else:
+                    attr_matrix = adata.X[:, attr_indices]
+
+                values = attr_matrix.mean(axis=1).flatten()
+
+                if len(valid_attrs) <= 3:
+                    display_name = f"avg({','.join(valid_attrs)})"
+                else:
+                    display_name = f"avg({len(valid_attrs)} attrs)"
+
+            # Create dictionary mapping neighborhood names to values
+            values_dict = {
+                str(name): float(val)
+                for name, val in zip(nbhd_names, values, strict=False)
+            }
+
+            max_val = float(values.max()) if len(values) > 0 else 1.0
+            min_val = float(values.min()) if len(values) > 0 else 0.0
+
+            result = {
+                "attr": display_name,
+                "values": values_dict,
+                "max_val": max_val,
+                "min_val": min_val,
+            }
+
+            self.nbhd_attr_data = result
+
+            # Also set legacy traitlet for backwards compatibility
+            self.nbhd_gene_expression = {
+                "gene": display_name,
+                "expression": values_dict,
+                "max_exp": max_val,
+            }
+
+        except Exception as e:
+            error_result = {"error": str(e)}
+            self.nbhd_attr_data = error_result
+            self.nbhd_gene_expression = error_result
+
+    def get_nbhd_gene_expression(self, gene_names: str | list[str]) -> dict:
+        """
+        Get neighborhood gene expression data for one or more genes.
+
+        When multiple genes are provided, returns the averaged expression
+        across all valid genes.
+
+        Args:
+            gene_names: Single gene name (str) or list of gene names to average.
+
+        Returns:
+            Dictionary with 'gene' (display name), 'expression' mapping
+            neighborhood names to values, and 'max_exp' for normalization.
+        """
+        if self._nbhd_adata is None:
+            return {"error": "No nbhd_adata provided"}
+
+        adata = self._nbhd_adata
+
+        # Normalize input to list
+        if isinstance(gene_names, str):
+            genes = [gene_names]
+        else:
+            genes = list(gene_names)
+
+        valid_genes = [g for g in genes if g in adata.var_names]
+        if len(valid_genes) == 0:
+            return {"error": "No valid genes found"}
+
+        gene_indices = [list(adata.var_names).index(g) for g in valid_genes]
+
+        if hasattr(adata.X, "toarray"):
+            expr_matrix = adata.X[:, gene_indices].toarray()
+        else:
+            expr_matrix = adata.X[:, gene_indices]
+
+        if len(valid_genes) == 1:
+            expression_values = expr_matrix.flatten()
+            display_name = valid_genes[0]
+        else:
+            expression_values = expr_matrix.mean(axis=1).flatten()
+            if len(valid_genes) <= 3:
+                display_name = f"avg({','.join(valid_genes)})"
+            else:
+                display_name = f"avg({len(valid_genes)} genes)"
+
+        nbhd_names = list(adata.obs.index)
+        expression_dict = {
+            str(name): float(val)
+            for name, val in zip(nbhd_names, expression_values, strict=False)
+        }
+        max_exp = float(expression_values.max()) if len(expression_values) > 0 else 1.0
+
+        return {"gene": display_name, "expression": expression_dict, "max_exp": max_exp}
 
     def close(self):  # pragma: no cover - cleanup depends on JS
         """Close the widget and notify the frontend to release resources."""

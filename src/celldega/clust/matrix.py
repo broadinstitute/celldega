@@ -659,6 +659,34 @@ class Matrix:
         self._clustered = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
+    def jitter(self, scale: float = 0.001, seed: int = 42) -> None:
+        """
+        Add small random noise to break ties in identical values.
+
+        This helps prevent scrambled dendrograms when columns/rows have
+        exactly the same values, which causes zero distances and undefined
+        ordering in hierarchical clustering.
+
+        Args:
+            scale: Maximum noise magnitude (default: 0.001)
+            seed: Random seed for reproducibility (default: 42)
+
+        Example:
+            >>> mat = Matrix(adata)
+            >>> mat.norm(axis='row', by='zscore')
+            >>> mat.jitter()  # Add tiny noise to break ties
+            >>> mat.cluster()
+        """
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+
+        np.random.seed(seed)
+        noise = np.random.uniform(0, scale, size=self.data.shape)
+        self.data = self.data + noise
+
+        self._clustered = False
+        self._invalidate_cache(CacheLevel.DATA.value)
+
     def clust(
         self,
         dist_type: DistanceType = "cosine",

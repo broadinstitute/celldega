@@ -321,6 +321,7 @@ export const landscape_ist = async (
     };
 
     viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+    viz_state.nbhd.gdf_attrs = [];
   } else {
     viz_state.nbhd.is_nbhd = true;
 
@@ -361,6 +362,10 @@ export const landscape_ist = async (
       type: 'FeatureCollection',
       features: nbhd.features,
     };
+
+    // Get available GDF attributes for coloring dropdown
+    // These are numerical columns from the nbhd GeoDataFrame (excluding geometry/color)
+    viz_state.nbhd.gdf_attrs = ini_model?.get('nbhd_gdf_attrs') || [];
   }
 
   viz_state.containers = {};
@@ -876,6 +881,84 @@ export const landscape_ist = async (
       const cells = viz_state.model.get('selected_cells') || [];
       viz_state.obs_store.selected_cells.set(cells);
     });
+
+    // Handle neighborhood attribute data from Python backend (new format)
+    viz_state.model.on('change:nbhd_attr_data', () => {
+      const attr_data = viz_state.model.get('nbhd_attr_data') || {};
+      if (attr_data.attr && attr_data.values) {
+        // Store attribute data for neighborhood layer coloring
+        viz_state.nbhd.gene_expression = attr_data.values;
+        viz_state.nbhd.gene_max_exp = attr_data.max_val || 1;
+        viz_state.nbhd.gene_min_exp = attr_data.min_val || 0;
+        viz_state.nbhd.current_gene = attr_data.attr;
+        viz_state.nbhd.color_mode = 'gene';
+
+        // Hide bar graph and slider when showing numerical attribute
+        // (opacity encodes the attribute value)
+        if (viz_state.containers?.bar_nbhd) {
+          viz_state.containers.bar_nbhd.style.display = 'none';
+        }
+        if (viz_state.sliders?.nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, false);
+        }
+
+        // Clone layer with opacity 1 and new ID to trigger re-render
+        layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+          id: `nbhd-layer-attr-${attr_data.attr}-${Date.now()}`,
+          opacity: 1.0,
+        });
+
+        // Use same pattern as refresh_layer: toggle + set layers_obj
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          nbhd_layer: false,
+        });
+        viz_state.layers_obj = layers_obj;
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          nbhd_layer: true,
+        });
+      }
+    });
+
+    // Handle legacy traitlet for backwards compatibility
+    viz_state.model.on('change:nbhd_gene_expression', () => {
+      const expression_data = viz_state.model.get('nbhd_gene_expression') || {};
+      if (expression_data.gene && expression_data.expression) {
+        viz_state.nbhd.gene_expression = expression_data.expression;
+        viz_state.nbhd.gene_max_exp = expression_data.max_exp || 1;
+        viz_state.nbhd.current_gene = expression_data.gene;
+        viz_state.nbhd.color_mode = 'gene';
+
+        // Hide bar graph and slider when showing numerical attribute
+        if (viz_state.containers?.bar_nbhd) {
+          viz_state.containers.bar_nbhd.style.display = 'none';
+        }
+        if (viz_state.sliders?.nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, false);
+        }
+
+        // Clone layer with opacity 1 and new ID to trigger re-render
+        layers_obj.nbhd_layer = layers_obj.nbhd_layer.clone({
+          id: `nbhd-layer-gene-${expression_data.gene}-${Date.now()}`,
+          opacity: 1.0,
+        });
+
+        // Use same pattern as refresh_layer: toggle + set layers_obj
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          nbhd_layer: false,
+        });
+        viz_state.layers_obj = layers_obj;
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          nbhd_layer: true,
+        });
+      }
+    });
+
+    // Check if nbhd_adata is available via synced traitlet
+    viz_state.nbhd.has_nbhd_adata = viz_state.model.get('has_nbhd_adata') || false;
   }
 
   const ui_container = make_ist_ui_container(

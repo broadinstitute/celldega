@@ -13,24 +13,69 @@ const selected_nbhds_include = (selected_nbhds, feature) => {
   return selected_nbhds.includes(name) || selected_nbhds.includes(cat);
 };
 
+/**
+ * Get color for a neighborhood feature based on current color mode
+ *
+ * Supports two color modes:
+ * - 'cluster' (default): Color by categorical attribute (cat/leiden) using the feature's color property
+ * - 'gene': Color by gene expression using red intensity (similar to cell gene coloring)
+ *
+ * @param {object} d - The GeoJSON feature
+ * @param {object} viz_state - The visualization state
+ * @returns {Array<number>} RGBA color array
+ */
 const get_nbhd_color = (d, viz_state) => {
-  const inst_color = hexToRgb(d.properties.color);
+  const colorMode = viz_state.nbhd.color_mode || 'cluster';
   const selected_nbhds = viz_state.obs_store.selected_nbhds.get();
-
-  let inst_opacity;
 
   // if viz_state.obs_store.selected_nbhds is not empty
   // then check if the neighborhood identity is in the selected_nbhds
-  if (selected_nbhds.length > 0) {
-    inst_opacity = selected_nbhds_include(selected_nbhds, d) ? 255 : 0;
-  } else {
-    // if selected_nbhds is empty, set the opacity to 255
-    inst_opacity = 255;
+  if (selected_nbhds.length > 0 && !selected_nbhds_include(selected_nbhds, d)) {
+    return [0, 0, 0, 0]; // Fully transparent for non-selected
   }
 
-  // add the opacity to the color
-  inst_color.push(inst_opacity);
+  let inst_color;
+  let inst_opacity = 255;
 
+  if (colorMode === 'gene' && viz_state.nbhd.gene_expression) {
+    // Gene/attribute expression mode: use red intensity like cell layer
+    // Try multiple keys for lookup: cat (primary), name (fallback)
+    const gene_expression = viz_state.nbhd.gene_expression;
+    const cat_key = d.properties.cat;
+    const name_key = d.properties.name;
+
+    // Look up expression value - try cat first (matches bar graph), then name
+    let expression = 0;
+    if (cat_key !== undefined && gene_expression[cat_key] !== undefined) {
+      expression = gene_expression[cat_key];
+    } else if (name_key !== undefined && gene_expression[name_key] !== undefined) {
+      expression = gene_expression[name_key];
+    } else if (cat_key !== undefined && gene_expression[String(cat_key)] !== undefined) {
+      expression = gene_expression[String(cat_key)];
+    }
+
+    const max_exp = viz_state.nbhd.gene_max_exp || 1;
+
+    // Normalize expression to 0-255 range using log scale (similar to cell layer)
+    let normalized_exp;
+    if (expression > 0 && max_exp > 0) {
+      const log_exp = Math.log1p(expression);
+      const log_max = Math.log1p(max_exp);
+      normalized_exp = Math.round((log_exp / log_max) * 255);
+    } else {
+      normalized_exp = 0;
+    }
+
+    // Red color with expression-based intensity
+    // Zero expression = transparent (no minimum opacity)
+    inst_color = [255, 0, 0];
+    inst_opacity = normalized_exp;
+  } else {
+    // Default cluster/categorical mode
+    inst_color = hexToRgb(d.properties.color);
+  }
+
+  inst_color.push(inst_opacity);
   return inst_color;
 };
 

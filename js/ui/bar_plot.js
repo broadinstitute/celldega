@@ -65,18 +65,66 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-  // ensure that trx button, slider, and bars are active
-  _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
+  const inst_gene = d.name;
+  const reset_gene = inst_gene === _viz_state.cats.cat;
 
-  toggle_slider(_viz_state.sliders.trx, true);
+  // Check if NBHD layer is active - mutually exclusive behavior
+  const nbhd_is_active = _viz_state.obs_store.viz_nbhd_layer.get();
+  const nbhd_has_adata = _viz_state.nbhd?.has_nbhd_adata;
+
+  // Update gene selection UI
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
 
+  if (reset_gene) {
+    // Reset to cluster mode
+    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
+
+    if (_viz_state.nbhd?.is_nbhd) {
+      _viz_state.nbhd.color_mode = 'cluster';
+      _viz_state.nbhd.gene_expression = null;
+      _viz_state.nbhd.current_gene = null;
+    }
+
+    update_cat(_viz_state.cats, 'cluster');
+    update_selected_cats(_viz_state.cats, [], _viz_state.obs_store);
+
+    // Show both layers in cluster mode
+    _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
+    toggle_slider(_viz_state.sliders.trx, true);
+    toggle_trx_layer_visibility(_layers_obj, true);
+
+    return;
+  }
+
+  _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
+
+  if (nbhd_is_active && nbhd_has_adata) {
+    // MUTUALLY EXCLUSIVE: Color neighborhoods by gene
+    _viz_state.nbhd.color_mode = 'gene';
+
+    // Request neighborhood attribute data from Python
+    if (_viz_state.model && typeof _viz_state.model.set === 'function') {
+      _viz_state.model.set('nbhd_attr_request', inst_gene);
+      _viz_state.model.save_changes();
+    }
+
+    // Keep cells in cluster mode
+    update_cat(_viz_state.cats, 'cluster');
+    update_selected_cats(_viz_state.cats, [], _viz_state.obs_store);
+
+    // Keep nbhd layer visible, hide cell layer gene coloring
+    toggle_slider(_viz_state.sliders.nbhd, true);
+  } else {
+    // MUTUALLY EXCLUSIVE: Color cells by gene expression
+    _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
+    toggle_slider(_viz_state.sliders.trx, true);
   toggle_trx_layer_visibility(_layers_obj, true);
 
-  if (_viz_state.nbhd.is_nbhd) {
+    // Hide neighborhood layer
+    if (_viz_state.nbhd?.is_nbhd) {
     _viz_state.obs_store.viz_nbhd_layer.set(false);
     _viz_state.obs_store.viz_edit_layer.set(false);
-    // wrap in try
     try {
       _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
       toggle_slider(_viz_state.sliders.nbhd, false);
@@ -85,16 +133,7 @@ export const bar_callback_gene = async (
     }
   }
 
-  const inst_gene = d.name;
-  const reset_gene = inst_gene === _viz_state.cats.cat;
-  const new_cat = reset_gene ? 'cluster' : inst_gene;
-
-  if (reset_gene) {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-  } else {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-  }
-
+    const new_cat = inst_gene;
   update_cat(_viz_state.cats, new_cat);
 
   _viz_state.obs_store.deck_check.set({
@@ -103,7 +142,6 @@ export const bar_callback_gene = async (
     trx_layer: false,
   });
 
-  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
   await update_cell_exp_array(
     _viz_state.cats,
     _viz_state.genes,
@@ -115,9 +153,8 @@ export const bar_callback_gene = async (
     _viz_state.row_group_readers?.cbg
   );
 
-  // update selected_cats after update_cell_exp_array has been run
-  // can clean up and move more logic to observability
   update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
+  }
 };
 
 export const bar_callback_nbhd = (

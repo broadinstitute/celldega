@@ -305,6 +305,38 @@ export const reorder_nbhd_cloud_shapes_for_camera_side = (
   refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
 };
 
+// Called directly from deck.gl's raw, per-frame onViewStateChange
+// (deck_ist.js's set_deck_on_view_state_change) -- deliberately NOT behind
+// the 200ms debounce the rest of view-state handling uses
+// (on_view_state_change.js), since that debounce is a trailing-edge one:
+// it waits for motion to *stop* before running anything, so a debounced
+// version of this check would only ever fire up to 200ms after the user
+// stopped rotating, not live during the drag. That's the right tradeoff for
+// the heavier 2D tile-visibility/viewport-bar work it protects, but this
+// check doesn't need it -- it's an O(1) sign compare on almost every call,
+// and only does real work (resorting a few hundred features, not
+// thousands+) at the rare moment the camera actually crosses the horizon.
+// Safe to call on every frame during a drag.
+export const check_nbhd_cloud_camera_side = (
+  viewState,
+  layers_obj,
+  viz_state
+) => {
+  const { nbhd_cloud } = viz_state;
+  if (!nbhd_cloud?.is_nbhd_cloud || typeof viewState?.rotationX !== 'number') {
+    return;
+  }
+
+  const nextSide = get_nbhd_cloud_camera_side(
+    viewState.rotationX,
+    nbhd_cloud.camera_side
+  );
+  if (nextSide !== nbhd_cloud.camera_side) {
+    nbhd_cloud.camera_side = nextSide;
+    reorder_nbhd_cloud_shapes_for_camera_side(viz_state, layers_obj, nextSide);
+  }
+};
+
 // Restores the shapes layer to the cluster-based shapes (respecting any
 // active slice isolation) -- called whenever gene-shapes mode is exited,
 // since that mode swapped `data` to a wholly different feature set (one
@@ -462,6 +494,18 @@ export const select_nbhd_cloud_gene = async (gene, viz_state, layers_obj) => {
         viz_state.aws ?? null
       );
       features = parse_gene_shapes_table_to_features(table);
+      // Sort for the *current* camera side immediately -- otherwise a gene
+      // fetched for the first time while already viewing from below would
+      // sit in raw (unsorted) order until the next camera-side flip
+      // resorts it, same bug as the cluster-shapes case this whole thing
+      // is fixing.
+      if (nbhd_cloud.slice_z_order) {
+        features = reorder_nbhd_cloud_features_for_camera(
+          features,
+          nbhd_cloud.slice_z_order,
+          nbhd_cloud.camera_side
+        );
+      }
       nbhd_cloud.gene_shapes_cache.set(gene, features);
     }
 

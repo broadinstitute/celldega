@@ -4,6 +4,38 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.21.1] - 2026-07-31
+
+Bug-fix release for `NeighborhoodCloud`'s beneath-view transparency artifact
+(viewing the alpha-shape stack from one side showed lower slices as almost
+fully transparent, since disabling WebGL depth testing to fix a worse
+tearing artifact left draw order fixed regardless of camera angle).
+Experimental — testing on `nbhd-cloud-depth-sort` before merging back.
+
+### Fixed
+
+- **Beneath-view transparency** — the neighborhood-cloud shapes layer now
+  reorders its polygons whenever the camera crosses from viewing the
+  Z-stack from above to below (or back), so the slice nearest the camera
+  always draws last and correctly reads as "in front," regardless of which
+  side you're viewing from. Detected cheaply from the OrbitView's live
+  `rotationX` sign (a small deadband prevents flicker near the horizon) —
+  no full per-frame depth sort or order-independent transparency needed,
+  since the geometry is a small number of near-planar, Z-stacked slices.
+- **Intra-slice neighborhood stacking** — within one slice, larger-area
+  neighborhoods now consistently draw first and smaller ones last (on top),
+  regardless of camera side, so a small neighborhood isn't visually
+  swallowed by a larger one jittered onto a nearby Z in the same slice.
+  Applied from the very first frame (not just after the first camera-side
+  flip) and to newly-selected gene shapes immediately, not only to shapes
+  already on screen when a flip happens.
+- **Reorder latency** — the camera-side check now runs on deck.gl's raw,
+  undebounced view-state callback instead of behind the existing 200ms
+  debounce (which exists to protect heavier 2D-tile/viewport-bar work that
+  neighborhood-cloud doesn't do) — the check itself is a cheap sign compare
+  on nearly every call, and only resorts the (small) shapes array at the
+  rare moment the camera actually crosses sides.
+
 ## [0.21.0] - 2026-07-30
 
 Adds dedicated 3D-orbit widgets — `CellCloud` and `NeighborhoodCloud` — and a

@@ -571,6 +571,12 @@ describe('EXPERIMENTAL (this branch only): camera-side reordering for the beneat
   let reorder_nbhd_cloud_features_for_camera;
   let get_nbhd_cloud_camera_side;
   let reorder_nbhd_cloud_shapes_for_camera_side;
+  let check_nbhd_cloud_camera_side;
+  let select_nbhd_cloud_gene_for_fetch_sort_test;
+  const geneFetchFeatures = [
+    { properties: { gene: 'Matn1', slice_id: 'top' } },
+    { properties: { gene: 'Matn1', slice_id: 'bottom' } },
+  ];
 
   beforeAll(() => {
     const fs = require('fs');
@@ -590,7 +596,10 @@ describe('EXPERIMENTAL (this branch only): camera-side reordering for the beneat
     ].join('\n');
 
     const shims = `
+      const options = { fetch: {} };
       const refresh_layer = () => {};
+      const get_arrow_table = async () => ({});
+      const parse_gene_shapes_table_to_features = () => geneFetchFeatures;
       const refresh_nbhd_cloud_cluster_cells = async () => {};
       const refresh_nbhd_cloud_gene_cells = async () => {};
     `;
@@ -600,14 +609,22 @@ describe('EXPERIMENTAL (this branch only): camera-side reordering for the beneat
       reorder_nbhd_cloud_features_for_camera,
       get_nbhd_cloud_camera_side,
       reorder_nbhd_cloud_shapes_for_camera_side,
+      check_nbhd_cloud_camera_side,
+      select_nbhd_cloud_gene,
     };`;
     const module = { exports: {} };
-    new Function('module', 'exports', code)(module, module.exports);
+    new Function('module', 'exports', 'geneFetchFeatures', code)(
+      module,
+      module.exports,
+      geneFetchFeatures
+    );
     ({
       build_nbhd_cloud_slice_z_order,
       reorder_nbhd_cloud_features_for_camera,
       get_nbhd_cloud_camera_side,
       reorder_nbhd_cloud_shapes_for_camera_side,
+      check_nbhd_cloud_camera_side,
+      select_nbhd_cloud_gene: select_nbhd_cloud_gene_for_fetch_sort_test,
     } = module.exports);
   });
 
@@ -744,6 +761,114 @@ describe('EXPERIMENTAL (this branch only): camera-side reordering for the beneat
     // no gene is selected) reordered features into the layer's data.
     expect(
       layers_obj.nbhd_cloud_shapes_layer.data.features.map((f) => f.tag)
+    ).toEqual(['top', 'bottom']);
+  });
+
+  const makeLayersObj = () => ({
+    nbhd_cloud_shapes_layer: {
+      clone(props) {
+        return { ...this, ...props };
+      },
+    },
+  });
+
+  test('check_nbhd_cloud_camera_side is a no-op for non-nbhd_cloud technologies', () => {
+    const viz_state = {
+      nbhd_cloud: { is_nbhd_cloud: false, camera_side: 'above' },
+    };
+
+    check_nbhd_cloud_camera_side(
+      { rotationX: -45 },
+      makeLayersObj(),
+      viz_state
+    );
+
+    expect(viz_state.nbhd_cloud.camera_side).toBe('above');
+  });
+
+  test('check_nbhd_cloud_camera_side is a no-op within the deadband (no flip, no reorder)', () => {
+    const viz_state = {
+      nbhd_cloud: {
+        is_nbhd_cloud: true,
+        camera_side: 'above',
+        shapes_features: [feature('bottom', 10, 'bottom')],
+        meta_slice: [{ slice_id: 'bottom', z: 0 }],
+      },
+    };
+
+    check_nbhd_cloud_camera_side(
+      { rotationX: 0.5 },
+      makeLayersObj(),
+      viz_state
+    );
+
+    expect(viz_state.nbhd_cloud.camera_side).toBe('above');
+  });
+
+  test('check_nbhd_cloud_camera_side flips the side and reorders once rotationX crosses the deadband', () => {
+    const viz_state = {
+      nbhd_cloud: {
+        is_nbhd_cloud: true,
+        camera_side: 'above',
+        shapes_features: [
+          feature('top', 10, 'top'),
+          feature('bottom', 10, 'bottom'),
+        ],
+        meta_slice: [
+          { slice_id: 'bottom', z: 0 },
+          { slice_id: 'top', z: 100 },
+        ],
+      },
+    };
+    const layers_obj = makeLayersObj();
+
+    check_nbhd_cloud_camera_side({ rotationX: -45 }, layers_obj, viz_state);
+
+    expect(viz_state.nbhd_cloud.camera_side).toBe('below');
+    expect(viz_state.nbhd_cloud.shapes_features.map((f) => f.tag)).toEqual([
+      'top',
+      'bottom',
+    ]);
+  });
+
+  test('check_nbhd_cloud_camera_side ignores a missing/non-numeric rotationX', () => {
+    const viz_state = {
+      nbhd_cloud: { is_nbhd_cloud: true, camera_side: 'above' },
+    };
+
+    check_nbhd_cloud_camera_side({}, makeLayersObj(), viz_state);
+
+    expect(viz_state.nbhd_cloud.camera_side).toBe('above');
+  });
+
+  test("a freshly-fetched gene's shapes are sorted for the *current* camera side immediately, not left in raw fetch order", async () => {
+    const viz_state = {
+      nbhd_cloud: {
+        available_gene_shapes: new Map([['Matn1', 10]]),
+        shapes_features: [],
+        camera_side: 'below',
+        slice_z_order: build_nbhd_cloud_slice_z_order([
+          { slice_id: 'bottom', z: 0 },
+          { slice_id: 'top', z: 100 },
+        ]),
+      },
+      global_base_url: 'http://example.test',
+      aws: null,
+    };
+    const layers_obj = makeLayersObj();
+
+    await select_nbhd_cloud_gene_for_fetch_sort_test(
+      'Matn1',
+      viz_state,
+      layers_obj
+    );
+
+    // Raw fetch order was [top, bottom]; viewing from below means bottom
+    // (nearest the camera) should be reordered to draw last.
+    expect(
+      viz_state.nbhd_cloud.gene_shapes_cache
+        .get('Matn1')
+        .map((f) => f.properties.slice_id)
     ).toEqual(['top', 'bottom']);
   });
 });

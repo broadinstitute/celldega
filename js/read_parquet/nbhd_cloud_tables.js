@@ -51,6 +51,7 @@ export const parse_shapes_table_to_features = (table) => {
   const clusterIds = getTableColumnArray(table, 'cluster_id');
   const sliceIds = getTableColumnArray(table, 'slice_id');
   const colors = getTableColumnArray(table, 'color');
+  const areas = toNumberArray(getTableColumnArray(table, 'area'));
   const geojsonStrings = getTableColumnArray(table, 'geometry_geojson');
 
   const features = [];
@@ -69,6 +70,11 @@ export const parse_shapes_table_to_features = (table) => {
         cluster_id: clusterIds[i],
         slice_id: sliceIds[i],
         color: colors[i],
+        // Drives the intra-slice draw-order tiebreak (see
+        // reorder_nbhd_cloud_features_for_camera) -- smaller neighborhoods
+        // drawn last (on top) so they aren't visually swallowed by a larger
+        // one jittered onto a nearby Z within the same slice.
+        area: areas[i],
       },
       geometry,
     });

@@ -43,6 +43,73 @@ export const build_nbhd_cloud_gene_bar_data = (nbhd_cloud) => {
   }));
 };
 
+// Precomputes each slice's position in Z order (0 = lowest Z, i.e. the
+// bottom of the stack) -- the primary sort key for
+// reorder_nbhd_cloud_features_for_camera below. Built once from meta_slice
+// (a handful to dozens of slices) rather than recomputed on every camera
+// update.
+export const build_nbhd_cloud_slice_z_order = (meta_slice = []) => {
+  return new Map(
+    [...meta_slice]
+      .sort((a, b) => a.z - b.z)
+      .map((s, i) => [String(s.slice_id), i])
+  );
+};
+
+// Reorders a features array (one polygon per (slice, cluster) or (slice,
+// gene)) for correct-looking alpha blending from the camera's current side
+// of the Z-stack -- WebGL depth testing is off for this layer (see
+// ini_nbhd_cloud_shapes_layer), so with many overlapping semi-transparent
+// slices sharing nearly the same XY footprint, whichever polygon is LAST in
+// this array wins the pixel outright. Two independent concerns, kept
+// separate on purpose:
+//
+// - Inter-slice (primary key): the slice nearest the camera should draw
+//   last, so it correctly reads as "in front" -- ascending Z order when
+//   viewing from above the stack, descending when viewing from below. This
+//   is the part that flips when the camera crosses to the other side.
+// - Intra-slice (secondary key, tiebreak): within one slice, always draw
+//   the larger-area neighborhood first and the smaller one last, regardless
+//   of camera side -- a small neighborhood is far more likely to be
+//   entirely covered by a large one sharing its slice than the reverse, so
+//   it should consistently win the pixel. Sorting by the stored (jittered)
+//   Z instead of by area directly would silently invert this every time the
+//   camera flips sides, since that jitter is applied in one fixed direction
+//   per slice, not relative to the camera -- area is read from each
+//   feature's own `properties.area` for exactly this reason.
+export const reorder_nbhd_cloud_features_for_camera = (
+  features,
+  sliceZOrder,
+  cameraSide
+) => {
+  const sign = cameraSide === 'below' ? -1 : 1;
+  return [...features].sort((a, b) => {
+    const sliceA = sliceZOrder.get(String(a.properties.slice_id)) ?? 0;
+    const sliceB = sliceZOrder.get(String(b.properties.slice_id)) ?? 0;
+    if (sliceA !== sliceB) {
+      return sign * (sliceA - sliceB);
+    }
+    return (b.properties.area ?? 0) - (a.properties.area ?? 0);
+  });
+};
+
+// Determines which side of the (Z-stacked) neighborhood-cloud the camera is
+// currently on from the OrbitView's live pitch. rotationOrbit (azimuth)
+// spins around the stack's own Z axis and never changes which end faces the
+// camera -- only rotationX (elevation/pitch) does (deck.gl's OrbitViewport
+// builds its view matrix as rotateX(rotationX) then rotateZ(rotationOrbit)
+// for a Z-up orbit axis, which is this view's default). A small deadband
+// around the horizon avoids flip-flopping the sort while the camera sits
+// near rotationX = 0.
+const CAMERA_SIDE_DEADBAND_DEGREES = 2;
+
+export const get_nbhd_cloud_camera_side = (rotationX, previousSide) => {
+  if (Math.abs(rotationX) < CAMERA_SIDE_DEADBAND_DEGREES) {
+    return previousSide ?? 'above';
+  }
+  return rotationX > 0 ? 'above' : 'below';
+};
+
 // Applied to every shape outside the selected cluster (bar click or direct
 // shape click) when a selection is active -- fully transparent, not just
 // dimmed, so only the selected cluster's shapes are visible.
@@ -196,6 +263,46 @@ export const apply_nbhd_cloud_slice_filter = (viz_state, layers_obj) => {
     layers_obj,
     get_slice_filtered_features(viz_state, baseFeatures)
   );
+};
+
+// Backs calc_viewport.js's camera-side tracking (EXPERIMENTAL, this branch
+// only) -- called whenever get_nbhd_cloud_camera_side reports a flip.
+// Reorders the full cluster-shapes array plus every gene's already-fetched
+// shapes sitting in the cache (so a gene selected before the flip stays
+// correctly ordered too), then re-applies whichever feature set is
+// currently on screen via the existing slice-filter/render path -- no
+// separate "which mode am I in" branching needed here.
+export const reorder_nbhd_cloud_shapes_for_camera_side = (
+  viz_state,
+  layers_obj,
+  cameraSide
+) => {
+  const { nbhd_cloud } = viz_state;
+  nbhd_cloud.slice_z_order ??= build_nbhd_cloud_slice_z_order(
+    nbhd_cloud.meta_slice
+  );
+
+  nbhd_cloud.shapes_features = reorder_nbhd_cloud_features_for_camera(
+    nbhd_cloud.shapes_features ?? [],
+    nbhd_cloud.slice_z_order,
+    cameraSide
+  );
+
+  if (nbhd_cloud.gene_shapes_cache) {
+    for (const [gene, features] of nbhd_cloud.gene_shapes_cache) {
+      nbhd_cloud.gene_shapes_cache.set(
+        gene,
+        reorder_nbhd_cloud_features_for_camera(
+          features,
+          nbhd_cloud.slice_z_order,
+          cameraSide
+        )
+      );
+    }
+  }
+
+  apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
 };
 
 // Restores the shapes layer to the cluster-based shapes (respecting any

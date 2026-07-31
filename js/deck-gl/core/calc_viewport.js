@@ -7,7 +7,11 @@ import {
 } from '../../utils/compact_data';
 import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
-import { build_nbhd_cloud_gene_bar_data } from '../layers/nbhd_cloud_shapes_layer';
+import {
+  build_nbhd_cloud_gene_bar_data,
+  get_nbhd_cloud_camera_side,
+  reorder_nbhd_cloud_shapes_for_camera_side,
+} from '../layers/nbhd_cloud_shapes_layer';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
@@ -219,7 +223,7 @@ const computeViewportCellBars = (viz_state, viewportCache) => {
 };
 
 export const calc_viewport = async (
-  { height, width, zoom, target },
+  { height, width, zoom, target, rotationX },
   deck_ist,
   layers_obj,
   viz_state
@@ -266,6 +270,26 @@ export const calc_viewport = async (
       viz_state.obs_store.new_cell_bar_data,
       viz_state.cats.cluster_counts
     );
+
+    // EXPERIMENTAL (this branch only): neighborhood-cloud-only -- CellCloud
+    // has no overlapping-shapes problem to fix (points don't cover area the
+    // way filled polygons do), so this is scoped to is_nbhd_cloud
+    // specifically, not every is_orbit_technology dataset. See
+    // reorder_nbhd_cloud_features_for_camera for the full rationale.
+    if (viz_state.nbhd_cloud?.is_nbhd_cloud && typeof rotationX === 'number') {
+      const nextSide = get_nbhd_cloud_camera_side(
+        rotationX,
+        viz_state.nbhd_cloud.camera_side
+      );
+      if (nextSide !== viz_state.nbhd_cloud.camera_side) {
+        viz_state.nbhd_cloud.camera_side = nextSide;
+        reorder_nbhd_cloud_shapes_for_camera_side(
+          viz_state,
+          layers_obj,
+          nextSide
+        );
+      }
+    }
 
     return;
   }

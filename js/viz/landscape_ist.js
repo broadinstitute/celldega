@@ -626,6 +626,10 @@ export const landscape_ist = async (
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_shapes_mode = false;
     viz_state.nbhd_cloud.gene_scatter_mode = false;
+    // EXPERIMENTAL (this branch only): matches get_nbhd_cloud_camera_side's
+    // default so the very first camera-side check (before any rotation) is
+    // a no-op rather than an immediate, needless reorder.
+    viz_state.nbhd_cloud.camera_side = 'above';
     viz_state.nbhd_cloud.available_gene_shapes =
       await fetch_available_gene_shapes(base_url, viz_state.aws);
     viz_state.nbhd_cloud.available_gene_scatter =

@@ -566,7 +566,7 @@ describe('neighborhood-cloud gene cell-scatter mode (no shape, capped cell scatt
   });
 });
 
-describe('EXPERIMENTAL (this branch only): camera-side reordering for the beneath-view transparency artifact', () => {
+describe('camera-side reordering for the beneath-view transparency artifact', () => {
   let build_nbhd_cloud_slice_z_order;
   let reorder_nbhd_cloud_features_for_camera;
   let get_nbhd_cloud_camera_side;

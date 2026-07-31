@@ -10,7 +10,6 @@ Bug-fix release for `NeighborhoodCloud`'s beneath-view transparency artifact
 (viewing the alpha-shape stack from one side showed lower slices as almost
 fully transparent, since disabling WebGL depth testing to fix a worse
 tearing artifact left draw order fixed regardless of camera angle).
-Experimental — testing on `nbhd-cloud-depth-sort` before merging back.
 
 ### Fixed
 

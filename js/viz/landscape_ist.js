@@ -628,16 +628,16 @@ export const landscape_ist = async (
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_shapes_mode = false;
     viz_state.nbhd_cloud.gene_scatter_mode = false;
-    // EXPERIMENTAL (this branch only): matches get_nbhd_cloud_camera_side's
-    // default so the very first camera-side check (before any rotation) is
-    // a no-op rather than an immediate, needless reorder.
+    // Matches get_nbhd_cloud_camera_side's default so the very first
+    // camera-side check (before any rotation) is a no-op rather than an
+    // immediate, needless reorder.
     viz_state.nbhd_cloud.camera_side = 'above';
 
-    // EXPERIMENTAL (this branch only): apply the same draw-order fix the
-    // camera-side flip uses right away, so "smaller neighborhoods draw on
-    // top within a slice" holds from the very first frame -- not just after
-    // the user rotates past the horizon for the first time. See
-    // reorder_nbhd_cloud_features_for_camera for the full rationale.
+    // Apply the same draw-order fix the camera-side flip uses right away,
+    // so "smaller neighborhoods draw on top within a slice" holds from the
+    // very first frame -- not just after the user rotates past the horizon
+    // for the first time. See reorder_nbhd_cloud_features_for_camera for
+    // the full rationale.
     viz_state.nbhd_cloud.slice_z_order = build_nbhd_cloud_slice_z_order(
       viz_state.nbhd_cloud.meta_slice
     );

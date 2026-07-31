@@ -64,9 +64,9 @@ export const set_deck_on_view_state_change = (
   deck_ist.setProps({
     onViewStateChange: (params) => {
       pause_point_cloud_pickability(deck_ist, layers_obj, viz_state);
-      // EXPERIMENTAL (this branch only): run on every raw frame, not behind
-      // on_view_state_change's 200ms debounce -- see
-      // check_nbhd_cloud_camera_side's own comment for why that's safe.
+      // Runs on every raw frame, not behind on_view_state_change's 200ms
+      // debounce -- see check_nbhd_cloud_camera_side's own comment for why
+      // that's safe.
       check_nbhd_cloud_camera_side(params.viewState, layers_obj, viz_state);
       on_view_state_change(params, deck_ist, layers_obj, viz_state);
     },

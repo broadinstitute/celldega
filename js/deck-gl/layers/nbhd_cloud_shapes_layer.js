@@ -265,8 +265,8 @@ export const apply_nbhd_cloud_slice_filter = (viz_state, layers_obj) => {
   );
 };
 
-// Backs calc_viewport.js's camera-side tracking (EXPERIMENTAL, this branch
-// only) -- called whenever get_nbhd_cloud_camera_side reports a flip.
+// Backs check_nbhd_cloud_camera_side's camera-side tracking -- called
+// whenever get_nbhd_cloud_camera_side reports a flip.
 // Reorders the full cluster-shapes array plus every gene's already-fetched
 // shapes sitting in the cache (so a gene selected before the flip stays
 // correctly ordered too), then re-applies whichever feature set is

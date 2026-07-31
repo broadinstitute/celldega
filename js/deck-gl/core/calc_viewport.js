@@ -267,12 +267,12 @@ export const calc_viewport = async (
       viz_state.cats.cluster_counts
     );
 
-    // EXPERIMENTAL (this branch only): the camera-side reorder check used to
-    // live here, but this whole function is behind on_view_state_change's
-    // 200ms debounce (see deck_ist.js's set_deck_on_view_state_change) --
-    // fine for the tile/gene-bar work above, which really does want to wait
-    // for a quiet period, but it meant the reorder only ever ran up to
-    // 200ms after the user *stopped* rotating, not live during the drag.
+    // The camera-side reorder check used to live here, but this whole
+    // function is behind on_view_state_change's 200ms debounce (see
+    // deck_ist.js's set_deck_on_view_state_change) -- fine for the
+    // tile/gene-bar work above, which really does want to wait for a quiet
+    // period, but it meant the reorder only ever ran up to 200ms after the
+    // user *stopped* rotating, not live during the drag.
     // The check itself is O(1) on almost every call (just a sign compare)
     // and only does real work at the rare moment the camera actually
     // crosses the horizon, so it doesn't need debouncing -- it's now called

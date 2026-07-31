@@ -26,7 +26,7 @@ import { set_dimensions } from '../global_variables/image_dimensions';
 import {
   get_landscape_image_info,
   get_primary_image_name,
-  is_point_cloud_technology,
+  is_orbit_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
@@ -195,7 +195,7 @@ export const switch_dataset = async (
 
     const { landscape_parameters } = viz_state.img;
     const { technology: tech, image_format } = landscape_parameters;
-    const pointCloud = is_point_cloud_technology(tech);
+    const pointCloud = is_orbit_technology(tech);
     const has_image_layer = technology_has_image_layer(tech);
     const tmp_image_info = get_landscape_image_info(landscape_parameters);
     const image_name_for_dim = get_primary_image_name(landscape_parameters);

@@ -9,6 +9,7 @@ import {
   sync_region_to_model,
 } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import { build_nbhd_cloud_gene_bar_data } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
@@ -21,7 +22,7 @@ import {
   uniprot_data,
   uniprot_get_request,
 } from '../external_apis/uniprot_api';
-import { is_point_cloud_technology } from '../global_variables/image_info';
+import { is_orbit_technology } from '../global_variables/image_info';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
@@ -33,6 +34,8 @@ import { refresh_layer } from '../utils/refresh_layer';
 import {
   make_bar_graph,
   bar_callback_nbhd,
+  bar_callback_nbhd_cloud_cluster,
+  bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
@@ -421,6 +424,12 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
+  // neighborhood-cloud repurposes the CELL slot itself (button relabeled
+  // "NBHD", radius slider dropped in favor of the opacity slider) rather
+  // than building a separate NBHD section -- see the cell_ctrl_container
+  // block below. The legacy 2D nbhd feature still gets its own section.
+  const nbhdControlsEnabled = viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit;
+
   let nbhd_container;
   let nbhd_ctrl_container;
   if (viz_state.nbhd.is_nbhd) {
@@ -431,16 +440,37 @@ export const make_ist_ui_container = (
     nbhd_ctrl_container.style.height = '22.5px';
   }
 
+  let nbhd_cloud_slice_container;
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    nbhd_cloud_slice_container = flex_container(
+      'nbhd_cloud_slice_container',
+      'column'
+    );
+    nbhd_cloud_slice_container.style.width = bar_container_width;
+  }
+
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
   let nbhd_slider_container;
-  if (viz_state.nbhd.is_nbhd) {
+  if (nbhdControlsEnabled) {
     nbhd_slider_container = make_slider_container('nbhd_slider_container');
   }
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
-  const isPointCloud = is_point_cloud_technology(technology);
+  const isPointCloud = is_orbit_technology(technology);
+
+  // Registered unconditionally (not just for non-orbit technologies) so that
+  // `viz_state.obs_store.viz_background_layer.set(false)` (set early in
+  // landscape_ist.js for any technology without an image layer, including
+  // point-cloud/neighborhood-cloud) actually takes effect. Without this, the
+  // background layer's default `visible: true` stands, and its solid black
+  // fill polygon (background_layer.js) never gets hidden for orbit
+  // technologies.
+  viz_state.obs_store.viz_background_layer.subscribe((visible) => {
+    toggle_background_layer_visibility(layers_obj, visible);
+    refresh_layer(viz_state, layers_obj, 'background_layer');
+  });
 
   // Hide the gene panel (gene bar graph + gene search) for gene-less datasets
   // (e.g. a point-cloud DegaFiles written without cbg data). set_meta_gene has
@@ -607,11 +637,6 @@ export const make_ist_ui_container = (
       }
     });
 
-    viz_state.obs_store.viz_background_layer.subscribe((visible) => {
-      toggle_background_layer_visibility(layers_obj, visible);
-      refresh_layer(viz_state, layers_obj, 'background_layer');
-    });
-
     viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
       toggle_nbhd_layer_visibility(layers_obj, visible);
       refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -620,10 +645,15 @@ export const make_ist_ui_container = (
     viz_state.containers.image.appendChild(img_layers_container);
   }
 
+  // neighborhood-cloud repurposes this slot: "NBHD" (shapes show/hide)
+  // instead of "CELL" (per-cell radius, meaningless here -- cells only ever
+  // appear on demand for one selected neighborhood, via nbhd_cloud_cell_layer).
+  // Starts blue/active either way, matching each layer's actual starting
+  // visibility (shapes visible by default, same as the legacy CELL layer).
   make_button(
     cell_ctrl_container,
     'ist',
-    'CELL',
+    viz_state.nbhd_cloud?.is_nbhd_cloud ? 'NBHD' : 'CELL',
     'blue',
     40,
     'button',
@@ -632,7 +662,7 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+  if (nbhdControlsEnabled) {
     make_button(
       nbhd_ctrl_container,
       'ist',
@@ -660,20 +690,34 @@ export const make_ist_ui_container = (
 
   viz_state.sliders = {};
 
-  ini_slider('cell', deck_ist, layers_obj, viz_state);
-
-  cell_slider_container.appendChild(viz_state.sliders.cell);
-  cell_ctrl_container.appendChild(cell_slider_container);
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // No per-cell radius control here (cells only appear on demand, per
+    // selected neighborhood, via nbhd_cloud_cell_layer) -- the opacity
+    // slider takes this slot instead.
+    ini_slider('nbhd', deck_ist, layers_obj, viz_state);
+    cell_slider_container.appendChild(viz_state.sliders.nbhd);
+    cell_ctrl_container.appendChild(cell_slider_container);
+    toggle_slider(viz_state.sliders.nbhd, true);
+  } else {
+    ini_slider('cell', deck_ist, layers_obj, viz_state);
+    cell_slider_container.appendChild(viz_state.sliders.cell);
+    cell_ctrl_container.appendChild(cell_slider_container);
+  }
 
   // Only add the regular nbhd slider when NOT in edit mode
   // For edit mode, we'll add a separate opacity slider later (after buttons)
-  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+  if (nbhdControlsEnabled) {
     ini_slider('nbhd', deck_ist, layers_obj, viz_state);
     nbhd_slider_container.appendChild(viz_state.sliders.nbhd);
     nbhd_ctrl_container.appendChild(nbhd_slider_container);
+    // neighborhood-cloud has no "exclusive active layer" concept (shapes and
+    // cells coexist via the continuous zoom crossfade) -- the slider should
+    // just start enabled, not tied to the legacy viz_nbhd_layer toggle.
     toggle_slider(
       viz_state.sliders.nbhd,
-      viz_state.obs_store.viz_nbhd_layer.get()
+      viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? true
+        : viz_state.obs_store.viz_nbhd_layer.get()
     );
   }
 
@@ -686,16 +730,51 @@ export const make_ist_ui_container = (
     viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
   }
 
-  make_bar_graph(
-    viz_state.containers.bar_cluster,
-    bar_callback_cat,
-    viz_state.cats.svg_bar_cluster,
-    viz_state.cats.cluster_counts,
-    viz_state.cats.color_dict_cluster,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Repurposes the CELL slot's bar graph (the per-cell cluster-count bar
+    // makes no sense here -- there's no per-cell data loaded up front) into
+    // a per-cluster bar: one bar per cluster, area summed across every
+    // slice's instance of it, colored by that cluster's real color.
+    // Selecting a cluster (bar click or shape click) applies across every
+    // slice at once, not just one (slice, cluster) instance.
+    viz_state.nbhd_cloud.svg_bar_cluster = d3.create('svg');
+
+    const areaByCluster = new Map();
+    viz_state.nbhd_cloud.meta_neighborhood.forEach((nb) => {
+      const clusterId = String(nb.cluster_id);
+      areaByCluster.set(
+        clusterId,
+        (areaByCluster.get(clusterId) ?? 0) + nb.area
+      );
+    });
+    const clusterBarData = Array.from(areaByCluster, ([clusterId, area]) => ({
+      name: clusterId,
+      value: area,
+    }));
+    const clusterColorDict = viz_state.cats.color_dict_cluster;
+
+    make_bar_graph(
+      viz_state.containers.bar_cluster,
+      bar_callback_nbhd_cloud_cluster,
+      viz_state.nbhd_cloud.svg_bar_cluster,
+      clusterBarData,
+      clusterColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  } else {
+    make_bar_graph(
+      viz_state.containers.bar_cluster,
+      bar_callback_cat,
+      viz_state.cats.svg_bar_cluster,
+      viz_state.cats.cluster_counts,
+      viz_state.cats.color_dict_cluster,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   viz_state.containers.bar_gene = make_bar_container();
 
@@ -705,16 +784,65 @@ export const make_ist_ui_container = (
     .sort((a, b) => b.value - a.value)
     .slice(0, max_num_gene_bars);
 
-  make_bar_graph(
-    viz_state.containers.bar_gene,
-    bar_callback_gene,
-    viz_state.genes.svg_bar_gene,
-    viz_state.genes.top_gene_counts,
-    viz_state.genes.color_dict_gene,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Only genes with a shape (available_gene_shapes) or cell scatter
+    // (available_gene_scatter) actually do anything when selected
+    // (select_nbhd_cloud_gene) -- listing the generic top-gene panel here
+    // would give ~100 bars that are all silent no-ops. Both kinds render
+    // the same flat red in the bar itself (see build_nbhd_cloud_gene_bar_data).
+    const geneColorDict = Object.fromEntries(
+      [
+        ...(viz_state.nbhd_cloud.available_gene_scatter ?? new Map()),
+        ...(viz_state.nbhd_cloud.available_gene_shapes ?? new Map()),
+      ].map(([gene]) => [gene, [255, 0, 0]])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_gene,
+      bar_callback_gene,
+      viz_state.genes.svg_bar_gene,
+      build_nbhd_cloud_gene_bar_data(viz_state.nbhd_cloud),
+      geneColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  } else {
+    make_bar_graph(
+      viz_state.containers.bar_gene,
+      bar_callback_gene,
+      viz_state.genes.svg_bar_gene,
+      viz_state.genes.top_gene_counts,
+      viz_state.genes.color_dict_gene,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    viz_state.nbhd_cloud.svg_bar_slice = d3.create('svg');
+    viz_state.containers.bar_slice = make_bar_container();
+
+    const sliceBarData = viz_state.nbhd_cloud.meta_slice.map((s) => ({
+      name: s.slice_id,
+      value: s.cell_count,
+    }));
+    const sliceColorDict = Object.fromEntries(
+      sliceBarData.map((bar) => [bar.name, [136, 136, 136]])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_slice,
+      bar_callback_nbhd_cloud_slice,
+      viz_state.nbhd_cloud.svg_bar_slice,
+      sliceBarData,
+      sliceColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
@@ -902,6 +1030,14 @@ export const make_ist_ui_container = (
   ini_slider('trx', deck_ist, layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Cluster-color mode is the initial state -- the repurposed TRX slider
+    // (gene-shapes opacity) has nothing to control until a gene is
+    // selected, so it starts disabled (sync_nbhd_cloud_opacity_sliders,
+    // bar_plot.js, flips this once a gene is picked).
+    toggle_slider(viz_state.sliders.trx, false);
+  }
 
   gene_container.appendChild(trx_container);
   gene_container.appendChild(viz_state.containers.bar_gene);
@@ -1260,20 +1396,42 @@ export const make_ist_ui_container = (
 
     ctrl_container.appendChild(nbhd_container);
 
-    if (viz_state.nbhd.is_nbhd) {
-      make_bar_graph(
-        viz_state.containers.bar_nbhd,
-        bar_callback_nbhd,
-        viz_state.nbhd.svg_bar_nbhd,
-        viz_state.nbhd.bar_data,
-        viz_state.nbhd.color_dict,
-        deck_ist,
-        layers_obj,
-        viz_state
-      );
+    make_bar_graph(
+      viz_state.containers.bar_nbhd,
+      bar_callback_nbhd,
+      viz_state.nbhd.svg_bar_nbhd,
+      viz_state.nbhd.bar_data,
+      viz_state.nbhd.color_dict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
 
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
-    }
+    viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+  }
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Plain black text, not a button -- there's no on/off toggle for the
+    // slice bar graph the way CELL/TRX/NBHD toggle their layers.
+    const slice_label_container = flex_container(
+      'nbhd_cloud_slice_label_container',
+      'row'
+    );
+    slice_label_container.style.marginLeft = '0px';
+    slice_label_container.style.height = '22.5px';
+
+    d3.select(slice_label_container)
+      .append('div')
+      .text('SLICE')
+      .style('width', '40px')
+      .style('text-align', 'left')
+      .style('font-size', '12px')
+      .style('font-weight', 'bold')
+      .style('color', 'black');
+
+    nbhd_cloud_slice_container.appendChild(slice_label_container);
+    nbhd_cloud_slice_container.appendChild(viz_state.containers.bar_slice);
+    ctrl_container.appendChild(nbhd_cloud_slice_container);
   }
 
   if (hasGenes) {

@@ -2,15 +2,28 @@ export const set_image_format = (img, format) => {
   img.image_format = format;
 };
 
-export const is_point_cloud_technology = (technology = '') => {
-  return (
-    typeof technology === 'string' &&
-    (technology === 'point-cloud' || technology.startsWith('point-cloud-'))
-  );
-};
+const isPointCloudFamily = (technology = '') =>
+  typeof technology === 'string' &&
+  (technology === 'point-cloud' || technology.startsWith('point-cloud-'));
+
+const isNeighborhoodCloudFamily = (technology = '') =>
+  typeof technology === 'string' &&
+  (technology === 'neighborhood-cloud' ||
+    technology.startsWith('neighborhood-cloud-'));
+
+// True for any 3D-orbit, load-nothing-whole-dataset-into-the-UI technology
+// (point-cloud and neighborhood-cloud families). Most call sites only care
+// about this shared behavior (OrbitView, no image layer, no 2D tiling, etc.);
+// use is_neighborhood_cloud_technology below for the few places that must
+// diverge between the two.
+export const is_orbit_technology = (technology = '') =>
+  isPointCloudFamily(technology) || isNeighborhoodCloudFamily(technology);
+
+export const is_neighborhood_cloud_technology = (technology = '') =>
+  isNeighborhoodCloudFamily(technology);
 
 export const technology_has_image_layer = (technology = '') => {
-  return technology !== 'Chromium' && !is_point_cloud_technology(technology);
+  return technology !== 'Chromium' && !is_orbit_technology(technology);
 };
 
 export const get_landscape_image_info = (landscape_parameters = {}) => {

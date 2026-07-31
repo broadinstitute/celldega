@@ -4,6 +4,48 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.21.0] - 2026-07-30
+
+Adds dedicated 3D-orbit widgets — `CellCloud` and `NeighborhoodCloud` — and a
+new `neighborhood-cloud` DegaFiles writer, so 3D point-cloud and
+neighborhood-cloud visualizations move off the `Landscape` widget onto their
+own entry points. Direct new usage to `CellCloud` for point-cloud
+visualizations of 3D data, and to `NeighborhoodCloud` for visualizations of
+very large 3D datasets (precomputed, per-slice alpha-shape neighborhoods that
+stay cheap to load regardless of cell count).
+
+### Added
+
+- **`celldega.viz.CellCloud`** — a dedicated widget for 3D point-cloud
+  visualization, replacing `Landscape(technology="point-cloud")`. Reads a
+  `cell_cloud.json` manifest (falling back to `landscape_parameters.json` for
+  DegaFiles written before the rename, so existing datasets keep rendering).
+- **`celldega.viz.NeighborhoodCloud`** — a dedicated widget for the
+  `neighborhood-cloud` technology, replacing
+  `Landscape(technology="neighborhood-cloud")`. Shows a bounded, precomputed
+  alpha-shape neighborhood per cluster/slice at low zoom — cheap to load in
+  full regardless of dataset size — and streams in real cells only when
+  zoomed into a slice. Reads a `neighborhood_cloud.json` manifest with the
+  same fallback behavior as `CellCloud`.
+- **`_SpatialWidget`** — an internal base class shared by `Landscape`,
+  `CellCloud`, and `NeighborhoodCloud`, holding the trait surface and
+  AnnData→parquet plumbing common to every celldega spatial widget.
+- **`celldega.align.write_nbhd_cloud`** — a one-call writer that turns an
+  aligned 3D `AnnData` into a `neighborhood-cloud` DegaFiles directory,
+  mirroring `write_alignment_point_cloud`'s ergonomics: computes per-slice
+  alpha-shape neighborhoods, writes cluster shapes, and optionally computes
+  and writes gene-nbhd expression (`compute_gene_nbhds=True`) for coloring
+  neighborhoods by gene. Reports progress by default (`progress_every`).
+- **`celldega.nbhd.alpha_shape_cell_clusters_by_slice`** gained a
+  `progress_every` parameter (off by default) for reporting progress on
+  large, many-slice datasets.
+
+### Changed
+
+- **JS `is_point_cloud_technology` renamed to `is_orbit_technology`** — the
+  predicate now covers both the `point-cloud` and `neighborhood-cloud`
+  technology families, which share the same 3D-orbit camera behavior.
+
 ## [0.20.0] - 2026-07-29
 
 Adds a new `Clustergram` body encoding — `dotplot` — and a new dedicated

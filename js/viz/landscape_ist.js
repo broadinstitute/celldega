@@ -30,6 +30,13 @@ import {
   update_edit_layer_mode,
 } from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
+import { ini_nbhd_cloud_cell_layer } from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import {
+  fetch_available_gene_scatter,
+  fetch_available_gene_shapes,
+  ini_nbhd_cloud_shapes_layer,
+  set_nbhd_cloud_shapes_layer_onclick,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
@@ -52,13 +59,14 @@ import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { set_options } from '../global_variables/fetch_options';
+import { options, set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
   get_landscape_image_info,
   get_primary_image_name,
-  is_point_cloud_technology,
+  is_neighborhood_cloud_technology,
+  is_orbit_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
@@ -71,7 +79,13 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+import {
+  parse_meta_neighborhood_table,
+  parse_meta_slice_table,
+  parse_shapes_table_to_features,
+} from '../read_parquet/nbhd_cloud_tables';
 // import {
 //   testRowGroupReading,
 //   getVersion as getParquetWasmVersion,
@@ -230,6 +244,14 @@ export const landscape_ist = async (
 
   const viz_state = {};
 
+  // DegaFiles manifest to fetch. Defaults to landscape_parameters.json (every
+  // 2D technology); CellCloud/NeighborhoodCloud set it to their own filename.
+  // set_landscape_parameters falls back to landscape_parameters.json when the
+  // requested file is absent, so pre-rename datasets still render.
+  const manifest_name =
+    (typeof ini_model?.get === 'function' && ini_model.get('manifest_name')) ||
+    'landscape_parameters.json';
+
   viz_state.obs_store = create_obs_store();
 
   viz_state.highlighted_cells = new Set();
@@ -295,9 +317,12 @@ export const landscape_ist = async (
     });
 
     // fetch after initialization of aws client is apparently required?
-    const response = await viz_state.aws.fetch(
-      `${base_url}/landscape_parameters.json`
-    );
+    let response = await viz_state.aws.fetch(`${base_url}/${manifest_name}`);
+    if (!response.ok && manifest_name !== 'landscape_parameters.json') {
+      response = await viz_state.aws.fetch(
+        `${base_url}/landscape_parameters.json`
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`Fetch failed: ${response.statusText}`);
@@ -456,7 +481,12 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
+  await set_landscape_parameters(
+    viz_state.img,
+    base_url,
+    viz_state.aws,
+    manifest_name
+  );
   const { landscape_parameters } = viz_state.img;
   const {
     technology: tech,
@@ -540,6 +570,67 @@ export const landscape_ist = async (
   );
 
   await set_cluster_metadata(viz_state);
+
+  viz_state.nbhd_cloud = {
+    is_nbhd_cloud: is_neighborhood_cloud_technology(tech),
+  };
+
+  if (viz_state.nbhd_cloud.is_nbhd_cloud) {
+    const [metaSliceTable, metaNeighborhoodTable] = await Promise.all([
+      get_arrow_table(
+        `${base_url}/nbhd_cloud/meta_slice.parquet`,
+        options.fetch,
+        viz_state.aws
+      ),
+      get_arrow_table(
+        `${base_url}/nbhd_cloud/meta_neighborhood.parquet`,
+        options.fetch,
+        viz_state.aws
+      ),
+    ]);
+
+    viz_state.nbhd_cloud.meta_slice = parse_meta_slice_table(metaSliceTable);
+    viz_state.nbhd_cloud.meta_neighborhood = parse_meta_neighborhood_table(
+      metaNeighborhoodTable
+    );
+
+    // Shapes load in full up front (neighborhood counts are small — dozens
+    // to hundreds, unlike cells), one parquet file per slice.
+    const shapeTables = await Promise.all(
+      viz_state.nbhd_cloud.meta_slice.map((s) =>
+        get_arrow_table(
+          `${base_url}/nbhd_cloud/shapes/by_slice/slice_${s.slice_id}.parquet`,
+          options.fetch,
+          viz_state.aws
+        )
+      )
+    );
+    viz_state.nbhd_cloud.shapes_features = shapeTables.flatMap((table) =>
+      parse_shapes_table_to_features(table)
+    );
+
+    if (
+      viz_state.nbhd_cloud.shapes_features.length === 0 &&
+      shapeTables.some((table) => (table?.numRows || 0) > 0)
+    ) {
+      // eslint-disable-next-line no-console -- silent-empty-render invariant
+      console.warn(
+        '[neighborhood-cloud] shapes/*.parquet had rows but parsed to zero features -- check schema/column names against parse_shapes_table_to_features (js/read_parquet/nbhd_cloud_tables.js).'
+      );
+    }
+
+    // Default to 75%, not 100% -- fully opaque shapes make it harder to see
+    // cell centroids and overlapping slices underneath.
+    viz_state.nbhd_cloud.manual_fill_opacity = 0.75;
+    viz_state.nbhd_cloud.gene_fill_opacity = 0.75;
+    viz_state.nbhd_cloud.selected_gene = null;
+    viz_state.nbhd_cloud.gene_shapes_mode = false;
+    viz_state.nbhd_cloud.gene_scatter_mode = false;
+    viz_state.nbhd_cloud.available_gene_shapes =
+      await fetch_available_gene_shapes(base_url, viz_state.aws);
+    viz_state.nbhd_cloud.available_gene_scatter =
+      await fetch_available_gene_scatter(base_url, viz_state.aws);
+  }
 
   viz_state.views = set_views(tech);
 
@@ -649,6 +740,15 @@ export const landscape_ist = async (
   const trx_layer = ini_trx_layer(viz_state);
   const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
+  const nbhd_cloud_shapes_layer = viz_state.nbhd_cloud.is_nbhd_cloud
+    ? ini_nbhd_cloud_shapes_layer(
+        viz_state,
+        viz_state.nbhd_cloud.shapes_features
+      )
+    : null;
+  const nbhd_cloud_cell_layer = viz_state.nbhd_cloud.is_nbhd_cloud
+    ? ini_nbhd_cloud_cell_layer(viz_state)
+    : null;
 
   // make layers object
   const layers_obj = {
@@ -658,6 +758,8 @@ export const landscape_ist = async (
     path_layer,
     trx_layer,
     nbhd_layer,
+    nbhd_cloud_shapes_layer,
+    nbhd_cloud_cell_layer,
     edit_layer,
   };
 
@@ -751,6 +853,9 @@ export const landscape_ist = async (
   set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
   set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  if (viz_state.nbhd_cloud.is_nbhd_cloud) {
+    set_nbhd_cloud_shapes_layer_onclick(layers_obj, viz_state);
+  }
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
@@ -908,8 +1013,7 @@ export const landscape_ist = async (
 
   const currentTechnology = viz_state.img.landscape_parameters.technology;
   const isChromium =
-    currentTechnology === 'Chromium' ||
-    is_point_cloud_technology(currentTechnology);
+    currentTechnology === 'Chromium' || is_orbit_technology(currentTechnology);
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';

@@ -11,6 +11,8 @@ from pathlib import Path
 import re
 from typing import Any
 import urllib.error
+from urllib.parse import urlparse
+import uuid
 import warnings
 
 import anywidget
@@ -103,6 +105,23 @@ def _selection_to_payload(selection) -> dict:
 
     payload["ids"] = [str(name) for name in ids]
     return payload
+
+
+def _local_dir_for_url(url: str) -> "Path | None":
+    """Filesystem directory backing a ``base_url`` served by
+    ``celldega.viz.get_local_server()`` (rooted at the caller's cwd), or
+    ``None`` if ``url`` isn't a localhost URL. Used to write a small sidecar
+    file (e.g. centroid overrides) that the same local server can then serve
+    back over HTTP, rather than syncing large per-cell data through the
+    widget's comm channel (which doesn't scale to millions of rows).
+    """
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.hostname not in ("localhost", "127.0.0.1"):
+        return None
+    local_dir = Path(parsed.path.lstrip("/"))
+    return local_dir if local_dir.is_dir() else None
 
 
 def _coerce_transform_matrix(transform: Any) -> np.ndarray:
@@ -229,6 +248,22 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
             are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
             that should be trimmed when mapping to LandscapeFiles. Default: False.
+        use_adata_3d_centroids (bool, optional): For ``technology="point-cloud"``
+            views given an ``adata``, render that AnnData's
+            ``obsm["spatial"]``/``obs[z_key]`` centroids instead of the geometry
+            baked into ``cell_metadata.parquet`` — no DegaFiles rewrite needed to
+            preview a candidate alignment. Has no effect on 2D (non point-cloud)
+            views, which always use the on-disk x/y. Default: True.
+        z_key (str, optional): ``adata.obs`` column holding the Z coordinate used
+            for ``use_adata_3d_centroids`` (falls back to 0 if absent). Default:
+            "Z".
+
+    ``use_adata_3d_centroids`` writes centroids to a small file next to
+    ``base_url`` and fetches it over HTTP when ``base_url`` is a local
+    ``celldega.viz.get_local_server()`` address (millions of per-cell
+    centroids don't fit through the widget's comm channel); otherwise it
+    falls back to syncing them directly through the widget state, which is
+    fine for smaller datasets.
 
     A point-cloud (3D) view requires a real, pre-built DegaFiles ``base_url``
     like any other technology — build one with the ``celldega.pre`` module
@@ -254,6 +289,7 @@ class Landscape(anywidget.AnyWidget):
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
+
     ini_x = traitlets.Float().tag(sync=True)
     ini_y = traitlets.Float().tag(sync=True)
     ini_z = traitlets.Float().tag(sync=True)
@@ -302,12 +338,17 @@ class Landscape(anywidget.AnyWidget):
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
 
+    use_adata_3d_centroids = traitlets.Bool(True).tag(sync=True)
+    centroids_url = traitlets.Unicode("").tag(sync=True)
+
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
+        pq_centroids = kwargs.pop("centroids_parquet", None)
+        centroids_url = kwargs.pop("centroids_url", "")
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
@@ -317,6 +358,8 @@ class Landscape(anywidget.AnyWidget):
         transform = kwargs.pop("transform", None)
         image_scale = kwargs.pop("image_scale", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
+        use_adata_3d_centroids = kwargs.get("use_adata_3d_centroids", True)
+        z_key = kwargs.pop("z_key", "Z")
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
@@ -501,6 +544,41 @@ class Landscape(anywidget.AnyWidget):
                 )
                 pq_umap = _df_to_bytes(umap_df)
 
+            if use_adata_3d_centroids and "spatial" in adata.obsm:
+                spatial_xy = np.asarray(adata.obsm["spatial"])[:, :2]
+                z_values = (
+                    adata.obs[z_key].to_numpy(dtype=float)
+                    if z_key in adata.obs.columns
+                    else np.zeros(adata.n_obs)
+                )
+                centroid_df = pd.DataFrame(
+                    {"x": spatial_xy[:, 0], "y": spatial_xy[:, 1], "z": z_values},
+                    index=adata.obs.index,
+                )
+
+                if cell_name_prefix_setting:
+                    centroid_df.index = centroid_df.index.map(
+                        lambda x: x.split("_", 1)[1] if "_" in str(x) else x
+                    )
+
+                centroid_df = centroid_df.reset_index().rename(columns={"index": "cell_id"})
+
+                # Millions of per-cell centroids don't fit through the widget's
+                # comm channel (it silently fails to open above roughly tens of
+                # MB) — when base_url is a local dev server, write a small
+                # sidecar file next to it instead and let the frontend fetch it
+                # over HTTP, exactly like the base cell_metadata.parquet. Falls
+                # back to the comm-synced bytes trait otherwise (fine for
+                # smaller datasets or non-local base_urls).
+                base_url_str = kwargs.get("base_url") or ""
+                local_dir = _local_dir_for_url(base_url_str)
+                if local_dir is not None:
+                    cache_name = f".celldega_centroids_{uuid.uuid4().hex[:10]}.parquet"
+                    centroid_df.to_parquet(local_dir / cache_name, index=False)
+                    centroids_url = f"{base_url_str.rstrip('/')}/{cache_name}"
+                else:
+                    pq_centroids = _df_to_bytes(centroid_df)
+
         if isinstance(meta_cell_df, pd.DataFrame):
             pq_meta_cell = _df_to_bytes(_reset_index_for_parquet(meta_cell_df))
 
@@ -523,6 +601,8 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
         if pq_meta_nbhd is not None:
             parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
+        if pq_centroids is not None:
+            parquet_traits["centroids_parquet"] = traitlets.Bytes(pq_centroids).tag(sync=True)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)
@@ -531,6 +611,7 @@ class Landscape(anywidget.AnyWidget):
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr
+        self.centroids_url = centroids_url
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df

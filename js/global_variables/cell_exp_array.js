@@ -23,7 +23,12 @@ function ensureExpressionArray(cats) {
   return cats.cell_exp_array;
 }
 
-function toExpressionByte(exp_value, max_exp) {
+// Exported for reuse by neighborhood-cloud gene-shapes coloring
+// (nbhd_cloud_shapes_layer.js), which normalizes shape opacity the same way
+// per-cell gene coloring does -- log1p ratio against a whole-tissue max, not
+// a plain linear ratio, so opacity doesn't wash out toward 0 for typical
+// (non-outlier) expression values.
+export function toExpressionByte(exp_value, max_exp) {
   if (
     !Number.isFinite(exp_value) ||
     !Number.isFinite(max_exp) ||

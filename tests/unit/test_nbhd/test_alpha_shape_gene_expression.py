@@ -1,0 +1,580 @@
+from unittest.mock import patch
+
+import anndata as ad
+import numpy as np
+import pandas as pd
+import pytest
+
+from celldega.nbhd import (
+    alpha_shape_gene_expression_by_slice,
+    iter_gene_alpha_shapes,
+    iter_gene_alpha_shapes_by_slice,
+)
+from celldega.nbhd import alpha_shapes as _alpha_shapes_module
+
+
+def _synthetic_gene_expression_adata(seed=0, n_slices=2, n_cells=60, n_genes=2):
+    rng = np.random.RandomState(seed)
+    rows = []
+    xy = []
+    X = []
+    for slice_idx in range(n_slices):
+        center = np.array([slice_idx * 300.0, 0.0])
+        pts = rng.normal(loc=center, scale=10.0, size=(n_cells, 2))
+        xy.append(pts)
+        rows.extend([{"slice_id": f"s{slice_idx}", "z": float(slice_idx) * 100.0}] * n_cells)
+        # Half the cells (evens) express every gene at a high value; the
+        # other half sit at zero -- gives a clean, deterministic "expressing"
+        # mask to assert against.
+        slice_expr = np.zeros((n_cells, n_genes))
+        slice_expr[::2, :] = 5.0
+        X.append(slice_expr)
+
+    obs = pd.DataFrame(rows)
+    obs.index = [f"cell_{i}" for i in range(len(obs))]
+    gene_names = [f"Gene{i}" for i in range(n_genes)]
+    adata = ad.AnnData(X=np.vstack(X), obs=obs, var=pd.DataFrame(index=gene_names))
+    adata.obsm["spatial"] = np.vstack(xy)
+    return adata
+
+
+def test_alpha_shape_gene_expression_by_slice_builds_one_shape_per_slice_gene():
+    adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=2)
+
+    gdf = alpha_shape_gene_expression_by_slice(
+        adata,
+        ["Gene0", "Gene1"],
+        slice_attr="slice_id",
+        z_attr="z",
+        alphas=(150,),
+        min_expression=1.0,
+        min_cells=4,
+    )
+
+    assert set(gdf["slice_id"]) == {"s0", "s1"}
+    assert set(gdf["gene"]) == {"Gene0", "Gene1"}
+    assert len(gdf) == 4
+    assert list(gdf["name"]) == [
+        f"{s}__{g}" for s, g in zip(gdf["slice_id"], gdf["gene"], strict=True)
+    ]
+    # 30 of 60 cells per slice are the "expressing" (value=5.0) half.
+    assert (gdf["cell_count"] == 30).all()
+    assert np.allclose(gdf["mean_expression"], 5.0)
+
+
+def test_alpha_shape_gene_expression_by_slice_stamps_each_slices_z():
+    adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=1)
+
+    gdf = alpha_shape_gene_expression_by_slice(
+        adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+    )
+
+    by_slice = gdf.set_index("slice_id")
+    z0 = {
+        round(coord[2], 3)
+        for g in by_slice.loc["s0", "geometry"].geoms
+        for coord in g.exterior.coords
+    }
+    z1 = {
+        round(coord[2], 3)
+        for g in by_slice.loc["s1", "geometry"].geoms
+        for coord in g.exterior.coords
+    }
+    assert z0 == {0.0}
+    assert z1 == {100.0}
+
+
+def test_alpha_shape_gene_expression_by_slice_skips_genes_below_min_cells():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_cells=10, n_genes=1)
+    # min_cells higher than the 5 expressing cells present -> nothing to compute.
+    with pytest.raises(ValueError, match="no gene alpha shapes"):
+        alpha_shape_gene_expression_by_slice(
+            adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=6
+        )
+
+
+def test_alpha_shape_gene_expression_by_slice_min_expression_is_inclusive():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_cells=20, n_genes=1)
+    # Bump the expressing half's value down to exactly the default threshold
+    # (2.0) -- inclusive (>=) means these should still count.
+    adata.X[adata.X == 5.0] = 2.0
+
+    gdf = alpha_shape_gene_expression_by_slice(
+        adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+    )
+
+    assert len(gdf) == 1
+    assert gdf.iloc[0]["cell_count"] == 10
+    assert gdf.iloc[0]["mean_expression"] == pytest.approx(2.0)
+
+
+def test_alpha_shape_gene_expression_by_slice_rejects_unknown_gene():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    with pytest.raises(ValueError, match="not found in adata.var_names"):
+        alpha_shape_gene_expression_by_slice(adata, ["NotAGene"], slice_attr="slice_id")
+
+
+def test_alpha_shape_gene_expression_by_slice_rejects_multiple_alphas():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    with pytest.raises(ValueError, match="single alpha-shape"):
+        alpha_shape_gene_expression_by_slice(adata, ["Gene0"], alphas=(100, 150))
+
+
+def test_alpha_shape_gene_expression_by_slice_skips_a_gene_whose_shape_fails():
+    """A libpysal/GEOS failure (e.g. GEOSException: "side location conflict"
+    on a self-intersecting triangulation) computing one gene's shape must not
+    abort shapes for the other genes in the same batch -- seen in practice
+    when scaling the curated gene list up from a handful to ~150 genes."""
+    from celldega.nbhd.alpha_shapes import libpysal_alpha_shape as real_libpysal_alpha_shape
+
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=2)
+
+    call_count = {"n": 0}
+
+    def fake_alpha_shape(coords, alpha):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            # Gene0 is processed first (gene_list order) -- fail only this call.
+            raise Exception("GEOSException: TopologyException: side location conflict")
+        return real_libpysal_alpha_shape(coords, alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.libpysal_alpha_shape", side_effect=fake_alpha_shape):
+        gdf = alpha_shape_gene_expression_by_slice(
+            adata,
+            ["Gene0", "Gene1"],
+            slice_attr="slice_id",
+            z_attr="z",
+            alphas=(150,),
+            min_cells=4,
+        )
+
+    # Gene0's shape failed and was skipped; Gene1's still computed normally.
+    assert list(gdf["gene"]) == ["Gene1"]
+
+
+def test_alpha_shape_gene_expression_by_slice_raises_when_every_shape_fails():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    def always_raises(_coords, _alpha):
+        raise Exception("GEOSException: TopologyException: side location conflict")
+
+    with (
+        patch("celldega.nbhd.alpha_shapes.libpysal_alpha_shape", side_effect=always_raises),
+        pytest.raises(ValueError, match="no gene alpha shapes"),
+    ):
+        alpha_shape_gene_expression_by_slice(
+            adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+        )
+
+
+def test_iter_gene_alpha_shapes_by_slice_yields_one_gene_at_a_time():
+    adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=2)
+
+    genes_seen = []
+    for gene, gdf_gene, _df_cells in iter_gene_alpha_shapes_by_slice(
+        adata, ["Gene0", "Gene1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+    ):
+        genes_seen.append(gene)
+        assert set(gdf_gene["gene"]) == {gene}
+        assert set(gdf_gene["slice_id"]) == {"s0", "s1"}
+        assert (gdf_gene["cell_count"] == 30).all()
+
+    assert genes_seen == ["Gene0", "Gene1"]
+
+
+def test_iter_gene_alpha_shapes_by_slice_yields_empty_for_a_gene_with_no_shapes():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_cells=10, n_genes=1)
+
+    results = list(
+        iter_gene_alpha_shapes_by_slice(
+            adata, ["Gene0"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=6
+        )
+    )
+
+    assert len(results) == 1
+    gene, gdf_gene, _df_cells = results[0]
+    assert gene == "Gene0"
+    assert gdf_gene.empty
+
+
+def test_iter_gene_alpha_shapes_by_slice_is_lazy():
+    """Validation errors (unknown gene, multiple alphas) must only surface
+    once the generator is actually iterated, not when it's merely called --
+    calling a generator function never runs its body up to the first
+    `yield`."""
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    generator = iter_gene_alpha_shapes_by_slice(adata, ["NotAGene"], slice_attr="slice_id")
+    with pytest.raises(ValueError, match=r"not found in adata\.var_names"):
+        next(generator)
+
+
+def test_iter_gene_alpha_shapes_by_slice_rejects_multiple_alphas_on_first_iteration():
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=1)
+
+    generator = iter_gene_alpha_shapes_by_slice(adata, ["Gene0"], alphas=(100, 150))
+    with pytest.raises(ValueError, match="single alpha-shape"):
+        next(generator)
+
+
+def test_iter_gene_alpha_shapes_by_slice_gives_different_genes_distinct_z_offsets():
+    """Different genes' shapes landing in the same slice need distinct Z so
+    they don't z-fight -- `_gene_z_offset` derives this from each gene's
+    position in `gene_list` rather than a per-slice running count, since the
+    streaming writer processes one gene (across all its slices) at a time
+    and never has a "how many other genes already succeeded in this slice"
+    count available."""
+    adata = _synthetic_gene_expression_adata(n_slices=1, n_genes=2)
+
+    results = {
+        gene: gdf_gene
+        for gene, gdf_gene, _df_cells in iter_gene_alpha_shapes_by_slice(
+            adata, ["Gene0", "Gene1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+        )
+    }
+
+    z0 = {
+        round(c[2], 6)
+        for g in results["Gene0"]["geometry"].iloc[0].geoms
+        for c in g.exterior.coords
+    }
+    z1 = {
+        round(c[2], 6)
+        for g in results["Gene1"]["geometry"].iloc[0].geoms
+        for c in g.exterior.coords
+    }
+    assert z0 != z1
+    # Gene0 is index 0 -- its offset is always exactly 0 (matches the
+    # single-gene z-stamping test's exact-z-val expectation).
+    assert z0 == {0.0}
+
+
+def _synthetic_gene_expression_arrays(seed=0, n_slices=2, n_cells=60):
+    """Plain coords/slice_ids/z_values arrays, no AnnData -- the shape
+    `iter_gene_alpha_shapes` (the AnnData-free core) actually takes."""
+    rng = np.random.RandomState(seed)
+    slice_ids = []
+    z_values = []
+    xy = []
+    for slice_idx in range(n_slices):
+        center = np.array([slice_idx * 300.0, 0.0])
+        pts = rng.normal(loc=center, scale=10.0, size=(n_cells, 2))
+        xy.append(pts)
+        slice_ids.extend([f"s{slice_idx}"] * n_cells)
+        z_values.extend([float(slice_idx) * 100.0] * n_cells)
+    return np.vstack(xy), np.array(slice_ids), np.array(z_values)
+
+
+def test_iter_gene_alpha_shapes_matches_the_annData_wrapper():
+    """`iter_gene_alpha_shapes_by_slice` is documented as a thin AnnData-
+    sourcing wrapper around `iter_gene_alpha_shapes` -- feeding the same
+    coords/slice/expression data through both paths must produce the same
+    result, since this is exactly the guarantee
+    `write_gene_shapes_from_cbg` relies on to skip the AnnData step
+    entirely."""
+    adata = _synthetic_gene_expression_adata(n_slices=2, n_genes=2)
+    coords = np.asarray(adata.obsm["spatial"])
+    slice_ids = adata.obs["slice_id"].to_numpy()
+    z_values = adata.obs["z"].to_numpy(dtype=float)
+    cell_ids = adata.obs_names.astype(str).to_numpy()
+
+    def gene_expression():
+        for gene in ["Gene0", "Gene1"]:
+            col = adata.X[:, adata.var_names.get_loc(gene)]
+            yield gene, np.asarray(col).ravel()
+
+    via_low_level = {
+        gene: (gdf_gene, df_cells)
+        for gene, gdf_gene, df_cells in iter_gene_alpha_shapes(
+            coords,
+            slice_ids,
+            z_values,
+            gene_expression(),
+            cell_ids=cell_ids,
+            alphas=(150,),
+            min_cells=4,
+        )
+    }
+    via_annData = {
+        gene: (gdf_gene, df_cells)
+        for gene, gdf_gene, df_cells in iter_gene_alpha_shapes_by_slice(
+            adata, ["Gene0", "Gene1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
+        )
+    }
+
+    assert set(via_low_level) == set(via_annData)
+    for gene in via_low_level:
+        low_level_shape, low_level_cells = via_low_level[gene]
+        annData_shape, annData_cells = via_annData[gene]
+        pd.testing.assert_frame_equal(
+            pd.DataFrame(low_level_shape.drop(columns="geometry")),
+            pd.DataFrame(annData_shape.drop(columns="geometry")),
+        )
+        pd.testing.assert_frame_equal(
+            low_level_cells.sort_values("cell_id").reset_index(drop=True),
+            annData_cells.sort_values("cell_id").reset_index(drop=True),
+        )
+
+
+def test_iter_gene_alpha_shapes_yields_empty_for_a_gene_with_no_shapes():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=10)
+    expr = np.zeros(10)
+    expr[::2] = 5.0  # 5 expressing cells, below min_cells=6
+
+    results = list(
+        iter_gene_alpha_shapes(
+            coords, slice_ids, z_values, [("Gene0", expr)], alphas=(150,), min_cells=6
+        )
+    )
+
+    assert len(results) == 1
+    gene, gdf_gene, df_cells = results[0]
+    assert gene == "Gene0"
+    assert gdf_gene.empty
+    # No cell_ids passed -- cell selection is skipped entirely regardless of
+    # whether there were expressing cells.
+    assert df_cells.empty
+
+
+def test_iter_gene_alpha_shapes_is_lazy():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=10)
+
+    generator = iter_gene_alpha_shapes(
+        coords, slice_ids, z_values, [("Gene0", np.zeros(10))], alphas=(100, 150)
+    )
+    with pytest.raises(ValueError, match="single alpha-shape"):
+        next(generator)
+
+
+def _cell_ids_for(n_cells):
+    return np.array([f"cell_{i}" for i in range(n_cells)])
+
+
+def test_iter_gene_alpha_shapes_selects_top_expressing_cells():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=20)
+    cell_ids = _cell_ids_for(20)
+    expr = np.zeros(20)
+    # 10 expressing cells (indices 0,2,4,...,18) with distinct values so the
+    # top-3 by expression is unambiguous.
+    expr[::2] = np.arange(10, 20)
+
+    results = list(
+        iter_gene_alpha_shapes(
+            coords,
+            slice_ids,
+            z_values,
+            [("Gene0", expr)],
+            cell_ids=cell_ids,
+            alphas=(150,),
+            min_cells=4,
+            max_cells=3,
+        )
+    )
+
+    _gene, _gdf_gene, df_cells = results[0]
+    assert len(df_cells) == 3
+    # Highest three expressing cells are indices 18, 16, 14 (values 19, 18, 17).
+    assert set(df_cells["cell_id"]) == {"cell_18", "cell_16", "cell_14"}
+    assert set(df_cells["expression"]) == {19.0, 18.0, 17.0}
+    assert (df_cells["gene"] == "Gene0").all()
+
+
+def test_iter_gene_alpha_shapes_returns_all_expressing_cells_under_the_cap():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=20)
+    cell_ids = _cell_ids_for(20)
+    expr = np.zeros(20)
+    expr[::2] = 5.0  # 10 expressing cells, cap of 50 -> all 10 returned.
+
+    results = list(
+        iter_gene_alpha_shapes(
+            coords,
+            slice_ids,
+            z_values,
+            [("Gene0", expr)],
+            cell_ids=cell_ids,
+            alphas=(150,),
+            min_cells=4,
+            max_cells=50,
+        )
+    )
+
+    _gene, _gdf_gene, df_cells = results[0]
+    assert len(df_cells) == 10
+
+
+def test_iter_gene_alpha_shapes_max_cells_zero_disables_cell_selection():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=20)
+    cell_ids = _cell_ids_for(20)
+    expr = np.zeros(20)
+    expr[::2] = 5.0
+
+    results = list(
+        iter_gene_alpha_shapes(
+            coords,
+            slice_ids,
+            z_values,
+            [("Gene0", expr)],
+            cell_ids=cell_ids,
+            alphas=(150,),
+            min_cells=4,
+            max_cells=0,
+        )
+    )
+
+    _gene, _gdf_gene, df_cells = results[0]
+    assert df_cells.empty
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_subsamples_points_fed_to_the_shape():
+    """`shape_max_cells` must bound how many points reach the expensive
+    `alpha_shape` call, without changing `cell_count`/`mean_expression`
+    (which describe the true, full expressing population)."""
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=200)
+    expr = np.full(200, 5.0)  # every cell expresses -> 200 expressing cells
+
+    seen_point_counts = []
+    real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+    def spy_alpha_shape(points, inv_alpha):
+        seen_point_counts.append(len(points))
+        return real_alpha_shape(points, inv_alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+        results = list(
+            iter_gene_alpha_shapes(
+                coords,
+                slice_ids,
+                z_values,
+                [("Gene0", expr)],
+                alphas=(150,),
+                min_cells=4,
+                shape_max_cells=50,
+                random_state=0,
+            )
+        )
+
+    assert seen_point_counts == [50]
+    _gene, gdf_gene, _df_cells = results[0]
+    # cell_count/mean_expression reflect the full expressing population, not
+    # the subsample used for the shape's own geometry.
+    assert gdf_gene.iloc[0]["cell_count"] == 200
+    assert gdf_gene.iloc[0]["mean_expression"] == pytest.approx(5.0)
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_none_disables_the_cap():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=200)
+    expr = np.full(200, 5.0)
+
+    seen_point_counts = []
+    real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+    def spy_alpha_shape(points, inv_alpha):
+        seen_point_counts.append(len(points))
+        return real_alpha_shape(points, inv_alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+        list(
+            iter_gene_alpha_shapes(
+                coords,
+                slice_ids,
+                z_values,
+                [("Gene0", expr)],
+                alphas=(150,),
+                min_cells=4,
+                shape_max_cells=None,
+            )
+        )
+
+    assert seen_point_counts == [200]
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_leaves_small_populations_untouched():
+    """No subsampling should occur when the expressing population is already
+    at or below `shape_max_cells` -- every expressing cell's point must reach
+    the shape."""
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=20)
+    expr = np.full(20, 5.0)
+
+    seen_point_counts = []
+    real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+    def spy_alpha_shape(points, inv_alpha):
+        seen_point_counts.append(len(points))
+        return real_alpha_shape(points, inv_alpha)
+
+    with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+        list(
+            iter_gene_alpha_shapes(
+                coords,
+                slice_ids,
+                z_values,
+                [("Gene0", expr)],
+                alphas=(150,),
+                min_cells=4,
+                shape_max_cells=50,
+            )
+        )
+
+    assert seen_point_counts == [20]
+
+
+def test_iter_gene_alpha_shapes_shape_max_cells_is_reproducible_for_the_same_seed():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=200)
+    expr = np.full(200, 5.0)
+
+    def points_seen(random_state):
+        seen = []
+        real_alpha_shape = _alpha_shapes_module.alpha_shape
+
+        def spy_alpha_shape(points, inv_alpha):
+            seen.append(np.asarray(points).copy())
+            return real_alpha_shape(points, inv_alpha)
+
+        with patch("celldega.nbhd.alpha_shapes.alpha_shape", side_effect=spy_alpha_shape):
+            list(
+                iter_gene_alpha_shapes(
+                    coords,
+                    slice_ids,
+                    z_values,
+                    [("Gene0", expr)],
+                    alphas=(150,),
+                    min_cells=4,
+                    shape_max_cells=50,
+                    random_state=random_state,
+                )
+            )
+        return seen[0]
+
+    first_run = points_seen(random_state=0)
+    second_run = points_seen(random_state=0)
+    third_run = points_seen(random_state=1)
+
+    np.testing.assert_array_equal(first_run, second_run)
+    assert not np.array_equal(first_run, third_run)
+
+
+def test_iter_gene_alpha_shapes_cells_use_the_same_min_expression_threshold():
+    coords, slice_ids, z_values = _synthetic_gene_expression_arrays(n_slices=1, n_cells=10)
+    cell_ids = _cell_ids_for(10)
+    expr = np.array([0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0])
+
+    results = list(
+        iter_gene_alpha_shapes(
+            coords,
+            slice_ids,
+            z_values,
+            [("Gene0", expr)],
+            cell_ids=cell_ids,
+            alphas=(150,),
+            min_expression=2.0,
+            min_cells=1,
+            max_cells=50,
+        )
+    )
+
+    _gene, _gdf_gene, df_cells = results[0]
+    # Only cells with expr >= 2.0 (indices 2, 3, 6, 7) are eligible.
+    assert len(df_cells) == 4
+    assert set(df_cells["expression"]) == {2.0, 3.0}

@@ -1,4 +1,4 @@
-import { is_point_cloud_technology } from './global_variables/image_info';
+import { is_orbit_technology } from './global_variables/image_info';
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
@@ -81,7 +81,7 @@ const render_landscape_ist = async ({ model, el }) => {
   let landscape_state = model.get('landscape_state');
   if (technology === 'Chromium') {
     landscape_state = 'umap';
-  } else if (is_point_cloud_technology(technology)) {
+  } else if (is_orbit_technology(technology)) {
     landscape_state = 'spatial';
   }
   const segmentation = model.get('segmentation');
@@ -155,7 +155,7 @@ const render_landscape = async ({ model, el }) => {
 
   if (
     ['MERSCOPE', 'Xenium', 'Chromium', 'Visium-HD'].includes(technology) ||
-    is_point_cloud_technology(technology)
+    is_orbit_technology(technology)
   ) {
     return render_landscape_ist({ model, el });
   } else if (['h&e'].includes(technology)) {
@@ -265,6 +265,13 @@ async function render({ model, el }) {
     switch (componentType) {
       case 'Landscape':
         cleanup = await render_landscape({ model, el });
+        break;
+      case 'CellCloud':
+      case 'NeighborhoodCloud':
+        // 3D-orbit widgets reuse the ist render path; the orbit view, layers,
+        // and manifest filename are driven by the model's technology /
+        // manifest_name traits (see render_landscape_ist and landscape_ist).
+        cleanup = await render_landscape_ist({ model, el });
         break;
       case 'Yearbook':
         cleanup = await render_yearbook({ model, el });

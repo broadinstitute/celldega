@@ -1,6 +1,6 @@
 import { Deck, OrbitController } from 'deck.gl';
 
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import { is_orbit_technology } from '../../global_variables/image_info';
 import { make_tooltip } from '../utils/tooltips';
 
 import {
@@ -33,7 +33,7 @@ export const ini_deck = (
   // the camera. Omit the top-level controller in that case.
   if (!per_view_controllers) {
     const controller = { doubleClickZoom: false };
-    if (is_point_cloud_technology(technology)) {
+    if (is_orbit_technology(technology)) {
       controller.type = OrbitController;
     }
     deck_props.controller = controller;
@@ -97,9 +97,7 @@ export const set_initial_view_state = (
     zoom: ini_zoom,
   };
 
-  if (
-    is_point_cloud_technology(viz_state.img.landscape_parameters.technology)
-  ) {
+  if (is_orbit_technology(viz_state.img.landscape_parameters.technology)) {
     initial_view_state.rotationOrbit = rotation_orbit;
     initial_view_state.rotationX = rotation_x;
   }

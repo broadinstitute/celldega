@@ -417,14 +417,13 @@ def iter_gene_alpha_shapes(
     `gene_list` loaded into `.X`. This function instead takes a plain
     per-cell coordinate/slice/Z array plus an *iterable* of
     `(gene, expression_array)` — the caller decides how each gene's
-    expression array is produced, which matters when the source is
-    per-gene files (e.g. `cbg/<gene>.parquet`, see
-    `celldega.pre.nbhd_cloud.write_gene_shapes_from_cbg`): a plain
-    generator can read one gene's file, hand back its array, and let the
-    caller's reference to it drop before the next gene is read, without
-    ever assembling a combined multi-gene matrix (dense or sparse) or an
-    `AnnData` wrapper around it — pure overhead when nothing downstream
-    ever needs more than one gene's expression at a time.
+    expression array is produced, which matters when the source isn't
+    already a combined multi-gene matrix: a plain generator can produce one
+    gene's array at a time and let the caller's reference to it drop before
+    the next gene is read, without ever assembling a combined multi-gene
+    matrix (dense or sparse) or an `AnnData` wrapper around it — pure
+    overhead when nothing downstream ever needs more than one gene's
+    expression at a time.
 
     Alongside each gene's shape, also selects up to `max_cells` of that
     gene's own highest-expressing cells (same `min_expression` threshold as
@@ -601,12 +600,7 @@ def iter_gene_alpha_shapes_by_slice(
     ids). Convenient when you already have (or are willing to build) an
     `AnnData` with every gene in `gene_list` loaded —
     `alpha_shape_gene_expression_by_slice` (a thin eager wrapper around this
-    generator) is the interactive/analysis entry point for that case. If
-    your genes instead come from per-gene files (e.g. `cbg/<gene>.parquet`)
-    and you don't want to assemble a combined multi-gene `AnnData` just to
-    call this, use `iter_gene_alpha_shapes` directly with a generator that
-    reads one file per gene — see
-    `celldega.pre.nbhd_cloud.write_gene_shapes_from_cbg`.
+    generator) is the interactive/analysis entry point for that case.
 
     Parameters
     ----------

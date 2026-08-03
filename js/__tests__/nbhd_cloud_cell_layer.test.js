@@ -137,6 +137,101 @@ describe('neighborhood-cloud cluster-selected cell centroid loading', () => {
   });
 });
 
+describe('neighborhood-cloud multi-cluster ("meta-cluster") cell centroid loading', () => {
+  let refresh_nbhd_cloud_cluster_cells;
+  const fetchedUrls = [];
+  const tablesByUrl = {};
+
+  beforeAll(() => {
+    const fs = require('fs');
+    const path = require('path');
+
+    const readStripped = (relPath) =>
+      fs
+        .readFileSync(path.join(__dirname, relPath), 'utf8')
+        .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
+        .replace(/^export const /gm, 'const ');
+
+    const source = readStripped('../deck-gl/layers/nbhd_cloud_cell_layer.js');
+
+    // Unlike the single-cluster describe block above, parse_cells_tables
+    // here is keyed by the fetched URL (not one shared box) -- a
+    // meta-cluster selection fetches more than one cluster's file at once,
+    // each of which needs its own cell data back.
+    const shims = `
+      const options = { fetch: {} };
+      const get_arrow_table = async (url) => { fetchedUrls.push(url); return { url }; };
+      const parse_cells_tables = ([table]) => tablesByUrl[table.url];
+      const getModelMatrixProps = () => ({});
+    `;
+
+    const code = `${shims}\n${source}\nmodule.exports = { refresh_nbhd_cloud_cluster_cells };`;
+    const module = { exports: {} };
+    new Function('module', 'exports', 'fetchedUrls', 'tablesByUrl', code)(
+      module,
+      module.exports,
+      fetchedUrls,
+      tablesByUrl
+    );
+    ({ refresh_nbhd_cloud_cluster_cells } = module.exports);
+  });
+
+  beforeEach(() => {
+    fetchedUrls.length = 0;
+  });
+
+  const makeLayersObj = () => ({
+    nbhd_cloud_cell_layer: {
+      clone(props) {
+        return { ...this, ...props };
+      },
+    },
+  });
+
+  test('merges cells from every selected cluster, each keeping its own cluster color', async () => {
+    tablesByUrl[
+      'http://example.test/nbhd_cloud/cells/by_cluster/cluster_1.parquet'
+    ] = {
+      length: 1,
+      positions: new Float32Array([1, 1, 1]),
+      clusterIds: ['1'],
+      sliceIds: ['s0'],
+    };
+    tablesByUrl[
+      'http://example.test/nbhd_cloud/cells/by_cluster/cluster_2.parquet'
+    ] = {
+      length: 2,
+      positions: new Float32Array([2, 2, 2, 3, 3, 3]),
+      clusterIds: ['2', '2'],
+      sliceIds: ['s0', 's1'],
+    };
+
+    const viz_state = {
+      nbhd_cloud: { selected_cluster_ids: new Set(['1', '2']) },
+      cats: { color_dict_cluster: { 1: [10, 20, 30], 2: [40, 50, 60] } },
+      global_base_url: 'http://example.test',
+      aws: null,
+    };
+    const layers_obj = makeLayersObj();
+
+    await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+
+    expect([...fetchedUrls].sort()).toEqual([
+      'http://example.test/nbhd_cloud/cells/by_cluster/cluster_1.parquet',
+      'http://example.test/nbhd_cloud/cells/by_cluster/cluster_2.parquet',
+    ]);
+
+    const { data } = layers_obj.nbhd_cloud_cell_layer;
+    expect(data.length).toBe(3);
+    expect(Array.from(data.attributes.getPosition.value)).toEqual([
+      1, 1, 1, 2, 2, 2, 3, 3, 3,
+    ]);
+    expect(Array.from(data.attributes.getColor.value)).toEqual([
+      10, 20, 30, 255, 40, 50, 60, 255, 40, 50, 60, 255,
+    ]);
+  });
+});
+
 describe('neighborhood-cloud gene-selected cell centroid loading ("peppering")', () => {
   let refresh_nbhd_cloud_gene_cells;
   let update_nbhd_cloud_cell_layer_opacity;

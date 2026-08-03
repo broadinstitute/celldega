@@ -68,6 +68,22 @@ describe('neighborhood-cloud shapes fill color', () => {
     ).toEqual([255, 0, 0, 0]);
   });
 
+  test('a "meta-cluster" (several selected clusters at once) keeps every member opaque, dims the rest', () => {
+    const viz_state = {
+      nbhd_cloud: { selected_cluster_ids: new Set(['1', '3']) },
+    };
+
+    expect(
+      get_nbhd_cloud_fill_color(feature('#ff0000', '1'), viz_state)
+    ).toEqual([255, 0, 0, 255]);
+    expect(
+      get_nbhd_cloud_fill_color(feature('#ff0000', '3'), viz_state)
+    ).toEqual([255, 0, 0, 255]);
+    expect(
+      get_nbhd_cloud_fill_color(feature('#ff0000', '2'), viz_state)
+    ).toEqual([255, 0, 0, 0]);
+  });
+
   test("gene-shapes mode: flat alpha from gene_fill_opacity, regardless of the feature's own mean_expression", () => {
     const geneFeature = (mean_expression) => ({
       properties: { gene: 'Matn1', slice_id: 's0', mean_expression },
@@ -158,6 +174,7 @@ describe('build_nbhd_cloud_gene_bar_data', () => {
 
 describe('neighborhood-cloud cluster-select / gene-select mutual exclusion', () => {
   let toggle_nbhd_cloud_cluster_selection;
+  let set_nbhd_cloud_cluster_selection;
   let select_nbhd_cloud_gene;
   const fetchedUrls = [];
   const geneShapeFeatures = [
@@ -191,7 +208,7 @@ describe('neighborhood-cloud cluster-select / gene-select mutual exclusion', () 
       const refresh_nbhd_cloud_gene_cells = async () => {};
     `;
 
-    const code = `${shims}\n${source}\nmodule.exports = { toggle_nbhd_cloud_cluster_selection, select_nbhd_cloud_gene };`;
+    const code = `${shims}\n${source}\nmodule.exports = { toggle_nbhd_cloud_cluster_selection, set_nbhd_cloud_cluster_selection, select_nbhd_cloud_gene };`;
     const module = { exports: {} };
     new Function('module', 'exports', 'fetchedUrls', 'geneShapeFeatures', code)(
       module,
@@ -199,8 +216,11 @@ describe('neighborhood-cloud cluster-select / gene-select mutual exclusion', () 
       fetchedUrls,
       geneShapeFeatures
     );
-    ({ toggle_nbhd_cloud_cluster_selection, select_nbhd_cloud_gene } =
-      module.exports);
+    ({
+      toggle_nbhd_cloud_cluster_selection,
+      set_nbhd_cloud_cluster_selection,
+      select_nbhd_cloud_gene,
+    } = module.exports);
   });
 
   beforeEach(() => {
@@ -247,6 +267,40 @@ describe('neighborhood-cloud cluster-select / gene-select mutual exclusion', () 
     expect(viz_state.nbhd_cloud.selected_gene).toBe('Matn1');
     expect(viz_state.nbhd_cloud.gene_shapes_mode).toBe(true);
     expect(viz_state.nbhd_cloud.selected_cluster_ids.size).toBe(0);
+  });
+
+  test('set_nbhd_cloud_cluster_selection selects several clusters at once ("meta-cluster")', () => {
+    const viz_state = { nbhd_cloud: { shapes_features: [] } };
+
+    set_nbhd_cloud_cluster_selection(
+      ['3', '7', '9'],
+      viz_state,
+      makeLayersObj()
+    );
+
+    expect(viz_state.nbhd_cloud.selected_cluster_ids).toEqual(
+      new Set(['3', '7', '9'])
+    );
+  });
+
+  test('selecting the exact same set again clears the selection (same-set-means-toggle-off)', () => {
+    const viz_state = { nbhd_cloud: { shapes_features: [] } };
+
+    set_nbhd_cloud_cluster_selection(['3', '7'], viz_state, makeLayersObj());
+    set_nbhd_cloud_cluster_selection(['7', '3'], viz_state, makeLayersObj());
+
+    expect(viz_state.nbhd_cloud.selected_cluster_ids.size).toBe(0);
+  });
+
+  test('selecting a different (even same-size) set replaces the selection, not a toggle-off', () => {
+    const viz_state = { nbhd_cloud: { shapes_features: [] } };
+
+    set_nbhd_cloud_cluster_selection(['3', '7'], viz_state, makeLayersObj());
+    set_nbhd_cloud_cluster_selection(['3', '9'], viz_state, makeLayersObj());
+
+    expect(viz_state.nbhd_cloud.selected_cluster_ids).toEqual(
+      new Set(['3', '9'])
+    );
   });
 });
 

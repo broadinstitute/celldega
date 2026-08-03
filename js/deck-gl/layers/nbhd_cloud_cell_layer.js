@@ -144,27 +144,14 @@ const buildExpressionColorBuffer = (expressions, maxExpression) => {
   return colors;
 };
 
-// Cluster selection (not per-neighborhood) drives cell display -- called
-// after `viz_state.nbhd_cloud.selected_cluster_ids` changes (bar click or
-// shape click) *and* after `selected_slice_ids` changes (slice bar), since
-// an active slice isolation should narrow whichever cluster is already
-// selected. Reads current state rather than taking params, so either
-// trigger can call it without needing to know about the other.
-export const refresh_nbhd_cloud_cluster_cells = async (
-  viz_state,
-  layers_obj
-) => {
+// Fetches (or reuses the cached) merged cell table for one cluster, filtered
+// to the active slice selection (if any) and colored with that cluster's own
+// color. Shared by refresh_nbhd_cloud_cluster_cells below across however many
+// clusters are currently selected -- each cluster keeps its own color when
+// several are shown at once (a Clustergram column-dendrogram "meta-cluster"
+// selection), rather than all being flattened to one shared color.
+const load_nbhd_cloud_cluster_cells = async (viz_state, clusterId) => {
   const { nbhd_cloud } = viz_state;
-  const clusterId = [...(nbhd_cloud.selected_cluster_ids ?? [])][0];
-
-  if (clusterId == null) {
-    layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
-      data: emptyPointCloudData(),
-      opacity: get_cell_layer_opacity(viz_state),
-    });
-    return;
-  }
-
   nbhd_cloud.cell_cache_by_cluster ??= new Map();
   let mergedCells = nbhd_cloud.cell_cache_by_cluster.get(clusterId);
   if (!mergedCells) {
@@ -186,11 +173,55 @@ export const refresh_nbhd_cloud_cluster_cells = async (
     viz_state.cats?.color_dict_cluster?.[clusterId] || DEFAULT_CLUSTER_RGB;
   const colors = buildConstantColorBuffer(filtered.length, rgb);
 
+  return { positions: filtered.positions, length: filtered.length, colors };
+};
+
+// Cluster selection (not per-neighborhood) drives cell display -- called
+// after `viz_state.nbhd_cloud.selected_cluster_ids` changes (bar click,
+// shape click, or a linked Clustergram column/column-dendrogram selection)
+// *and* after `selected_slice_ids` changes (slice bar), since an active
+// slice isolation should narrow whichever cluster(s) are already selected.
+// Reads current state rather than taking params, so either trigger can call
+// it without needing to know about the other. `selected_cluster_ids` can
+// hold more than one id at once (a "meta-cluster" selection) -- every
+// selected cluster's cells are fetched (each from its own cache entry) and
+// concatenated into a single point-cloud buffer.
+export const refresh_nbhd_cloud_cluster_cells = async (
+  viz_state,
+  layers_obj
+) => {
+  const { nbhd_cloud } = viz_state;
+  const clusterIds = [...(nbhd_cloud.selected_cluster_ids ?? [])];
+
+  if (clusterIds.length === 0) {
+    layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
+      data: emptyPointCloudData(),
+      opacity: get_cell_layer_opacity(viz_state),
+    });
+    return;
+  }
+
+  const perCluster = await Promise.all(
+    clusterIds.map((clusterId) =>
+      load_nbhd_cloud_cluster_cells(viz_state, clusterId)
+    )
+  );
+
+  const totalLength = perCluster.reduce((sum, c) => sum + c.length, 0);
+  const positions = new Float32Array(totalLength * POSITION_SIZE);
+  const colors = new Uint8Array(totalLength * COLOR_SIZE);
+  let offset = 0;
+  for (const cluster of perCluster) {
+    positions.set(cluster.positions, offset * POSITION_SIZE);
+    colors.set(cluster.colors, offset * COLOR_SIZE);
+    offset += cluster.length;
+  }
+
   layers_obj.nbhd_cloud_cell_layer = layers_obj.nbhd_cloud_cell_layer.clone({
     data: {
-      length: filtered.length,
+      length: totalLength,
       attributes: {
-        getPosition: { value: filtered.positions, size: POSITION_SIZE },
+        getPosition: { value: positions, size: POSITION_SIZE },
         getColor: { value: colors, size: COLOR_SIZE, type: 'unorm8' },
       },
     },

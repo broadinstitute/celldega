@@ -370,29 +370,33 @@ export const update_nbhd_cloud_shapes_fill_color = (layers_obj, viz_state) => {
   );
 };
 
-// Backs both the per-cluster bar's click (bar_plot.js) and a direct shape
-// click (below) -- single-select: clicking the already-selected cluster
-// clears the selection. Selecting a cluster applies across every slice, not
-// just the slice the click happened to land on.
+// Replaces the full cluster selection with `clusterIds` -- applies across
+// every slice, not just the slice a click happened to land on. Selecting
+// exactly the set that's already selected clears it instead (same
+// same-set-means-toggle-off convention as the generic Landscape/CellCloud
+// path's `update_selected_cats`), so re-picking one cluster clears it
+// (bar/shape click) and re-cutting a dendrogram at the same grouping clears
+// that "meta-cluster" selection too. More than one id at once is a
+// "meta-cluster" selection (e.g. a Clustergram column-dendrogram cut
+// grouping several leaf clusters) -- every id in the set stays fully
+// visible/colored (see get_nbhd_cloud_fill_color), only non-members dim.
 //
-// Cluster selection and gene-shapes mode are mutually exclusive -- picking a
-// cluster always reverts to cluster-color highlighting, clearing whatever
-// gene was selected (the bar's own opacity reset happens at the call sites,
-// which also own the gene bar's DOM).
-export const toggle_nbhd_cloud_cluster_selection = (
-  clusterId,
+// Cluster selection and gene-shapes mode are mutually exclusive -- picking
+// cluster(s) always reverts to cluster-color highlighting, clearing
+// whatever gene was selected (the bar's own opacity reset happens at the
+// call sites, which also own the gene bar's DOM).
+export const set_nbhd_cloud_cluster_selection = (
+  clusterIds,
   viz_state,
   layers_obj
 ) => {
   const { nbhd_cloud } = viz_state;
-  nbhd_cloud.selected_cluster_ids ??= new Set();
+  const ids = [...new Set(clusterIds.map(String))];
+  const current = [...(nbhd_cloud.selected_cluster_ids ?? [])];
+  const isReset =
+    ids.length === current.length && ids.every((id) => current.includes(id));
 
-  const isReset = nbhd_cloud.selected_cluster_ids.has(clusterId);
-  nbhd_cloud.selected_cluster_ids.clear();
-  if (!isReset) {
-    nbhd_cloud.selected_cluster_ids.add(clusterId);
-  }
-
+  nbhd_cloud.selected_cluster_ids = isReset ? new Set() : new Set(ids);
   nbhd_cloud.selected_gene = null;
 
   if (nbhd_cloud.gene_shapes_mode || nbhd_cloud.gene_scatter_mode) {
@@ -402,6 +406,17 @@ export const toggle_nbhd_cloud_cluster_selection = (
   }
 
   update_nbhd_cloud_shapes_fill_color(layers_obj, viz_state);
+};
+
+// Backs both the per-cluster bar's click (bar_plot.js) and a direct shape
+// click (below) -- single-cluster convenience wrapper around
+// set_nbhd_cloud_cluster_selection.
+export const toggle_nbhd_cloud_cluster_selection = (
+  clusterId,
+  viz_state,
+  layers_obj
+) => {
+  set_nbhd_cloud_cluster_selection([clusterId], viz_state, layers_obj);
 };
 
 // Direct shape-click selection -- same effect as clicking that shape's

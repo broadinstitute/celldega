@@ -160,19 +160,26 @@ export const set_dendro_highlight = (
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };
 
-export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
-  // Animates a trapezoid's shape whenever its underlying leaf span changes
-  // (e.g. the row dendrogram in composition mode resizing as bars are
-  // reordered/renormalized — see `refresh_composition_dendro`) instead of
-  // snapping instantly. Safe now that there's no stroke sublayer: each
-  // polygon is a fixed 3-vertex triangle, so the fill's per-vertex
-  // interpolation is unambiguous — the earlier "white lines" glitch traced
-  // to the (now-removed) stroke's own path-based transition, a different,
-  // less predictable interpolation than a plain triangle fill.
-  const transitions = {
-    getPolygon: { duration: viz_state.animate.duration, easing: d3.easeCubic },
-  };
+// Animates a trapezoid's shape interpolating smoothly between its old and
+// new leaf span, instead of snapping instantly. Deliberately used for only
+// ONE thing: composition mode's PROP/COUNTS toggle (see
+// `refresh_composition_dendro`'s `animate` param) — the trapezoid's
+// endpoints genuinely correspond to the same leaves before and after that
+// toggle, so morphing between them reads as "this shape changed," not as a
+// new, unrelated shape appearing. Everywhere else a dendrogram redraws (the
+// cut-level/"slice" threshold slider changing which leaves are even grouped
+// together, a row/column reorder, a viz-mode switch, composition weight
+// changes), the leaf groupings themselves are different, so animating
+// between two different groupings just reads as trapezoids randomly
+// appearing/sliding around -- those call sites all pass `animate=false`
+// (the default) and get an instant snap instead. Safe to animate now that
+// there's no stroke sublayer: each polygon is a fixed 3-vertex triangle, so
+// the fill's per-vertex interpolation is unambiguous.
+const dendro_transitions = (viz_state) => ({
+  getPolygon: { duration: viz_state.animate.duration, easing: d3.easeCubic },
+});
 
+export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
   const inst_layer = new PolygonLayer({
     id: `${axis}-dendro-layer`,
     data: viz_state.dendro.polygons[axis],
@@ -197,7 +204,9 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     stroked: false,
     pickable: true,
     antialiasing: false,
-    transitions,
+    // Inert at construction time (nothing to transition from yet) -- the
+    // transitions that matter are the ones passed per-update below.
+    transitions: dendro_transitions(viz_state),
     // autoHighlight: true, // Highlight on hover
     // onHover: ({ object }) => console.log(object?.properties.name), // Hover info
   });
@@ -205,10 +214,26 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
   return inst_layer;
 };
 
-export const update_dendro_layer_data = (layers_mat, viz_state, axis) => {
+/**
+ * Push fresh polygon data into one axis's dendrogram layer.
+ *
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {string} axis - "row" or "col".
+ * @param {boolean} [animate] - Whether to morph the trapezoid shapes rather
+ *   than snap instantly. Default `false` -- see `dendro_transitions` above
+ *   for why only the composition PROP/COUNTS toggle passes `true`.
+ */
+export const update_dendro_layer_data = (
+  layers_mat,
+  viz_state,
+  axis,
+  animate = false
+) => {
   layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone(
     {
       data: viz_state.dendro.polygons[axis],
+      transitions: animate ? dendro_transitions(viz_state) : false,
     }
   );
 };
@@ -257,12 +282,22 @@ export const refresh_dendro_for_viz_mode = (layers_mat, viz_state) => {
  *
  * @param {object} layers_mat - Layer registry.
  * @param {object} viz_state - Visualization state.
+ * @param {boolean} [animate] - Forwarded to `update_dendro_layer_data`.
+ *   Default `false` (reorder/weight changes snap instantly); only the
+ *   PROP/COUNTS toggle handler (`matrix_viz.js`'s
+ *   `change:composition_normalized` listener) passes `true`, since that's
+ *   the one case where the same leaves genuinely morph to a new position
+ *   rather than a reorder producing an unrelated new grouping.
  */
-export const refresh_composition_dendro = (layers_mat, viz_state) => {
+export const refresh_composition_dendro = (
+  layers_mat,
+  viz_state,
+  animate = false
+) => {
   if (viz_state.mat.viz_mode !== 'composition') return;
   calc_dendro_triangles(viz_state, 'row');
   calc_dendro_polygons(viz_state, 'row');
-  update_dendro_layer_data(layers_mat, viz_state, 'row');
+  update_dendro_layer_data(layers_mat, viz_state, 'row', animate);
 };
 
 const focus_dendro_polygon = (

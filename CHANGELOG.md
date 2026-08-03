@@ -4,6 +4,50 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.21.3] - 2026-08-03
+
+Fixes a `NeighborhoodCloud` + linked `Clustergram` bug and generalizes the
+linking helper beyond `Landscape`.
+
+### Fixed
+
+- **`NeighborhoodCloud` Clustergram links didn't recolor the cloud** —
+  clicking a gene row or cluster column in a Clustergram linked via
+  `landscape_clustergram`/`spatial_clustergram` updated the gene bar graph
+  and selection state, but never `NeighborhoodCloud`'s own coloring.
+  `NeighborhoodCloud`'s gene/cluster coloring lives in dedicated layers
+  (`nbhd_cloud_shapes_layer` / `nbhd_cloud_cell_layer`), not the generic
+  per-cell path `Landscape`/`CellCloud` share, and the shared
+  Clustergram-click handler only ever refreshed that generic (inert, for
+  this technology) path. It now routes to `NeighborhoodCloud`'s own
+  selection functions instead.
+
+- **`NeighborhoodCloud` couldn't show "meta-clusters"** — a Clustergram
+  column-dendrogram cut selecting more than one cluster column silently did
+  nothing for a linked `NeighborhoodCloud` (single-cluster selection only).
+  `nbhd_cloud.selected_cluster_ids` now holds every selected cluster at
+  once; `NeighborhoodCloud`'s shapes/cell layers highlight and load real
+  cell centroids for the whole group, keeping each cluster's own color.
+
+- **Dendrogram trapezoids animated on every redraw, not just the
+  composition PROP/COUNTS toggle** — cutting the dendrogram at a different
+  linkage threshold (the "slice" that produces contiguous clusters),
+  reordering rows/columns, or switching viz mode all reused the same
+  transition config as the PROP/COUNTS toggle, so trapezoids visibly
+  morphed/slid around for redraws where the leaf groupings themselves had
+  changed (not just repositioned) — reading as random appearing/sliding
+  shapes rather than a meaningful animation. `update_dendro_layer_data` /
+  `refresh_composition_dendro` now take an explicit `animate` flag
+  (default `false`, instant snap); only the composition PROP/COUNTS toggle
+  handler passes `true`.
+
+### Added
+
+- **`dega.viz.spatial_clustergram`** — generalizes `landscape_clustergram`
+  to any of celldega's spatial widgets (`Landscape`, `CellCloud`,
+  `NeighborhoodCloud`, or `Yearbook`), not just `Landscape`.
+  `landscape_clustergram` still works exactly as before, now a thin alias.
+
 ## [0.21.2] - 2026-07-31
 
 Standardizes `neighborhood-cloud`'s per-gene DegaFile writers on `AnnData`

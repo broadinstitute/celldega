@@ -29,6 +29,18 @@ linking helper beyond `Landscape`.
   once; `NeighborhoodCloud`'s shapes/cell layers highlight and load real
   cell centroids for the whole group, keeping each cluster's own color.
 
+- **Dendrogram trapezoids animated on every redraw, not just the
+  composition PROP/COUNTS toggle** — cutting the dendrogram at a different
+  linkage threshold (the "slice" that produces contiguous clusters),
+  reordering rows/columns, or switching viz mode all reused the same
+  transition config as the PROP/COUNTS toggle, so trapezoids visibly
+  morphed/slid around for redraws where the leaf groupings themselves had
+  changed (not just repositioned) — reading as random appearing/sliding
+  shapes rather than a meaningful animation. `update_dendro_layer_data` /
+  `refresh_composition_dendro` now take an explicit `animate` flag
+  (default `false`, instant snap); only the composition PROP/COUNTS toggle
+  handler passes `true`.
+
 ### Added
 
 - **`dega.viz.spatial_clustergram`** — generalizes `landscape_clustergram`

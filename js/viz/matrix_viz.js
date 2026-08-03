@@ -492,7 +492,12 @@ export const matrix_viz = async (
         updateTriggers: mat_reorder_triggers(viz_state),
       });
       refresh_row_label_visibility(layers_mat, viz_state);
-      refresh_composition_dendro(layers_mat, viz_state);
+      // Animated: the same leaves genuinely morph to a new row-dendrogram
+      // position on a PROP/COUNTS toggle -- see dendro_transitions'
+      // rationale in dendro_layers.js. Every other refresh_composition_dendro
+      // call site (reorder, weight changes, viz-mode switch) leaves this
+      // default (false) and snaps instantly instead.
+      refresh_composition_dendro(layers_mat, viz_state, true);
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
 

@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import anndata as ad
+    import geopandas as gpd
     import pandas as pd
 
 
@@ -35,6 +36,7 @@ def write_nbhd_cloud(
     adata: ad.AnnData,
     dega_files_dir: str | Path,
     *,
+    shapes: gpd.GeoDataFrame | None = None,
     cluster_attr: str = "cluster",
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
@@ -88,6 +90,20 @@ def write_nbhd_cloud(
         placeholder).
     dega_files_dir : str | Path
         Output DegaFiles root directory (created if missing).
+    shapes : geopandas.GeoDataFrame | None
+        Precomputed per-(slice, cluster) alpha shapes to write, instead of
+        recomputing them from `adata.obsm["spatial"]`. Use this to reuse shapes
+        you already have — in particular to render a
+        `celldega.align.neighborhood_alignment` result without recomputing every
+        alpha shape: transform the shapes you fed the refinement with
+        `celldega.align.transform_shapes(shapes, refined_transform)` and pass the
+        result here. Must have the columns
+        `celldega.nbhd.alpha_shape_cell_clusters_by_slice` produces (`slice_id`,
+        `cluster_id`, `geometry`, ...), with `slice_id` values matching
+        `adata.obs[slice_attr]`. When `None` (default), shapes are computed from
+        `adata`. Note the per-cluster cell scatter is always taken from `adata`,
+        so `adata`'s coordinates should be in the same frame as `shapes` (e.g.
+        both refined) for the two to line up.
     cluster_attr, slice_attr, z_attr : str, str, str | None
         See `celldega.nbhd.alpha_shape_cell_clusters_by_slice`.
     alphas : Sequence[float]
@@ -187,16 +203,19 @@ def write_nbhd_cloud(
             "celldega.align.serial_slices.align_serial_slices)."
         )
 
-    gdf_alpha = alpha_shape_cell_clusters_by_slice(
-        adata,
-        cluster_attr=cluster_attr,
-        slice_attr=slice_attr,
-        z_attr=z_attr,
-        alphas=alphas,
-        meta_cluster=meta_cluster,
-        z_jitter=z_jitter,
-        progress_every=progress_every,
-    )
+    if shapes is not None:
+        gdf_alpha = shapes
+    else:
+        gdf_alpha = alpha_shape_cell_clusters_by_slice(
+            adata,
+            cluster_attr=cluster_attr,
+            slice_attr=slice_attr,
+            z_attr=z_attr,
+            alphas=alphas,
+            meta_cluster=meta_cluster,
+            z_jitter=z_jitter,
+            progress_every=progress_every,
+        )
     nbhd = NeighborhoodCollection.from_gdf(gdf_alpha, nbhd_type="alpha_shape")
 
     write_nbhd_cloud_dataset(

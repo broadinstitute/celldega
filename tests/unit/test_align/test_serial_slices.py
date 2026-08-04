@@ -93,7 +93,11 @@ def _centroid(adata, slice_attr, slice_id, label):
 
 
 def _landmark_xy(landmarks, slice_attr, slice_id, label):
-    row = landmarks.loc[(landmarks[slice_attr] == slice_id) & (landmarks["label"] == label)].iloc[0]
+    """`label` is a raw `_TRUE_CENTERS` key -- `calc_landmarks` prefixes it with
+    `"C-"` by default, so look it up that way."""
+    row = landmarks.loc[
+        (landmarks[slice_attr] == slice_id) & (landmarks["label"] == f"C-{label}")
+    ].iloc[0]
     return np.array([row["x"], row["y"]])
 
 
@@ -301,6 +305,57 @@ def test_weight_by_adjacent_counts_downweights_small_mislabeled_cluster():
     assert large_cluster_residual(weighted) < large_cluster_residual(unweighted)
 
 
+def test_invalid_manual_landmark_weight_raises():
+    rng = np.random.default_rng(44)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng)
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+
+    with pytest.raises(ValueError, match="manual_landmark_weight"):
+        calc_alignment_transform(landmarks, manual_landmark_weight="bogus")
+
+
+def test_manual_landmark_weight_controls_manual_landmark_influence():
+    """A manual landmark (no `count`) that disagrees with every automated
+    centroid should barely move the fit under `"less"` (weighted at most the
+    smallest automated cluster) but pull it noticeably under `"greater"`
+    (weighted at least the largest automated cluster)."""
+    rng = np.random.default_rng(45)
+    counts = {"0": 200, "1": 150, "2": 100, "3": 80, "4": 20}
+    slice0 = _make_slice_with_counts(rng, counts)
+    slice1 = _make_slice_with_counts(rng, counts, rotation_deg=15, translation=(3.0, -2.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+
+    manual = pd.DataFrame(
+        {
+            "label": ["manual_extra", "manual_extra"],
+            "x": [5.0, 50.0],  # corrupted in slice 1 -- disagrees with the rigid fit
+            "y": [5.0, 50.0],
+            "slice": [0, 1],
+        }
+    )
+    landmarks = pd.concat([landmarks, manual], ignore_index=True)
+
+    def large_cluster_residual(transform):
+        return sum(
+            np.linalg.norm(
+                _landmark_xy(landmarks, "slice", 0, label)
+                - _landmark_xy(transform.landmarks_aligned, "slice", 1, label)
+            )
+            for label in _TRUE_CENTERS
+        )
+
+    less = calc_alignment_transform(landmarks, manual_landmark_weight="less")
+    equal = calc_alignment_transform(landmarks, manual_landmark_weight="equal")
+    greater = calc_alignment_transform(landmarks, manual_landmark_weight="greater")
+
+    assert (
+        large_cluster_residual(less)
+        < large_cluster_residual(equal)
+        < large_cluster_residual(greater)
+    )
+
+
 def test_alignment_window_reduces_sensitivity_to_one_noisy_neighbor():
     rng = np.random.default_rng(0)
     slice0 = _make_slice(rng)
@@ -344,7 +399,9 @@ def test_leave_one_out_residual_recorded_by_default():
 
     entry = transform.transform_log["1"]
     assert "leave_one_out_residual" in entry
-    assert set(entry["leave_one_out_residual"]["per_landmark"]) == set(_TRUE_CENTERS)
+    assert set(entry["leave_one_out_residual"]["per_landmark"]) == {
+        f"C-{label}" for label in _TRUE_CENTERS
+    }
     assert entry["leave_one_out_residual"]["mean"] < 1e-2
 
 
@@ -403,7 +460,7 @@ def test_duplicate_landmark_label_raises():
     slice0 = _make_slice(rng)
     slice1 = _make_slice(rng)
     landmarks = calc_landmarks([slice0, slice1], "cluster")
-    duplicate_row = landmarks[(landmarks["slice"] == 0) & (landmarks["label"] == "0")]
+    duplicate_row = landmarks[(landmarks["slice"] == 0) & (landmarks["label"] == "C-0")]
     landmarks = pd.concat([landmarks, duplicate_row], ignore_index=True)
 
     with pytest.raises(ValueError, match="duplicate landmark label"):
@@ -604,6 +661,27 @@ def test_serial_alignment_transform_load_defaults_degree_for_older_saves(tmp_pat
 
     reloaded = SerialAlignmentTransform.load(save_dir)
     assert reloaded.degree == 1
+
+
+def test_serial_alignment_transform_load_defaults_manual_landmark_weight_for_older_saves(
+    tmp_path,
+):
+    rng = np.random.default_rng(46)
+    slice0 = _make_slice(rng)
+    slice1 = _make_slice(rng, rotation_deg=10, translation=(2.0, -1.0))
+    landmarks = calc_landmarks([slice0, slice1], "cluster")
+    transform = calc_alignment_transform(landmarks)
+
+    save_dir = tmp_path / "transform"
+    transform.save(save_dir)
+    # Simulate a transform saved before `manual_landmark_weight` existed.
+    metadata_path = save_dir / "metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    del metadata["manual_landmark_weight"]
+    metadata_path.write_text(json.dumps(metadata))
+
+    reloaded = SerialAlignmentTransform.load(save_dir)
+    assert reloaded.manual_landmark_weight == "less"
 
 
 def test_calc_alignment_transform_degree_changes_the_tps_fit():

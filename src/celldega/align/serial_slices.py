@@ -80,7 +80,7 @@ def _validate_landmarks(landmarks: pd.DataFrame, slice_attr: str) -> None:
 
 
 def _slice_landmarks(landmarks: pd.DataFrame, slice_id: Any, slice_attr: str) -> pd.DataFrame:
-    """One slice's landmarks as a ``label``-indexed ``x``/``y``/``count`` table.
+    """One slice's landmarks as a ``label``-indexed ``x``/``y``/``count``/``source`` table.
 
     ``slice_id`` always comes from resolving slice order directly out of
     ``landmarks[slice_attr]`` (see :func:`calc_alignment_transform`), so
@@ -98,18 +98,28 @@ def _slice_landmarks(landmarks: pd.DataFrame, slice_id: Any, slice_attr: str) ->
         if "count" in subset.columns
         else np.full(len(subset), np.nan)
     )
+    source = (
+        subset["source"].astype(str).to_numpy()
+        if "source" in subset.columns
+        else np.full(len(subset), None, dtype=object)
+    )
     return pd.DataFrame(
         {
             "x": subset["x"].to_numpy(dtype=float),
             "y": subset["y"].to_numpy(dtype=float),
             "count": count,
+            "source": source,
         },
         index=pd.Index(subset["label"].astype(str).to_numpy(), name="label"),
     )
 
 
+_MANUAL_LANDMARK_WEIGHTS = ("equal", "less", "greater")
+
+
 def _adjacent_count_weights(
     weight_by_adjacent_counts: bool,
+    manual_landmark_weight: str,
     labels: pd.Index,
     current_counts: pd.Series,
     neighbor_counts: pd.Series,
@@ -117,17 +127,34 @@ def _adjacent_count_weights(
     """Per-landmark fit weight from cell count in the current slice and its
     neighbor window (geometric mean), or ``None`` if disabled.
 
-    Falls back to a neutral weight of ``1.0`` for a landmark whose count is
-    ``NaN`` on either side (e.g. a manually-placed landmark has no cell
-    population), rather than propagating ``NaN`` into the fit.
+    A landmark whose count is ``NaN`` on either side (e.g. a
+    manually-placed landmark has no cell population) has that side's count
+    filled in first, from the automated counts present at this fit step,
+    per ``manual_landmark_weight``: their mean (``"equal"``, so it weighs
+    like a typical automated landmark), min (``"less"``), or max
+    (``"greater"``). Falls back to a neutral count of ``1.0`` if no
+    automated count is present at all (an all-manual fit).
     """
     if not weight_by_adjacent_counts:
         return None
     current = current_counts.loc[labels].to_numpy(dtype=float)
     neighbor = neighbor_counts.loc[labels].to_numpy(dtype=float)
-    weight = np.sqrt(current * neighbor)
-    weight[np.isnan(weight)] = 1.0
-    return weight
+    known = np.concatenate([current, neighbor])
+    known = known[~np.isnan(known)]
+    if manual_landmark_weight == "equal":
+        fill = known.mean() if known.size else 1.0
+    elif manual_landmark_weight == "less":
+        fill = known.min() if known.size else 1.0
+    elif manual_landmark_weight == "greater":
+        fill = known.max() if known.size else 1.0
+    else:
+        raise ValueError(
+            f"manual_landmark_weight must be one of {_MANUAL_LANDMARK_WEIGHTS}, "
+            f"got {manual_landmark_weight!r}"
+        )
+    current = np.where(np.isnan(current), fill, current)
+    neighbor = np.where(np.isnan(neighbor), fill, neighbor)
+    return np.sqrt(current * neighbor)
 
 
 def _pooled_neighbor_stats(
@@ -255,6 +282,7 @@ class SerialAlignmentTransform:
     area_regularization: float
     shape_regularization: float
     weight_by_adjacent_counts: bool
+    manual_landmark_weight: str
     alignment_window: int
 
     def apply_to_points(self, slice_id: Any, points: np.ndarray) -> np.ndarray:
@@ -296,6 +324,7 @@ class SerialAlignmentTransform:
             "area_regularization": self.area_regularization,
             "shape_regularization": self.shape_regularization,
             "weight_by_adjacent_counts": self.weight_by_adjacent_counts,
+            "manual_landmark_weight": self.manual_landmark_weight,
             "alignment_window": self.alignment_window,
         }
         (path / "metadata.json").write_text(json.dumps(metadata, indent=2))
@@ -341,6 +370,10 @@ class SerialAlignmentTransform:
             area_regularization=metadata.get("area_regularization", 0.0),
             shape_regularization=metadata.get("shape_regularization", 0.0),
             weight_by_adjacent_counts=metadata["weight_by_adjacent_counts"],
+            # `manual_landmark_weight` postdates this field's introduction --
+            # default to the fit's previous behavior (a flat neutral weight,
+            # closest to today's `"less"`) for older saves.
+            manual_landmark_weight=metadata.get("manual_landmark_weight", "less"),
             alignment_window=metadata["alignment_window"],
         )
 
@@ -358,6 +391,7 @@ def calc_alignment_transform(
     area_regularization: float = 0.0,
     shape_regularization: float = 0.0,
     weight_by_adjacent_counts: bool = True,
+    manual_landmark_weight: str = "equal",
     compute_residuals: bool = True,
 ) -> SerialAlignmentTransform:
     """Fit a serial-slice alignment transform from corresponding landmarks.
@@ -441,8 +475,19 @@ def calc_alignment_transform(
             landmark by the geometric mean of its cell count in the current
             slice and its neighbor window (a centroid from more cells is a
             lower-variance estimate) — a landmark with no count (e.g.
-            manually placed) is weighted neutrally. Set ``False`` to weight
-            every landmark equally.
+            manually placed) has its count filled in first, per
+            ``manual_landmark_weight``. Set ``False`` to weight every
+            landmark equally (``manual_landmark_weight`` has no effect).
+        manual_landmark_weight: How a landmark with no cell count (e.g. one
+            placed with :class:`~celldega.viz.Landmark`) is weighted when
+            ``weight_by_adjacent_counts`` is ``True``. Its count is filled
+            in from the automated counts sharing this fit step: their mean
+            (``"equal"``, default — a manual landmark carries as much
+            influence as a typical automated one), min (``"less"`` — no
+            more influence than the smallest automated cluster), or max
+            (``"greater"`` — at least as much influence as the largest
+            automated cluster). Landmarks that already have a count are
+            unaffected.
         compute_residuals: If ``True`` (default), compute and record each
             slice's per-landmark leave-one-out residual (see
             :func:`~celldega.align._transform.leave_one_out_residuals`) —
@@ -457,12 +502,18 @@ def calc_alignment_transform(
         ValueError: If ``landmarks`` is missing a required column or has
             fewer than 2 slices, if ``reference`` is out of range, if
             ``alignment_window`` is less than 1, if ``method`` is not
-            recognized, if a slice's landmarks contain duplicate labels, if
-            a slice shares fewer than ``min_shared_landmarks`` labels with
-            its neighbor window, or if the fit itself rejects the shared
-            landmarks (e.g. a degenerate configuration for TPS).
+            recognized, if ``manual_landmark_weight`` is not recognized, if
+            a slice's landmarks contain duplicate labels, if a slice shares
+            fewer than ``min_shared_landmarks`` labels with its neighbor
+            window, or if the fit itself rejects the shared landmarks (e.g.
+            a degenerate configuration for TPS).
     """
     slice_attr = slice_attr or "slice"
+    if manual_landmark_weight not in _MANUAL_LANDMARK_WEIGHTS:
+        raise ValueError(
+            f"manual_landmark_weight must be one of {_MANUAL_LANDMARK_WEIGHTS}, "
+            f"got {manual_landmark_weight!r}"
+        )
     _validate_landmarks(landmarks, slice_attr)
     slice_ids = _resolve_slice_order(landmarks[slice_attr])
     n = len(slice_ids)
@@ -501,13 +552,14 @@ def calc_alignment_transform(
 
             weights = _adjacent_count_weights(
                 weight_by_adjacent_counts,
+                manual_landmark_weight,
                 shared,
                 current_stats["count"],
                 neighbor_stats["count"],
             )
-            source = current_stats.loc[shared, ["x", "y"]].to_numpy()
+            source_xy = current_stats.loc[shared, ["x", "y"]].to_numpy()
             target = neighbor_stats.loc[shared, ["x", "y"]].to_numpy()
-            transform = fit_transform(source, target, weights=weights)
+            transform = fit_transform(source_xy, target, weights=weights)
             transforms[slice_ids[idx]] = transform
 
             aligned_xy = transform.apply(current_stats[["x", "y"]].to_numpy())
@@ -516,13 +568,16 @@ def calc_alignment_transform(
                     "x": aligned_xy[:, 0],
                     "y": aligned_xy[:, 1],
                     "count": current_stats["count"].to_numpy(),
+                    "source": current_stats["source"].to_numpy(),
                 },
                 index=current_stats.index,
             )
 
             residual_summary = None
             if compute_residuals:
-                residuals = leave_one_out_residuals(source, target, fit_transform, weights=weights)
+                residuals = leave_one_out_residuals(
+                    source_xy, target, fit_transform, weights=weights
+                )
                 per_landmark = dict(zip(shared, residuals, strict=True))
                 finite = [v for v in per_landmark.values() if np.isfinite(v)]
                 residual_summary = {
@@ -550,7 +605,7 @@ def calc_alignment_transform(
         frame[slice_attr] = slice_ids[idx]
         aligned_frames.append(frame)
     landmarks_aligned = pd.concat(aligned_frames, ignore_index=True)[
-        [slice_attr, "label", "x", "y", "count"]
+        [slice_attr, "label", "x", "y", "count", "source"]
     ]
 
     return SerialAlignmentTransform(
@@ -568,6 +623,7 @@ def calc_alignment_transform(
         area_regularization=area_regularization,
         shape_regularization=shape_regularization,
         weight_by_adjacent_counts=weight_by_adjacent_counts,
+        manual_landmark_weight=manual_landmark_weight,
         alignment_window=alignment_window,
     )
 
@@ -674,6 +730,7 @@ def align_serial_slices(
         "area_regularization": transform.area_regularization,
         "shape_regularization": transform.shape_regularization,
         "weight_by_adjacent_counts": transform.weight_by_adjacent_counts,
+        "manual_landmark_weight": transform.manual_landmark_weight,
         "z_space": z_space,
         "z_coord": z_coord,
         "transforms": transform.transform_log,

@@ -4,6 +4,32 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.22.0] - 2026-08-04
+
+Lets a manually-placed landmark carry as much (or as little) influence as
+an automated cluster centroid when fitting a serial-slice alignment.
+
+### Added
+
+- **`calc_alignment_transform(..., manual_landmark_weight=...)`** — controls
+  how a landmark with no cell count (e.g. one placed with
+  `celldega.viz.Landmark`) is weighted when `weight_by_adjacent_counts=True`
+  (the default). Its count is filled in from the automated counts sharing
+  that fit step: their mean (`"equal"`, default — as much influence as a
+  typical automated landmark), min (`"less"`), or max (`"greater"`).
+  Previously a manual landmark was always pinned to a flat, neutral weight
+  of `1.0` regardless of the automated centroids around it — often far
+  below a real cluster's weight, so manually-added landmarks barely
+  influenced the fit.
+- **`source` column on landmark tables** — `calc_landmarks` now tags every
+  row `"automated"`; `celldega.viz.Landmark` tags every row it creates
+  `"manual"`. Threaded through `calc_alignment_transform`/
+  `align_serial_slices` into `landmarks_aligned` for provenance.
+- **`calc_landmarks(..., label_prefix="C-")`** — cluster centroid labels are
+  now prefixed (cluster `"0"` becomes landmark label `"C-0"`) so they can't
+  collide with `Landmark`'s own auto-numbered manual labels (plain
+  integers) once the two tables are concatenated. Pass `""` to disable.
+
 ## [0.21.3] - 2026-08-03
 
 Fixes a `NeighborhoodCloud` + linked `Clustergram` bug and generalizes the

@@ -63,7 +63,7 @@ def test_landmark_defaults_from_list_of_two():
     assert len(lm.centroids_parquet_a) > 0
     assert len(lm.centroids_parquet_b) > 0
     assert lm.landmarks is not None
-    assert list(lm.landmarks.columns) == ["label", "x", "y", "slice"]
+    assert list(lm.landmarks.columns) == ["label", "x", "y", "slice", "source"]
     assert lm.landmarks.empty
     assert lm.cell_radius == 5.0  # data-space default, matching Landscape's cell layer
 

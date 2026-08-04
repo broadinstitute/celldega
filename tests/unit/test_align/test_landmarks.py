@@ -32,12 +32,22 @@ def test_calc_landmarks_shape_and_values():
 
     landmarks = calc_landmarks(adata, "cluster")
 
-    assert set(landmarks["label"]) == set(_CENTERS)
-    assert set(landmarks.columns) >= {"label", "x", "y", "count"}
+    assert set(landmarks["label"]) == {f"C-{label}" for label in _CENTERS}
+    assert set(landmarks.columns) >= {"label", "x", "y", "count", "source"}
+    assert set(landmarks["source"]) == {"automated"}
     for label, center in _CENTERS.items():
-        row = landmarks.loc[landmarks["label"] == label].iloc[0]
+        row = landmarks.loc[landmarks["label"] == f"C-{label}"].iloc[0]
         assert row["count"] == counts[label]
         assert np.allclose([row["x"], row["y"]], center, atol=1e-3)
+
+
+def test_calc_landmarks_label_prefix_disabled():
+    rng = np.random.default_rng(7)
+    adata = _make_adata(rng, {"a": 5, "b": 8, "c": 3})
+
+    landmarks = calc_landmarks(adata, "cluster", label_prefix="")
+
+    assert set(landmarks["label"]) == set(_CENTERS)
 
 
 def test_calc_landmarks_requires_cluster_key():
@@ -64,7 +74,7 @@ def test_calc_landmarks_list_mode_tags_slice_column():
 
     landmarks = calc_landmarks([adata0, adata1], "cluster")
 
-    assert set(landmarks.columns) == {"label", "x", "y", "count", "slice"}
+    assert set(landmarks.columns) == {"label", "x", "y", "count", "source", "slice"}
     assert sorted(landmarks["slice"].unique().tolist()) == [0, 1]
     assert len(landmarks) == 2 * len(_CENTERS)
 
@@ -83,9 +93,10 @@ def test_calc_landmarks_combined_anndata_mode_matches_list_mode():
     combined = ad.concat([adata0, adata1])
     from_combined = calc_landmarks(combined, "cluster", slice_attr="batch")
 
-    assert set(from_combined.columns) == {"label", "x", "y", "count", "batch"}
+    assert set(from_combined.columns) == {"label", "x", "y", "count", "source", "batch"}
     assert sorted(from_combined["batch"].unique().tolist()) == ["x", "y"]
     for label in _CENTERS:
+        label = f"C-{label}"
         list_row = from_list.loc[(from_list["slice"] == 0) & (from_list["label"] == label)].iloc[0]
         combined_row = from_combined.loc[
             (from_combined["batch"] == "x") & (from_combined["label"] == label)
@@ -102,9 +113,9 @@ def test_calc_landmarks_excludes_nan_cluster_labels():
 
     landmarks = calc_landmarks(adata, "cluster")
 
-    assert "nan" not in set(landmarks["label"])
-    assert set(landmarks["label"]) == set(_CENTERS)
-    row_a = landmarks.loc[landmarks["label"] == "a"].iloc[0]
+    assert "C-nan" not in set(landmarks["label"])
+    assert set(landmarks["label"]) == {f"C-{label}" for label in _CENTERS}
+    row_a = landmarks.loc[landmarks["label"] == "C-a"].iloc[0]
     assert row_a["count"] == 1  # 5 "a" cells, 4 of which were nulled out above
 
 

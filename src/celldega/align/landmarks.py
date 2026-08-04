@@ -30,7 +30,7 @@ from celldega.align._slices import _ordered_slices
 __all__ = ["calc_landmarks"]
 
 
-def _one_slice_landmarks(adata: AnnData, cluster_key: str) -> pd.DataFrame:
+def _one_slice_landmarks(adata: AnnData, cluster_key: str, label_prefix: str) -> pd.DataFrame:
     if cluster_key not in adata.obs.columns:
         raise ValueError(f"'{cluster_key}' is not a column in adata.obs")
     spatial = adata.obsm.get("spatial")
@@ -41,15 +41,19 @@ def _one_slice_landmarks(adata: AnnData, cluster_key: str) -> pd.DataFrame:
     mask = labels.notna().to_numpy()
     xy = np.asarray(spatial)[mask, :2]
     df = pd.DataFrame(xy, columns=["x", "y"], index=adata.obs_names[mask])
-    df["label"] = labels[mask].astype(str).to_numpy()
+    df["label"] = (label_prefix + labels[mask].astype(str)).to_numpy()
     grouped = df.groupby("label")
     stats = grouped[["x", "y"]].mean()
     stats["count"] = grouped.size()
-    return stats.reset_index()[["label", "x", "y", "count"]]
+    stats["source"] = "automated"
+    return stats.reset_index()[["label", "x", "y", "count", "source"]]
 
 
 def calc_landmarks(
-    adatas: AnnData | list[AnnData], cluster_key: str, slice_attr: str | None = None
+    adatas: AnnData | list[AnnData],
+    cluster_key: str,
+    slice_attr: str | None = None,
+    label_prefix: str = "C-",
 ) -> pd.DataFrame:
     """Compute one landmark per cluster label, at that cluster's centroid.
 
@@ -72,16 +76,26 @@ def calc_landmarks(
             triggers multi-slice output). For a list of ``AnnData``, the
             name to give the output's slice-tagging column (default
             ``"slice"``). Ignored for a single, non-split ``AnnData``.
+        label_prefix: Prepended to each cluster label to form the landmark
+            ``label`` (default ``"C-"``, so cluster ``"0"`` becomes
+            ``"C-0"``). Keeps automated labels visually identifiable and, in
+            particular, out of the way of :class:`~celldega.viz.Landmark`'s
+            own auto-numbered manual labels (plain integers, ``"1"``,
+            ``"2"``, ...) — without a prefix the two schemes can collide
+            (e.g. cluster ``"1"`` vs. manual landmark ``"1"``) once
+            concatenated together. Pass ``""`` to disable.
 
     Returns:
-        A ``DataFrame`` with columns ``label`` (cluster label, as ``str``),
-        ``x``/``y`` (the cluster's centroid, in each slice's own
-        ``obsm["spatial"]`` coordinate space), and ``count`` (number of
-        cells in that cluster) — plus a ``slice_attr`` column when computed
-        over multiple slices. This is the shape
+        A ``DataFrame`` with columns ``label`` (``label_prefix`` + cluster
+        label, as ``str``), ``x``/``y`` (the cluster's centroid, in each
+        slice's own ``obsm["spatial"]`` coordinate space), ``count`` (number
+        of cells in that cluster), and ``source`` (always ``"automated"``
+        here) — plus a ``slice_attr`` column when computed over multiple
+        slices. This is the shape
         :func:`~celldega.align.serial_slices.align_serial_slices`'s
         ``landmarks`` parameter expects, so manually-defined landmarks (same
-        columns, ``count`` absent or ``NaN``) can be combined with this via
+        columns, ``count`` absent or ``NaN`` and ``source`` ``"manual"`` —
+        see :class:`~celldega.viz.Landmark`) can be combined with this via
         :func:`pandas.concat` before being passed in.
 
     Raises:
@@ -91,12 +105,12 @@ def calc_landmarks(
             is a single ``AnnData`` without ``slice_attr``.
     """
     if isinstance(adatas, AnnData) and slice_attr is None:
-        return _one_slice_landmarks(adatas, cluster_key)
+        return _one_slice_landmarks(adatas, cluster_key, label_prefix)
 
     slice_ids, slices, slice_attr = _ordered_slices(adatas, slice_attr, copy=False)
     frames = []
     for slice_id, adata in zip(slice_ids, slices, strict=True):
-        frame = _one_slice_landmarks(adata, cluster_key)
+        frame = _one_slice_landmarks(adata, cluster_key, label_prefix)
         frame[slice_attr] = slice_id
         frames.append(frame)
     return pd.concat(frames, ignore_index=True)

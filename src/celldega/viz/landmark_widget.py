@@ -14,9 +14,11 @@ restores whatever landmarks were already saved for it.
 
 The output, :attr:`Landmark.landmarks`, matches
 :func:`~celldega.align.landmarks.calc_landmarks`'s output shape exactly (a
-plain ``DataFrame`` with columns ``label``, ``x``, ``y``, and a slice-tagging
-column) so manually- and automatically-derived landmarks concatenate
-directly and both feed :func:`~celldega.align.serial_slices.calc_alignment_transform`.
+plain ``DataFrame`` with columns ``label``, ``x``, ``y``, a slice-tagging
+column, and ``source`` — always ``"manual"`` here, versus ``"automated"``
+for a cluster centroid) so manually- and automatically-derived landmarks
+concatenate directly and both feed
+:func:`~celldega.align.serial_slices.calc_alignment_transform`.
 """
 
 from __future__ import annotations
@@ -125,6 +127,20 @@ def _geojson_from_landmarks(landmarks: pd.DataFrame | None, slice_attr: str, sli
         for row in subset.itertuples()
     ]
     return {"type": "FeatureCollection", "features": features}
+
+
+def _resolve_landmark_sources(landmarks: pd.DataFrame) -> np.ndarray:
+    """Existing ``source`` values if given (e.g. a mix of automated and
+    manual landmarks reloaded for further editing); else derived from
+    ``count`` (present and non-null -> ``"automated"``, else ``"manual"``);
+    else ``"manual"`` for every row, since this widget's own output has
+    neither column populated until a landmark is placed through it.
+    """
+    if "source" in landmarks.columns:
+        return landmarks["source"].astype(str).to_numpy()
+    if "count" in landmarks.columns:
+        return np.where(landmarks["count"].notna(), "automated", "manual")
+    return np.full(len(landmarks), "manual")
 
 
 def _next_label_after(labels: Any) -> int:
@@ -369,8 +385,9 @@ class Landmark(anywidget.AnyWidget):
                 )
             landmarks_df = landmarks[["label", "x", "y", resolved_slice_attr]].copy()
             landmarks_df["label"] = landmarks_df["label"].astype(str)
+            landmarks_df["source"] = _resolve_landmark_sources(landmarks)
         else:
-            landmarks_df = pd.DataFrame(columns=["label", "x", "y", resolved_slice_attr])
+            landmarks_df = pd.DataFrame(columns=["label", "x", "y", resolved_slice_attr, "source"])
 
         resolved_labels = dict(slice_labels) if slice_labels else {}
         kwargs.setdefault("slice_ids", [str(s) for s in all_slice_ids])
@@ -460,16 +477,17 @@ class Landmark(anywidget.AnyWidget):
                     "x": float(coordinates[0]),
                     "y": float(coordinates[1]),
                     self._slice_attr: slice_id,
+                    "source": "manual",
                 }
             )
 
         existing = (
             self.landmarks
             if self.landmarks is not None
-            else pd.DataFrame(columns=["label", "x", "y", self._slice_attr])
+            else pd.DataFrame(columns=["label", "x", "y", self._slice_attr, "source"])
         )
         others = existing.loc[existing[self._slice_attr] != slice_id]
-        new_rows = pd.DataFrame(rows, columns=["label", "x", "y", self._slice_attr])
+        new_rows = pd.DataFrame(rows, columns=["label", "x", "y", self._slice_attr, "source"])
         self.landmarks = pd.concat([others, new_rows], ignore_index=True)
         self._bump_label_counter(row["label"] for row in rows)
         self._recompute_landmark_coverage()
@@ -498,6 +516,7 @@ class Landmark(anywidget.AnyWidget):
                     "x": float(point["x"]),
                     "y": float(point["y"]),
                     self._slice_attr: self._slice_id_by_str[slice_id_str],
+                    "source": "manual",
                 }
             )
         if not rows:
@@ -507,13 +526,13 @@ class Landmark(anywidget.AnyWidget):
         existing = (
             self.landmarks
             if self.landmarks is not None
-            else pd.DataFrame(columns=["label", "x", "y", self._slice_attr])
+            else pd.DataFrame(columns=["label", "x", "y", self._slice_attr, "source"])
         )
         touched_slices = {row[self._slice_attr] for row in rows}
         # A slice only ever holds one instance of a given landmark -- replace
         # rather than append if this label already had a point there.
         mask = (existing["label"] == label) & (existing[self._slice_attr].isin(touched_slices))
-        new_rows = pd.DataFrame(rows, columns=["label", "x", "y", self._slice_attr])
+        new_rows = pd.DataFrame(rows, columns=["label", "x", "y", self._slice_attr, "source"])
         self.landmarks = pd.concat([existing.loc[~mask], new_rows], ignore_index=True)
         self._bump_label_counter([label])
         self._recompute_landmark_coverage()

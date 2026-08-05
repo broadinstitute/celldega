@@ -62,6 +62,7 @@ import {
 } from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+import { compute_portrait_centers } from './yearbook_portrait_centers';
 
 // Row group reading support
 
@@ -712,30 +713,18 @@ export const yearbook = async (
       start_index + portraits_per_page
     );
 
-    // Get cell positions from the scatter data
-    const centers = page_cells.map((cell_id) => {
-      const cell_index = viz_state.cats.cell_name_to_index_map.get(cell_id);
-      if (
-        cell_index !== undefined &&
-        viz_state.spatial.cell_scatter_data_objects
-      ) {
-        const cell_data =
-          viz_state.spatial.cell_scatter_data_objects[cell_index];
-        if (cell_data && cell_data.position) {
-          return {
-            cell_id,
-            x: cell_data.position[0],
-            y: cell_data.position[1],
-          };
-        }
-      }
-      // Fallback to center of image if cell not found
-      return {
-        cell_id,
+    // Resolve each portrait's spatial center from the flat scatter-data buffer.
+    // See compute_portrait_centers for why the old cell_scatter_data_objects
+    // buffer no longer works.
+    const centers = compute_portrait_centers(
+      page_cells,
+      viz_state.cats.cell_name_to_index_map,
+      viz_state.spatial.cell_scatter_data,
+      {
         x: viz_state.dimensions.width / 2,
         y: viz_state.dimensions.height / 2,
-      };
-    });
+      }
+    );
 
     viz_state.yearbook.portrait_centers = centers;
     return centers;

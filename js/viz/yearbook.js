@@ -65,6 +65,7 @@ import {
 } from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+
 import { compute_portrait_centers } from './yearbook_portrait_centers';
 
 // Row group reading support

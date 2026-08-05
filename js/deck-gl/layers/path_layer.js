@@ -4,6 +4,7 @@ import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
+
 import { is_cluster_color_mode } from './cell_color';
 
 export const get_path_color = (cats, i, d) => {

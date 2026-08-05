@@ -8,10 +8,12 @@ import {
 import {
   create_yearbook_views,
   get_discontiguous_tiles,
+  get_grid_pixel_height,
 } from '../deck-gl/core/yearbook_viewports';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
+  refresh_cell_layer_data,
   refresh_point_cloud_cell_layer_data,
   set_cell_layer_onclick,
 } from '../deck-gl/layers/cell_layer';
@@ -48,6 +50,7 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
+import { force_set_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
@@ -471,6 +474,18 @@ export const yearbook = async (
 
   viz_state.yearbook.portrait_pixel_size = portrait_pixel_size;
 
+  // The grid uses the smaller of the width-/height-derived portrait sizes, so a
+  // width-limited grid (many columns) ends up shorter than the reserved canvas
+  // height. Sizing the canvas and root container to the actual grid height keeps
+  // the container from extending well below the last portrait row (the dead
+  // space); in the height-limited case this equals the previous `height - 100`.
+  const grid_pixel_height = get_grid_pixel_height(
+    num_rows,
+    portrait_pixel_size,
+    portrait_gap
+  );
+  root.style.height = `${grid_pixel_height}px`;
+
   // Calculate initial zoom based on portrait_size_um
   // Also calculate portrait size in image/data coordinates for tile loading
   if (micronsPerPixel) {
@@ -537,7 +552,12 @@ export const yearbook = async (
   );
   viz_state.views = views;
 
-  const deck_yearbook = await ini_deck(root, actual_width, height - 100, tech);
+  const deck_yearbook = await ini_deck(
+    root,
+    actual_width,
+    grid_pixel_height,
+    tech
+  );
   set_views_prop(deck_yearbook, views);
   set_get_tooltip(deck_yearbook, viz_state);
 
@@ -790,7 +810,12 @@ export const yearbook = async (
     );
 
     if (!refreshedPointCloud) {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      // 2D (scatterplot) yearbook: rebuild the layer data so its color buffer
+      // reflects the current cluster/gene selection. get_scatterplot_cell_data
+      // recomputes colors via update_cell_color_buffer, so selecting a gene
+      // turns centroids red (opacity = expression). Cloning only the id left the
+      // stale cluster colors baked in, which is why gene queries never recolored.
+      refresh_cell_layer_data(layers_obj, viz_state, {
         id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
       });
     }
@@ -861,7 +886,10 @@ export const yearbook = async (
     );
 
     if (!refreshedPointCloud) {
-      layers_obj.cell_layer = layers_obj.cell_layer.clone({
+      // Rebuild the 2D scatterplot data (recomputes the color buffer) so gene-
+      // bar clicks and cluster selections actually recolor the centroids instead
+      // of keeping the stale colors from the previous selection.
+      refresh_cell_layer_data(layers_obj, viz_state, {
         id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
       });
     }
@@ -1015,9 +1043,14 @@ export const yearbook = async (
         // Update category to gene mode
         update_cat(viz_state.cats, inst_gene);
 
-        // Force-set selected genes (bypass toggle behavior)
-        viz_state.genes.selected_genes = [inst_gene];
-        viz_state.obs_store.selected_genes.set([inst_gene]);
+        // Force-set selected genes (bypass toggle behavior). Goes through
+        // force_set_selected_genes so genes.selected_gene_ids is updated too --
+        // the trx layer reads that Set to focus the queried gene's transcripts.
+        force_set_selected_genes(
+          viz_state.genes,
+          [inst_gene],
+          viz_state.obs_store
+        );
 
         // Load gene expression data for cell coloring
         await update_cell_exp_array(
@@ -1042,9 +1075,9 @@ export const yearbook = async (
         // No gene - reset to cluster mode
         update_cat(viz_state.cats, 'cluster');
 
-        // Force-clear selections
-        viz_state.genes.selected_genes = [];
-        viz_state.obs_store.selected_genes.set([]);
+        // Force-clear selections (also clears genes.selected_gene_ids so the
+        // trx layer stops focusing / dimming transcripts).
+        force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
         viz_state.cats.selected_cats = [];
         viz_state.obs_store.selected_cats.set([]);
 
@@ -1148,9 +1181,14 @@ export const yearbook = async (
           // Update category to gene mode
           update_cat(viz_state.cats, inst_gene);
 
-          // Force-set selected genes (bypass toggle behavior)
-          viz_state.genes.selected_genes = [inst_gene];
-          viz_state.obs_store.selected_genes.set([inst_gene]);
+          // Force-set selected genes (bypass toggle behavior). Uses
+          // force_set_selected_genes so genes.selected_gene_ids stays in sync and
+          // the trx layer focuses the queried gene's transcripts.
+          force_set_selected_genes(
+            viz_state.genes,
+            [inst_gene],
+            viz_state.obs_store
+          );
 
           // Load gene expression data for cell coloring
           await update_cell_exp_array(
@@ -1175,8 +1213,8 @@ export const yearbook = async (
           update_cat(viz_state.cats, 'cluster');
 
           // Force-clear selections
-          viz_state.genes.selected_genes = [];
-          viz_state.obs_store.selected_genes.set([]);
+          // Force-clear selections (also clears genes.selected_gene_ids).
+          force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
           viz_state.cats.selected_cats = [];
           viz_state.obs_store.selected_cats.set([]);
 

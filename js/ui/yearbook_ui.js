@@ -15,6 +15,7 @@ import {
   bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
+  get_bar_highlight_opacity,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
 import { logo } from './logo';
@@ -725,44 +726,56 @@ export const make_yearbook_ui_container = (
     viz_state
   );
 
+  // Apply the current selection highlight to a set of bar groups: full opacity +
+  // bold for the selected bar(s) (or all bars when nothing is selected), dimmed
+  // otherwise. Uses each group's opacity (not the rect fill) so it composes with
+  // the per-item fill colors and applies identically whether triggered by a
+  // selection change (bar click) or a data re-render -- the two paths sharing
+  // one mechanism is what keeps a click from leaving the bar coloring stale.
+  const apply_bar_selection_highlight = (bars, selected_names) => {
+    const names = (Array.isArray(selected_names) ? selected_names : []).map(
+      (name) => String(name)
+    );
+    const has_selection = names.length > 0;
+    bars
+      .attr('font-weight', (d) =>
+        has_selection && d && names.includes(String(d.name)) ? 'bold' : 'normal'
+      )
+      .attr('opacity', (d) => get_bar_highlight_opacity(names, d?.name));
+  };
+
   // Bar graph subscribers
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
-      if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
-        svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);
+      const names = Array.isArray(selected_cats) ? selected_cats : [];
+      apply_bar_selection_highlight(svg.selectAll('g'), names);
+
+      if (names.length === 0) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        svg
-          .selectAll('g')
-          .attr('font-weight', (d) =>
-            selected_cats.includes(d.name) ? 'bold' : 'normal'
-          )
-          .attr('opacity', (d) => (selected_cats.includes(d.name) ? 1.0 : 0.2));
+        return;
+      }
 
-        if (selected_cats.length === 1) {
-          const inst_cat = selected_cats[0];
-          const selectedBar = svg.selectAll('g').filter(function () {
-            return d3.select(this).select('text').text() === inst_cat;
-          });
+      if (names.length === 1) {
+        const inst_cat = String(names[0]);
+        const selectedBar = svg.selectAll('g').filter(function () {
+          return d3.select(this).select('text').text() === inst_cat;
+        });
 
-          if (!selectedBar.empty()) {
-            const barElement = selectedBar.node();
-            const containerRect = container.getBoundingClientRect();
-            const barRect = barElement.getBoundingClientRect();
+        if (!selectedBar.empty()) {
+          const barElement = selectedBar.node();
+          const containerRect = container.getBoundingClientRect();
+          const barRect = barElement.getBoundingClientRect();
 
-            const barTop = barRect.top;
-            const barBottom = barRect.bottom;
-            const containerTop = containerRect.top;
-            const containerBottom = containerRect.bottom;
+          const barFullyVisible =
+            barRect.top >= containerRect.top &&
+            barRect.bottom <= containerRect.bottom;
 
-            const barFullyVisible =
-              barTop >= containerTop && barBottom <= containerBottom;
-
-            if (!barFullyVisible) {
-              const offsetTop = barTop - containerTop;
-              const scrollTop = container.scrollTop + offsetTop;
-              container.scrollTo({ top: scrollTop, behavior: 'smooth' });
-            }
+          if (!barFullyVisible) {
+            const offsetTop = barRect.top - containerRect.top;
+            container.scrollTo({
+              top: container.scrollTop + offsetTop,
+              behavior: 'smooth',
+            });
           }
         }
       }
@@ -844,38 +857,33 @@ export const make_yearbook_ui_container = (
         .duration(750)
         .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`);
 
-      // Read the current selection live. viz_state.genes.selected_genes /
-      // cats.selected_cats get reassigned (not mutated) when a query runs, so a
-      // reference captured at subscribe time would be stale -- the freshly
-      // rendered bars would neither dim the other bars nor focus the queried
-      // gene/cluster.
-      const selected_array =
-        (typeof get_selected_array === 'function'
-          ? get_selected_array()
-          : []) || [];
-      const selected_names = selected_array.map((name) => String(name));
-      const has_selection = selected_names.length > 0;
-
+      // Draw each bar at its full per-item color. The selection highlight is a
+      // separate, group-opacity pass (apply_bar_selection_highlight) so it never
+      // fights this fill -- baking a selection alpha into the fill here is what
+      // left the bar coloring stale after a click (which only updates the
+      // group-opacity highlight, not this fill).
       bars_merged
         .select('rect')
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
           const rgb = color_dict[d.name] || [0, 0, 0];
-          const opacity =
-            !has_selection || selected_names.includes(String(d.name)) ? 1 : 0.1;
-          return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
+          return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
         });
 
-      bars_merged
-        .select('text')
-        .text((d) => d.name)
-        .attr('font-weight', (d) =>
-          has_selection && selected_names.includes(String(d.name))
-            ? 'bold'
-            : 'normal'
-        );
+      bars_merged.select('text').text((d) => d.name);
 
       bars.exit().transition().duration(750).attr('opacity', 0).remove();
+
+      // Re-apply the current selection highlight after the data-driven redraw.
+      // Read the selection live -- viz_state.genes.selected_genes /
+      // cats.selected_cats get reassigned (not mutated) on query, so a reference
+      // captured at subscribe time would be stale.
+      const selected_array =
+        (typeof get_selected_array === 'function'
+          ? get_selected_array()
+          : []) || [];
+      const selected_names = selected_array.map((name) => String(name));
+      apply_bar_selection_highlight(bars_merged, selected_names);
 
       // Focus the queried gene/cluster: scroll its bar into view so the item of
       // interest is visible without manual scrolling (e.g. running a gene query
@@ -883,7 +891,7 @@ export const make_yearbook_ui_container = (
       // target is derived from the bar's row index rather than a
       // getBoundingClientRect so it lands correctly even while the bars are still
       // animating into place.
-      if (has_selection && selected_names.length === 1 && container) {
+      if (selected_names.length === 1 && container) {
         const selected_index = bar_data.findIndex(
           (d) => String(d.name) === selected_names[0]
         );
@@ -896,7 +904,11 @@ export const make_yearbook_ui_container = (
             container.scrollTo({ top: bar_top, behavior: 'smooth' });
           }
         }
-      } else if (container && !viz_state.close_up) {
+      } else if (
+        selected_names.length === 0 &&
+        container &&
+        !viz_state.close_up
+      ) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };

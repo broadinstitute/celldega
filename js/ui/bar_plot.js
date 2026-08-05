@@ -21,6 +21,27 @@ export const make_bar_container = () => {
   return document.createElement('div');
 };
 
+/**
+ * Opacity for a bar given the current selection: full for the selected bar(s)
+ * (and for every bar when nothing is selected), dimmed otherwise. The highlight
+ * is applied via each bar group's opacity rather than the rect fill's own alpha
+ * so a selection change (bar click) and a data re-render can't fight over the
+ * same attribute and leave the bar coloring stale.
+ *
+ * @param {Array<string|number>} selected_names - currently selected bar names
+ * @param {string|number} bar_name - the bar being styled
+ * @returns {number} 1.0 (highlighted) or 0.2 (dimmed)
+ */
+export const get_bar_highlight_opacity = (selected_names, bar_name) => {
+  const names = (Array.isArray(selected_names) ? selected_names : []).map(
+    (name) => String(name)
+  );
+  if (names.length === 0) {
+    return 1.0;
+  }
+  return names.includes(String(bar_name)) ? 1.0 : 0.2;
+};
+
 // The NBHD slider controls cluster-color opacity; the repurposed TRX slider
 // controls gene opacity, for either gene mode (sliders.js) -- only one mode
 // is ever active at a time, so only one slider should ever be enabled.

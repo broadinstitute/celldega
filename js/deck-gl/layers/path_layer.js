@@ -5,6 +5,8 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 
+import { is_cluster_color_mode } from './cell_color';
+
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
   const inst_cat = cats.dict_cell_cats[inst_cell_id];
@@ -15,9 +17,11 @@ export const get_path_color = (cats, i, d) => {
   // (meta_cell values may be numbers, color_dict keys are always strings)
   const inst_cat_str = String(inst_cat);
 
+  const color_dict_cluster = cats.color_dict_cluster || {};
+
   // check if inst_cat is not in cats.color_dict_cluster
-  if (inst_cat_str in cats.color_dict_cluster) {
-    inst_color = cats.color_dict_cluster[inst_cat_str];
+  if (inst_cat_str in color_dict_cluster) {
+    inst_color = color_dict_cluster[inst_cat_str];
   } else {
     // default segmentation color
     inst_color = [0, 0, 255];
@@ -26,8 +30,20 @@ export const get_path_color = (cats, i, d) => {
   const selected_cats = Array.isArray(cats.selected_cats)
     ? cats.selected_cats.map((cat) => String(cat))
     : [];
+
+  // selected_cats doubles as the polygon cluster filter, but when a gene is
+  // selected it holds the gene name (see gene search / yearbook query handling).
+  // A gene name never matches a cluster category, so filtering polygons by it
+  // would drive every polygon's alpha to 0 and hide all cell boundaries. In gene
+  // mode, only keep selected_cats entries that are real cluster categories -- a
+  // pure gene selection then leaves every polygon visible (matching how the cell
+  // centroid layer stays visible in gene mode).
+  const cluster_filter = is_cluster_color_mode(cats)
+    ? selected_cats
+    : selected_cats.filter((cat) => cat in color_dict_cluster);
+
   const alpha =
-    selected_cats.length === 0 || selected_cats.includes(inst_cat_str)
+    cluster_filter.length === 0 || cluster_filter.includes(inst_cat_str)
       ? 255
       : 0;
 

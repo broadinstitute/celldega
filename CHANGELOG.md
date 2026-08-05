@@ -4,6 +4,52 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.23.1] - 2026-08-05
+
+Fixes a batch of `Yearbook` selection, coloring, and layout bugs so that
+querying or clicking a gene behaves like `Landscape`, and the portrait grid
+fills its container instead of leaving dead space.
+
+### Fixed
+
+- **Yearbook portraits all showed the same cell** — portrait centering read
+  `spatial.cell_scatter_data_objects`, an array-of-objects buffer that stopped
+  being populated when cell centroids moved to flat typed arrays. Every lookup
+  missed, so every portrait fell back to the landscape center and a multi-cell
+  selection rendered the same location repeatedly. Centering now reads the flat
+  `cell_scatter_data` position buffer via `cell_name_to_index_map` (handles both
+  2- and 3-coordinate data).
+- **Cell polygons vanished when a gene was selected** — `get_path_color` treated
+  `selected_cats` as a cluster filter, but selecting a gene stores the gene name
+  there; no cluster category matched, so every polygon's alpha dropped to 0. The
+  cluster filter is now applied only to `selected_cats` entries that are real
+  cluster categories, so a gene selection leaves all cell boundaries visible and
+  cluster-colored (matching `Landscape`).
+- **Selecting a gene didn't recolor the cell centroids** — the 2D (scatterplot)
+  Yearbook refreshed only the point-cloud code path, cloning the layer id without
+  rebuilding its color buffer, so centroids kept their stale cluster colors. Gene
+  selections now rebuild the scatterplot data, turning centroids red with opacity
+  scaled by expression, as in `Landscape`.
+- **Querying a gene didn't focus its transcripts** — the query flow assigned
+  `genes.selected_genes` directly, leaving `genes.selected_gene_ids` (the set the
+  transcript layer reads) stale, so the queried gene's transcripts were never
+  emphasized over the rest. Query handling now force-sets the selection through a
+  path that keeps that set in sync, dimming non-selected transcripts.
+- **Clicking a gene/cluster bar didn't update the bar highlight** — the bar fill
+  baked selection opacity into its color on data re-render, while a click updated
+  group opacity; the two mechanisms fought and left the coloring stale. Both
+  paths now share one group-opacity highlight — the selected bar is full opacity
+  and bold, the rest dimmed.
+- **Dead space below the Yearbook portrait grid** — the deck canvas and root
+  container used a fixed height, so a width-limited grid (many columns) left a
+  large gap under the last row. They are now sized to the actual grid height.
+
+### Added
+
+- **Gene-bar focus on Yearbook query** — running a gene query in the control
+  panel now scrolls the gene bar graph to that gene and highlights it, so the
+  gene of interest is visible without manual scrolling.
+
 ## [0.22.0] - 2026-08-04
 
 Lets a manually-placed landmark carry as much (or as little) influence as

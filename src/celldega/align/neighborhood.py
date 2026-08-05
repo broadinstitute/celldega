@@ -136,14 +136,15 @@ def transform_shapes(
 
     Moves each shape's geometry by its slice's fitted transform, in place of
     recomputing alpha shapes from transformed cell coordinates. Handy for
-    getting the *refined* neighborhood shapes without recomputing them (feed the
-    result to :func:`~celldega.align.write_nbhd_cloud` via its ``shapes=``
-    argument, or plot it to inspect the refinement), and the companion to
-    :meth:`~celldega.align.serial_slices.SerialAlignmentTransform.apply_to_points`
-    for polygon rather than point data. Any Z coordinate (the neighborhood
-    cloud's per-cluster display stamp) is passed through unchanged; the ``area``
-    column, if present, is recomputed from the transformed (rigid, so
-    area-preserving) geometry.
+    inspecting or plotting the *refined* neighborhood shapes (the polygon
+    companion to
+    :meth:`~celldega.align.serial_slices.SerialAlignmentTransform.apply_to_points`).
+    Any Z coordinate is passed through unchanged, so note it does *not* restamp
+    the aligned per-slice Z — for a 3D NeighborhoodCloud, write the shapes with
+    :func:`~celldega.align.write_nbhd_cloud` (which recomputes from the aligned
+    coordinates and stamps Z consistently) rather than feeding transformed
+    shapes directly. The ``area`` column, if present, is recomputed from the
+    transformed (rigid, so area-preserving) geometry.
 
     Args:
         shapes: Alpha shapes with a ``geometry`` column and a ``slice_attr``

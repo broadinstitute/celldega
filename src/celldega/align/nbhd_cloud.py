@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import anndata as ad
-    import geopandas as gpd
     import pandas as pd
 
 
@@ -59,13 +58,13 @@ def write_nbhd_cloud(
     adata: ad.AnnData,
     dega_files_dir: str | Path,
     *,
-    shapes: gpd.GeoDataFrame | None = None,
     cluster_attr: str = "cluster",
     slice_attr: str = "slice_id",
     z_attr: str | None = None,
     alphas: Sequence[float] = (150,),
     z_jitter: float = 0.1,
     meta_cluster: pd.DataFrame | None = None,
+    save_genes: bool = True,
     progress_every: int = 1,
     max_cell_scatter: int | None = 50_000,
     cell_scatter_random_state: int = 0,
@@ -112,21 +111,9 @@ def write_nbhd_cloud(
         (`adata[:, gene].X` must be numeric counts/expression, not a
         placeholder).
     dega_files_dir : str | Path
-        Output DegaFiles root directory (created if missing).
-    shapes : geopandas.GeoDataFrame | None
-        Precomputed per-(slice, cluster) alpha shapes to write, instead of
-        recomputing them from `adata.obsm["spatial"]`. Use this to reuse shapes
-        you already have — in particular to render a
-        `celldega.align.neighborhood_alignment` result without recomputing every
-        alpha shape: transform the shapes you fed the refinement with
-        `celldega.align.transform_shapes(shapes, refined_transform)` and pass the
-        result here. Must have the columns
-        `celldega.nbhd.alpha_shape_cell_clusters_by_slice` produces (`slice_id`,
-        `cluster_id`, `geometry`, ...), with `slice_id` values matching
-        `adata.obs[slice_attr]`. When `None` (default), shapes are computed from
-        `adata`. Note the per-cluster cell scatter is always taken from `adata`,
-        so `adata`'s coordinates should be in the same frame as `shapes` (e.g.
-        both refined) for the two to line up.
+        Output DegaFiles root directory (created if missing). Under the
+        one-alignment-per-cloud convention this directory name *is* the
+        NeighborhoodCloud's identity — write a new alignment to a new directory.
     cluster_attr, slice_attr, z_attr : str, str, str | None
         See `celldega.nbhd.alpha_shape_cell_clusters_by_slice`.
     alphas : Sequence[float]
@@ -138,7 +125,15 @@ def write_nbhd_cloud(
     meta_cluster : pd.DataFrame | None
         Optional cluster color/metadata lookup. Without it, colors come from
         `adata.uns[f"{cluster_attr}_colors"]` if present (the usual place
-        scanpy leaves them after `sc.tl.leiden`/`sc.pl.umap`), else black.
+        scanpy leaves them after `sc.tl.leiden`/`sc.pl.umap`), else a fallback
+        palette (so neighborhoods aren't all black).
+    save_genes : bool
+        Whether to write gene-expression data. When `True` (default),
+        `meta_gene.parquet` (the dataset-root per-gene stats the gene search
+        box/bar graph read) is written; when `False`, all gene-expression
+        output is skipped for a lean, clusters-only cloud (useful for
+        label-only AnnData, or when gene coloring isn't needed). Must be `True`
+        to also compute gene-nbhds (`compute_gene_nbhds`).
     progress_every : int
         Print a progress line every this many slices while computing cluster
         shapes (default `1`, i.e. every slice — a real alpha shape per
@@ -199,6 +194,9 @@ def write_nbhd_cloud(
     from celldega.nbhd import NeighborhoodCollection, alpha_shape_cell_clusters_by_slice
     from celldega.pre import write_gene_shapes_streaming, write_nbhd_cloud_dataset
 
+    if compute_gene_nbhds and not save_genes:
+        raise ValueError("compute_gene_nbhds=True requires save_genes=True (it writes gene data).")
+
     dega_files_dir = Path(dega_files_dir)
 
     # Fail with an actionable message up front rather than a bare KeyError
@@ -229,24 +227,20 @@ def write_nbhd_cloud(
     # A label-only aligned AnnData usually has no `<cluster_attr>_colors` in
     # `uns`, which would otherwise make every cluster shape black. Generate a
     # distinct fallback palette so the neighborhoods are colored. (Skipped when
-    # the caller passed their own `meta_cluster`, or precomputed `shapes` that
-    # already carry a `color` column.)
-    if shapes is None and meta_cluster is None and f"{cluster_attr}_colors" not in adata.uns:
+    # the caller passed their own `meta_cluster`.)
+    if meta_cluster is None and f"{cluster_attr}_colors" not in adata.uns:
         meta_cluster = _fallback_meta_cluster(adata, cluster_attr)
 
-    if shapes is not None:
-        gdf_alpha = shapes
-    else:
-        gdf_alpha = alpha_shape_cell_clusters_by_slice(
-            adata,
-            cluster_attr=cluster_attr,
-            slice_attr=slice_attr,
-            z_attr=z_attr,
-            alphas=alphas,
-            meta_cluster=meta_cluster,
-            z_jitter=z_jitter,
-            progress_every=progress_every,
-        )
+    gdf_alpha = alpha_shape_cell_clusters_by_slice(
+        adata,
+        cluster_attr=cluster_attr,
+        slice_attr=slice_attr,
+        z_attr=z_attr,
+        alphas=alphas,
+        meta_cluster=meta_cluster,
+        z_jitter=z_jitter,
+        progress_every=progress_every,
+    )
     nbhd = NeighborhoodCollection.from_gdf(gdf_alpha, nbhd_type="alpha_shape")
 
     write_nbhd_cloud_dataset(
@@ -258,6 +252,7 @@ def write_nbhd_cloud(
         z_attr=z_attr,
         max_cells=max_cell_scatter,
         random_state=cell_scatter_random_state,
+        write_meta_gene=save_genes,
     )
 
     if compute_gene_nbhds:

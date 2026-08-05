@@ -78,27 +78,38 @@ def test_write_nbhd_cloud_writes_cluster_shapes_only_by_default(tmp_path):
     assert not (tmp_path / "nbhd_cloud" / "cells" / "by_gene").exists()
 
 
-def test_write_nbhd_cloud_uses_precomputed_shapes_without_recomputing(tmp_path, monkeypatch):
-    from celldega.nbhd import alpha_shape_cell_clusters_by_slice
+def test_write_nbhd_cloud_save_genes_false_skips_gene_metadata(tmp_path):
+    adata = _synthetic_dataset(n_clusters=2, n_genes=2)
 
-    adata = _synthetic_dataset(n_clusters=2)
-    shapes = alpha_shape_cell_clusters_by_slice(
-        adata, cluster_attr="cluster", slice_attr="slice_id", z_attr="z", alphas=(150,)
-    )
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z", save_genes=False)
 
-    # If shapes= is honored, the (expensive) recompute must not run at all.
-    def _should_not_recompute(*args, **kwargs):
-        raise AssertionError("alpha shapes should not be recomputed when shapes= is given")
+    # Cluster shapes/cells still written; gene metadata skipped.
+    assert (tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet").exists()
+    assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()
+    assert not (tmp_path / "meta_gene.parquet").exists()
 
-    monkeypatch.setattr("celldega.nbhd.alpha_shape_cell_clusters_by_slice", _should_not_recompute)
 
-    write_nbhd_cloud(adata, tmp_path, shapes=shapes, cluster_attr="cluster", z_attr="z")
+def test_write_nbhd_cloud_save_genes_true_writes_gene_metadata(tmp_path):
+    adata = _synthetic_dataset(n_clusters=2, n_genes=2)
 
-    shapes_dir = tmp_path / "nbhd_cloud" / "shapes" / "by_slice"
-    assert {p.name for p in shapes_dir.glob("*.parquet")} == {
-        "slice_s0.parquet",
-        "slice_s1.parquet",
-    }
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z", save_genes=True)
+
+    assert (tmp_path / "meta_gene.parquet").exists()
+
+
+def test_write_nbhd_cloud_gene_nbhds_require_save_genes(tmp_path):
+    adata = _synthetic_dataset(n_clusters=2, n_genes=2)
+
+    with pytest.raises(ValueError, match="save_genes=True"):
+        write_nbhd_cloud(
+            adata,
+            tmp_path,
+            cluster_attr="cluster",
+            z_attr="z",
+            save_genes=False,
+            compute_gene_nbhds=True,
+            gene_list=["Gene0"],
+        )
 
 
 def test_write_nbhd_cloud_handles_label_only_adata_without_genes(tmp_path):

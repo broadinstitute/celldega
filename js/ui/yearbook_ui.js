@@ -787,7 +787,7 @@ export const make_yearbook_ui_container = (
 
   // New bar data subscriber (updates bars based on viewport)
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    ({ svg, color_dict, get_selected_array, bar_callback, container }) =>
     (bar_data) => {
       const bar_height = 15;
       const svg_height = bar_height * (bar_data.length + 1);
@@ -844,23 +844,59 @@ export const make_yearbook_ui_container = (
         .duration(750)
         .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`);
 
+      // Read the current selection live. viz_state.genes.selected_genes /
+      // cats.selected_cats get reassigned (not mutated) when a query runs, so a
+      // reference captured at subscribe time would be stale -- the freshly
+      // rendered bars would neither dim the other bars nor focus the queried
+      // gene/cluster.
+      const selected_array =
+        (typeof get_selected_array === 'function'
+          ? get_selected_array()
+          : []) || [];
+      const selected_names = selected_array.map((name) => String(name));
+      const has_selection = selected_names.length > 0;
+
       bars_merged
         .select('rect')
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
           const rgb = color_dict[d.name] || [0, 0, 0];
           const opacity =
-            selected_array.length === 0 || selected_array.includes(d.name)
-              ? 1
-              : 0.1;
+            !has_selection || selected_names.includes(String(d.name)) ? 1 : 0.1;
           return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
         });
 
-      bars_merged.select('text').text((d) => d.name);
+      bars_merged
+        .select('text')
+        .text((d) => d.name)
+        .attr('font-weight', (d) =>
+          has_selection && selected_names.includes(String(d.name))
+            ? 'bold'
+            : 'normal'
+        );
 
       bars.exit().transition().duration(750).attr('opacity', 0).remove();
 
-      if (container && !viz_state.close_up) {
+      // Focus the queried gene/cluster: scroll its bar into view so the item of
+      // interest is visible without manual scrolling (e.g. running a gene query
+      // in the control panel jumps the gene bar graph to that gene). The scroll
+      // target is derived from the bar's row index rather than a
+      // getBoundingClientRect so it lands correctly even while the bars are still
+      // animating into place.
+      if (has_selection && selected_names.length === 1 && container) {
+        const selected_index = bar_data.findIndex(
+          (d) => String(d.name) === selected_names[0]
+        );
+        if (selected_index >= 0) {
+          const bar_top = selected_index * (bar_height + 1);
+          const bar_bottom = bar_top + bar_height;
+          const view_top = container.scrollTop;
+          const view_bottom = view_top + container.clientHeight;
+          if (bar_top < view_top || bar_bottom > view_bottom) {
+            container.scrollTo({ top: bar_top, behavior: 'smooth' });
+          }
+        }
+      } else if (container && !viz_state.close_up) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
@@ -869,7 +905,7 @@ export const make_yearbook_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.cats.svg_bar_cluster,
       color_dict: viz_state.cats.color_dict_cluster,
-      selected_array: viz_state.cats.selected_cats,
+      get_selected_array: () => viz_state.cats.selected_cats || [],
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
     }),
@@ -880,7 +916,7 @@ export const make_yearbook_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.genes.svg_bar_gene,
       color_dict: viz_state.genes.color_dict_gene,
-      selected_array: viz_state.genes.selected_genes,
+      get_selected_array: () => viz_state.genes.selected_genes || [],
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
     }),

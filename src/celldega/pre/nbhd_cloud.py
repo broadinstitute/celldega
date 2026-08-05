@@ -603,6 +603,14 @@ def write_meta_gene_for_nbhd_cloud(adata: ad.AnnData, path_dega_files: str | Pat
     not this file. Reuses the existing `make_meta_gene` writer (same one every
     other technology uses) rather than duplicating its color-palette logic.
     """
+    # A label-only aligned AnnData (clusters/slices but no expression matrix,
+    # e.g. `X` with zero var columns) is a legitimate neighborhood-cloud input:
+    # the cluster shapes and cell scatter carry the view, and gene coloring
+    # simply isn't available. Skip meta_gene rather than letting the empty CBG
+    # blow up `make_meta_gene`'s per-gene stats.
+    if adata.X is None or adata.n_vars == 0:
+        return
+
     # Deferred import: `celldega.pre.make_meta_gene` lives in this package's
     # own `__init__.py`, which imports this module — importing it at module
     # load time would be circular.

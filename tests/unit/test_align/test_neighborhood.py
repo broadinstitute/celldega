@@ -15,7 +15,11 @@ from celldega.align._transform import (
     fit_transform_tps,
     rigid_delta_transform,
 )
-from celldega.align.neighborhood import neighborhood_alignment, transform_shapes
+from celldega.align.neighborhood import (
+    _distance_weight,
+    neighborhood_alignment,
+    transform_shapes,
+)
 from celldega.align.serial_slices import SerialAlignmentTransform
 from celldega.nbhd.utils import _stamp_z
 
@@ -271,6 +275,50 @@ def test_neighborhood_alignment_rejects_unknown_slice_in_shapes():
     initial = _identity_initial(["s0", "s1"])
     with pytest.raises(ValueError, match="s99"):
         neighborhood_alignment(shapes, initial)
+
+
+# --- distance weighting ----------------------------------------------------------
+
+
+def test_distance_weight_modes_all_start_at_one_and_fall_off():
+    # Every mode weights the adjacent (d=1) neighbor at 1.0.
+    for mode in ("inverse", "uniform", "exponential", "gaussian"):
+        assert _distance_weight(1, mode, 1.0) == pytest.approx(1.0)
+
+    # Beyond adjacent, uniform stays flat; the others decay.
+    assert _distance_weight(3, "uniform", 1.0) == 1.0
+    assert _distance_weight(3, "inverse", 1.0) == pytest.approx(1 / 3)
+    assert _distance_weight(3, "exponential", 1.0) == pytest.approx(np.exp(-2.0))
+    assert _distance_weight(3, "gaussian", 1.0) == pytest.approx(np.exp(-2.0))
+
+    # Gaussian falls off slower than exponential just past adjacent (d=2)...
+    assert _distance_weight(2, "gaussian", 1.0) > _distance_weight(2, "exponential", 1.0)
+    # ...and larger decay keeps farther slices more influential.
+    assert _distance_weight(3, "gaussian", 2.0) > _distance_weight(3, "gaussian", 1.0)
+
+
+def test_neighborhood_alignment_accepts_gaussian_weight_and_rejects_bad_decay():
+    reference = _reference_clusters()
+    s1 = {
+        k: shapely.transform(g, _offset_transform(4.0, 3.0, -2.0).apply)
+        for k, g in reference.items()
+    }
+    s2 = {
+        k: shapely.transform(g, _offset_transform(7.0, 5.0, -3.0).apply)
+        for k, g in reference.items()
+    }
+    shapes = _shapes_gdf({"s0": reference, "s1": s1, "s2": s2})
+    initial = _identity_initial(["s0", "s1", "s2"], reference_index=0, window=2)
+
+    refined = neighborhood_alignment(
+        shapes, initial, alignment_window=2, distance_weight="gaussian", distance_decay=1.5
+    )
+    for cluster_id, geom in s1.items():
+        aligned = shapely.transform(geom, refined.transforms["s1"].apply)
+        assert _iou(aligned, reference[cluster_id]) > 0.85
+
+    with pytest.raises(ValueError, match="distance_decay"):
+        neighborhood_alignment(shapes, initial, distance_weight="gaussian", distance_decay=0.0)
 
 
 # --- transform_shapes ------------------------------------------------------------

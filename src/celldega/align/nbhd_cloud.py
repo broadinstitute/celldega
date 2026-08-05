@@ -32,6 +32,29 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
+def _fallback_meta_cluster(adata: ad.AnnData, cluster_attr: str) -> pd.DataFrame:
+    """A distinct color per cluster, for an AnnData that carries no cluster colors.
+
+    Without this, :func:`~celldega.nbhd.alpha_shapes.alpha_shape_cell_clusters`
+    falls back to black for every cluster (it only reads colors from
+    ``adata.uns[f'{cluster_attr}_colors']``), so a label-only aligned AnnData —
+    common for alignment work — renders as all-black neighborhoods. Mirrors the
+    HSV fallback the spatial widgets already use when colors are missing, using
+    matplotlib's qualitative palettes so nearby clusters stay visually distinct.
+    """
+    from matplotlib.colors import to_hex
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    column = adata.obs[cluster_attr]
+    categories = (
+        list(column.cat.categories) if hasattr(column, "cat") else sorted(column.dropna().unique())
+    )
+    palette = list(plt.get_cmap("tab20").colors) + list(plt.get_cmap("tab20b").colors)
+    colors = [to_hex(palette[i % len(palette)]) for i in range(len(categories))]
+    return pd.DataFrame({"color": colors}, index=pd.Index(categories, name=cluster_attr))
+
+
 def write_nbhd_cloud(
     adata: ad.AnnData,
     dega_files_dir: str | Path,
@@ -202,6 +225,14 @@ def write_nbhd_cloud(
             "adata.obsm['spatial'] is required (e.g. from "
             "celldega.align.serial_slices.align_serial_slices)."
         )
+
+    # A label-only aligned AnnData usually has no `<cluster_attr>_colors` in
+    # `uns`, which would otherwise make every cluster shape black. Generate a
+    # distinct fallback palette so the neighborhoods are colored. (Skipped when
+    # the caller passed their own `meta_cluster`, or precomputed `shapes` that
+    # already carry a `color` column.)
+    if shapes is None and meta_cluster is None and f"{cluster_attr}_colors" not in adata.uns:
+        meta_cluster = _fallback_meta_cluster(adata, cluster_attr)
 
     if shapes is not None:
         gdf_alpha = shapes

@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 
 __all__ = ["neighborhood_alignment", "transform_shapes"]
 
-_DISTANCE_WEIGHTS = ("inverse", "uniform")
+_DISTANCE_WEIGHTS = ("inverse", "uniform", "exponential", "gaussian")
 
 
 def _load_slice_geometries(
@@ -248,10 +248,25 @@ def _window_neighbors(index: int, n_slices: int, window: int) -> list[tuple[int,
     ]
 
 
-def _distance_weight(distance: int, mode: str) -> float:
-    """Weight a neighbor's contribution by slice separation."""
+def _distance_weight(distance: int, mode: str, decay: float) -> float:
+    """Weight a neighbor's contribution by slice separation ``distance`` (>= 1).
+
+    All modes give the nearest (adjacent, ``distance == 1``) neighbor weight
+    ``1.0`` and fall off from there, so ``decay`` and the mode change only how
+    fast farther neighbors are discounted, not the adjacent baseline:
+
+    - ``"inverse"``: ``1 / distance`` (``decay`` unused).
+    - ``"uniform"``: ``1.0`` for every neighbor in the window (``decay`` unused).
+    - ``"exponential"``: ``exp(-(distance - 1) / decay)`` — geometric falloff.
+    - ``"gaussian"``: ``exp(-(distance - 1)**2 / (2 * decay**2))`` — slow near,
+      then sharp; concentrates the window on the closest slices.
+    """
     if mode == "uniform":
         return 1.0
+    if mode == "exponential":
+        return float(np.exp(-(distance - 1) / decay))
+    if mode == "gaussian":
+        return float(np.exp(-((distance - 1) ** 2) / (2.0 * decay**2)))
     return 1.0 / distance  # "inverse"
 
 
@@ -353,6 +368,7 @@ def neighborhood_alignment(
     translation_range: float = 0.1,
     n_rotation_grid: int = 7,
     distance_weight: str = "inverse",
+    distance_decay: float = 1.0,
     simplify_tolerance: float | None = None,
     min_shared_clusters: int = 1,
     compute_diagnostics: bool = True,
@@ -418,9 +434,16 @@ def neighborhood_alignment(
         n_rotation_grid: Number of grid points in the coarse residual-rotation
             search over ``[-rotation_range, +rotation_range]`` before the Powell
             refinement. ``0`` skips the grid (Powell only).
-        distance_weight: How a neighbor's overlap contribution is weighted by
-            slice separation ``d``: ``"inverse"`` (default, ``1/d``) or
-            ``"uniform"`` (all neighbors in the window weighted equally).
+        distance_weight: How a neighbor's overlap contribution falls off with
+            slice separation ``d`` (all modes give an adjacent neighbor weight
+            ``1.0``): ``"inverse"`` (default, ``1/d``), ``"uniform"`` (all
+            neighbors in the window weighted equally), ``"exponential"``
+            (``exp(-(d-1)/distance_decay)``), or ``"gaussian"``
+            (``exp(-(d-1)**2 / (2*distance_decay**2))``, a slow-then-sharp
+            tail-off that concentrates the window on the closest slices).
+        distance_decay: Falloff scale for the ``"exponential"``/``"gaussian"``
+            weights (larger = slower falloff, so farther slices keep more
+            influence); ignored by ``"inverse"``/``"uniform"``. Default ``1.0``.
         simplify_tolerance: If given, Douglas-Peucker tolerance applied to each
             alpha shape before optimization, to speed up intersection at the
             cost of boundary detail. ``None`` (default) leaves shapes as-is.
@@ -450,6 +473,8 @@ def neighborhood_alignment(
         raise ValueError(
             f"distance_weight must be one of {_DISTANCE_WEIGHTS}, got {distance_weight!r}"
         )
+    if distance_decay <= 0:
+        raise ValueError(f"distance_decay must be > 0, got {distance_decay}")
     for column in (slice_attr, cluster_attr, "geometry"):
         if column not in shapes.columns:
             raise ValueError(f"shapes is missing required column {column!r}")
@@ -529,7 +554,7 @@ def neighborhood_alignment(
             if not shared:
                 continue
             neighbor_geoms.append(neighbor)
-            weights.append(_distance_weight(distance, distance_weight))
+            weights.append(_distance_weight(distance, distance_weight, distance_decay))
             shared_sets.append(shared)
         clusters_needed = set().union(*shared_sets) if shared_sets else set()
         if len(clusters_needed) < min_shared_clusters:
@@ -586,6 +611,7 @@ def neighborhood_alignment(
         initial_aligned,
         aligned,
         distance_weight,
+        distance_decay,
         min_shared_clusters,
         compute_diagnostics,
     )
@@ -623,6 +649,7 @@ def _build_transform_log(
     initial_aligned: dict[Any, dict[str, BaseGeometry]],
     aligned: dict[Any, dict[str, BaseGeometry]],
     distance_weight: str,
+    distance_decay: float,
     min_shared_clusters: int,
     compute_diagnostics: bool,
 ) -> dict[str, dict]:
@@ -650,7 +677,7 @@ def _build_transform_log(
             if not shared:
                 continue
             neighbor_geoms.append(neighbor)
-            weights.append(_distance_weight(distance, distance_weight))
+            weights.append(_distance_weight(distance, distance_weight, distance_decay))
             shared_sets.append(shared)
         clusters_needed = set().union(*shared_sets) if shared_sets else set()
 

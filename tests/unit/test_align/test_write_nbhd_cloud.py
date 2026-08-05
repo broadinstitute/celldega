@@ -78,6 +78,67 @@ def test_write_nbhd_cloud_writes_cluster_shapes_only_by_default(tmp_path):
     assert not (tmp_path / "nbhd_cloud" / "cells" / "by_gene").exists()
 
 
+def test_write_nbhd_cloud_uses_precomputed_shapes_without_recomputing(tmp_path, monkeypatch):
+    from celldega.nbhd import alpha_shape_cell_clusters_by_slice
+
+    adata = _synthetic_dataset(n_clusters=2)
+    shapes = alpha_shape_cell_clusters_by_slice(
+        adata, cluster_attr="cluster", slice_attr="slice_id", z_attr="z", alphas=(150,)
+    )
+
+    # If shapes= is honored, the (expensive) recompute must not run at all.
+    def _should_not_recompute(*args, **kwargs):
+        raise AssertionError("alpha shapes should not be recomputed when shapes= is given")
+
+    monkeypatch.setattr("celldega.nbhd.alpha_shape_cell_clusters_by_slice", _should_not_recompute)
+
+    write_nbhd_cloud(adata, tmp_path, shapes=shapes, cluster_attr="cluster", z_attr="z")
+
+    shapes_dir = tmp_path / "nbhd_cloud" / "shapes" / "by_slice"
+    assert {p.name for p in shapes_dir.glob("*.parquet")} == {
+        "slice_s0.parquet",
+        "slice_s1.parquet",
+    }
+
+
+def test_write_nbhd_cloud_handles_label_only_adata_without_genes(tmp_path):
+    # An alignment-focused AnnData often carries only cluster/slice labels and
+    # no expression matrix; the neighborhood cloud should still write.
+    adata = _synthetic_dataset(n_genes=0)
+    assert adata.n_vars == 0
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z")
+
+    assert (tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet").exists()
+    assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()
+    # Gene metadata is skipped (no genes to summarize) rather than crashing.
+    assert not (tmp_path / "meta_gene.parquet").exists()
+
+
+def test_write_nbhd_cloud_colors_clusters_when_adata_has_no_colors(tmp_path):
+    # No `cluster_colors` in uns -> without a fallback palette every cluster
+    # shape would be black. write_nbhd_cloud should assign distinct colors.
+    adata = _synthetic_dataset(n_clusters=3, n_genes=0)
+    assert "cluster_colors" not in adata.uns
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z")
+
+    meta_cluster = pd.read_parquet(tmp_path / "cell_clusters" / "meta_cluster.parquet")
+    colors = set(meta_cluster["color"])
+    assert colors != {"#000000"}  # not all black
+    assert len(colors) == 3  # one distinct color per cluster
+
+
+def test_write_nbhd_cloud_respects_explicit_meta_cluster_colors(tmp_path):
+    adata = _synthetic_dataset(n_clusters=2, n_genes=0)
+    meta_cluster = pd.DataFrame({"color": ["#111111", "#222222"]}, index=["0", "1"])
+
+    write_nbhd_cloud(adata, tmp_path, cluster_attr="cluster", z_attr="z", meta_cluster=meta_cluster)
+
+    written = pd.read_parquet(tmp_path / "cell_clusters" / "meta_cluster.parquet")
+    assert set(written["color"]) == {"#111111", "#222222"}  # fallback did not override
+
+
 def test_write_nbhd_cloud_max_cell_scatter_caps_cluster_cells(tmp_path):
     adata = _synthetic_dataset()
 

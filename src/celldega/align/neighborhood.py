@@ -43,6 +43,7 @@ gradient) configurations. The intended workflow is therefore two-stage:
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -197,6 +198,60 @@ def _intersection_area(a: BaseGeometry, b: BaseGeometry) -> float:
         return 0.0
 
 
+def _bbox_overlap_mask(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Boolean mask of which paired ``(minx, miny, maxx, maxy)`` bboxes overlap."""
+    return ~((a[:, 2] < b[:, 0]) | (b[:, 2] < a[:, 0]) | (a[:, 3] < b[:, 1]) | (b[:, 3] < a[:, 1]))
+
+
+def _compile_neighbor_blocks(
+    neighbor_geoms: list[dict[str, BaseGeometry]],
+    weights: list[float],
+    shared_sets: list[set[str]],
+) -> list[tuple[list[str], np.ndarray, np.ndarray, float]]:
+    """Precompute, per neighbor, the fixed ``(cluster_keys, geom_array, bounds, weight)``.
+
+    The neighbor geometry doesn't change while one slice is being optimized, so
+    its geometry arrays and bounding boxes are built once here rather than on
+    every objective evaluation (see :func:`_weighted_overlap`).
+    """
+    blocks = []
+    for neighbor, weight, shared in zip(neighbor_geoms, weights, shared_sets, strict=True):
+        keys = sorted(shared)
+        geoms = np.array([neighbor[k] for k in keys], dtype=object)
+        blocks.append((keys, geoms, shapely.bounds(geoms), float(weight)))
+    return blocks
+
+
+def _weighted_overlap(
+    moved: dict[str, BaseGeometry],
+    blocks: list[tuple[list[str], np.ndarray, np.ndarray, float]],
+) -> float:
+    """Summed, distance-weighted intersection area of ``moved`` against precompiled neighbors.
+
+    Vectorized with shapely 2: for each neighbor, a single batched
+    bounding-box reject then one batched ``intersection``/``area`` over the
+    surviving cluster pairs, rather than a Python loop of per-pair calls (the
+    dominant cost of the optimization). Falls back to the robust per-pair path
+    (:func:`_intersection_area`) only if a batched GEOS call raises.
+    """
+    total = 0.0
+    for keys, nb_geoms, nb_bounds, weight in blocks:
+        moved_arr = np.array([moved[k] for k in keys], dtype=object)
+        mask = _bbox_overlap_mask(shapely.bounds(moved_arr), nb_bounds)
+        if not mask.any():
+            continue
+        moved_hits = moved_arr[mask]
+        nb_hits = nb_geoms[mask]
+        try:
+            areas = shapely.area(shapely.intersection(moved_hits, nb_hits))
+            total += weight * float(np.nan_to_num(areas).sum())
+        except Exception:
+            total += weight * sum(
+                _intersection_area(m, n) for m, n in zip(moved_hits, nb_hits, strict=True)
+            )
+    return total
+
+
 def _pair_metrics(a: BaseGeometry, b: BaseGeometry) -> dict[str, float]:
     """Intersection area, IoU, and recoverable-area coverage for one shape pair."""
     intersection = _intersection_area(a, b)
@@ -291,16 +346,18 @@ def _refine_one_slice(
     ``base`` shapes are the slice's initially-aligned geometry; the returned
     delta is applied relative to it (rotation about ``anchor``).
     """
+    # Precompute the fixed neighbor geometry once; each objective evaluation
+    # then transforms all of this slice's clusters in one batched call and
+    # scores them against the neighbors vectorized (see _weighted_overlap).
+    blocks = _compile_neighbor_blocks(neighbor_geoms, weights, shared_sets)
+    clusters_list = sorted(clusters_needed)
+    base_arr = np.array([base[k] for k in clusters_list], dtype=object)
 
     def objective(params: np.ndarray) -> float:
         theta, dx, dy = params
         delta = rigid_delta_transform(theta, dx, dy, center=anchor)
-        moved = {k: _apply_to_geom(base[k], delta) for k in clusters_needed}
-        total = 0.0
-        for neighbor, weight, shared in zip(neighbor_geoms, weights, shared_sets, strict=True):
-            for cluster in shared:
-                total += weight * _intersection_area(moved[cluster], neighbor[cluster])
-        return -total
+        moved = dict(zip(clusters_list, shapely.transform(base_arr, delta.apply), strict=True))
+        return -_weighted_overlap(moved, blocks)
 
     best_params = np.asarray(x0, dtype=float)
     best_value = objective(best_params)
@@ -317,7 +374,7 @@ def _refine_one_slice(
         best_params,
         method="Powell",
         bounds=bounds,
-        options={"maxiter": 100, "xtol": 1e-4, "ftol": 1e-4},
+        options={"maxiter": 60, "xtol": 1e-3, "ftol": 1e-3},
     )
     if result.fun < best_value:
         return np.clip(result.x, [b[0] for b in bounds], [b[1] for b in bounds])
@@ -331,11 +388,7 @@ def _window_overlap(
     shared_sets: list[set[str]],
 ) -> float:
     """Summed, distance-weighted intersection area of ``moving`` against a window."""
-    total = 0.0
-    for neighbor, weight, shared in zip(neighbor_geoms, weights, shared_sets, strict=True):
-        for cluster in shared:
-            total += weight * _intersection_area(moving[cluster], neighbor[cluster])
-    return total
+    return _weighted_overlap(moving, _compile_neighbor_blocks(neighbor_geoms, weights, shared_sets))
 
 
 def _reapply_landmarks(
@@ -372,6 +425,7 @@ def neighborhood_alignment(
     simplify_tolerance: float | None = None,
     min_shared_clusters: int = 1,
     compute_diagnostics: bool = True,
+    progress_every: int = 0,
 ) -> SerialAlignmentTransform:
     """Refine a serial-slice alignment by maximizing neighborhood polygon overlap.
 
@@ -454,6 +508,10 @@ def neighborhood_alignment(
         compute_diagnostics: If ``True`` (default), record per-slice overlap
             before/after refinement and per-cluster IoU/coverage against the
             nearest neighbor in the transform log.
+        progress_every: If ``> 0``, print a progress line (with elapsed time)
+            at each phase/sweep and every ``progress_every`` per-slice
+            optimizations — useful on a large stack where a run takes minutes.
+            ``0`` (default) is silent.
 
     Returns:
         A refined :class:`~celldega.align.serial_slices.SerialAlignmentTransform`
@@ -537,12 +595,26 @@ def neighborhood_alignment(
         slice_id: dict(geoms) for slice_id, geoms in initial_aligned.items()
     }
 
+    start_time = time.monotonic()
+    opt_count = 0
+
+    def _log(message: str) -> None:
+        if progress_every:
+            print(
+                f"[neighborhood_alignment +{time.monotonic() - start_time:6.1f}s] {message}",
+                flush=True,
+            )
+
     def _optimize_slice(index: int, neighbor_pairs: list[tuple[int, int]]) -> None:
         """Refine one slice's residual against a given set of ``(neighbor, distance)``.
 
         Reads each neighbor's *current* aligned geometry (Gauss-Seidel), so a
         neighbor refined earlier in the same pass is seen at its updated pose.
         """
+        nonlocal opt_count
+        opt_count += 1
+        if progress_every and opt_count % progress_every == 0:
+            _log(f"{opt_count} slice-optimizations")
         slice_id = slice_ids[index]
         base = initial_aligned[slice_id]
         neighbor_geoms: list[dict[str, BaseGeometry]] = []
@@ -581,6 +653,7 @@ def neighborhood_alignment(
     # chain-walk). This anchors the whole stack to the reference before the
     # symmetric refinement below, which otherwise could collapse a run of
     # slices onto an outer neighbor's frame instead of the reference's.
+    _log(f"phase 1: chain-walk over {n_slices} slices (window={window})")
     for chain in (range(reference_index - 1, -1, -1), range(reference_index + 1, n_slices)):
         processed = [reference_index]
         for index in chain:
@@ -591,12 +664,14 @@ def neighborhood_alignment(
     # Pass 2: symmetric full-window coordinate descent. Each non-reference slice
     # is refined against neighbors on both sides, in alternating forward and
     # backward passes, now that every slice already sits near the reference frame.
-    for _sweep in range(n_sweeps):
+    for sweep in range(n_sweeps):
+        _log(f"phase 2: sweep {sweep + 1}/{n_sweeps}")
         for pass_indices in (range(n_slices), range(n_slices - 1, -1, -1)):
             for index in pass_indices:
                 if index == reference_index:
                     continue
                 _optimize_slice(index, _window_neighbors(index, n_slices, window))
+    _log("optimization complete")
 
     transforms: dict[Any, Transform] = {}
     for slice_id in slice_ids:

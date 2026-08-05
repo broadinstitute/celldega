@@ -321,6 +321,27 @@ def test_neighborhood_alignment_accepts_gaussian_weight_and_rejects_bad_decay():
         neighborhood_alignment(shapes, initial, distance_weight="gaussian", distance_decay=0.0)
 
 
+def test_neighborhood_alignment_progress_every_logs(capsys):
+    reference = _reference_clusters()
+    s1 = {
+        k: shapely.transform(g, _offset_transform(3.0, 2.0, -1.0).apply)
+        for k, g in reference.items()
+    }
+    shapes = _shapes_gdf({"s0": reference, "s1": s1})
+    initial = _identity_initial(["s0", "s1"], window=1)
+
+    # Silent by default.
+    neighborhood_alignment(shapes, initial)
+    assert capsys.readouterr().out == ""
+
+    # Logs phases when requested.
+    neighborhood_alignment(shapes, initial, n_sweeps=1, progress_every=1)
+    out = capsys.readouterr().out
+    assert "phase 1" in out
+    assert "phase 2" in out
+    assert "neighborhood_alignment" in out
+
+
 # --- transform_shapes ------------------------------------------------------------
 
 

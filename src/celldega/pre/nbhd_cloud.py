@@ -603,6 +603,14 @@ def write_meta_gene_for_nbhd_cloud(adata: ad.AnnData, path_dega_files: str | Pat
     not this file. Reuses the existing `make_meta_gene` writer (same one every
     other technology uses) rather than duplicating its color-palette logic.
     """
+    # A label-only aligned AnnData (clusters/slices but no expression matrix,
+    # e.g. `X` with zero var columns) is a legitimate neighborhood-cloud input:
+    # the cluster shapes and cell scatter carry the view, and gene coloring
+    # simply isn't available. Skip meta_gene rather than letting the empty CBG
+    # blow up `make_meta_gene`'s per-gene stats.
+    if adata.X is None or adata.n_vars == 0:
+        return
+
     # Deferred import: `celldega.pre.make_meta_gene` lives in this package's
     # own `__init__.py`, which imports this module — importing it at module
     # load time would be circular.
@@ -632,6 +640,7 @@ def write_nbhd_cloud_dataset(
     z_attr: str | None = None,
     max_cells: int | None = None,
     random_state: int = 0,
+    write_meta_gene: bool = True,
 ) -> None:
     """Write the full `neighborhood-cloud` DegaFile layout for one dataset.
 
@@ -657,6 +666,10 @@ def write_nbhd_cloud_dataset(
         Forwarded to `write_nbhd_cloud_cells` — cap (via uniform random
         subsample) on cells written per cluster. `max_cells=None` (default)
         writes every cell, unchanged from this function's original behavior.
+    write_meta_gene : bool
+        Whether to write `meta_gene.parquet` (the dataset-root per-gene stats).
+        `True` (default) preserves the original behavior; `False` skips it for a
+        clusters-only cloud with no gene-expression data.
     """
     write_meta_slice(adata, path_dega_files, slice_attr=slice_attr, z_attr=z_attr)
     write_nbhd_cloud_cells(
@@ -669,5 +682,6 @@ def write_nbhd_cloud_dataset(
         random_state=random_state,
     )
     write_nbhd_cloud_shapes_and_features(nbhd, path_dega_files)
-    write_meta_gene_for_nbhd_cloud(adata, path_dega_files)
+    if write_meta_gene:
+        write_meta_gene_for_nbhd_cloud(adata, path_dega_files)
     _write_nbhd_cloud_landscape_parameters(path_dega_files)

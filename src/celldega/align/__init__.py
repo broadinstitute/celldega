@@ -60,6 +60,7 @@ from celldega.align._transform import (
 )
 from celldega.align.landmarks import calc_landmarks
 from celldega.align.nbhd_cloud import write_nbhd_cloud
+from celldega.align.neighborhood import neighborhood_alignment, transform_shapes
 from celldega.align.plot import plot_alignment
 from celldega.align.point_cloud import write_alignment_point_cloud
 from celldega.align.serial_slices import (
@@ -78,8 +79,10 @@ __all__ = [
     "fit_transform_tps",
     "leave_one_out_residuals",
     "load_transform",
+    "neighborhood_alignment",
     "plot_alignment",
     "save_transform",
+    "transform_shapes",
     "write_alignment_point_cloud",
     "write_nbhd_cloud",
 ]

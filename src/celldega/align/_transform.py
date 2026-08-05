@@ -29,10 +29,12 @@ __all__ = [
     "SimilarityTransform",
     "ThinPlateSplineTransform",
     "Transform",
+    "compose_transforms",
     "fit_transform_procrustes",
     "fit_transform_tps",
     "leave_one_out_residuals",
     "load_transform",
+    "rigid_delta_transform",
     "save_transform",
 ]
 
@@ -77,9 +79,28 @@ class SimilarityTransform:
     translation: np.ndarray
 
     def apply(self, points: np.ndarray) -> np.ndarray:
-        """Apply this transform to an ``(n, 2)`` array of points."""
+        """Apply this transform to an ``(n, 2)`` array of points.
+
+        Computed component-wise rather than as a single ``points @ rotation.T``
+        matmul so that two identical input points always map to bit-identical
+        output points: a batched BLAS matmul can round identical rows
+        differently depending on their position in the batch, which — when this
+        transform is applied to a polygon ring's vertices (e.g. via
+        ``shapely.transform``) — can leave the closing vertex no longer exactly
+        equal to the first, so GEOS rejects the ring as not closed. The
+        arithmetic is otherwise identical to ``scale * points @ rotation.T +
+        translation``.
+        """
         points = np.asarray(points, dtype=float)
-        return self.scale * points @ self.rotation.T + self.translation
+        x = points[..., 0]
+        y = points[..., 1]
+        out_x = (
+            self.scale * (self.rotation[0, 0] * x + self.rotation[0, 1] * y) + self.translation[0]
+        )
+        out_y = (
+            self.scale * (self.rotation[1, 0] * x + self.rotation[1, 1] * y) + self.translation[1]
+        )
+        return np.stack([out_x, out_y], axis=-1)
 
 
 def fit_transform_procrustes(
@@ -140,6 +161,67 @@ def fit_transform_procrustes(
     translation = mu_target - scale * rotation @ mu_source
 
     return SimilarityTransform(rotation=rotation, scale=scale, translation=translation)
+
+
+def compose_transforms(
+    outer: SimilarityTransform, inner: SimilarityTransform
+) -> SimilarityTransform:
+    """Compose two similarity transforms into one: ``compose(outer, inner)(x) == outer(inner(x))``.
+
+    Because a rotation/scale/translation composed with another is again a
+    single rotation/scale/translation, the result is a plain
+    :class:`SimilarityTransform` — no wrapper or transform chain needed. This
+    is what lets a residual refinement (see :func:`rigid_delta_transform`)
+    applied on top of an initial fit collapse back into one transform that
+    still saves/loads and applies exactly like any other (used by
+    :func:`~celldega.align.neighborhood.neighborhood_alignment` to fold each
+    slice's overlap-refinement delta into its initial Procrustes transform).
+
+    Args:
+        outer: The transform applied second (to ``inner``'s output).
+        inner: The transform applied first (to the input points).
+
+    Returns:
+        A :class:`SimilarityTransform` equivalent to applying ``inner`` then
+        ``outer``.
+    """
+    return SimilarityTransform(
+        rotation=outer.rotation @ inner.rotation,
+        scale=outer.scale * inner.scale,
+        translation=outer.scale * (outer.rotation @ inner.translation) + outer.translation,
+    )
+
+
+def rigid_delta_transform(
+    theta: float, dx: float, dy: float, center: np.ndarray | None = None
+) -> SimilarityTransform:
+    """A small rigid transform: rotate by ``theta`` about ``center``, then translate by ``(dx, dy)``.
+
+    Rotating about a chosen ``center`` (rather than the origin) keeps the
+    three parameters well-scaled and decoupled for optimization: ``theta`` is
+    a pure local rotation of a shape sitting near ``center`` and ``dx``/``dy``
+    are a pure translation, instead of a small ``theta`` implying a large
+    origin-relative shift for a shape far from the origin. The returned
+    transform is still expressed in the standard origin-relative
+    rotation-then-translation form (its ``translation`` absorbs the
+    center-relative offset), so it composes and applies like any other
+    :class:`SimilarityTransform`.
+
+    Args:
+        theta: Rotation angle in radians.
+        dx: Translation in x, applied after the rotation.
+        dy: Translation in y, applied after the rotation.
+        center: ``(2,)`` point to rotate about. Defaults to the origin.
+
+    Returns:
+        The rigid :class:`SimilarityTransform` ``x -> R(x - center) + center + [dx, dy]``.
+    """
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    rotation = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+    center = np.zeros(2) if center is None else np.asarray(center, dtype=float)
+    translation = center - rotation @ center + np.array([dx, dy], dtype=float)
+    return SimilarityTransform(rotation=rotation, scale=1.0, translation=translation)
 
 
 @dataclass(frozen=True)

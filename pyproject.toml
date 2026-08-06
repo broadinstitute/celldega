@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "celldega"
-version = "0.24.0"
+version = "0.24.1"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -22,8 +22,11 @@ dependencies = [
 
     "zarr>=3",
 
-    # numpy>=2 is required by the modern spatialdata stack (multiscale-spatial-image)
-    "numpy>=1.23",
+    # numpy>=2 is required by the modern spatialdata stack (multiscale-spatial-image),
+    # and must be a hard floor (not just >=1.23): in envs with a preinstalled numpy 1.x
+    # (e.g. conda base), a looser floor leaves numpy 1.x in place while numpy-2-built
+    # wheels (h5py, anndata, ...) get installed, causing a dtype-ABI mismatch on import.
+    "numpy>=2",
     "pandas>=2.2",
     "scipy",
     "polars>=1.10,<2",

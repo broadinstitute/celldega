@@ -4,6 +4,20 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.24.1] - 2026-08-06
+
+Patch release fixing a NumPy binary-incompatibility crash on import in
+environments that already had NumPy 1.x installed.
+
+### Fixed
+
+- **`import celldega` failed with `ValueError: numpy.dtype size changed`** in
+  environments with a preinstalled NumPy 1.x (e.g. a conda base). The `numpy>=1.23`
+  floor introduced in 0.24.0 was satisfied by the existing 1.x, so it was left in
+  place while NumPy-2-built wheels (`h5py`, `anndata`, ...) were installed,
+  producing a dtype-ABI mismatch. The floor is now a hard `numpy>=2`, forcing the
+  runtime NumPy to match the wheels.
+
 ## [0.24.0] - 2026-08-06
 
 Removes Scanpy from the default install path and modernizes the spatial-data

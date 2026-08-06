@@ -33,6 +33,28 @@ export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
   }
 };
 
+/**
+ * Force the selected-gene state to exactly `new_selected_genes`, skipping
+ * update_selected_genes' "same array toggles off" heuristic. Crucially this
+ * keeps genes.selected_gene_ids (the Set the transcript layer reads to focus a
+ * gene) in sync -- assigning genes.selected_genes directly leaves that Set
+ * stale, so the trx layer never dims the other genes' transcripts.
+ */
+export const force_set_selected_genes = (
+  genes,
+  new_selected_genes,
+  obs_store
+) => {
+  const selectedGenes = Array.isArray(new_selected_genes)
+    ? new_selected_genes
+    : [];
+  updateSelectedGeneState(genes, selectedGenes);
+
+  if (obs_store?.selected_genes) {
+    obs_store.selected_genes.set(selectedGenes);
+  }
+};
+
 export const sync_selected_genes = (viz_state, genes) => {
   const selectedGenes = Array.isArray(genes) ? genes : [];
 

@@ -36,6 +36,17 @@ from .landscape import (
     save_cbg_gene_parquets,
     save_cbg_gene_parquets_row_groups,
 )
+from .nbhd_cloud import (
+    write_cell_clusters_meta,
+    write_gene_cell_scatter,
+    write_gene_shapes,
+    write_gene_shapes_streaming,
+    write_meta_gene_for_nbhd_cloud,
+    write_meta_slice,
+    write_nbhd_cloud_cells,
+    write_nbhd_cloud_dataset,
+    write_nbhd_cloud_shapes_and_features,
+)
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
 
@@ -1531,9 +1542,11 @@ def write_xenium_transform(
     # Function to open a Zarr file
     def open_zarr(path: str) -> zarr.Group:
         store = (
-            zarr.ZipStore(path, mode="r") if path.endswith(".zip") else zarr.DirectoryStore(path)
+            zarr.storage.ZipStore(path, mode="r")
+            if path.endswith(".zip")
+            else zarr.storage.LocalStore(path, read_only=True)
         )
-        return zarr.group(store=store)
+        return zarr.open_group(store=store, mode="r")
 
     try:
         # Open the cells Zarr file
@@ -1799,8 +1812,18 @@ __all__ = [
     "landscape",
     "main",
     "make_trx_tiles",
+    "nbhd_cloud",
     "read_cbg_mtx",
     "resolve_xenium_morphology_ome_path",
     "trx_tile",
+    "write_cell_clusters_meta",
+    "write_gene_cell_scatter",
+    "write_gene_shapes",
+    "write_gene_shapes_streaming",
     "write_identity_transform",
+    "write_meta_gene_for_nbhd_cloud",
+    "write_meta_slice",
+    "write_nbhd_cloud_cells",
+    "write_nbhd_cloud_dataset",
+    "write_nbhd_cloud_shapes_and_features",
 ]

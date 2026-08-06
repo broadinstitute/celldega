@@ -1,3 +1,4 @@
+import { is_orbit_technology } from '../../global_variables/image_info';
 import {
   areBarDataEqual,
   createEmptyCellCompact,
@@ -6,10 +7,11 @@ import {
 } from '../../utils/compact_data';
 import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
+import { build_nbhd_cloud_gene_bar_data } from '../layers/nbhd_cloud_shapes_layer';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
-const VIEWPORT_GENE_BAR_LIMIT = 100;
+const VIEWPORT_GENE_BAR_LIMIT = 200;
 
 const ensureViewportCache = (viz_state) => {
   if (!viz_state.viewport_cache) {
@@ -56,7 +58,10 @@ const publishBarDataIfChanged = (
   observable,
   nextData
 ) => {
-  if (areBarDataEqual(viewportCache[cacheKey], nextData)) {
+  if (
+    areBarDataEqual(viewportCache[cacheKey], nextData) &&
+    areBarDataEqual(observable.get?.(), nextData)
+  ) {
     return;
   }
 
@@ -64,18 +69,27 @@ const publishBarDataIfChanged = (
   observable.set(nextData);
 };
 
+const getPointCloudGeneBars = (viz_state) => {
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    return build_nbhd_cloud_gene_bar_data(viz_state.nbhd_cloud);
+  }
+  return Array.isArray(viz_state.genes.top_gene_counts)
+    ? viz_state.genes.top_gene_counts
+    : [];
+};
+
 const computeViewportGeneBars = (viz_state, viewportCache) => {
   const trxCompact =
     viz_state.combo_data.trx_compact || createEmptyTrxCompact();
   const geneCounts = viewportCache.geneCountScratch;
-  const activeGeneIds = viewportCache.activeGeneIds;
+  const { activeGeneIds } = viewportCache;
   activeGeneIds.length = 0;
 
   const stride = trxCompact.size || 2;
 
   if (!viz_state.rotation?.hasRotation) {
     for (let i = 0; i < trxCompact.geneIds.length; i++) {
-      const positions = trxCompact.positions;
+      const { positions } = trxCompact;
       const x = positions[i * stride];
       const y = positions[i * stride + 1];
       if (
@@ -143,14 +157,14 @@ const computeViewportCellBars = (viz_state, viewportCache) => {
   const cellCompact =
     viz_state.combo_data.cell_compact || createEmptyCellCompact();
   const cellCounts = viewportCache.cellCountScratch;
-  const activeCellIds = viewportCache.activeCellIds;
+  const { activeCellIds } = viewportCache;
   activeCellIds.length = 0;
 
   const stride = cellCompact.size || 2;
 
   if (!viz_state.rotation?.hasRotation) {
     for (let i = 0; i < cellCompact.categoryIds.length; i++) {
-      const positions = cellCompact.positions;
+      const { positions } = cellCompact;
       const x = positions[i * stride];
       const y = positions[i * stride + 1];
       if (
@@ -212,6 +226,10 @@ export const calc_viewport = async (
 ) => {
   const wasCloseUp = viz_state.close_up;
   const { tile_size } = viz_state.img.landscape_parameters;
+  const isPointCloud = is_orbit_technology(
+    viz_state.img?.landscape_parameters?.technology
+  );
+
   const zoomFactor = Math.pow(2, zoom);
   const [targetX, targetY] = target;
   const halfWidthZoomed = width / (2 * zoomFactor);
@@ -229,6 +247,40 @@ export const calc_viewport = async (
   }
 
   const viewportCache = ensureViewportCache(viz_state);
+
+  if (isPointCloud) {
+    viz_state.close_up = false;
+    viz_state.obs_store.close_up.set(false);
+    viewportCache.visibleTileKey = null;
+
+    publishBarDataIfChanged(
+      viewportCache,
+      'lastGeneBarData',
+      viz_state.obs_store.new_gene_bar_data,
+      getPointCloudGeneBars(viz_state)
+    );
+
+    publishBarDataIfChanged(
+      viewportCache,
+      'lastCellBarData',
+      viz_state.obs_store.new_cell_bar_data,
+      viz_state.cats.cluster_counts
+    );
+
+    // The camera-side reorder check used to live here, but this whole
+    // function is behind on_view_state_change's 200ms debounce (see
+    // deck_ist.js's set_deck_on_view_state_change) -- fine for the
+    // tile/gene-bar work above, which really does want to wait for a quiet
+    // period, but it meant the reorder only ever ran up to 200ms after the
+    // user *stopped* rotating, not live during the drag.
+    // The check itself is O(1) on almost every call (just a sign compare)
+    // and only does real work at the rare moment the camera actually
+    // crosses the horizon, so it doesn't need debouncing -- it's now called
+    // directly from the raw, undebounced onViewStateChange in deck_ist.js
+    // instead (check_nbhd_cloud_camera_side).
+
+    return;
+  }
 
   const tile_bounds = (() => {
     if (!viz_state.rotation?.hasRotation) {
@@ -267,25 +319,27 @@ export const calc_viewport = async (
     viz_state.obs_store.close_up.set(true);
 
     if (viewportCache.visibleTileKey !== visibleTileKey) {
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        trx_data: false,
-        path_data: false,
-      });
+      if (!isPointCloud) {
+        viz_state.obs_store.deck_check.set({
+          ...viz_state.obs_store.deck_check.get(),
+          trx_data: false,
+          path_data: false,
+        });
 
-      await update_trx_layer_data(
-        viz_state.global_base_url,
-        tiles_in_view,
-        layers_obj,
-        viz_state
-      );
+        await update_trx_layer_data(
+          viz_state.global_base_url,
+          tiles_in_view,
+          layers_obj,
+          viz_state
+        );
 
-      await update_path_layer_data(
-        viz_state.global_base_url,
-        tiles_in_view,
-        layers_obj,
-        viz_state
-      );
+        await update_path_layer_data(
+          viz_state.global_base_url,
+          tiles_in_view,
+          layers_obj,
+          viz_state
+        );
+      }
 
       viewportCache.visibleTileKey = visibleTileKey;
     }
@@ -294,7 +348,9 @@ export const calc_viewport = async (
       viewportCache,
       'lastGeneBarData',
       viz_state.obs_store.new_gene_bar_data,
-      computeViewportGeneBars(viz_state, viewportCache)
+      isPointCloud
+        ? getPointCloudGeneBars(viz_state)
+        : computeViewportGeneBars(viz_state, viewportCache)
     );
 
     publishBarDataIfChanged(

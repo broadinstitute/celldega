@@ -1,0 +1,52 @@
+import celldega from './celldega.js';
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    const landscape_el = document.getElementById('landscape-mouse-cranium-e14');
+
+    if (window.location.pathname.endsWith('gallery_mouse_cranium_e14/')) {
+
+        // Local-only example: DegaFiles aren't hosted publicly yet.
+        // Serve them yourself, e.g.:
+        //   npx http-server notebooks/data/michal_landscape_files/E14_62_together_raw_v2_point-cloud -p 8080 --cors
+        const token = '';
+        // 0/0/0/0 is the sentinel `set_initial_view_state` (deck_ist.js) checks
+        // for to auto-compute the initial camera from the actual data bounds,
+        // instead of a fixed target/zoom tuned for one particular dataset.
+        const ini_x = 0;
+        const ini_y = 0;
+        const ini_z = 0;
+        const ini_zoom = 0;
+        const base_url = 'http://localhost:8081';
+
+        const landscape = await celldega.landscape_ist(
+            landscape_el,
+            {},              // ini_model
+            token,
+            ini_x,
+            ini_y,
+            ini_z,
+            ini_zoom,
+            base_url,
+            '',              // dataset_name
+            0.25,            // trx_radius
+            0,               // width (0 = 100%)
+            700,             // height in pixels
+            {},              // meta_cell
+            [],              // meta_cell_attr
+            {},              // meta_cluster
+            [],              // meta_cluster_attr
+            {},              // umap
+            {},              // nbhd
+            false,           // nbhd_edit
+            'spatial',       // landscape_state
+            'default',       // segmentation
+            {},              // creds
+            null,            // view_change_custom_callback
+            0,               // rotation_orbit
+            90               // rotation_x -- tip the z-stack onto its side
+        );
+
+    }
+
+});

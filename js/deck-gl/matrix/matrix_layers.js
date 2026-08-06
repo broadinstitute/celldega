@@ -1,3 +1,28 @@
+/**
+ * Shared updateTriggers for the matrix body layer at reorder time. Keying
+ * getPosition/getSize/getRadius off the current order (plus mode + composition
+ * normalization) ensures both the heatmap (position) and composition
+ * (position + per-segment size) bodies refresh on any reorder.
+ *
+ * @param {object} viz_state - Visualization state.
+ * @param {Array} [extra] - Extra values to fold into the trigger key.
+ * @returns {object} updateTriggers object for a mat-layer clone.
+ */
+export const mat_reorder_triggers = (viz_state, extra = []) => {
+  const key = [
+    viz_state.order.current.row,
+    viz_state.order.current.col,
+    viz_state.mat.viz_mode,
+    viz_state.mat.composition_normalized,
+    ...extra,
+  ];
+  return {
+    getPosition: key,
+    getSize: key,
+    getRadius: key,
+  };
+};
+
 export const get_mat_layers_list = (layers_mat) => {
   const layers_list = [
     layers_mat.mat_layer,
@@ -31,10 +56,7 @@ export const layer_filter = ({ layer, viewport }) => {
     return true;
   } else if (viewport.id === 'cols' && layer.id === 'col-label-layer') {
     return true;
-  } else if (
-    (viewport.id === 'dendro_rows') &
-    (layer.id === 'row-dendro-layer')
-  ) {
+  } else if (viewport.id === 'dendro_rows' && layer.id === 'row-dendro-layer') {
     return true;
   } else if (viewport.id === 'dendro_cols' && layer.id === 'col-dendro-layer') {
     return true;

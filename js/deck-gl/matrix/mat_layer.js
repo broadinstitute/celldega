@@ -1,6 +1,20 @@
 import * as d3 from 'd3';
 
+import { apply_mat_encoding } from '../../matrix/mat_data';
+
 import { CustomMatrixLayer } from './custom_matrix_layer';
+import {
+  clear_dendro_hover,
+  dendro_highlight_alpha_factor,
+} from './dendro_layers';
+import { get_mat_layers_list } from './matrix_layers';
+
+const mat_layer_get_fill_color = (d, viz_state) => {
+  const alpha_factor = dendro_highlight_alpha_factor(viz_state, d.row, d.col);
+  if (alpha_factor === 1) return d.color;
+
+  return [d.color[0], d.color[1], d.color[2], d.color[3] * alpha_factor];
+};
 
 const mat_layer_get_position = (d, viz_state) => {
   const inst_order_rows = viz_state.order.current.row;
@@ -25,17 +39,31 @@ export const ini_mat_layer = (viz_state) => {
       duration: viz_state.animate.duration,
       easing: d3.easeCubic,
     },
+    // Animate size + opacity so switching viz_mode (heatmap/size/dotplot) is fun.
+    getRadius: {
+      duration: viz_state.animate.duration,
+      easing: d3.easeCubic,
+    },
+    getFillColor: {
+      duration: viz_state.animate.duration,
+      easing: d3.easeCubic,
+    },
   };
 
   const mat_layer = new CustomMatrixLayer({
     id: 'mat-layer',
     data: viz_state.mat.mat_data,
     getPosition: (d) => mat_layer_get_position(d, viz_state),
-    getFillColor: (d) => d.color,
+    getFillColor: (d) => mat_layer_get_fill_color(d, viz_state),
+    // Per-cell size scale in [0, 1] consumed by the custom vertex shader.
+    getRadius: (d) => d.size_scale,
     pickable: true,
     antialiasing: false,
     tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
     tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
+    updateTriggers: {
+      getFillColor: viz_state.dendro?._highlight_rev || 0,
+    },
     transitions,
   });
 
@@ -107,4 +135,58 @@ export const set_mat_layer_onclick = (deck_mat, layers_mat, viz_state) => {
     onClick: (event) =>
       mat_layer_onclick(event, deck_mat, layers_mat, viz_state),
   });
+};
+
+/**
+ * Proactively clear the dendrogram hover highlight whenever a cell/segment
+ * is actively hovered — the matrix body and the dendrogram (which sits
+ * beside it) can't both be legitimately hovered at once, so this covers the
+ * "moved from the dendrogram back onto the body" transition even if the
+ * dendrogram layer's own onHover(null) doesn't fire for some reason (e.g. a
+ * picking edge case at a viewport boundary).
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ */
+export const set_mat_layer_onhover = (deck_mat, layers_mat, viz_state) => {
+  const on_hover = (info) => {
+    if (!info?.object) return;
+    clear_dendro_hover(deck_mat, layers_mat, viz_state);
+  };
+
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({ onHover: on_hover });
+};
+
+/**
+ * Toggle whether dotplot dot size encodes the secondary (fraction) matrix
+ * (true, default) or is forced to a full tile (false), independent of the
+ * color/opacity channel. No-op outside dotplot mode.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @param {boolean} value - New `dot_size_encoded` value.
+ */
+export const set_dot_size_encoded = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  value
+) => {
+  viz_state.mat.dot_size_encoded = value;
+
+  if (viz_state.model?.set) {
+    viz_state.model.set('dot_size_encoded', value);
+    viz_state.model.save_changes();
+  }
+
+  if (viz_state.mat.viz_mode !== 'dotplot') return;
+
+  apply_mat_encoding(viz_state);
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    data: viz_state.mat.mat_data.slice(),
+    updateTriggers: { getRadius: value },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };

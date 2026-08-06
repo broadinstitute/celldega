@@ -11,6 +11,7 @@ into :class:`~celldega.nbhd.collection.NeighborhoodCollection`.
 
 from __future__ import annotations
 
+import colorsys
 from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
@@ -165,15 +166,15 @@ def _resolve_clip_boundary(
     return None
 
 
-def _ring_colors(cmap_name: str, n: int) -> list[str]:
-    """Sample ``n`` hex colors from a matplotlib colormap (dark -> light)."""
-    import matplotlib.colors as mcolors
-    import matplotlib.pyplot as plt
-
+def _ring_colors(hue: float, n: int) -> list[str]:
+    """Generate ``n`` hex colors along a fixed hue (dark -> light)."""
     if n == 0:
         return []
-    cmap = plt.get_cmap(cmap_name)
-    return [mcolors.to_hex(cmap(v)) for v in np.linspace(0.8, 0.3, n)]
+    colors = []
+    for value in np.linspace(0.4, 0.95, n):
+        r, g, b = colorsys.hsv_to_rgb(hue, 0.75, value)
+        colors.append(f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}")
+    return colors
 
 
 def _calc_gradient(
@@ -351,8 +352,8 @@ def _calc_gradient(
         out_labels = gdf_rings.loc[gdf_rings["direction"] == "outward", "ring_range_um"].tolist()
         in_labels = gdf_rings.loc[gdf_rings["direction"] == "inward", "ring_range_um"].tolist()
         color_map = {
-            **dict(zip(out_labels, _ring_colors("Blues", len(out_labels)), strict=True)),
-            **dict(zip(in_labels, _ring_colors("Reds", len(in_labels)), strict=True)),
+            **dict(zip(out_labels, _ring_colors(0.6, len(out_labels)), strict=True)),  # blue
+            **dict(zip(in_labels, _ring_colors(0.0, len(in_labels)), strict=True)),  # red
         }
         gdf_rings["color"] = gdf_rings["ring_range_um"].map(color_map).fillna("#cccccc")
 

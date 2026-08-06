@@ -4,6 +4,54 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.24.0] - 2026-08-06
+
+Removes Scanpy from the default install path and modernizes the spatial-data
+stack. Cluster/gene coloring is now generated without Scanpy, several viral
+(GPL) and unused dependencies are dropped, and a fresh-environment install no
+longer fails on `pkg_resources`.
+
+### Added
+
+- **`scanpy` optional extra** — Scanpy is now installed only via
+  `pip install celldega[scanpy]`, needed solely for
+  `celldega.clust.Matrix.downsample_to()` (already behind a lazy import with a
+  clear error message).
+
+### Changed
+
+- **Cluster and gene coloring no longer depend on Scanpy.** The color palettes
+  in `Landscape`/`Clustergram` widgets and in `pre` (`_create_cluster_colors`,
+  `make_meta_gene`) and neighborhood gradients (`_ring_colors`) are now built
+  from a deterministic `colorsys` HSV generator instead of triggering a
+  `sc.pl.umap` call to populate `adata.uns[...]_colors`. Widgets no longer mutate
+  the caller's `AnnData`.
+- **`qc.orthogonal_expression_calc` returns data instead of plotting.** It now
+  returns `(results, orthogonal_summary)` DataFrames rather than rendering
+  Seaborn/Matplotlib figures, so callers can plot with any library.
+- **Modernized the spatial-data stack** — `spatialdata>=0.7.2,<0.8`,
+  `spatialdata-io>=0.7.1`, `ome-zarr>=0.12.2`, and `zarr>=3` (with `open_zarr`
+  migrated to the Zarr v3 storage API). `numpy>=2` is now required by the updated
+  stack.
+
+### Removed
+
+- **Dropped viral/copyleft dependencies** `igraph` (GPL-2.0-or-later) and
+  `leidenalg` (GPL-3.0-or-later), plus the `pytest-html` dev dependency
+  (MPL-2.0) — none were imported by celldega.
+- **Dropped unused runtime dependencies** `squidpy`, `dask`, and `datashader`
+  (not imported by celldega; `dask`/`datashader` remain available transitively
+  through `spatialdata`). Scanpy moved to an optional extra (see Added).
+
+### Fixed
+
+- **Fresh-environment install failed with `ModuleNotFoundError: pkg_resources`**
+  ([#292]). The old `spatialdata` pin held back `xarray_schema`, which imports
+  `pkg_resources` (removed in setuptools 82+). Bumping to `spatialdata>=0.7.2`
+  drops `xarray_schema` entirely, fixing the import at its root.
+
+[#292]: https://github.com/broadinstitute/celldega/issues/292
+
 ## [0.23.1] - 2026-08-05
 
 Fixes a batch of `Yearbook` selection, coloring, and layout bugs so that

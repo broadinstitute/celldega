@@ -231,8 +231,6 @@ def get_cell_polygons(
         meta_cell["cell_id"] = meta_cell["EntityID"]
         cells_orig.index = meta_cell[meta_cell["cell_id"].isin(cells_orig["cell_id"])].index
 
-        # Correct 'MultiPolygon' to 'Polygon'
-
         # Remove rows where geometry is empty (None, MultiPolygon with no geoms, or generic empty)
         cells_orig = cells_orig[
             ~(

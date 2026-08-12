@@ -18,9 +18,13 @@ of all at once.
   on/off with their own opacity control.
 - A **gene search** box and a bar graph that summarizes the currently visible
   cells by category or gene, updated as you pan/zoom.
-- Support for **multiple datasets** via a dropdown selector, and for 3D
-  **point-cloud** views (e.g. thick-tissue or multi-slice data) with a slice
-  slider.
+- Support for **multiple datasets** via a dropdown selector.
+
+For 3D, orbit-camera views of a dataset (thick tissue, multi-slice
+alignments, or precomputed neighborhoods), see
+[CellCloud](cell-cloud.md) and [NeighborhoodCloud](neighborhood-cloud.md),
+which replace `Landscape`'s older `technology="point-cloud"` /
+`"neighborhood-cloud"` modes.
 
 ## Usage
 
@@ -37,7 +41,7 @@ landscape
 
 `Landscape` can also be linked to a `Clustergram` so that selections in one
 update the other — see
-[`dega.viz.landscape_clustergram`](../python/viz/api.md) and the
+[`dega.viz.spatial_clustergram`](../python/viz/api.md) and the
 [Landscape-Clustergram gallery example](../gallery/gallery_landscape_clustergram.md).
 
 For the full list of constructor arguments (multi-dataset support, point-cloud

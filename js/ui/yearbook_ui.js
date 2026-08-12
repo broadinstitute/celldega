@@ -282,6 +282,13 @@ export const make_ui_container = () => {
   ui_container.style.maxWidth = '100%';
   ui_container.style.margin = '0 auto';
 
+  // The control panel's columns have fixed pixel widths and don't wrap. When
+  // the host page is narrower than their combined width (e.g. embedded in a
+  // docs article column), scroll horizontally instead of squeezing/
+  // overlapping the logo button pinned at the right (see make_logo_button's
+  // flex-shrink:0).
+  ui_container.style.overflowX = 'auto';
+
   return ui_container;
 };
 
@@ -290,7 +297,12 @@ export const make_ctrl_container = () => {
   ctrl_container.style.display = 'flex';
   ctrl_container.style.flexDirection = 'row';
   ctrl_container.className = 'ctrl_container';
-  ctrl_container.style.width = '100%';
+  // flex (not a hard width:100%) so it shares ui_container's width with the
+  // non-shrinking logo button instead of competing with it for space.
+  // min-width:0 lets it shrink below its content size so the *row* (not the
+  // logo) is what scrolls when content is wider than the available space.
+  ctrl_container.style.flex = '1 1 auto';
+  ctrl_container.style.minWidth = '0';
   return ctrl_container;
 };
 

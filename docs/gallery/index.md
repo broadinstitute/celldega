@@ -35,6 +35,6 @@ This page includes links to visualizations made with the stand-alone [Celldega J
 
 <div class="grid cards" markdown>
 
-- [Visium HD Cell Segmentation Mouse Brain ![](../assets/img/visium_hd_cell_segmentation_mouse_brain.png)](gallery_visium_hd_cell_segmentation_mouse_brain.md)
+- [Visium HD Cell Segmentation Mouse Brain ![](../assets/img/visium_hd_cell_segmentation_mouse_brain.png){ width="300" }](gallery_visium_hd_cell_segmentation_mouse_brain.md)
 
 </div>

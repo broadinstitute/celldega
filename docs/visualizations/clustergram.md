@@ -18,6 +18,10 @@ tissue location.
 - Category bar graphs shown alongside a dendrogram when its cut point is
   clicked.
 
+For comparing category composition (e.g. cell-type proportions) across
+groups instead of a general heatmap, see [Composition](composition.md), a
+`Clustergram` variant purpose-built for that comparison.
+
 ## Usage
 
 `Clustergram` is built from a clustered `celldega.clust.Matrix`:
@@ -32,9 +36,10 @@ cgm = dega.viz.Clustergram(matrix=mat)
 cgm
 ```
 
-`Clustergram` can also be linked to a `Landscape` view so that selecting
-rows/columns highlights the corresponding cells spatially — see
-[`dega.viz.landscape_clustergram`](../python/viz/api.md) and the
+`Clustergram` can also be linked to a spatial view (`Landscape`, `CellCloud`,
+or `NeighborhoodCloud`) so that selecting rows/columns highlights the
+corresponding cells spatially — see
+[`dega.viz.spatial_clustergram`](../python/viz/api.md) and the
 [Landscape-Clustergram gallery example](../gallery/gallery_landscape_clustergram.md).
 For the full constructor options (including the more efficient
 `parquet_data` path via

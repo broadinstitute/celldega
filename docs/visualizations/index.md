@@ -1,7 +1,6 @@
 # Visualizations
 
-Celldega ships five interactive Jupyter Widgets, grouped into three kinds of
-visualization:
+Celldega ships interactive visualizations, grouped into three kinds:
 
 ## Spatial
 
@@ -13,8 +12,10 @@ datasets.
   images, and neighborhoods over a tissue section.
 - **[Yearbook](yearbook.md)** — a grid of per-cell spatial "portraits" cropped
   from the same underlying LandscapeFiles.
-- **[Landmark](landmark.md)** *(early / less developed)* — mark corresponding
-  points across two tissue slices for alignment.
+- **[CellCloud](cell-cloud.md)** — a 3D orbit-camera view of cell centroids,
+  for thick tissue or multi-slice alignments.
+- **[NeighborhoodCloud](neighborhood-cloud.md)** — a 3D orbit-camera view of
+  precomputed tissue neighborhoods.
 
 ## Data
 
@@ -23,6 +24,8 @@ Render a dataset's values directly, independent of spatial position.
 - **[Clustergram](clustergram.md)** — a hierarchically clustered heatmap
   (dendrograms, reorderable rows/columns) over a matrix (e.g. genes by cells
   or genes by clusters).
+- **[Composition](composition.md)** — a `Clustergram` variant comparing
+  category composition (e.g. cell-type proportions) across groups.
 
 ## Info
 

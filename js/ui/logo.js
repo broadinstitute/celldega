@@ -17,6 +17,13 @@ export const make_logo_button = (docsPath) => {
   logo_button.style.marginRight = '5px';
   logo_button.style.cursor = 'pointer';
   logo_button.title = 'Documentation';
+  // Never shrink: the control panel row scrolls horizontally when content
+  // doesn't fit (see make_ui_container), so the logo always renders intact.
+  logo_button.style.flexShrink = '0';
+  // Pin to the far right of the control panel: consumes any leftover flex
+  // space in the row, regardless of whether sibling columns (e.g.
+  // Clustergram's) grow to fill the container themselves.
+  logo_button.style.marginLeft = 'auto';
 
   const logo_img = document.createElement('img');
   logo_img.src = `data:image/png;base64,${logo}`;

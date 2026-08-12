@@ -165,6 +165,9 @@ for what each one shows and how it works:
 | `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
+| `CellCloud` | 3D orbit view of cell centroids |
+| `NeighborhoodCloud` | 3D orbit view of tissue neighborhoods |
+| `Composition` | Category composition across groups (`Clustergram` variant) |
 | `Enrich` | Gene enrichment analysis |
 
 ```python

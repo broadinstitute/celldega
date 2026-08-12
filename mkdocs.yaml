@@ -30,14 +30,15 @@ nav:
       - Installation: overview/installation.md
       - File Formats: overview/file_formats.md
       - Row Group Storage: overview/row_groups.md
-      - Usage: overview/usage.md
   - Visualizations:
       - visualizations/index.md
       - Landscape: visualizations/landscape.md
       - Yearbook: visualizations/yearbook.md
+      - CellCloud: visualizations/cell-cloud.md
+      - NeighborhoodCloud: visualizations/neighborhood-cloud.md
       - Clustergram: visualizations/clustergram.md
+      - Composition: visualizations/composition.md
       - Enrich: visualizations/enrich.md
-      - Landmark: visualizations/landmark.md
   - Python API:
       - python/index.md
       - align: python/align/api.md
@@ -88,6 +89,7 @@ nav:
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
       - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
+      - Atera Viz: examples/brief_notebooks/Atera_viz.ipynb
 
 markdown_extensions:
   - toc

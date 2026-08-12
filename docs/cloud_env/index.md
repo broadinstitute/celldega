@@ -1,8 +1,8 @@
 # Environments
 
-Celldega widgets are Jupyter Widgets ([AnyWidget](https://anywidget.dev/)),
-so they run anywhere a Jupyter notebook does — you're not tied to a single
-notebook provider.
+Celldega visualizations are designed notebook-first — used as widgets
+locally or in the cloud — but they aren't limited to a notebook: they can
+also run as a stand-alone JavaScript library on any webpage.
 
 ## Notebook environments
 

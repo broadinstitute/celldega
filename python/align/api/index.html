@@ -1,0 +1,6267 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../../">
+      
+      
+        <link rel="next" href="../../clust/api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/img/celldega_logo_32x32_transparent.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>align - Celldega Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../assets/css/custom.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#align-module-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Celldega Documentation" class="md-header__button md-logo" aria-label="Celldega Documentation" data-md-component="logo">
+      
+  <img src="../../../assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Celldega Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              align
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Celldega Documentation" class="md-nav__button md-logo" aria-label="Celldega Documentation" data-md-component="logo">
+      
+  <img src="../../../assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png" alt="logo">
+
+    </a>
+    Celldega Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../overview/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../overview/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../overview/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../overview/file_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../overview/row_groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Row Group Storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../visualizations/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizations
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualizations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/landscape/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/yearbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Yearbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/cell-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/neighborhood-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NeighborhoodCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/composition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../visualizations/enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    align
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        align
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SerialAlignmentTransform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SerialAlignmentTransform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.apply_to_points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_to_points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.plot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.align_serial_slices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        align_serial_slices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.calc_alignment_transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_alignment_transform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.calc_landmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_landmarks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.fit_transform_procrustes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fit_transform_procrustes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.fit_transform_tps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fit_transform_tps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.leave_one_out_residuals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leave_one_out_residuals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.load_transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_transform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.neighborhood_alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        neighborhood_alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.plot_alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.save_transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save_transform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.transform_shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transform_shapes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.write_alignment_point_cloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_alignment_point_cloud
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="write_alignment_point_cloud">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_alignment_point_cloud--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_alignment_point_cloud--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_nbhd_cloud
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="write_nbhd_cloud">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--later-once-you-know-which-marker-genes-you-care-about" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Later, once you know which marker genes you care about:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../clust/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collection/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dataset/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nbhd/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nbhd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pre/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../select/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../viz/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../javascript/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript API
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../javascript/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../technologies/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technologies
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Technologies
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../cloud_env/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environments
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Environments
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../gallery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gallery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gallery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Xenium
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_xenium_mouse_brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Prime Mouse Brain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_xenium_skin_cancer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Prime Human Skin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_xenium_multi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Multi Dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Atera
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_atera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Xenium Breast Cancer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CosMx
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CosMx
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_cosmx_human_colon/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CosMx Human Colon CRC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Point Cloud
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Point Cloud
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_mouse_cranium_e14/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mouse Cranium E14 (local)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_6" id="__nav_8_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linked Views
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Linked Views
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_landscape_clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape-Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gallery/gallery_landscape_yearbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape-Yearbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../examples/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Example Notebooks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Example Notebooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_9_2" id="__nav_9_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scanpy-Squidpy Xenium Pancreas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/tutorial_notebooks/Scanpy_Chromium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chromium Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape Clustergram Chromium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visium-HD Landscape Pre-Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_9_3" id="__nav_9_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Brief Notebooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Brief Notebooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Landscape_View_Xenium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape View Xenium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Landscape-3D_thick_MERFISH/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud Three-dimensional single-cell transcriptome imaging of thick tissues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Landscape-Heatmap-Visium-HD/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape-Heatmap Visium-HD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UMAP-Cluster Pancreas Xenium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mouse Lung FF
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Custom_Segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Segmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/NeighborhoodCollection_Population_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NeighborhoodCollection population and gene feature spaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gradient Neighborhoods: profiling the pancreatic islet microenvironment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/DatasetCollection_Population_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DatasetCollection population and expression feature spaces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/SetCollection_Cluster_Space/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SetCollection: cluster / set space
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Yearbook_Query/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Yearbook Query
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Atera_viz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        align
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SerialAlignmentTransform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SerialAlignmentTransform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.apply_to_points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_to_points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.plot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.SerialAlignmentTransform.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.align_serial_slices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        align_serial_slices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.calc_alignment_transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_alignment_transform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.calc_landmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_landmarks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.fit_transform_procrustes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fit_transform_procrustes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.fit_transform_tps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fit_transform_tps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.leave_one_out_residuals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        leave_one_out_residuals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.load_transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_transform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.neighborhood_alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        neighborhood_alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.plot_alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.save_transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save_transform
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.transform_shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transform_shapes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.write_alignment_point_cloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_alignment_point_cloud
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="write_alignment_point_cloud">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_alignment_point_cloud--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_alignment_point_cloud--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_nbhd_cloud
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="write_nbhd_cloud">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.align.write_nbhd_cloud--later-once-you-know-which-marker-genes-you-care-about" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Later, once you know which marker genes you care about:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="align-module-api-reference">Align Module API Reference</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="celldega.align"></a>
+    <div class="doc doc-contents first">
+
+        <p>Alignment and registration of spatial single-cell data.</p>
+<p>Covers three related registration problems: (1) stitching serial 3D tissue
+slices into a shared coordinate frame, (2) registering data onto a reference
+(e.g. a common coordinate framework/atlas such as the Allen Institute mouse
+brain, or a particular dataset within a cohort), and (3) registering across
+modalities (e.g. Xenium to H&amp;E). All three align in <em>physical</em> (spatial)
+coordinates — image/tissue pixel or micron space. Batch correction /
+integration in expression or embedding space (e.g. Harmony, scVI, Seurat
+anchors) is a different problem and out of scope here, though a shared
+framework for evaluating alignment quality could plausibly extend to that
+space later.</p>
+<p>Status: initial sketch. Implemented: a three-step serial-slice pipeline,
+each step an independently reusable artifact. (1) :func:<code>calc_landmarks</code>
+computes landmarks from shared cluster labels (accepting a list of
+<code>AnnData</code> or one combined <code>AnnData</code>, no manual per-slice loop needed),
+or a manually-placed landmark table in the same shape (a plain
+<code>DataFrame</code>, not a <code>GeoDataFrame</code> of shapely geometry, so it stays
+trivially disk-portable; e.g. from :class:<code>~celldega.viz.Landmark</code>, a
+point-drawing widget pairing with <code>Landscape</code>) can be used instead, or
+concatenated alongside it for a semi-manual mix. (2)
+:func:<code>calc_alignment_transform</code> fits a rigid Procrustes
+(:func:<code>fit_transform_procrustes</code>, always without scaling — see
+:mod:<code>celldega.align.serial_slices</code>) or non-rigid thin-plate-spline
+(:func:<code>fit_transform_tps</code>) transform per slice from those landmarks —
+chain-walking outward from a reference slice against a <em>window</em> of
+already-aligned neighbors (<code>alignment_window</code>, never a single distant
+reference), optionally weighting landmarks by cell count
+(<code>weight_by_adjacent_counts</code>) and recording per-landmark leave-one-out
+residuals (:func:<code>leave_one_out_residuals</code>) — and returns a
+:class:<code>~celldega.align.serial_slices.SerialAlignmentTransform</code>: a
+first-class, reusable object (not a byproduct that only lives inside one
+alignment call) that can be applied to <em>other</em> point data tied to the same
+slices (segmentation-polygon vertices, transcript coordinates, eventually
+raster sampling grids) via <code>.apply_to_points()</code>, and persisted with
+<code>.save()</code>/<code>.load()</code> (a plain directory of <code>.npz</code>/<code>.parquet</code>/<code>.json</code>
+files, no <code>pickle</code> required, though it's picklable too), and visually
+sanity-checked with :func:<code>plot_alignment</code> (also available as
+<code>transform.plot()</code>): a 2D before/after scatter of the fitted landmarks,
+so a bad fit (or a mislabeled landmark) is visible at a glance rather than
+only showing up downstream. (3)
+:func:<code>align_serial_slices</code> applies a given transform to a specific set of
+<code>AnnData</code>, aligning <code>obsm["spatial"]</code> and assigning a Z coordinate;
+<code>landmarks_initial</code>/<code>landmarks_aligned</code>/fit parameters are also recorded in
+the output's <code>uns["align_serial_slices"]</code> for at-a-glance provenance.
+Planned: a reference/atlas-registration method sharing the same
+landmark-based core (star topology onto one fixed reference, vs.
+:func:<code>align_serial_slices</code>'s neighbor-chain) and image-based
+modality-to-modality registration (deferred — unlike the two centroid-based
+methods, this operates on raw image data, not single-cell coordinates).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="celldega.align.SerialAlignmentTransform" class="doc doc-heading">
+            <code>SerialAlignmentTransform</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A fitted, reusable serial-slice alignment.</p>
+<p>Returned by :func:<code>calc_alignment_transform</code>; consumed by
+:func:<code>align_serial_slices</code>. Holds one :class:<code>~celldega.align._transform.Transform</code>
+per slice (the reference slice's is an identity transform) and provenance
+from the fit — no Z information, since Z assignment doesn't affect the
+spatial fit at all and is decided when <em>applying</em> the transform (see
+:func:<code>align_serial_slices</code>'s <code>z_space</code>/<code>z_coord</code>), not when fitting
+it. Persist it with :meth:<code>save</code>/:meth:<code>load</code> — everything here is plain
+data or a picklable-but-not-pickled <code>RBFInterpolator</code>, so it also
+survives a plain :mod:<code>pickle</code> round-trip if that's more convenient.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.align.SerialAlignmentTransform.apply_to_points" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">apply_to_points</span><span class="p">(</span><span class="n">slice_id</span><span class="p">,</span> <span class="n">points</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply the fitted transform for <code>slice_id</code> to an <code>(n, 2)</code> array of points.</p>
+<p>The general reuse primitive: works identically for cell coordinates,
+segmentation-polygon vertices, transcript coordinates, or any other
+point data tied to that slice.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.align.SerialAlignmentTransform.load" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Load a transform previously saved with :meth:<code>save</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.align.SerialAlignmentTransform.plot" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">plot</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>2D before/after scatter of this alignment — a quick visual check
+of fit quality. Pass <code>adatas=</code> (the slices this was fit from) to
+overlay the actual cell centroids, which is what really shows whether
+the tissue aligns; see :func:<code>~celldega.align.plot.plot_alignment</code>
+for all accepted options.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.align.SerialAlignmentTransform.save" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Save this transform to a directory of plain files — no <code>pickle</code>.</p>
+<p>Layout: <code>metadata.json</code> (fit parameters, slice ids),
+<code>transform_log.json</code> (per-slice diagnostics), <code>landmarks_initial
+.parquet</code>/<code>landmarks_aligned.parquet</code>, and one <code>transforms/&lt;slice
+id&gt;.npz</code> per slice (see :func:<code>~celldega.align._transform.save_transform</code>).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.align_serial_slices" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">align_serial_slices</span><span class="p">(</span><span class="n">adatas</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">z_space</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">z_coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key_added</span><span class="o">=</span><span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="n">cell_name_prefix</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply a fitted :class:<code>SerialAlignmentTransform</code> to a set of <code>AnnData</code>.</p>
+<p>Z assignment lives here, not in :func:<code>calc_alignment_transform</code> — it
+doesn't affect the spatial fit at all, so the same fitted transform can
+be applied with different Z choices without refitting anything.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>adatas</code>
+            </td>
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span> | <span title="list">list</span>[<span title="anndata.AnnData">AnnData</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Either a list of per-slice <code>AnnData</code> (list order must
+match the slice order <code>transform</code> was fit with), or a single
+<code>AnnData</code> combining all slices, split by the <code>obs</code> column
+named <code>transform.slice_attr</code>. Only <code>obsm["spatial"]</code> is
+used — this function has no knowledge of cell metadata.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>transform</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A :class:<code>SerialAlignmentTransform</code> from
+:func:<code>calc_alignment_transform</code> (or reloaded via
+:meth:<code>SerialAlignmentTransform.load</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>z_space</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Uniform distance between consecutive slices, applied
+outward from <code>transform.reference</code> (so that slice is
+<code>Z = 0</code>). Ignored if <code>z_coord</code> is given.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>z_coord</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="float">float</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit absolute Z value for each slice (length
+<code>n_slices</code>, matching slice order) — use this when slices have
+known, unevenly spaced, or non-reference-relative Z positions
+(e.g. from instrument metadata). Overrides <code>z_space</code> entirely
+when given.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>key_added</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the new per-cell <code>obs</code> column holding the
+assigned Z position.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;Z&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cell_name_prefix</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, prefix each slice's <code>obs_names</code> with
+its slice id (<code>f"{slice_id}_{name}"</code>) before concatenating, so
+cells stay uniquely named even when two slices reuse the same
+per-slice barcode convention. Matches
+:class:<code>~celldega.viz.widget.Landscape</code>'s <code>cell_name_prefix</code>
+convention (a dataset/slice id, then the original cell name,
+split at the first <code>_</code>), so the same aligned <code>AnnData</code> can be
+visualized there with <code>cell_name_prefix=True</code>. Default
+<code>False</code> for backward compatibility — a uniqueness warning
+fires either way if names collide.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A new <code>AnnData</code> concatenating all slices, with <code>obsm["spatial"]</code></p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>x/y columns replaced by the aligned coordinates, a new</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>obs[key_added]</code> Z column, and <code>transform</code>'s fit parameters and</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>landmark provenance recorded in <code>uns["align_serial_slices"]</code></p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>(plain, h5ad-safe data — the live <code>transform</code> object itself is</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>not stored there; keep or persist it separately, see</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>meth:<code>SerialAlignmentTransform.save</code>).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>adatas</code> resolves to a different set or order of
+slices than <code>transform</code> was fit with, if a slice is missing
+<code>obsm["spatial"]</code>, or if <code>z_coord</code> is given with the wrong
+length.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.calc_alignment_transform" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">calc_alignment_transform</span><span class="p">(</span><span class="n">landmarks</span><span class="p">,</span> <span class="n">slice_attr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_shared_landmarks</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">alignment_window</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;procrustes&#39;</span><span class="p">,</span> <span class="n">allow_reflection</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">smoothing</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">degree</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">area_regularization</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">shape_regularization</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">weight_by_adjacent_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">manual_landmark_weight</span><span class="o">=</span><span class="s1">&#39;equal&#39;</span><span class="p">,</span> <span class="n">compute_residuals</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Fit a serial-slice alignment transform from corresponding landmarks.</p>
+<p>Each slice is registered onto a window of its already-aligned neighbors
+by fitting a transform between corresponding landmarks. Alignment
+proceeds as a chain outward from <code>reference</code> in both directions along
+the slice order, so deformation is modeled between nearby physical
+neighbors rather than against a single distant reference. This function
+only touches <code>landmarks</code> — no cell data — so the returned transform
+can be fit once and reused (see :func:<code>align_serial_slices</code> and
+:meth:<code>SerialAlignmentTransform.apply_to_points</code>). Z assignment isn't
+part of this fit — it doesn't affect the spatial transform at all — see
+:func:<code>align_serial_slices</code>'s <code>z_space</code>/<code>z_coord</code> instead.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>landmarks</code>
+            </td>
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A plain <code>DataFrame</code> of landmarks to fit against, with
+columns <code>slice_attr</code> (values defining slice order — see below),
+<code>label</code> (matches a landmark across slices; unique per slice),
+<code>x</code>/<code>y</code>, and optionally <code>count</code> (omit or leave <code>NaN</code> for
+a landmark with no natural cell count, e.g. a manually-placed
+one). Build this with
+:func:<code>~celldega.align.landmarks.calc_landmarks</code>, a
+manually-placed landmark table in the same shape, or both
+concatenated together for a semi-manual mix.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slice_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The column in <code>landmarks</code> identifying each row's slice
+(default <code>"slice"</code>). Slice order is that column's categories
+if it's an ordered categorical, else sorted unique values.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>reference</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Index (into the slice order) of the slice whose transform
+is the identity; other slices are aligned outward from it.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_shared_landmarks</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum number of landmark labels a slice and
+its neighbor window must share to fit a transform between them.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>alignment_window</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of already-aligned neighboring slices (in
+the same chain direction) to register each new slice against,
+instead of only the single immediately-previous one. A landmark
+label's target position is averaged across whichever of those
+neighbors have it. Stays a <em>local</em>, neighbor-window operation —
+never reaches back to a single distant reference — while
+reducing sensitivity to any one neighbor's noise. <code>1</code>
+(default) reproduces the original single-neighbor chain exactly.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"procrustes"</code> (default) for a rigid rotation + translation
+fit (:func:<code>~celldega.align._transform.fit_transform_procrustes</code>,
+always with scaling disabled — see module docstring), or
+<code>"tps"</code> for a non-rigid thin-plate-spline warp
+(:func:<code>~celldega.align._transform.fit_transform_tps</code>) for
+deformation a single global transform can't capture.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;procrustes&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>allow_reflection</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>method="procrustes"</code> only. If <code>False</code>
+(default), disallow mirrored fits, since flipping a tissue
+section is not physically valid.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>smoothing</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>method="tps"</code> only. Bending-energy penalty passed to
+the thin-plate-spline fit; <code>0</code> (default) interpolates landmarks
+exactly (which <em>overfits</em> noisy centroid landmarks — the warp
+contorts the tissue to hit each one), and raising it relaxes
+toward a stiffer, more affine warp that preserves each slice's
+shape. The fit normalizes the domain first, so this is scale-free
+(comparable across datasets): useful values are roughly <code>0</code> to
+<code>~0.1</code> to <code>1</code> (light local warp) up to <code>~10</code>+ (nearly rigid).
+See :func:<code>~celldega.align._transform.fit_transform_tps</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>degree</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>method="tps"</code> only. Degree of the polynomial term added
+to the spline (see :func:<code>~celldega.align._transform.fit_transform_tps</code>).
+<code>1</code> (default) includes a full affine fallback (translation,
+rotation, <em>and scale</em>) away from the landmarks — the scale
+component is exactly what lets area expand/shrink globally.
+<code>0</code> drops it for a constant-offset fallback instead, which
+tends to change area less overall, though TPS has no parameter
+that <em>exactly</em> constrains area/Jacobian the way
+<code>method="procrustes"</code> (always rigid, scale disabled — see
+above) does; this only shifts the fit's default behavior, it
+doesn't hard-enforce anything.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>area_regularization</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>method="tps"</code> only. Penalty in <code>[0, 1]</code> on
+each slice's <em>total</em> (global) area change. TPS otherwise rescales
+a slice freely to make landmarks coincide; this measures the net
+area factor and applies a uniform rescale (about the aligned
+centroid, so rotation/translation — the alignment pose — are
+untouched) to pull it back. <code>0</code> (default) leaves the fit as-is;
+<code>1</code> fully cancels the global area change so each slice keeps its
+own area (local warp intact, at the cost of peripheral landmarks
+coinciding a bit less tightly); values between partially penalize
+it. See :func:<code>~celldega.align._transform.fit_transform_tps</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>weight_by_adjacent_counts</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), weight each shared
+landmark by the geometric mean of its cell count in the current
+slice and its neighbor window (a centroid from more cells is a
+lower-variance estimate) — a landmark with no count (e.g.
+manually placed) has its count filled in first, per
+<code>manual_landmark_weight</code>. Set <code>False</code> to weight every
+landmark equally (<code>manual_landmark_weight</code> has no effect).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>manual_landmark_weight</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How a landmark with no cell count (e.g. one
+placed with :class:<code>~celldega.viz.Landmark</code>) is weighted when
+<code>weight_by_adjacent_counts</code> is <code>True</code>. Its count is filled
+in from the automated counts sharing this fit step: their mean
+(<code>"equal"</code>, default — a manual landmark carries as much
+influence as a typical automated one), min (<code>"less"</code> — no
+more influence than the smallest automated cluster), or max
+(<code>"greater"</code> — at least as much influence as the largest
+automated cluster). Landmarks that already have a count are
+unaffected.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;equal&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>compute_residuals</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), compute and record each
+slice's per-landmark leave-one-out residual (see
+:func:<code>~celldega.align._transform.leave_one_out_residuals</code>) —
+unlike in-sample residual, this is meaningful even for an
+exactly-interpolating fit like TPS. Set <code>False</code> to skip the
+extra refits if landmark counts ever make it costly.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The fitted :class:<code>SerialAlignmentTransform</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>landmarks</code> is missing a required column or has
+fewer than 2 slices, if <code>reference</code> is out of range, if
+<code>alignment_window</code> is less than 1, if <code>method</code> is not
+recognized, if <code>manual_landmark_weight</code> is not recognized, if
+a slice's landmarks contain duplicate labels, if a slice shares
+fewer than <code>min_shared_landmarks</code> labels with its neighbor
+window, or if the fit itself rejects the shared landmarks (e.g.
+a degenerate configuration for TPS).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.calc_landmarks" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">calc_landmarks</span><span class="p">(</span><span class="n">adatas</span><span class="p">,</span> <span class="n">cluster_key</span><span class="p">,</span> <span class="n">slice_attr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_prefix</span><span class="o">=</span><span class="s1">&#39;C-&#39;</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Compute one landmark per cluster label, at that cluster's centroid.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>adatas</code>
+            </td>
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span> | <span title="list">list</span>[<span title="anndata.AnnData">AnnData</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single <code>AnnData</code> with 2D coordinates in
+<code>obsm["spatial"]</code> (returns landmarks with no slice tagging,
+matching the <code>landmarks</code> shape for a single dataset), a list
+of per-slice <code>AnnData</code> (list order is slice order), or a
+single combined <code>AnnData</code> with <code>slice_attr</code> given, to be
+split into slices by that <code>obs</code> column. In the latter two
+cases the result is tagged with a <code>slice_attr</code> column so it can
+be passed straight to
+:func:<code>~celldega.align.serial_slices.align_serial_slices</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cluster_key</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>obs</code> column with cluster labels to compute
+centroids for. Cells with a <code>NaN</code> label (e.g. unclustered/QC-
+filtered cells) are excluded rather than pooled into a spurious
+<code>"nan"</code> landmark.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slice_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>For a single combined <code>AnnData</code>, the <code>obs</code> column
+identifying each cell's slice (required in that case, and
+triggers multi-slice output). For a list of <code>AnnData</code>, the
+name to give the output's slice-tagging column (default
+<code>"slice"</code>). Ignored for a single, non-split <code>AnnData</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>label_prefix</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Prepended to each cluster label to form the landmark
+<code>label</code> (default <code>"C-"</code>, so cluster <code>"0"</code> becomes
+<code>"C-0"</code>). Keeps automated labels visually identifiable and, in
+particular, out of the way of :class:<code>~celldega.viz.Landmark</code>'s
+own auto-numbered manual labels (plain integers, <code>"1"</code>,
+<code>"2"</code>, ...) — without a prefix the two schemes can collide
+(e.g. cluster <code>"1"</code> vs. manual landmark <code>"1"</code>) once
+concatenated together. Pass <code>""</code> to disable.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;C-&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A <code>DataFrame</code> with columns <code>label</code> (<code>label_prefix</code> + cluster</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>label, as <code>str</code>), <code>x</code>/<code>y</code> (the cluster's centroid, in each</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>slice's own <code>obsm["spatial"]</code> coordinate space), <code>count</code> (number</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>of cells in that cluster), and <code>source</code> (always <code>"automated"</code></p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>here) — plus a <code>slice_attr</code> column when computed over multiple</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>slices. This is the shape</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>func:<code>~celldega.align.serial_slices.align_serial_slices</code>'s</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>landmarks</code> parameter expects, so manually-defined landmarks (same</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>columns, <code>count</code> absent or <code>NaN</code> and <code>source</code> <code>"manual"</code> —</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td><code>see</code></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>class:<code>~celldega.viz.Landmark</code>) can be combined with this via</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>func:<code>pandas.concat</code> before being passed in.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>cluster_key</code> is not a column in some slice's
+<code>obs</code>, if some slice is missing <code>obsm["spatial"]</code> or has
+fewer than 2 columns there, or (multi-slice mode) if <code>adatas</code>
+is a single <code>AnnData</code> without <code>slice_attr</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.fit_transform_procrustes" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fit_transform_procrustes</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">allow_scaling</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">allow_reflection</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Fit the rotation/scale/translation that best maps <code>source</code> onto <code>target</code>.</p>
+<p>Solves the classic Procrustes/Umeyama least-squares problem: minimize
+<code>sum(weights_i * ||target_i - (scale * rotation @ source_i + translation)||^2)</code>
+over a rotation, a single uniform scale, and a translation, given <code>n</code>
+point-to-point correspondences (<code>source[i]</code> corresponds to <code>target[i]</code>).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n, 2)</code> points to move, <code>n &gt;= 2</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n, 2)</code> corresponding points to match, same order as <code>source</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>weights</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>(n,)</code> positive per-point weights (e.g. landmark
+confidence). <code>None</code> (default) weights every point equally,
+reproducing the unweighted fit exactly.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>allow_scaling</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>False</code>, force a rigid (scale = 1) transform.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>allow_reflection</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>False</code> (default), force a proper rotation
+(<code>det(rotation) == 1</code>) since flipping tissue is not physically
+valid for serial sections. Set <code>True</code> for contexts where a
+reflection is legitimate (e.g. some modality-to-modality mappings).</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="celldega.align._transform.SimilarityTransform">SimilarityTransform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The fitted :class:<code>SimilarityTransform</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If fewer than 2 point pairs are given, shapes mismatch, or
+<code>weights</code> has the wrong shape or non-positive entries.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.fit_transform_tps" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fit_transform_tps</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smoothing</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">degree</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">area_regularization</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">shape_regularization</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Fit a thin-plate-spline warp that maps <code>source</code> landmarks onto <code>target</code> landmarks.</p>
+<p>Unlike :func:<code>fit_transform_procrustes</code>, this fits a smooth <em>non-rigid</em>
+deformation: it matches the landmarks locally rather than one global
+rotation/scale/translation, so it can recover warps a rigid fit cannot
+(e.g. non-uniform section stretching). Points far from every landmark
+fall back toward the affine (degree-1 polynomial) component rather than
+an arbitrary extrapolation.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n, 2)</code> landmark points to move, <code>n &gt;= 3</code> and not all
+collinear (degree-1 TPS needs 3 affinely independent points).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n, 2)</code> corresponding landmark points to match, same order
+as <code>source</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>weights</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>(n,)</code> positive per-point weights, converted into
+per-point <code>smoothing</code> (<code>smoothing / weights</code>): a higher-weight
+landmark gets a smaller effective smoothing (fit more tightly), a
+lower-weight one gets more slack. Only has an effect when
+<code>smoothing &gt; 0</code> — at <code>smoothing = 0</code> the spline interpolates
+every landmark exactly regardless of weight, since there's no
+such thing as a weighted <em>exact</em> interpolation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>smoothing</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bending-energy penalty trading exact landmark matching
+(<code>0</code>, the default — the spline passes through every landmark,
+which <em>overfits</em> noisy cluster-centroid landmarks by contorting
+the tissue to hit each one) against a smoother, stiffer warp
+(higher values relax the fit toward the plain affine transform,
+preserving each slice's own shape). With <code>normalize=True</code> this
+is measured in <em>normalized</em> domain units, so it's comparable
+across datasets regardless of coordinate scale — useful values
+are roughly <code>0</code> (exact) through <code>~0.1</code> to <code>1</code> (light local
+warp) to <code>~10</code>+ (nearly rigid/affine). Without normalization it
+is in raw kernel units (<code>~distance² · log distance</code>), so for
+micron coordinates it would need to be enormous (<code>~1e6</code>+) to
+have any effect at all.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>degree</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Degree of the polynomial term added to the spline (<code>1</code>
+gives an affine fallback away from the landmarks).</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>normalize</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), the source (domain) is recentered
+and scaled to unit RMS radius before fitting, and query points
+are normalized the same way on apply. This makes <code>smoothing</code>
+scale-free (see above) and improves numerical conditioning. It
+does <em>not</em> change a <code>smoothing=0</code> fit (exact interpolation is
+exact in any units) — only the meaning of a nonzero <code>smoothing</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>area_regularization</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Penalty in <code>[0, 1]</code> on the warp's <em>total</em>
+(global) area change. TPS's affine component freely rescales a
+slice to make landmarks coincide, undesirable when slices are
+genuinely different sizes. See below for how it and
+<code>shape_regularization</code> are applied together.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>shape_regularization</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Penalty in <code>[0, 1]</code> on the warp's global
+<em>proportion</em> change — the affine's anisotropy (its two singular
+values' ratio, i.e. stretching one axis while squeezing the
+other, plus shear). This is separate from area: an affine can
+keep area constant while still distorting proportions (a taller,
+pinched-in-the-middle look), which <code>area_regularization</code> alone
+won't catch.</p>
+<p>Both are applied as a single post-fit correction: the warp's
+global affine <code>A</code> (best-fit linear map of the landmark cloud) is
+SVD'd into a rotation and two singular values; the geometric-mean
+scale is pulled toward 1 by <code>area_regularization</code> and the
+anisotropy toward 1 by <code>shape_regularization</code>, then a uniform
+correction is applied about the output centroid — leaving
+rotation, translation, and <em>local</em> (bending) warp untouched. At
+<code>0</code>/<code>0</code> (default) the fit is unchanged; <code>1</code>/<code>1</code> makes the
+global part rigid (rotation only — area and proportions both
+preserved), leaving only local deformation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="celldega.align._transform.ThinPlateSplineTransform">ThinPlateSplineTransform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The fitted :class:<code>ThinPlateSplineTransform</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If fewer than 3 point pairs are given, shapes mismatch,
+<code>weights</code> has the wrong shape or non-positive entries,
+<code>area_regularization</code>/<code>shape_regularization</code> are negative, or
+the landmarks are degenerate (e.g. collinear).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.leave_one_out_residuals" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">leave_one_out_residuals</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">fit_transform</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Per-landmark leave-one-out residual: how well does the fit implied by the
+<em>other</em> landmarks predict this one?</p>
+<p>In-sample residual is a poor diagnostic for an interpolating fit (e.g.
+:func:<code>fit_transform_tps</code> at <code>smoothing=0</code> matches every landmark
+exactly by construction, regardless of whether the landmarks are actually
+consistent). Leave-one-out residual instead measures, for each landmark,
+whether it agrees with a fit built from everything <em>except</em> it — a large
+value flags a landmark that may be mislabeled, noisy, or otherwise
+inconsistent with the rest.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n, 2)</code> landmark points.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(n, 2)</code> corresponding landmark points.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fit_transform</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Callable">Callable</span>[..., <span title="celldega.align._transform.Transform">Transform</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A <code>fit(source, target, weights=None) -&gt; Transform</code>
+callable, e.g. :func:<code>fit_transform_procrustes</code> or
+:func:<code>fit_transform_tps</code> (bind extra keyword arguments with
+:func:<code>functools.partial</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>weights</code>
+            </td>
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional <code>(n,)</code> positive per-point weights, passed through
+to <code>fit_transform</code> for both the leave-one-out fits.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An <code>(n,)</code> array of residual distances, <code>NaN</code> for any landmark</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whose leave-one-out refit failed (e.g. too few or degenerate points</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="numpy.ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>remained).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.load_transform" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">load_transform</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Load a transform previously saved with :func:<code>save_transform</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the <code>.npz</code> file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="celldega.align._transform.Transform">Transform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The reconstructed :class:<code>SimilarityTransform</code> or</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="celldega.align._transform.Transform">Transform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>class:<code>ThinPlateSplineTransform</code> — for the latter, a fresh</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="celldega.align._transform.Transform">Transform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>RBFInterpolator</code> rebuilt from the saved plain-array inputs,</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="celldega.align._transform.Transform">Transform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>numerically equivalent to the one originally fitted.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the file's <code>kind</code> is not recognized.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.neighborhood_alignment" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">neighborhood_alignment</span><span class="p">(</span><span class="n">shapes</span><span class="p">,</span> <span class="n">initial_transform</span><span class="p">,</span> <span class="n">slice_attr</span><span class="o">=</span><span class="s1">&#39;slice_id&#39;</span><span class="p">,</span> <span class="n">cluster_attr</span><span class="o">=</span><span class="s1">&#39;cluster_id&#39;</span><span class="p">,</span> <span class="n">alignment_window</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_sweeps</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">rotation_range</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">translation_range</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">n_rotation_grid</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">distance_weight</span><span class="o">=</span><span class="s1">&#39;inverse&#39;</span><span class="p">,</span> <span class="n">distance_decay</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">simplify_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">min_shared_clusters</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">compute_diagnostics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">progress_every</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Refine a serial-slice alignment by maximizing neighborhood polygon overlap.</p>
+<p>Starts from <code>initial_transform</code> (a cluster-centroid Procrustes fit from
+:func:<code>~celldega.align.serial_slices.calc_alignment_transform</code>) and adds,
+per slice, a small residual rigid transform (rotation + translation, never
+scale) chosen to maximize the summed intersection area of corresponding
+neighborhood regions across a window of neighboring slices. This recovers
+alignment that region centroids miss — footprint orientation and bilateral
+structure a centroid averages away — while staying rigid and reusing the
+Procrustes fit as a starting point close enough for the (nonsmooth) overlap
+objective to optimize locally. The regions are typically cluster alpha
+shapes, but any per-(slice, region) polygons with labels shared across
+slices work (manually drawn regions, other domain-ID algorithms).</p>
+<p>Optimization is block coordinate descent: the reference slice is held
+fixed, and every other slice is optimized in turn against its neighbors'
+<em>current</em> estimates, in alternating forward and backward passes over
+<code>n_sweeps</code> sweeps. Each per-slice step coarse-searches residual rotation
+on a grid, then refines all three parameters with a bounded Powell search
+(see :func:<code>_refine_one_slice</code>).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>shapes</code>
+            </td>
+            <td>
+                  <code><span title="geopandas.GeoDataFrame">GeoDataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A per-(slice, region) polygon <code>GeoDataFrame</code> in each slice's
+<em>native</em> coordinate frame, with <code>slice_attr</code>/<code>cluster_attr</code>
+columns and a <code>geometry</code> column — typically the cluster alpha
+shapes :func:<code>~celldega.nbhd.alpha_shapes.alpha_shape_cell_clusters_by_slice</code>
+returns, but any polygons with labels shared across slices (manual
+regions, other domain-ID algorithms) work. <code>initial_transform</code> is
+applied to these, so they must be pre-alignment (do not pass shapes
+computed from already-aligned coordinates). Geometry may be 2D or 3D
+(a Z stamp is flattened away).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>initial_transform</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The Procrustes
+:class:<code>~celldega.align.serial_slices.SerialAlignmentTransform</code> to
+refine. Its slice order, reference slice, and (unless overridden)
+alignment window are reused, and its landmarks are carried through
+as provenance. Every slice present in <code>shapes</code> must be one of its
+slices.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slice_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column in <code>shapes</code> identifying each row's slice (default
+<code>"slice_id"</code>, matching the neighborhood-cloud output). Its values
+must match <code>initial_transform</code>'s slice ids. Note this is the
+<em>input</em> column name; the returned transform keeps
+<code>initial_transform</code>'s own <code>slice_attr</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;slice_id&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cluster_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column in <code>shapes</code> identifying each row's region/label
+(default <code>"cluster_id"</code>). A region is matched to its counterpart
+in another slice by this value, so it need not be a cluster — any
+label consistent across slices (a manual region name, a domain id)
+works.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;cluster_id&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>alignment_window</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of neighboring slices on each side to score a
+slice's overlap against. <code>None</code> (default) reuses
+<code>initial_transform</code>'s <code>alignment_window</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_sweeps</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of forward+backward coordinate-descent sweeps over the
+non-reference slices.</p>
+              </div>
+            </td>
+            <td>
+                  <code>2</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rotation_range</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bound (in degrees) on each slice's residual rotation,
+<code>±</code> this value. Kept modest since the Procrustes fit already
+resolves gross rotation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>10.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>translation_range</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bound on each slice's residual translation, as a
+fraction of the overall tissue width (largest x/y extent across all
+shapes), applied <code>±</code> in each axis.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>n_rotation_grid</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of grid points in the coarse residual-rotation
+search over <code>[-rotation_range, +rotation_range]</code> before the Powell
+refinement. <code>0</code> skips the grid (Powell only).</p>
+              </div>
+            </td>
+            <td>
+                  <code>7</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>distance_weight</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How a neighbor's overlap contribution falls off with
+slice separation <code>d</code> (all modes give an adjacent neighbor weight
+<code>1.0</code>): <code>"inverse"</code> (default, <code>1/d</code>), <code>"uniform"</code> (all
+neighbors in the window weighted equally), <code>"exponential"</code>
+(<code>exp(-(d-1)/distance_decay)</code>), or <code>"gaussian"</code>
+(<code>exp(-(d-1)**2 / (2*distance_decay**2))</code>, a slow-then-sharp
+tail-off that concentrates the window on the closest slices).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;inverse&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>distance_decay</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Falloff scale for the <code>"exponential"</code>/<code>"gaussian"</code>
+weights (larger = slower falloff, so farther slices keep more
+influence); ignored by <code>"inverse"</code>/<code>"uniform"</code>. Default <code>1.0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>simplify_tolerance</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If given, Douglas-Peucker tolerance applied to each
+alpha shape before optimization, to speed up intersection at the
+cost of boundary detail. <code>None</code> (default) leaves shapes as-is.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_shared_clusters</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A slice is only refined if it shares at least this
+many cluster labels with its neighbor window; otherwise its residual
+stays identity (it keeps its Procrustes transform) and it is marked
+skipped in the transform log.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>compute_diagnostics</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), record per-slice overlap
+before/after refinement and per-cluster IoU/coverage against the
+nearest neighbor in the transform log.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>progress_every</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>&gt; 0</code>, print a progress line (with elapsed time)
+at each phase/sweep and every <code>progress_every</code> per-slice
+optimizations — useful on a large stack where a run takes minutes.
+<code>0</code> (default) is silent.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A refined :class:<code>~celldega.align.serial_slices.SerialAlignmentTransform</code></p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>with <code>method="neighborhood"</code>, each slice's transform being its</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>residual delta composed with its initial Procrustes transform, ready to</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>pass to :func:<code>~celldega.align.serial_slices.align_serial_slices</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>distance_weight</code> is not recognized, <code>shapes</code> is
+missing a required column, <code>shapes</code> references a slice not in
+<code>initial_transform</code>, <code>alignment_window</code> is less than 1, or the
+initial transforms are not rigid (a residual rigid refinement is
+only well-defined on top of a rigid, e.g. <code>method="procrustes"</code>,
+initial fit — not a thin-plate-spline warp).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.plot_alignment" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">plot_alignment</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">adatas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">slice_attr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">color_by</span><span class="o">=</span><span class="s1">&#39;slice&#39;</span><span class="p">,</span> <span class="n">max_cells_per_slice</span><span class="o">=</span><span class="mi">20000</span><span class="p">,</span> <span class="n">cell_size</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Side-by-side 2D scatter of an alignment, before vs. after fitting.</p>
+<p>"Before" is each slice in its own native coordinates; "after" is every
+slice warped into the reference slice's frame by its fitted transform.</p>
+<p>Pass <code>adatas</code> (strongly recommended) to overlay each slice's actual
+cell centroids underneath the landmarks — that's what actually shows
+whether the <em>tissue</em> aligns. Landmarks alone are a poor check: an
+interpolating fit lands every landmark exactly on top of its match by
+construction, so the landmark-only "after" panel looks perfect
+regardless of how well the surrounding tissue really lines up.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>transform</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A fitted :class:<code>~celldega.align.serial_slices.SerialAlignmentTransform</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>adatas</code>
+            </td>
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span> | <span title="list">list</span>[<span title="anndata.AnnData">AnnData</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The same slices used to fit <code>transform</code> (a single combined
+<code>AnnData</code> with <code>slice_attr</code>, or a list of per-slice
+<code>AnnData</code>). If given, their <code>obsm["spatial"]</code> centroids are
+drawn faintly (colored by slice) under the landmarks, before and
+after. If <code>None</code> (default), only landmarks are plotted.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slice_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>For a single combined <code>AnnData</code>, the <code>obs</code> column
+identifying each cell's slice. Defaults to <code>transform</code>'s own
+<code>slice_attr</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>color_by</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"slice"</code> (default) or <code>"label"</code> — how the <em>landmarks</em>
+are colored. Cell centroids are always colored by slice (they
+have no landmark label).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;slice&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_cells_per_slice</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Randomly subsample each slice's centroids to at
+most this many before plotting (<code>0</code> disables subsampling), to
+keep the figure light for large slices. The subsample is only
+for display — it never touches the fit.</p>
+              </div>
+            </td>
+            <td>
+                  <code>20000</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cell_size</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Marker size for cell centroids (landmarks are drawn
+larger, on top).</p>
+              </div>
+            </td>
+            <td>
+                  <code>1.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>figsize</code>
+            </td>
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="float">float</span>, <span title="float">float</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Passed to :func:<code>matplotlib.pyplot.subplots</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(12, 6)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>random_state</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Seed for the subsampling RNG, so the figure is
+reproducible.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="matplotlib.pyplot.Figure">Figure</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(fig, (ax_before, ax_after))</code> — call <code>fig.show()</code> or</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="tuple">tuple</span>[<span title="matplotlib.pyplot.Axes">Axes</span>, <span title="matplotlib.pyplot.Axes">Axes</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>fig.savefig(...)</code> yourself; this never calls <code>plt.show()</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>color_by</code> isn't <code>"slice"</code> or <code>"label"</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.save_transform" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">save_transform</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Save a fitted :class:<code>SimilarityTransform</code> or :class:<code>ThinPlateSplineTransform</code>
+to a plain <code>.npz</code> file — no <code>pickle</code> involved, so the result is portable,
+inspectable with any numpy install, and doesn't depend on matching library
+versions the way a pickled object graph would. A :class:<code>ThinPlateSplineTransform</code>
+is saved as the plain-array inputs (landmark positions, per-point smoothing,
+kernel, epsilon, degree, plus the source normalization center/scale) that
+reconstruct an equivalent <code>RBFInterpolator</code>, not the fitted object itself.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>transform</code>
+            </td>
+            <td>
+                  <code><span title="celldega.align._transform.Transform">Transform</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The transform to save.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Destination <code>.npz</code> file path.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="TypeError">TypeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>transform</code> is neither a :class:<code>SimilarityTransform</code>
+nor a :class:<code>ThinPlateSplineTransform</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.transform_shapes" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">transform_shapes</span><span class="p">(</span><span class="n">shapes</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">slice_attr</span><span class="o">=</span><span class="s1">&#39;slice_id&#39;</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Apply a serial-slice transform to an alpha-shape <code>GeoDataFrame</code>.</p>
+<p>Moves each shape's geometry by its slice's fitted transform, in place of
+recomputing alpha shapes from transformed cell coordinates. Handy for
+inspecting or plotting the <em>refined</em> neighborhood shapes (the polygon
+companion to
+:meth:<code>~celldega.align.serial_slices.SerialAlignmentTransform.apply_to_points</code>).
+Any Z coordinate is passed through unchanged, so note it does <em>not</em> restamp
+the aligned per-slice Z — for a 3D NeighborhoodCloud, write the shapes with
+:func:<code>~celldega.align.write_nbhd_cloud</code> (which recomputes from the aligned
+coordinates and stamps Z consistently) rather than feeding transformed
+shapes directly. The <code>area</code> column, if present, is recomputed from the
+transformed (rigid, so area-preserving) geometry.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>shapes</code>
+            </td>
+            <td>
+                  <code><span title="geopandas.GeoDataFrame">GeoDataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Alpha shapes with a <code>geometry</code> column and a <code>slice_attr</code>
+column whose values are <code>transform</code>'s slice ids — e.g. the output
+of :func:<code>~celldega.nbhd.alpha_shapes.alpha_shape_cell_clusters_by_slice</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>transform</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SerialAlignmentTransform
+
+
+  
+      dataclass
+   (celldega.align.serial_slices.SerialAlignmentTransform)" href="#celldega.align.SerialAlignmentTransform">SerialAlignmentTransform</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A fitted
+:class:<code>~celldega.align.serial_slices.SerialAlignmentTransform</code>
+(e.g. from :func:<code>neighborhood_alignment</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slice_attr</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column in <code>shapes</code> naming each row's slice (default
+<code>"slice_id"</code>, the neighborhood-cloud convention).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;slice_id&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="geopandas.GeoDataFrame">GeoDataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A copy of <code>shapes</code> with transformed geometry (and updated <code>area</code>).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="geopandas.GeoDataFrame">GeoDataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Rows whose slice id is not in <code>transform</code> are left unchanged.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.write_alignment_point_cloud" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">write_alignment_point_cloud</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">dega_files_dir</span><span class="p">,</span> <span class="n">alignment_name</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z_key</span><span class="o">=</span><span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="n">cluster_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_base_metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write aligned 3D cell centroids to a point-cloud DegaFiles as a named alignment.</p>
+<h4 id="celldega.align.write_alignment_point_cloud--parameters">Parameters</h4>
+<p>adata : AnnData
+    Aligned AnnData. <code>obsm["spatial"]</code> provides x/y (its first two
+    columns); z is taken from <code>obs[z_key]</code> if present, else from a third
+    <code>spatial</code> column, else 0. Cell names come from <code>obs_names</code>.
+dega_files_dir : str or Path
+    Target point-cloud DegaFiles directory. If it already contains
+    <code>landscape_parameters.json</code> the writer <em>appends</em> (positions +
+    registration only); otherwise it <em>creates</em> a fresh point-cloud
+    directory.
+alignment_name : str
+    Name of this alignment variant. The positions are written to
+    <code>cell_metadata_&lt;alignment_name&gt;.parquet</code> and the name is registered in
+    <code>landscape_parameters.json</code> under <code>"alignments"</code>. View it with
+    <code>Landscape(..., alignment="&lt;alignment_name&gt;")</code>.
+z_key : str, default "Z"
+    <code>obs</code> column holding the per-slice z (depth) coordinate.
+cluster_key : str, optional
+    Only used in <em>create</em> mode: <code>obs</code> column to export as clusters (with
+    colors from <code>uns[f"{cluster_key}_colors"]</code> when available). Ignored in
+    append mode, where existing clusters are reused.
+write_genes : bool, optional
+    Only used in <em>create</em> mode. Whether to export gene expression to
+    <code>cbg/</code> + <code>meta_gene.parquet</code> (keyed by cell name). Defaults to
+    <code>True</code> when <code>adata</code> carries an expression matrix
+    (<code>layers['counts']</code> or <code>X</code>) and <code>False</code> otherwise. Ignored in
+    append mode, where existing gene data is reused.
+write_base_metadata : bool, optional
+    Whether to also (over)write the base <code>cell_metadata.parquet</code> with these
+    positions. Defaults to <code>True</code> in create mode and <code>False</code> in append
+    mode (so an append never clobbers the existing default positions).
+overwrite : bool, default False
+    Allow overwriting an existing <code>cell_metadata_&lt;alignment_name&gt;.parquet</code>.</p>
+<h4 id="celldega.align.write_alignment_point_cloud--returns">Returns</h4>
+<p>pathlib.Path
+    Path to the written <code>cell_metadata_&lt;alignment_name&gt;.parquet</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.align.write_nbhd_cloud" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">write_nbhd_cloud</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">dega_files_dir</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">cluster_attr</span><span class="o">=</span><span class="s1">&#39;cluster&#39;</span><span class="p">,</span> <span class="n">slice_attr</span><span class="o">=</span><span class="s1">&#39;slice_id&#39;</span><span class="p">,</span> <span class="n">z_attr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alphas</span><span class="o">=</span><span class="p">(</span><span class="mi">150</span><span class="p">,),</span> <span class="n">z_jitter</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">meta_cluster</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save_genes</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">progress_every</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_cell_scatter</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span> <span class="n">cell_scatter_random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">compute_gene_nbhds</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">gene_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gene_min_expression</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">gene_min_cells</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">gene_max_cells</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span> <span class="n">gene_shape_max_cells</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span> <span class="n">gene_random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">gene_z_jitter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gene_progress_every</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write a full <code>neighborhood-cloud</code> DegaFiles set from an aligned AnnData.</p>
+<p>Computes one real alpha-shape polygon per (slice, cluster) — using
+<code>celldega.nbhd</code>'s alpha-shape machinery, the same well-tested geometry
+code the rest of celldega already relies on, not a separate/duplicated
+implementation — and writes the full DegaFile layout
+(<code>meta_slice.parquet</code>, <code>shapes/by_slice/</code>, <code>cells/by_cluster/</code>,
+<code>meta_neighborhood.parquet</code>, <code>cell_clusters/meta_cluster.parquet</code>,
+<code>landscape_parameters.json</code>).</p>
+<p>Gene-nbhds (a curated marker-gene list's own alpha shapes, "peppered"
+with real expressing-cell centroids) are <strong>off by default</strong>: a real
+alpha shape per gene is expensive enough — and only useful for a
+deliberately chosen list of marker genes, not the whole transcriptome —
+that auto-computing it isn't the right default. Pass
+<code>compute_gene_nbhds=True</code> with an explicit <code>gene_list</code> to also write
+<code>shapes/by_gene/</code> + <code>cells/by_gene/</code> for those genes.</p>
+<p>Works on any AnnData with the right <code>obs</code>/<code>obsm</code> columns, not just the
+output of <code>celldega.align</code> specifically — e.g. straight off
+<code>align_serial_slices</code> (which already sets <code>obsm["spatial"]</code>, <code>obs["Z"]</code>,
+and carries whatever cluster/slice columns were used for landmarks), or
+any other aligned 3D AnnData with equivalent columns.</p>
+<h4 id="celldega.align.write_nbhd_cloud--parameters">Parameters</h4>
+<p>adata : AnnData
+    Aligned 3D cell-level AnnData: <code>obsm["spatial"]</code> (x, y),
+    <code>obs[cluster_attr]</code>, <code>obs[slice_attr]</code>, optionally <code>obs[z_attr]</code>.
+    For gene-nbhds, also needs a real expression matrix in <code>.X</code>
+    (<code>adata[:, gene].X</code> must be numeric counts/expression, not a
+    placeholder).
+dega_files_dir : str | Path
+    Output DegaFiles root directory (created if missing). Under the
+    one-alignment-per-cloud convention this directory name <em>is</em> the
+    NeighborhoodCloud's identity — write a new alignment to a new directory.
+cluster_attr, slice_attr, z_attr : str, str, str | None
+    See <code>celldega.nbhd.alpha_shape_cell_clusters_by_slice</code>.
+alphas : Sequence[float]
+    Single inverse-alpha resolution used for both cluster shapes and (if
+    requested) gene shapes — see <code>alpha_shape_cell_clusters_by_slice</code>.
+z_jitter : float
+    Per-cluster Z offset within a slice, to avoid z-fighting between
+    coplanar cluster polygons (see <code>alpha_shape_cell_clusters_by_slice</code>).
+meta_cluster : pd.DataFrame | None
+    Optional cluster color/metadata lookup. Without it, colors come from
+    <code>adata.uns[f"{cluster_attr}_colors"]</code> if present (the usual place
+    scanpy leaves them after <code>sc.tl.leiden</code>/<code>sc.pl.umap</code>), else a fallback
+    palette (so neighborhoods aren't all black).
+save_genes : bool
+    Whether to write gene-expression data. When <code>True</code> (default),
+    <code>meta_gene.parquet</code> (the dataset-root per-gene stats the gene search
+    box/bar graph read) is written; when <code>False</code>, all gene-expression
+    output is skipped for a lean, clusters-only cloud (useful for
+    label-only AnnData, or when gene coloring isn't needed). Must be <code>True</code>
+    to also compute gene-nbhds (<code>compute_gene_nbhds</code>).
+progress_every : int
+    Print a progress line every this many slices while computing cluster
+    shapes (default <code>1</code>, i.e. every slice — a real alpha shape per
+    (slice, cluster) is the slow part of this call on a large aligned
+    dataset with many slices). <code>0</code> disables it.
+max_cell_scatter : int | None
+    Cap (via uniform random subsample) on the cells written per cluster
+    to <code>cells/by_cluster/cluster_&lt;id&gt;.parquet</code> — this is the same "cap
+    peppering to a scatter" idea used for genes (see <code>gene_max_cells</code>
+    below), applied to cluster cells, which today have no other bound.
+    <code>None</code> writes every cell in the cluster (the original, uncapped
+    behavior). Default <code>50_000</code>.
+cell_scatter_random_state : int
+    Seed for <code>max_cell_scatter</code>'s subsampling RNG.
+compute_gene_nbhds : bool
+    Whether to also compute and write gene-nbhds. Default <code>False</code> — see
+    above. Requires <code>gene_list</code>.
+gene_list : Sequence[str] | None
+    Genes to compute shapes for when <code>compute_gene_nbhds=True</code>. Required
+    in that case — deliberately not auto-selected from the whole gene
+    panel, since a real alpha shape per gene is too expensive to want by
+    accident. Ignored otherwise.
+gene_min_expression, gene_min_cells, gene_max_cells, gene_progress_every :
+    Forwarded to <code>celldega.pre.write_gene_shapes_streaming</code> — see its
+    docstring for <code>min_expression</code>/<code>min_cells</code>/<code>max_cells</code>/
+    <code>progress_every</code>.
+gene_shape_max_cells : int | None
+    Cap (via uniform random subsample) on the expressing cells that feed
+    a gene's alpha shape's own geometry computation, forwarded to
+    <code>write_gene_shapes_streaming</code>. This is what actually bounds the
+    expensive part of a broadly-expressed gene's shape -- even a small,
+    curated <code>gene_list</code> (tens to ~100 marker genes) can include a gene
+    expressed in far more cells than are needed to describe its spatial
+    footprint. <code>None</code> disables the cap. Default <code>50_000</code>.
+gene_random_state : int
+    Seed for <code>gene_shape_max_cells</code>'s subsampling RNG.
+gene_z_jitter : float | None
+    Per-gene Z offset (see <code>write_gene_shapes_streaming</code>). Defaults to
+    <code>z_jitter</code> (the same value used for cluster shapes) if not given.</p>
+<h4 id="celldega.align.write_nbhd_cloud--returns">Returns</h4>
+<p>pathlib.Path
+    <code>dega_files_dir</code>, as a <code>Path</code>.</p>
+<h4 id="celldega.align.write_nbhd_cloud--examples">Examples</h4>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from celldega.align import write_nbhd_cloud
+write_nbhd_cloud(adata_aligned, "my_dataset_nbhd_cloud")</p>
+<h3 id="celldega.align.write_nbhd_cloud--later-once-you-know-which-marker-genes-you-care-about">Later, once you know which marker genes you care about:</h3>
+<p>write_nbhd_cloud(
+...     adata_aligned,
+...     "my_dataset_nbhd_cloud",
+...     compute_gene_nbhds=True,
+...     gene_list=["Matn1", "Col2a1", "Col1a1"],
+... )</p>
+</blockquote>
+</blockquote>
+</blockquote>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/broadinstitute/celldega" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://bsky.app/profile/stp-broad.bsky.social" target="_blank" rel="noopener" title="bsky.app" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M407.8 294.7c-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3M288 227.1c-26.1-50.7-97.1-145.2-163.1-191.8C61.6-9.4 37.5-1.7 21.6 5.5 3.3 13.8 0 41.9 0 58.4S9.1 194 15 213.9c19.5 65.7 89.1 87.9 153.2 80.7 3.3-.5 6.6-.9 10-1.4-3.3.5-6.6 1-10 1.4-93.9 14-177.3 48.2-67.9 169.9C220.6 589.1 265.1 437.8 288 361.1c22.9 76.7 49.2 222.5 185.6 103.4 102.4-103.4 28.1-156-65.8-169.9-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3 64.1 7.1 133.6-15.1 153.2-80.7C566.9 194 576 75 576 58.4s-3.3-44.7-21.6-52.9c-15.8-7.1-40-14.9-103.2 29.8C385.1 81.9 314.1 176.4 288 227.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.indexes"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../../assets/js/index.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_mouse_brain.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_skin_cancer.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_cosmx_colon.js" type="module"></script>
+      
+        <script src="../../../assets/js/google-analytics.js"></script>
+      
+        <script src="../../../assets/js/hide_notebook_sidebar.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_landscape_clustergram.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_mouse_cranium_e14.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_landscape_yearbook.js" type="module"></script>
+      
+        <script src="../../../assets/js/gallery_atera.js" type="module"></script>
+      
+        <script src="../../../js/open_in_new_tab.js"></script>
+      
+    
+  </body>
+</html>

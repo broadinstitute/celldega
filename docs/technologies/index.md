@@ -9,6 +9,9 @@ The Celldega Landscape visualization method (see [Gallery](../gallery)) utilizes
 ### Terra.bio
 Terra.bio is a cloud-based compute and data storage platform that is being developed by the <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Broad Institute of MIT and Harvard</a>. We are utilizing Terra.bio to help <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Spatial Technology Platform</a> clients access, analyze, and visualize their ST data.
 
+### Manifold.ai
+<a href='https://www.manifold.ai/' target='_blank'>Manifold.ai</a> is an AI-powered cloud platform for life sciences research.
+
 ### Jupyter Widget
 We utilize the Jupyter Widget ecosystem to build interactive spatial and data visualizations that enable users to perform two way communication between JavaScript (front-end) and Python (back-end). We are utilizing the <a href='https://anywidget.dev/' target='_blank'>AnyWidget</a> implementation to build our custom widgets.
 

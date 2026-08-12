@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../SetCollection_Cluster_Space/">
+        <link rel="prev" href="../Atera_viz/">
       
       
-        <link rel="next" href="../Atera_viz/">
+        <link rel="next" href="../Landscape-3D_thick_MERFISH/">
       
       
         
@@ -2178,6 +2178,72 @@
   
   
     <li class="md-nav__item">
+      <a href="../Atera_viz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Yearbook Query
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../Landscape-3D_thick_MERFISH/" class="md-nav__link">
         
   
@@ -2382,72 +2448,6 @@
     
   
     SetCollection: cluster / set space
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Yearbook Query
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../Atera_viz/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Atera Viz
   
 
     
@@ -3270,8 +3270,8 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=e8c0004c-ad0c-4211-85ff-0b2a7df915d9">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=6d7aae40-47e9-4406-9cdc-402fc4de6cb1">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -3289,33 +3289,16 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="o">%</span><span class="n">load_ext</span> <span class="n">autoreload</span>
-<span class="o">%</span><span class="n">autoreload</span> <span class="mi">2</span>
-<span class="o">%</span><span class="n">env</span> <span class="n">ANYWIDGET_HMR</span><span class="o">=</span><span class="mi">1</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-1">%load_ext autoreload
-%autoreload 2
-%env ANYWIDGET_HMR=1</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>env: ANYWIDGET_HMR=1
-</pre>
+<div class="clipboard-copy-txt" id="cell-1">import celldega as dega</div>
 </div>
 </div>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=6d7aae40-47e9-4406-9cdc-402fc4de6cb1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=719da99d-042a-4266-ab79-45242f0bab67">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -3333,36 +3316,16 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">base_url</span> <span class="o">=</span> <span class="s1">'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs/main/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs'</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-2">import celldega as dega</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>/Users/feni/Documents/celldega/dega/lib/python3.12/site-packages/h5py/__init__.py:36: UserWarning: h5py is running against HDF5 1.14.5 when it was built against 1.14.6, this may cause problems
-  _warn(("h5py is running against HDF5 {0} when it was built against {1}, "
-/Users/feni/Documents/celldega/dega/lib/python3.12/site-packages/dask/dataframe/__init__.py:31: FutureWarning: The legacy Dask DataFrame implementation is deprecated and will be removed in a future version. Set the configuration option `dataframe.query-planning` to `True` or None to enable the new Dask Dataframe implementation and silence this warning.
-  warnings.warn(
-/Users/feni/Documents/celldega/dega/lib/python3.12/site-packages/xarray_schema/__init__.py:1: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
-  from pkg_resources import DistributionNotFound, get_distribution
-/Users/feni/Documents/celldega/dega/lib/python3.12/site-packages/anndata/__init__.py:44: FutureWarning: Importing read_text from `anndata` is deprecated. Import anndata.io.read_text instead.
-  return module_get_attr_redirect(attr_name, deprecated_mapping=_DEPRECATED)
-</pre>
+<div class="clipboard-copy-txt" id="cell-2">base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs/main/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs'</div>
 </div>
 </div>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=719da99d-042a-4266-ab79-45242f0bab67">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=619e8212-d1a8-40c9-a8c5-9fde9b5d035f">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -3380,16 +3343,39 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">base_url</span> <span class="o">=</span> <span class="s1">'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs/main/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs'</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Landscape</span><span class="p">(</span>
+    <span class="n">technology</span><span class="o">=</span><span class="s1">'Xenium'</span><span class="p">,</span> 
+    <span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span>
+<span class="p">)</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-3">base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs/main/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs'</div>
+<div class="clipboard-copy-txt" id="cell-3">dega.viz.Landscape(
+    technology='Xenium', 
+    base_url = base_url
+)</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child jp-OutputArea-executeResult">
+<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[3]:</div>
+<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="6dec2be4-3df5-494c-8704-0c14f0cb7de0" tabindex="0">
+<script type="text/javascript">
+var element = document.getElementById('6dec2be4-3df5-494c-8704-0c14f0cb7de0');
+</script>
+<script type="application/vnd.jupyter.widget-view+json">
+{"model_id": "92f4e0f8dacb4fb0ba36f9f968dfba70", "version_major": 2, "version_minor": 1}
+</script>
 </div>
 </div>
 </div>
 </div>
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=619e8212-d1a8-40c9-a8c5-9fde9b5d035f">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=0b038811-fd3e-4f23-bfee-50e05e83de8d">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -3407,56 +3393,6 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Landscape</span><span class="p">(</span>
-    <span class="n">technology</span><span class="o">=</span><span class="s1">'Xenium'</span><span class="p">,</span> 
-    <span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span>
-<span class="p">)</span>
-</pre></div>
-<div class="clipboard-copy-txt" id="cell-4">dega.viz.Landscape(
-    technology='Xenium', 
-    base_url = base_url
-)</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child jp-OutputArea-executeResult">
-<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[4]:</div>
-<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="76ff2a16-fc88-43cd-9d55-a834ad420028" tabindex="0">
-<script type="text/javascript">
-var element = document.getElementById('76ff2a16-fc88-43cd-9d55-a834ad420028');
-</script>
-<script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "2069346e9d9048e9a75845cb7805033f", "version_major": 2, "version_minor": 1}
-</script>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=0b038811-fd3e-4f23-bfee-50e05e83de8d">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="CodeMirror cm-s-jupyter">
-<div class="zeroclipboard-container">
-<clipboard-copy ,="" aria-label="Copy to Clipboard" for="cell-5">
-<div>
-<span class="notice" hidden="">Copied!</span>
-<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
-<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
-<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
-</svg>
-</div>
-</clipboard-copy>
-</div>
 <div class="highlight-ipynb hl-python"><pre><span></span><span class="n">yb</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Yearbook</span><span class="p">(</span>
     <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
     <span class="n">rows</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
@@ -3465,7 +3401,7 @@ var element = document.getElementById('76ff2a16-fc88-43cd-9d55-a834ad420028');
 <span class="p">)</span>
 <span class="n">yb</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-5">yb = dega.viz.Yearbook(
+<div class="clipboard-copy-txt" id="cell-4">yb = dega.viz.Yearbook(
     base_url=base_url,
     rows=3,
     cols=6,
@@ -3481,13 +3417,13 @@ yb</div>
 </div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
-<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[5]:</div>
-<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="01e9d69e-ca70-4255-9b17-be1e2aa7bb69" tabindex="0">
+<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[4]:</div>
+<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="f6f8ff0a-e725-404f-97d8-a23e0e9dba0d" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('01e9d69e-ca70-4255-9b17-be1e2aa7bb69');
+var element = document.getElementById('f6f8ff0a-e725-404f-97d8-a23e0e9dba0d');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "40ed4fb168bf46af9614f14c41fa37da", "version_major": 2, "version_minor": 1}
+{"model_id": "9135067c62c1410185ae0b52d2d213bc", "version_major": 2, "version_minor": 1}
 </script>
 </div>
 </div>
@@ -3503,7 +3439,7 @@ var element = document.getElementById('01e9d69e-ca70-4255-9b17-be1e2aa7bb69');
 <div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="CodeMirror cm-s-jupyter">
 <div class="zeroclipboard-container">
-<clipboard-copy ,="" aria-label="Copy to Clipboard" for="cell-6">
+<clipboard-copy ,="" aria-label="Copy to Clipboard" for="cell-5">
 <div>
 <span class="notice" hidden="">Copied!</span>
 <svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
@@ -3515,7 +3451,7 @@ var element = document.getElementById('01e9d69e-ca70-4255-9b17-be1e2aa7bb69');
 </div>
 <div class="highlight-ipynb hl-python"><pre><span></span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-6"></div>
+<div class="clipboard-copy-txt" id="cell-5"></div>
 </div>
 </div>
 </div>
@@ -3525,7 +3461,7 @@ var element = document.getElementById('01e9d69e-ca70-4255-9b17-be1e2aa7bb69');
 </div> <!-- jp-Notebook -->
 </div> <!-- jupyter-wrapper -->
 <script type="application/vnd.jupyter.widget-state+json">
-{"state": {"142cbece391d468e9de0ec64222cb42a": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {}}, "2069346e9d9048e9a75845cb7805033f": {"model_module": "anywidget", "model_module_version": "~0.9.*", "model_name": "AnyModel", "state": {"_anywidget_id": "celldega.viz.widget.Landscape", "_css": ".celldega-counter-button{background:linear-gradient(300deg,#93f 33.26%,#f66,#faca30,#00cd99,#0cf 86.29%);border-radius:10px;border:0;color:#fff;cursor:pointer;font-family:Roboto,sans-serif;font-size:2em;margin:10px;padding:10px 20px;transition:transform .25s ease-in-out}.celldega-counter-button:hover{transform:scale(1.05)}\n", "_esm": "export { default } from 'https:\/\/cdn.jsdelivr.net\/npm\/celldega@0.17.0\/src\/celldega\/static\/celldega.js';", "_model_module": "anywidget", "_model_module_version": "~0.9.*", "_model_name": "AnyModel", "_view_module": "anywidget", "_view_module_version": "~0.9.*", "_view_name": "AnyView", "base_url": "https:\/\/raw.githubusercontent.com\/broadinstitute\/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs\/main\/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs", "base_urls": [{"label": "Dataset 1", "short_label": "DS-1", "url": "https:\/\/raw.githubusercontent.com\/broadinstitute\/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs\/main\/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs"}], "cell_attr": ["leiden"], "cell_clusters": {}, "cell_name_prefix": false, "component": "Landscape", "creds": {}, "dataset_name": "", "height": 600, "ini_x": 0, "ini_y": 0, "ini_z": 0, "ini_zoom": 0, "landscape_state": "spatial", "layout": "IPY_MODEL_142cbece391d468e9de0ec64222cb42a", "max_tiles_to_view": 50, "meta_cluster": {}, "nbhd_edit": false, "nbhd_geojson": {}, "region": {}, "rotate": 0, "rotation_orbit": 0, "rotation_x": 0, "scale_bar_microns_per_pixel": null, "segmentation": "default", "selected_cells": [], "square_tile_size": 1.4, "technology": "Xenium", "token": "", "update_trigger": {}, "width": 0}}, "40ed4fb168bf46af9614f14c41fa37da": {"model_module": "anywidget", "model_module_version": "~0.9.*", "model_name": "AnyModel", "state": {"_anywidget_id": "celldega.viz.widget.Yearbook", "_css": ".celldega-counter-button{background:linear-gradient(300deg,#93f 33.26%,#f66,#faca30,#00cd99,#0cf 86.29%);border-radius:10px;border:0;color:#fff;cursor:pointer;font-family:Roboto,sans-serif;font-size:2em;margin:10px;padding:10px 20px;transition:transform .25s ease-in-out}.celldega-counter-button:hover{transform:scale(1.05)}\n", "_esm": "export { default } from 'https:\/\/cdn.jsdelivr.net\/npm\/celldega@0.17.0\/src\/celldega\/static\/celldega.js';", "_model_module": "anywidget", "_model_module_version": "~0.9.*", "_model_name": "AnyModel", "_view_module": "anywidget", "_view_module_version": "~0.9.*", "_view_name": "AnyView", "base_url": "https:\/\/raw.githubusercontent.com\/broadinstitute\/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs\/main\/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs", "cell_attr": ["leiden"], "cells": ["ahgfgodm-1", "ohnebhcp-1", "amekiaoe-1", "fnpaihom-1", "fgmmiofl-1", "ajjdkgnh-1", "cooodmdg-1", "aocnmpbc-1", "dkdalnkf-1", "fbbdjnge-1", "bkcnljof-1", "fdbfkmea-1", "dcpmfifd-1", "eogmgbmp-1", "egbifabk-1", "ebnjgkgk-1", "fdocakgh-1", "bibheokd-1", "gipohamm-1", "bhjeniop-1", "fbipjaje-1", "dmjeecmd-1", "hednnenj-1", "ddbacjnl-1", "bhchjdpo-1", "glfcaplo-1", "fdmeciho-1", "gbkapdip-1", "bhfbnhgn-1", "gkidhmnl-1", "cnejpnln-1", "fmcodpen-1", "ajfgjlfo-1", "ghibadcj-1", "aoifdjai-1", "ddbpcfjj-1", "fdhdmdgj-1", "fcpjlajc-1", "gieoipii-1", "aondpihm-1", "ejohlcfn-1", "egjgnnmi-1", "efofhdie-1", "cnngbjke-1", "gkjgogil-1", "gkkofkkb-1", "gahmbhaj-1", "dbfjdkan-1", "ekjlhhnn-1", "bhihgank-1", "ghlkfbbm-1", "ekgkimld-1", "fdafhgkb-1", "cnigndee-1", "fanclanc-1", "cnllfbac-1", "cpohfldd-1", "akacmhhb-1", "ddfeppda-1", "ehphfnfm-1", "aoeonilm-1", "ddgfnada-1", "fakfbipa-1", "gknlkgai-1", "ejnhoaaj-1", "amidiocp-1", "dcpnggoe-1", "ddgelckk-1", "cnedoaac-1", "fdldkgkm-1", "bdfnmkah-1", "gkkhmklb-1", "ddcdlpkh-1", "aidnfbag-1", "gkjohjko-1", "aoonnach-1", "ghlcggjb-1", "apabjkaa-1", "gkhjpdcf-1", "eiednnml-1", "eigkmagj-1", "aoamgabd-1", "dadhiefe-1", "fipenmmi-1", "gcgijlaj-1", "eabblelc-1", "dagicdnc-1", "fihdnloi-1", "efphfokb-1", "dlefoced-1", "gbgnjpjk-1", "ddglaafc-1", "bhhgnpme-1", "bafchapb-1", "dokmecoo-1", "dcpppcha-1", "akbcobee-1", "dahdglag-1", "bbgfacfp-1", "cnbfpmam-1", "eopbhjop-1", "cnipbdmi-1", "bcfnpckj-1", "dlcoaeph-1", "eadlappm-1", "alpjmomk-1", "cngpbgle-1", "efpgneii-1", "cnkaihcn-1", "egaaoajk-1", "aocgjgmi-1", "cnkkbaga-1", "aophmmao-1", "aiijcphi-1", "ahnbabnb-1", "gcfcccmc-1", "gkjbkhhg-1", "gkjfhmhh-1", "ghkmjnmp-1", "aojjmnjl-1", "bhkoannm-1", "bhmnhkjb-1", "ejleipef-1", "ebgepepn-1", "ddckbikp-1", "dolpdeim-1", "epgbcdeh-1", "gnmofhlb-1", "ejjpiifd-1", "epkmjgfp-1", "fcfpgfil-1", "bhhjopbj-1", "eadmeeok-1", "dajjogna-1", "glimhmph-1", "dojklkdb-1", "cnidjhfe-1", "emljdigc-1", "cneoklll-1", "ebiclbpl-1", "dcpjadfl-1", "cncelbil-1", "fpgedaih-1", "dagghcmg-1", "akaljhmg-1", "cnondacc-1", "ejnkbnib-1", "gabpeoip-1", "ebemmfbh-1", "dadkkada-1", "cninmfei-1", "dcpjgbdn-1", "ahpcmlap-1", "bfkbdpji-1", "cnkdaaab-1", "fpmjhkcd-1", "enbibblk-1", "bajhimio-1", "cppcfalc-1", "akogiihp-1", "gkhnepkg-1", "foafmklh-1", "ajiohnfn-1", "glhljnhi-1", "gadkplai-1", "fdndgpbm-1", "enkemjbc-1", "cppjhehm-1", "enihgpko-1", "cnfejkce-1", "gkhfbonb-1", "dneahkhe-1", "dcplkdak-1", "cncdlcij-1", "enhmgien-1", "fjlkpnam-1", "aoflekch-1", "bfljoema-1", "ddfdghjd-1", "efpipckg-1"], "component": "Yearbook", "creds": {}, "current_page": 0, "dataset_name": "", "height": 800, "layout": "IPY_MODEL_6fd01d95cbdb4457bb4e9c7a1a282e27", "meta_cluster": {}, "num_cols": 6, "num_rows": 3, "pixel_width": null, "portrait_gap": 4, "portrait_size_um": 20, "query": {}, "scale_bar_microns_per_pixel": null, "segmentation": "default", "token": "", "width": 0, "zoom_level": 0}}, "6fd01d95cbdb4457bb4e9c7a1a282e27": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {}}}, "version_major": 2, "version_minor": 0}
+{"state": {"7960d674ba32421c81cda716ae3120e3": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "9135067c62c1410185ae0b52d2d213bc": {"model_module": "anywidget", "model_module_version": "~0.9.*", "model_name": "AnyModel", "state": {"_anywidget_id": "celldega.viz.widget.Yearbook", "_dom_classes": [], "_esm": "export { default } from 'https:\/\/cdn.jsdelivr.net\/npm\/celldega@0.24.2\/src\/celldega\/static\/celldega.js';", "_model_module": "anywidget", "_model_module_version": "~0.9.*", "_model_name": "AnyModel", "_view_count": null, "_view_module": "anywidget", "_view_module_version": "~0.9.*", "_view_name": "AnyView", "base_url": "https:\/\/raw.githubusercontent.com\/broadinstitute\/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs\/main\/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs", "cell_attr": ["leiden"], "cell_name_prefix": false, "cells": [], "cluster_attr": "leiden", "component": "Yearbook", "creds": {}, "current_page": 0, "dataset_name": "", "front_end_query": {}, "height": 800, "layout": "IPY_MODEL_ef0d94b243df4ae28e1098d20f793ad2", "meta_cluster": {}, "num_cols": 6, "num_rows": 3, "pixel_width": null, "portrait_gap": 4, "portrait_size_um": 20.0, "scale_bar_microns_per_pixel": null, "segmentation": "default", "selection": {}, "tabbable": null, "token": "", "tooltip": null, "width": 0, "zoom_level": 0.0}}, "92f4e0f8dacb4fb0ba36f9f968dfba70": {"model_module": "anywidget", "model_module_version": "~0.9.*", "model_name": "AnyModel", "state": {"_anywidget_id": "celldega.viz.widget.Landscape", "_dom_classes": [], "_esm": "export { default } from 'https:\/\/cdn.jsdelivr.net\/npm\/celldega@0.24.2\/src\/celldega\/static\/celldega.js';", "_model_module": "anywidget", "_model_module_version": "~0.9.*", "_model_name": "AnyModel", "_view_count": null, "_view_module": "anywidget", "_view_module_version": "~0.9.*", "_view_name": "AnyView", "alignment": "", "base_url": "https:\/\/raw.githubusercontent.com\/broadinstitute\/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs\/main\/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs", "base_urls": [{"label": "Dataset 1", "short_label": "DS-1", "url": "https:\/\/raw.githubusercontent.com\/broadinstitute\/celldega_Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs\/main\/Xenium_V1_Human_Colon_Cancer_P2_CRC_Add_on_FFPE_outs"}], "cell_attr": ["leiden"], "cell_clusters": {}, "cell_name_prefix": false, "centroids_url": "", "cluster_attr": "leiden", "component": "Landscape", "creds": {}, "dataset_name": "", "height": 600, "ini_x": 0.0, "ini_y": 0.0, "ini_z": 0.0, "ini_zoom": 0.0, "landscape_state": "spatial", "layout": "IPY_MODEL_7960d674ba32421c81cda716ae3120e3", "max_tiles_to_view": 50, "meta_cluster": {}, "nbhd_edit": false, "nbhd_geojson": {}, "region": {}, "rotate": 0.0, "rotation_orbit": 0.0, "rotation_x": 0.0, "scale_bar_microns_per_pixel": null, "segmentation": "default", "selected_cells": [], "tabbable": null, "technology": "Xenium", "token": "", "tooltip": null, "update_trigger": {}, "use_adata_3d_centroids": true, "width": 0}}, "ef0d94b243df4ae28e1098d20f793ad2": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}}, "version_major": 2, "version_minor": 0}
 </script>
 
         <style>

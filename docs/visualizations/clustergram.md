@@ -39,8 +39,7 @@ cgm
 `Clustergram` can also be linked to a spatial view (`Landscape`, `CellCloud`,
 or `NeighborhoodCloud`) so that selecting rows/columns highlights the
 corresponding cells spatially — see
-[`dega.viz.spatial_clustergram`](../python/viz/api.md) and the
-[Landscape-Clustergram gallery example](../gallery/gallery_landscape_clustergram.md).
+[`dega.viz.spatial_clustergram`](../python/viz/api.md).
 For the full constructor options (including the more efficient
 `parquet_data` path via
 [`Matrix.export_viz_parquet`](../python/clust/api.md#celldega.clust.matrix.Matrix.export_viz_parquet)),

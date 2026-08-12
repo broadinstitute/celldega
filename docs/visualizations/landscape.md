@@ -40,9 +40,7 @@ landscape
 ```
 
 `Landscape` can also be linked to a `Clustergram` so that selections in one
-update the other — see
-[`dega.viz.spatial_clustergram`](../python/viz/api.md) and the
-[Landscape-Clustergram gallery example](../gallery/gallery_landscape_clustergram.md).
+update the other — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 
 For the full list of constructor arguments (multi-dataset support, point-cloud
 options, `AnnData` integration, etc.), see the

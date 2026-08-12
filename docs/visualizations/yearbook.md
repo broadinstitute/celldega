@@ -44,10 +44,10 @@ yb = dega.viz.Yearbook(
 yb
 ```
 
-`Yearbook` can also be linked to a `Landscape` view — see the
-[Landscape-Yearbook gallery example](../gallery/gallery_landscape_yearbook.md).
-For the full query/selection algebra and constructor arguments, see the
-[Viz Module API reference](../python/viz/api.md).
+`Yearbook` can also be linked to a `Clustergram` via
+[`dega.viz.spatial_clustergram`](../python/viz/api.md), exactly like
+`Landscape`. For the full query/selection algebra and constructor arguments,
+see the [Viz Module API reference](../python/viz/api.md).
 
 !!! note
     Screenshots and an example video are coming soon.

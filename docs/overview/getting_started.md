@@ -138,7 +138,7 @@ Try Celldega in Google Colab without any installation:
 
 Explore Celldega as a standalone JavaScript library:
 
-- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq)
+- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs)
 
 ## Next Steps
 

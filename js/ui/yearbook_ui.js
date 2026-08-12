@@ -18,7 +18,7 @@ import {
   get_bar_highlight_opacity,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
-import { logo } from './logo';
+import { make_logo_button } from './logo';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
@@ -1000,24 +1000,7 @@ export const make_yearbook_ui_container = (
   ctrl_container.appendChild(pagination_container);
 
   // Logo
-  const logo_button = document.createElement('div');
-  logo_button.className = 'logo_button';
-  logo_button.style.marginTop = '5px';
-  logo_button.style.marginRight = '5px';
-  logo_button.style.cursor = 'pointer';
-
-  const logo_img = document.createElement('img');
-  logo_img.src = `data:image/png;base64,${logo}`;
-  logo_img.alt = 'Celldega logo';
-  logo_img.style.height = '17px';
-  logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';
-
-  logo_button.onclick = () => {
-    window.open('https://broadinstitute.github.io/celldega/', '_blank');
-  };
-
-  logo_button.appendChild(logo_img);
-  ui_container.appendChild(logo_button);
+  ui_container.appendChild(make_logo_button('yearbook'));
 
   return ui_container;
 };

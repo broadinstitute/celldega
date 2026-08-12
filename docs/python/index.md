@@ -156,7 +156,9 @@ selection = selector.select(
 
 ### [Viz Module](viz/api.md)
 
-The `viz` module provides Jupyter Widget classes for interactive visualization:
+The `viz` module provides Jupyter Widget classes for interactive
+visualization. See the [Visualizations](../visualizations/index.md) section
+for what each one shows and how it works:
 
 | Widget | Description |
 |--------|-------------|

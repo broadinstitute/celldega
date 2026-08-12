@@ -4,6 +4,20 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.24.2] - 2026-08-12
+
+Patch release fixing missing/generic documentation links on the visualization
+widgets.
+
+### Fixed
+
+- **Visualization widgets were missing a link to their specific
+  documentation.** The Celldega logo shown in the Landscape and Yearbook
+  control panels linked only to the docs homepage; it now links to each
+  widget's own documentation page and shows a "Documentation" tooltip on
+  hover. Clustergram and Enrich, which had no logo/documentation link at all,
+  now have one too.
+
 ## [0.24.1] - 2026-08-06
 
 Patch release fixing a NumPy binary-incompatibility crash on import in

@@ -13,6 +13,7 @@ Celldega is a spatial analysis and visualization library that is being developed
 - [Getting Started](overview/getting_started.md)
 - [Installation](overview/installation.md)
 - [Usage](overview/usage.md)
+- [GitHub Repository](https://github.com/broadinstitute/celldega)
 
 ## What's New
 The project was recently presented at the Broad Retreat Data Visualization Breakout Session -

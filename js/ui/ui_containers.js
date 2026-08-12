@@ -42,7 +42,7 @@ import {
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
 import { set_gene_search } from './gene_search';
-import { logo } from './logo';
+import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
@@ -375,6 +375,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);
+
+  // === Add logo to top right === //
+  ui_container.appendChild(make_logo_button('clustergram'));
 
   return ui_container;
 };
@@ -1439,25 +1442,6 @@ export const make_ist_ui_container = (
   }
 
   // === Add logo to top right === //
-  const logo_button = document.createElement('div');
-  logo_button.className = 'logo_button';
-  logo_button.style.marginTop = '5px';
-  logo_button.style.marginRight = '5px';
-  logo_button.style.cursor = 'pointer';
-
-  // Create <img> element
-  const logo_img = document.createElement('img');
-  logo_img.src = `data:image/png;base64,${logo}`;
-  logo_img.alt = 'Celldega logo';
-  logo_img.style.height = '17px';
-  logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';
-
-  // Click to navigate to docs
-  logo_button.onclick = () => {
-    window.open('https://broadinstitute.github.io/celldega/', '_blank');
-  };
-
-  logo_button.appendChild(logo_img);
-  ui_container.appendChild(logo_button);
+  ui_container.appendChild(make_logo_button('landscape'));
   return ui_container;
 };

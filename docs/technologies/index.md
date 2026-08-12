@@ -2,7 +2,7 @@
 Celldega utilizes a suite of complementary technologies to develop an efficient web-based spatial-omics analysis and visualization toolkit.
 
 ## Visualization Technologies
-Spatial transcriptomics (ST) datasets can be very large and difficult for researchers to analyze and visualize collaboratively. Additionally, visualization that is linked to analysis is key to extracting biological insights. To address these issues, we built the Celldega [`viz`](../python/viz/) module to help researchers interactively visualize large ST datasets within notebook-based workflows on the cloud (e.g., Terra.bio).
+Spatial transcriptomics (ST) datasets can be very large and difficult for researchers to analyze and visualize collaboratively. Additionally, visualization that is linked to analysis is key to extracting biological insights. To address these issues, we built the Celldega [`viz`](../visualizations/index.md) module to help researchers interactively visualize large ST datasets within notebook-based workflows on the cloud (e.g., Terra.bio).
 
 The Celldega Landscape visualization method (see [Gallery](../gallery)) utilizes novel vector tiling approaches to enable interactive visualization of large ST datasets in a notebook environment or as a stand-alone webpage. This approach allows Celldega to visualize larger datasets than currently available open-source tools (e.g., datasets with hundreds of millions of transcripts). We also utilize modern web image data formats ([WebP](#webp)) to reduce the data storage burden for interactive visualization. The resulting [LandscapeFiles](../overview/file_formats.md#landscapefiles) data format serves as a compact and highly performant visualization-specific data format.
 

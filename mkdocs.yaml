@@ -31,6 +31,13 @@ nav:
       - File Formats: overview/file_formats.md
       - Row Group Storage: overview/row_groups.md
       - Usage: overview/usage.md
+  - Visualizations:
+      - visualizations/index.md
+      - Landscape: visualizations/landscape.md
+      - Yearbook: visualizations/yearbook.md
+      - Clustergram: visualizations/clustergram.md
+      - Enrich: visualizations/enrich.md
+      - Landmark: visualizations/landmark.md
   - Python API:
       - python/index.md
       - align: python/align/api.md
@@ -48,9 +55,8 @@ nav:
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md
-  - Cloud Environments:
-    - Terra.bio:
-        - cloud_env/Terra-segment.md
+  - Environments:
+      - cloud_env/index.md
   - Gallery:
       - gallery/index.md
       - Xenium:

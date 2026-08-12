@@ -64,6 +64,8 @@ nav:
           - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
           - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
           - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+      - Atera:
+          - Atera Xenium Breast Cancer: gallery/gallery_atera.md
       - CosMx:
           - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
       - Point Cloud:
@@ -134,6 +136,8 @@ extra_javascript:
   - path: assets/js/gallery_mouse_cranium_e14.js
     type: module
   - path: assets/js/gallery_landscape_yearbook.js
+    type: module
+  - path: assets/js/gallery_atera.js
     type: module
 
 extra_css:

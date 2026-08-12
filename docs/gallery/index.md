@@ -13,6 +13,14 @@ This page includes links to visualizations made with the stand-alone [Celldega J
 
 </div>
 
+### Atera
+
+<div class="grid cards" markdown>
+
+- [Atera Xenium Breast Cancer](gallery_atera.md)
+
+</div>
+
 ### CosMx
 
 <div class="grid cards" markdown>

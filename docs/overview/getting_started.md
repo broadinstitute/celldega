@@ -42,6 +42,7 @@ Celldega supports multiple spatial transcriptomics platforms:
 - **Xenium** (10x Genomics)
 - **MERSCOPE** (Vizgen)
 - **Visium HD** (10x Genomics)
+- **CosMx** (NanoString)
 - **Chromium** (single-cell RNA-seq)
 - **Custom point-cloud data**
 
@@ -137,12 +138,11 @@ Try Celldega in Google Colab without any installation:
 
 Explore Celldega as a standalone JavaScript library:
 
-- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq)
+- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs)
 
 ## Next Steps
 
 - [Installation](installation.md) - Detailed installation instructions
-- [Usage](usage.md) - In-depth usage guide
 - [File Formats](file_formats.md) - LandscapeFiles format specification
 - [Python API](../python/index.md) - Full Python API reference
 - [JavaScript API](../javascript/index.md) - JavaScript API for web applications

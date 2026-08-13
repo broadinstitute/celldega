@@ -156,13 +156,18 @@ selection = selector.select(
 
 ### [Viz Module](viz/api.md)
 
-The `viz` module provides Jupyter Widget classes for interactive visualization:
+The `viz` module provides Jupyter Widget classes for interactive
+visualization. See the [Visualizations](../visualizations/index.md) section
+for what each one shows and how it works:
 
 | Widget | Description |
 |--------|-------------|
 | `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
+| `CellCloud` | 3D orbit view of cell centroids |
+| `NeighborhoodCloud` | 3D orbit view of tissue neighborhoods |
+| `Composition` | Category composition across groups (`Clustergram` variant) |
 | `Enrich` | Gene enrichment analysis |
 
 ```python

@@ -51,7 +51,7 @@ You can include Celldega in any HTML page by importing the bundled JavaScript mo
 
 ### Using with ObservableHQ
 
-Celldega can be used in ObservableHQ notebooks. See the [Celldega Landscape Xenium example](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq) for a working demo.
+Celldega can be used in ObservableHQ notebooks. See the [Celldega Landscape Xenium example](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs) for a working demo.
 
 ## Available Functions
 

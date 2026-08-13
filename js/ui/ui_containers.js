@@ -22,7 +22,10 @@ import {
   uniprot_data,
   uniprot_get_request,
 } from '../external_apis/uniprot_api';
-import { is_orbit_technology } from '../global_variables/image_info';
+import {
+  is_orbit_technology,
+  is_neighborhood_cloud_technology,
+} from '../global_variables/image_info';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
@@ -42,7 +45,7 @@ import {
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
 import { set_gene_search } from './gene_search';
-import { logo } from './logo';
+import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
@@ -71,6 +74,13 @@ export const make_ui_container = () => {
   ui_container.style.maxWidth = '100%';
   ui_container.style.margin = '0 auto';
 
+  // The control panel's columns (IMG/CELL/TRX/etc.) have fixed pixel widths
+  // and don't wrap. When the host page is narrower than their combined
+  // width (e.g. embedded in a docs article column), scroll horizontally
+  // instead of squeezing/overlapping the logo button pinned at the right
+  // (see make_logo_button's flex-shrink:0).
+  ui_container.style.overflowX = 'auto';
+
   return ui_container;
 };
 
@@ -79,7 +89,12 @@ export const make_ctrl_container = () => {
   ctrl_container.style.display = 'flex';
   ctrl_container.style.flexDirection = 'row';
   ctrl_container.className = 'ctrl_container';
-  ctrl_container.style.width = '100%'; // '535px'
+  // flex (not a hard width:100%) so it shares ui_container's width with the
+  // non-shrinking logo button instead of competing with it for space.
+  // min-width:0 lets it shrink below its content size so the *row* (not the
+  // logo) is what scrolls when content is wider than the available space.
+  ctrl_container.style.flex = '1 1 auto';
+  ctrl_container.style.minWidth = '0';
   return ctrl_container;
 };
 
@@ -170,8 +185,13 @@ export const update_mode_button_visibility = (viz_state) => {
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const ui_container = make_ui_container();
   const ctrl_container = flex_container('button_container', 'column');
+  // Never shrink/wrap ui_container's direct children -- with the row now
+  // scrollable (see make_ui_container), squeezing these instead of
+  // scrolling would visually corrupt the fixed-size logo button.
+  ctrl_container.style.flexShrink = '0';
 
   const slider_container = flex_container('slider_container', 'column');
+  slider_container.style.flexShrink = '0';
 
   // Button width for reorder controls (compact sizing).
   const button_width = 34;
@@ -310,6 +330,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   mode_container.style.alignItems = 'flex-start';
   mode_container.style.marginTop = '10px';
   mode_container.style.marginLeft = '10px';
+  mode_container.style.flexShrink = '0';
 
   // Titled group wrapper (e.g. "TILE:" + a toggle group), shown/hidden as one
   // unit so a title never dangles without its buttons.
@@ -375,6 +396,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);
+
+  // === Add logo to top right === //
+  ui_container.appendChild(make_logo_button('clustergram'));
 
   return ui_container;
 };
@@ -1439,25 +1463,15 @@ export const make_ist_ui_container = (
   }
 
   // === Add logo to top right === //
-  const logo_button = document.createElement('div');
-  logo_button.className = 'logo_button';
-  logo_button.style.marginTop = '5px';
-  logo_button.style.marginRight = '5px';
-  logo_button.style.cursor = 'pointer';
-
-  // Create <img> element
-  const logo_img = document.createElement('img');
-  logo_img.src = `data:image/png;base64,${logo}`;
-  logo_img.alt = 'Celldega logo';
-  logo_img.style.height = '17px';
-  logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';
-
-  // Click to navigate to docs
-  logo_button.onclick = () => {
-    window.open('https://broadinstitute.github.io/celldega/', '_blank');
-  };
-
-  logo_button.appendChild(logo_img);
-  ui_container.appendChild(logo_button);
+  // This render path is shared with the CellCloud/NeighborhoodCloud 3D-orbit
+  // widgets (see celldega.js's render_landscape), so the docs link needs to
+  // follow which one is actually showing rather than always pointing at
+  // Landscape's page.
+  const logoDocsPath = is_neighborhood_cloud_technology(technology)
+    ? 'neighborhood-cloud'
+    : is_orbit_technology(technology)
+      ? 'cell-cloud'
+      : 'landscape';
+  ui_container.appendChild(make_logo_button(logoDocsPath));
   return ui_container;
 };

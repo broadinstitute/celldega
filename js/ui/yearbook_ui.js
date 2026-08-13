@@ -18,7 +18,7 @@ import {
   get_bar_highlight_opacity,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
-import { logo } from './logo';
+import { make_logo_button } from './logo';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
@@ -282,6 +282,13 @@ export const make_ui_container = () => {
   ui_container.style.maxWidth = '100%';
   ui_container.style.margin = '0 auto';
 
+  // The control panel's columns have fixed pixel widths and don't wrap. When
+  // the host page is narrower than their combined width (e.g. embedded in a
+  // docs article column), scroll horizontally instead of squeezing/
+  // overlapping the logo button pinned at the right (see make_logo_button's
+  // flex-shrink:0).
+  ui_container.style.overflowX = 'auto';
+
   return ui_container;
 };
 
@@ -290,7 +297,12 @@ export const make_ctrl_container = () => {
   ctrl_container.style.display = 'flex';
   ctrl_container.style.flexDirection = 'row';
   ctrl_container.className = 'ctrl_container';
-  ctrl_container.style.width = '100%';
+  // flex (not a hard width:100%) so it shares ui_container's width with the
+  // non-shrinking logo button instead of competing with it for space.
+  // min-width:0 lets it shrink below its content size so the *row* (not the
+  // logo) is what scrolls when content is wider than the available space.
+  ctrl_container.style.flex = '1 1 auto';
+  ctrl_container.style.minWidth = '0';
   return ctrl_container;
 };
 
@@ -1000,24 +1012,7 @@ export const make_yearbook_ui_container = (
   ctrl_container.appendChild(pagination_container);
 
   // Logo
-  const logo_button = document.createElement('div');
-  logo_button.className = 'logo_button';
-  logo_button.style.marginTop = '5px';
-  logo_button.style.marginRight = '5px';
-  logo_button.style.cursor = 'pointer';
-
-  const logo_img = document.createElement('img');
-  logo_img.src = `data:image/png;base64,${logo}`;
-  logo_img.alt = 'Celldega logo';
-  logo_img.style.height = '17px';
-  logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';
-
-  logo_button.onclick = () => {
-    window.open('https://broadinstitute.github.io/celldega/', '_blank');
-  };
-
-  logo_button.appendChild(logo_img);
-  ui_container.appendChild(logo_button);
+  ui_container.appendChild(make_logo_button('yearbook'));
 
   return ui_container;
 };

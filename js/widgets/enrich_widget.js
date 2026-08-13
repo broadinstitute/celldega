@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import { postGeneList, fetchEnrichment } from '../external_apis/enrichr_api';
 import { create_enrich_store } from '../obs_store/enrich_store';
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import { make_logo_button } from '../ui/logo';
 import {
   updateParagraphColors,
   updateGeneInfo,
@@ -34,6 +35,7 @@ export const render_enrich = async ({ model, el }) => {
   };
 
   const container = document.createElement('div');
+  const header_row = document.createElement('div');
   const select = document.createElement('select');
   const layout = document.createElement('div');
   const barHolder = document.createElement('div');
@@ -42,7 +44,15 @@ export const render_enrich = async ({ model, el }) => {
   const paragraphHolder = document.createElement('div');
   const linkHolder = document.createElement('a');
 
-  container.appendChild(select);
+  header_row.style.display = 'flex';
+  header_row.style.flexDirection = 'row';
+  header_row.style.alignItems = 'center';
+  header_row.style.justifyContent = 'space-between';
+
+  header_row.appendChild(select);
+  header_row.appendChild(make_logo_button('enrich'));
+
+  container.appendChild(header_row);
   container.appendChild(layout);
   container.appendChild(linkHolder);
   layout.appendChild(barHolder);
@@ -61,7 +71,8 @@ export const render_enrich = async ({ model, el }) => {
   container.style.marginLeft = '5px';
 
   select.style.marginTop = '5px';
-  select.style.width = `${width}px`;
+  select.style.minWidth = '0';
+  select.style.flex = '1 1 auto';
 
   layout.style.width = `${width}px`;
   layout.style.height = `${height}px`;

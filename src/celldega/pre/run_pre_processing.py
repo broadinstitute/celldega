@@ -155,6 +155,8 @@ def main(
     max_workers=1,
     use_row_groups=False,
     max_row_groups_per_file=400,
+    upper_percentile=99,
+    white_level=100,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -168,11 +170,17 @@ def main(
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_dega_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
+        max_workers (int): Maximum number of worker processes to use when generating
+             tiles. Defaults to 1 (no parallelism).
         use_row_groups (bool): If True, save tiles as row groups in chunked parquet files
             instead of individual tile files. Defaults to False.
         max_row_groups_per_file (int): Maximum row groups per parquet file when using
             row groups mode. Lower values create more files but avoid parquet-wasm memory
             issues with dense datasets. Defaults to 400.
+        upper_percentile (float): Upper percentile used for image intensity clipping when
+            generating image tiles. Defaults to 99.
+        white_level (float): White level (intensity scale) used when normalizing images
+             for tiling and visualization. Defaults to 100.
 
     Example:
         change directory to celldega, and run:
@@ -311,7 +319,12 @@ def main(
     if technology in ["MERSCOPE", "Xenium"]:
         print("\n======== Image Tiles========")
         dega.pre.create_image_tiles(
-            technology, str(data_dir), path_dega_files, image_tile_layer=image_tile_layer
+            technology,
+            str(data_dir),
+            path_dega_files,
+            image_tile_layer=image_tile_layer,
+            upper_percentile=upper_percentile,
+            white_level=white_level,
         )
 
         # Optionally pack image tiles into parquet row groups

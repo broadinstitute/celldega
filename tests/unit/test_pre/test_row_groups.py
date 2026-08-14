@@ -6,10 +6,10 @@ for transcripts, cell boundaries, CBG data, and image tiles.
 """
 
 import json
+from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-import pytest
 
 
 class TestRowGroupMetadata:
@@ -141,7 +141,7 @@ class TestRowGroupMetadata:
         with pq.ParquetWriter(
             str(output_path), schema_with_metadata, write_statistics=False
         ) as writer:
-            for gene in sorted(genes):
+            for _gene in sorted(genes):
                 table = pa.Table.from_pydict(
                     {
                         "cell_id": [1, 2, 3],
@@ -255,11 +255,11 @@ class TestLandscapeParametersRowGroups:
         }
 
         output_path = tmp_path / "landscape_parameters.json"
-        with open(output_path, "w") as f:
+        with Path.open(output_path, "w") as f:
             json.dump(params, f, indent=2)
 
         # Read back and verify
-        with open(output_path) as f:
+        with Path.open(output_path) as f:
             read_params = json.load(f)
 
         # Verify key fields

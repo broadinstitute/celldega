@@ -75,9 +75,9 @@ nav:
     - examples/index.md
     - Tutorials:
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
+      - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
       - Chromium Pre-process: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
       - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb
-      - Visium-HD Landscape Pre-process: examples/tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Atera Viz: examples/brief_notebooks/Atera_viz.ipynb

@@ -7,9 +7,9 @@ These example notebooks demonstrate how to use Celldega for spatial transcriptom
 Comprehensive tutorials that walk through complete workflows:
 
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
+- [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
 - [Chromium Pre-process](tutorial_notebooks/Scanpy_Chromium.ipynb) - Pre-processing Chromium single-cell RNA-seq data
 - [Single-cell Clustergram Chromium](tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb) - Creating clustergram visualizations for single-cell data
-- [Visium-HD Landscape Pre-process](tutorial_notebooks/Visium-HD_Landscape_Pre-process.ipynb) - Pre-processing Visium HD data for Landscape visualization
 
 ## Brief Notebooks
 

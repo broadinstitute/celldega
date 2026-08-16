@@ -281,4 +281,30 @@ The `transcript_tiles` directory contains tiled parquet files that contain trans
 #### Image Transformation
 The `xenium_transform.csv` file contains the 3x3 image transformation matrix to transition from physical coordinates into image coordinates.
 
+### Row Group Storage Mode (Optional)
+
+Celldega supports an optional **row group storage mode** that consolidates thousands of individual tile files into a few large Parquet files using Apache Parquet's row group feature. This is particularly useful for:
+
+- **Cloud hosting platforms** with file count limits (GitHub, Hugging Face)
+- **Simplified data distribution** with fewer files to manage
+- **Efficient partial data loading** via HTTP Range Requests
+
+When enabled with `use_row_groups=True`, the file structure changes from thousands of individual files to:
+
+```
+landscape_files/
+├── cbg.parquet                    # All genes as row groups
+├── transcripts.parquet            # All transcript tiles as row groups
+├── cell_segmentation.parquet      # All cell tiles as row groups
+├── pyramid_images/
+│   ├── dapi.dzi                   # DZI metadata preserved
+│   ├── dapi.parquet               # All image tiles as row groups
+│   └── ...
+└── landscape_parameters.json      # Updated with row group configuration
+```
+
+Row groups use a **formula-based indexing scheme** (`row_group_index = tile_x * num_tiles_y + tile_y`) that allows the frontend to compute exactly which row groups to fetch without scanning file metadata.
+
+For detailed information, see [Row Group Storage Mode](row_groups.md).
+
 ### sST LandscapeFiles

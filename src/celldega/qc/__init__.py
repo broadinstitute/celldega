@@ -2,10 +2,8 @@ import json
 from pathlib import Path
 
 import geopandas as gpd
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from shapely.geometry import MultiPolygon
 
 from ..pre import write_xenium_transform
@@ -26,6 +24,26 @@ def _get_largest_polygon(geometry):
     if isinstance(geometry, MultiPolygon):
         return max(geometry.geoms, key=lambda p: p.area)
     return geometry
+
+
+def _get_ranked_genes_df(adata, n_genes=100):
+    # Convert the results to a pandas DataFrame
+    result = adata.uns["rank_genes_groups"]
+    groups = result["names"].dtype.names
+    dfs = []
+    for group in groups:
+        df = pd.DataFrame(
+            {
+                "gene": result["names"][group][:n_genes],
+                "logfoldchanges": result["logfoldchanges"][group][:n_genes],
+                "pvals": result["pvals"][group][:n_genes],
+                "pvals_adj": result["pvals_adj"][group][:n_genes],
+                "scores": result["scores"][group][:n_genes],
+                "cluster": group,
+            }
+        )
+        dfs.append(df)
+    return pd.concat(dfs)
 
 
 def _write_default_seg_json(parameters_file, technology, dataset_name):
@@ -423,77 +441,21 @@ def _load_cbg_data(base_paths):
     return cbg_dict
 
 
-def _create_histogram_plot(results, cell_a_name, cell_b_name, cmap):
-    """
-    Create histogram plot for orthogonal expression visualization.
-
-    Parameters:
-    - results: Results dataframe
-    - cell_a_name: Name of cell type A
-    - cell_b_name: Name of cell type B
-    - cmap: Colormap for visualization
-    """
-    sns.set(
-        style="white",
-        rc={
-            "figure.dpi": 250,
-            "axes.facecolor": (0, 0, 0, 0),
-            "figure.facecolor": (0, 0, 0, 0),
-        },
-    )
-    height_of_each_facet = 3
-    aspect_ratio_of_each_facet = 1
-
-    g = sns.FacetGrid(
-        results,
-        col="Technology",
-        sharex=False,
-        sharey=False,
-        margin_titles=True,
-        despine=True,
-        col_wrap=4,
-        height=height_of_each_facet,
-        aspect=aspect_ratio_of_each_facet,
-        gridspec_kws={"wspace": 0.01},
-    )
-
-    g.map_dataframe(
-        lambda data, **kwargs: sns.histplot(
-            data=data,
-            x=f"Total {cell_a_name} transcripts",
-            y=f"Total {cell_b_name} transcripts",
-            bins=15,
-            cbar=True,
-            cmap=cmap,
-            vmin=1,
-            vmax=data[f"Total {cell_a_name} transcripts"].max(),
-            **kwargs,
-        )
-    )
-
-    g.set_axis_labels(f"Total {cell_a_name} transcripts", f"Total {cell_b_name} transcripts")
-    for ax in g.axes.flat:
-        ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-        ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
-        ax.tick_params(axis="both", which="major", labelsize=8)
-
-    plt.tight_layout()
-    plt.show()
-
-
-def _create_barplot_visualization(
+def _build_orthogonal_summary_df(
     cell_a_with_b_cell_specific_genes, cell_b_with_a_cell_specific_genes, cell_a_name, cell_b_name
 ):
     """
-    Create barplot visualization for orthogonal expression summary.
+    Build the per-technology summary of classified orthogonal expression counts.
 
     Parameters:
     - cell_a_with_b_cell_specific_genes: Dictionary of A cells with B genes
     - cell_b_with_a_cell_specific_genes: Dictionary of B cells with A genes
     - cell_a_name: Name of cell type A
     - cell_b_name: Name of cell type B
-    """
 
+    Returns:
+    - DataFrame with "Technology", "Category", and "Count" columns
+    """
     # Step 1: Repeat each technology name twice (for each gene comparison)
     technologies = []
     for tech in cell_a_with_b_cell_specific_genes:
@@ -524,33 +486,7 @@ def _create_barplot_visualization(
     count_series = pd.Series(count_values, name="Count")
 
     # Step 4: Combine into a single DataFrame
-    orthogonal_data = pd.concat([technology_series, category_series, count_series], axis=1)
-
-    _fig, ax = plt.subplots(figsize=(10, 6))
-
-    sns.barplot(data=orthogonal_data, x="Technology", y="Count", hue="Category", ax=ax)
-
-    ax.set_title(
-        f"Orthogonal Expression: Classified {cell_a_name} and {cell_b_name} Expressing Opposite Gene Type",
-        fontsize=15,
-    )
-    ax.set_xlabel("Technology", fontsize=15, labelpad=10)
-    ax.set_ylabel("Proportion of Cells", fontsize=15, labelpad=10)
-    plt.yticks(fontsize=15)
-    plt.xticks(fontsize=15)
-
-    ax.legend(
-        title="Category",
-        title_fontsize=15,
-        bbox_to_anchor=(1.05, 1),
-        loc="upper left",
-        facecolor="white",
-        edgecolor="black",
-        fontsize=15,
-    )
-
-    plt.tight_layout()
-    plt.show()
+    return pd.concat([technology_series, category_series, count_series], axis=1)
 
 
 def orthogonal_expression_calc(
@@ -562,13 +498,13 @@ def orthogonal_expression_calc(
     threshold_for_a_cell_classification=3,
     threshold_for_b_cell_classification=3,
     threshold_for_orthogonal_exp=3,
-    cmap="cividis",
 ):
     """
-    Analyze and visualize orthogonal expression patterns of cell-type-specific genes across multiple segmentation algorithms.
+    Analyze orthogonal expression patterns of cell-type-specific genes across multiple segmentation algorithms.
 
     This function calculates the overlap of specific genes for two cell types (A and B) within cells across multiple segmentation algorithms.
-    It then generates a histogram comparing the total transcripts for each cell type in cells that express genes from both cell types.
+    It returns per-technology transcript totals plus a classified summary of orthogonal expression, which can be
+    plotted with any plotting library (e.g. a 2D histogram of the transcript totals, a grouped bar chart of the summary).
 
     Parameters
     ----------
@@ -579,26 +515,27 @@ def orthogonal_expression_calc(
     cell_type_b_specific_genes : list of str
         List of genes specific to cell type B.
     cell_a_name : str
-        Name or label for cell type A (used in plot labeling).
+        Name or label for cell type A (used in output column names).
     cell_b_name : str
-        Name or label for cell type B (used in plot labeling).
+        Name or label for cell type B (used in output column names).
     threshold_for_a_cell_classification : int, optional
         Threshold for classifying cell type A (default: 3).
     threshold_for_b_cell_classification : int, optional
         Threshold for classifying cell type B (default: 3).
     threshold_for_orthogonal_exp : int, optional
         Threshold to perform orthogonal expression quantification (default: 3).
-    cmap : str, optional
-        Colormap for visualization (default: "cividis").
 
     Returns
     -------
-    None
-        Displays histograms comparing total transcripts for cell types A and B, grouped by segmentation algorithm.
+    tuple of pandas.DataFrame
+        ``(results, orthogonal_summary)`` where ``results`` has one row per cell (across all
+        technologies) with per-cell-type transcript totals and classification, and
+        ``orthogonal_summary`` has "Technology", "Category", and "Count" columns summarizing
+        classified orthogonal expression per technology.
 
     Example
     -------
-    orthogonal_expression_calc(
+    results, orthogonal_summary = orthogonal_expression_calc(
         base_paths=["path/to/data1", "path/to/data2"],
         cell_type_a_specific_genes=["GeneA1", "GeneA2"],
         cell_type_b_specific_genes=["GeneB1", "GeneB2"],
@@ -610,6 +547,7 @@ def orthogonal_expression_calc(
 
     cell_a_with_b_cell_specific_genes = {}
     cell_b_with_a_cell_specific_genes = {}
+    all_results = []
 
     for algorithm_name, cbg in cbg_dict.items():
         a_cell_overlap = [gene for gene in cell_type_a_specific_genes if gene in cbg.columns]
@@ -648,8 +586,6 @@ def orthogonal_expression_calc(
         ) + b_cell_genes_expressed.apply(lambda x: sum(x.values()))
         results["Technology"] = algorithm_name
 
-        _create_histogram_plot(results, cell_a_name, cell_b_name, cmap)
-
         results = classify_cells(
             results,
             cell_a_name,
@@ -663,10 +599,13 @@ def orthogonal_expression_calc(
         ) = filter_orthogonal_expression(
             results, cell_a_name, cell_b_name, threshold_for_orthogonal_exp
         )
+        all_results.append(results)
 
-    _create_barplot_visualization(
+    orthogonal_summary = _build_orthogonal_summary_df(
         cell_a_with_b_cell_specific_genes,
         cell_b_with_a_cell_specific_genes,
         cell_a_name,
         cell_b_name,
     )
+
+    return pd.concat(all_results), orthogonal_summary

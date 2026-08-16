@@ -2,7 +2,10 @@ import { PathLayer } from 'deck.gl';
 
 import { update_selected_cats, update_cat } from '../../global_variables/cat';
 import { update_selected_genes } from '../../global_variables/selected_genes';
+import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
+
+import { is_cluster_color_mode } from './cell_color';
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
@@ -10,20 +13,41 @@ export const get_path_color = (cats, i, d) => {
 
   let inst_color;
 
+  // Convert to string for consistent color lookup
+  // (meta_cell values may be numbers, color_dict keys are always strings)
+  const inst_cat_str = String(inst_cat);
+
+  const color_dict_cluster = cats.color_dict_cluster || {};
+
   // check if inst_cat is not in cats.color_dict_cluster
-  if (inst_cat in cats.color_dict_cluster) {
-    inst_color = cats.color_dict_cluster[inst_cat];
+  if (inst_cat_str in color_dict_cluster) {
+    inst_color = color_dict_cluster[inst_cat_str];
   } else {
     // default segmentation color
     inst_color = [0, 0, 255];
   }
 
-  const inst_opacity =
-    cats.selected_cats.length === 0 || cats.selected_cats.includes(inst_cat)
-      ? 255
-      : 50;
+  const selected_cats = Array.isArray(cats.selected_cats)
+    ? cats.selected_cats.map((cat) => String(cat))
+    : [];
 
-  return [...inst_color, inst_opacity];
+  // selected_cats doubles as the polygon cluster filter, but when a gene is
+  // selected it holds the gene name (see gene search / yearbook query handling).
+  // A gene name never matches a cluster category, so filtering polygons by it
+  // would drive every polygon's alpha to 0 and hide all cell boundaries. In gene
+  // mode, only keep selected_cats entries that are real cluster categories -- a
+  // pure gene selection then leaves every polygon visible (matching how the cell
+  // centroid layer stays visible in gene mode).
+  const cluster_filter = is_cluster_color_mode(cats)
+    ? selected_cats
+    : selected_cats.filter((cat) => cat in color_dict_cluster);
+
+  const alpha =
+    cluster_filter.length === 0 || cluster_filter.includes(inst_cat_str)
+      ? 255
+      : 0;
+
+  return [...inst_color, alpha];
 };
 
 export const ini_path_layer = (viz_state) => {
@@ -36,6 +60,7 @@ export const ini_path_layer = (viz_state) => {
     getPath: (d) => d,
     getColor: (i, d) => get_path_color(viz_state.cats, i, d),
     widthUnits: 'pixels',
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return path_layer;

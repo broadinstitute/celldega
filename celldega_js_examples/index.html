@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ES Module Test</title>
+    <div id="app">Loading...</div>
+</head>
+<body>
+    <h1>ES Module Test</h1>
+    <script type="module">
+
+        import celldega from './src/celldega/static/celldega.js'
+
+        // Use the imported functions
+
+        const token = ''
+        const ini_x = 4500
+        const ini_y = 3200
+        const ini_z = 0
+        const ini_zoom = -6.5
+        const max_image_zoom = 16
+        const base_url = 'https://storage.googleapis.com/nick-cors-test-bucket/test_human_ffpe'
+
+        // Create and append the visualization.
+        let root = document.createElement("div");
+        root.style.width = "800px";
+        root.style.height = "800px";
+        let el = document.querySelector("#app");
+        el.appendChild(root);
+
+        celldega.landscape(
+            token,
+            ini_x,
+            ini_y,
+            ini_z,
+            ini_zoom,
+            max_image_zoom,
+            base_url,
+            root
+        )
+
+    </script>
+</body>
+</html>

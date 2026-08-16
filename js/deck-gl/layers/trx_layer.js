@@ -3,7 +3,17 @@ import { ScatterplotLayer } from 'deck.gl';
 import { update_cat, update_selected_cats } from '../../global_variables/cat';
 import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
 import { update_selected_genes } from '../../global_variables/selected_genes';
+import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
+
+const getTranscriptGeneName = (genes, index) => {
+  const geneId = genes.trx_gene_ids?.[index];
+  if (geneId === undefined || geneId < 0) {
+    return null;
+  }
+
+  return genes.g_nameMapping_inv?.[geneId] ?? null;
+};
 
 const trx_layer_callback = async (
   info,
@@ -12,7 +22,7 @@ const trx_layer_callback = async (
   layers_obj,
   viz_state
 ) => {
-  const inst_gene = viz_state.genes.trx_names_array[info.index];
+  const inst_gene = getTranscriptGeneName(viz_state.genes, info.index);
 
   if (!inst_gene) {
     return;
@@ -42,26 +52,31 @@ const trx_layer_callback = async (
     inst_gene,
     viz_state.seg.version,
     viz_state.vector_name_integer,
-    viz_state.aws
+    viz_state.aws,
+    viz_state.row_group_readers?.cbg
   );
 };
 
-export const ini_trx_layer = (genes) => {
+export const ini_trx_layer = (viz_state) => {
+  const { genes } = viz_state;
+
   const trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: genes.trx_data,
     pickable: true,
     getFillColor: (i, d) => {
-      const inst_gene = genes.trx_names_array[d.index];
-      const inst_color = genes.color_dict_gene[inst_gene];
+      const geneId = genes.trx_gene_ids?.[d.index];
+      const inst_color = genes.g_colorMapping_inv?.[geneId] || [0, 0, 0];
       const inst_opacity =
-        genes.selected_genes.length === 0 ||
-        genes.selected_genes.includes(inst_gene)
+        !genes.selected_gene_ids ||
+        genes.selected_gene_ids.size === 0 ||
+        genes.selected_gene_ids.has(geneId)
           ? 255
           : 5;
 
       return [...inst_color, inst_opacity];
     },
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return trx_layer;

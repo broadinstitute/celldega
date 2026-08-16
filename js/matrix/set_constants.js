@@ -1,4 +1,55 @@
 import { create_clustergram_store } from '../obs_store/clustergram_store';
+import { ManualCategoryStore } from '../obs_store/manual_category_store';
+
+import { initialize_attr_state } from './attr_state';
+import { resolve_viz_mode } from './mat_data';
+
+/**
+ * Parse entity specification from string or object.
+ * Handles both legacy string format and new {entity, attr} format.
+ *
+ * @param {string|object} value - Entity specification
+ * @returns {{entity: string, attr: string}} Normalized entity object
+ */
+const parseEntitySpec = (value) => {
+  if (!value) {
+    return { entity: 'gene', attr: 'name' };
+  }
+
+  // If it's a string, try to parse as JSON first
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          entity: parsed.entity || 'custom',
+          attr: parsed.attr || 'name',
+        };
+      }
+    } catch {
+      // Not JSON, handle as legacy string
+      const legacyMapping = {
+        gene: { entity: 'gene', attr: 'name' },
+        cell_cluster: { entity: 'cell', attr: 'leiden' },
+        cluster: { entity: 'cell', attr: 'leiden' },
+        nbhd: { entity: 'nbhd', attr: 'name' },
+        cell: { entity: 'cell', attr: 'name' },
+        hextile: { entity: 'hextile', attr: 'name' },
+      };
+      return legacyMapping[value] || { entity: value, attr: 'name' };
+    }
+  }
+
+  // Already an object
+  if (typeof value === 'object') {
+    return {
+      entity: value.entity || 'custom',
+      attr: value.attr || 'name',
+    };
+  }
+
+  return { entity: 'custom', attr: 'name' };
+};
 
 export const set_mat_constants = (
   model,
@@ -6,6 +57,8 @@ export const set_mat_constants = (
   root,
   width,
   height,
+  row_entity_raw,
+  col_entity_raw,
   row_label_callback,
   col_label_callback,
   col_dendro_callback
@@ -20,6 +73,13 @@ export const set_mat_constants = (
 
   viz_state.model = model;
   viz_state.obs_store = create_clustergram_store();
+
+  // Colors for value (numeric) attributes
+  // Default: gray for positive, orange for negative
+  const default_value_colors = { positive: '#a9a9a9', negative: '#ffa500' };
+  viz_state.value_colors =
+    (model && typeof model.get === 'function' && model.get('value_colors')) ||
+    default_value_colors;
 
   viz_state.custom_callbacks = {};
   viz_state.custom_callbacks.row = row_label_callback;
@@ -43,11 +103,24 @@ export const set_mat_constants = (
     col: viz_state.attr.names.col.length,
   };
 
+  initialize_attr_state(viz_state, network);
+
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
+  // Mirrors `ini_deck`'s own `width + 100` buffer on the deck.gl canvas
+  // itself (already true of the height line above) — without this, the
+  // container div under-reports its true rendered width, so content past
+  // the under-reported edge (in practice, whatever sits furthest right —
+  // the row dendrogram) can end up outside the box the browser and host
+  // notebook UI think the widget occupies, causing mouse events there to
+  // misbehave.
+  viz_state.root.style.width = `${width + viz_state.viz.height_margin}px`;
 
   // height of attribute bars
   viz_state.viz.row_cat_offset = 9;
   viz_state.viz.col_cat_offset = 9;
+
+  viz_state.viz.total_width = width;
+  viz_state.viz.total_height = height;
 
   viz_state.viz.mat_width =
     width - viz_state.viz.row_cat_offset * viz_state.attr.num.row;
@@ -60,6 +133,15 @@ export const set_mat_constants = (
 
   viz_state.row_nodes = network.row_nodes;
   viz_state.col_nodes = network.col_nodes;
+
+  viz_state.obs_store.manual_cat = {
+    row: new ManualCategoryStore('row', () =>
+      (viz_state.row_nodes || []).map((node) => String(node.name))
+    ),
+    col: new ManualCategoryStore('col', () =>
+      (viz_state.col_nodes || []).map((node) => String(node.name))
+    ),
+  };
 
   viz_state.mat.net_mat = network.mat;
 
@@ -96,6 +178,13 @@ export const set_mat_constants = (
   viz_state.animate.duration = 2500;
 
   viz_state.viz.dendrogram_width = 15;
+
+  // Parse entity specifications (supports both legacy string and new {entity, attr} format)
+  const row_entity = parseEntitySpec(row_entity_raw);
+  const col_entity = parseEntitySpec(col_entity_raw);
+
+  viz_state.row_entity = row_entity;
+  viz_state.col_entity = col_entity;
 
   //////////////////////////////
   // Variables
@@ -142,6 +231,42 @@ export const set_mat_constants = (
   const perc_idx = Math.floor(0.99 * (abs_vals.length - 1));
   viz_state.mat.max_abs_value = abs_vals[perc_idx] || 1;
 
+  // Secondary matrix (dot-plot size channel) and its normalization scale.
+  const has_size_mat = Array.isArray(network.size_mat);
+  viz_state.mat.max_size_value = has_size_mat
+    ? network.size_mat.flat().reduce((m, x) => Math.max(m, Math.abs(x)), 0) || 1
+    : 1;
+
+  // Requested encoding mode (heatmap | size | dotplot); dotplot needs a size mat.
+  const requested_mode =
+    (model && typeof model.get === 'function' && model.get('viz_mode')) ||
+    'heatmap';
+  viz_state.mat.viz_mode = resolve_viz_mode(requested_mode, has_size_mat);
+
+  // Composition (stacked-bar) body configuration. `composition_normalized`
+  // defaults to true (each column normalized to 100%); set false for raw counts.
+  viz_state.mat.composition_normalized =
+    model && typeof model.get === 'function'
+      ? model.get('composition_normalized') !== false
+      : true;
+
+  // Optional {group_name: n_cells} true per-group magnitude for "counts"
+  // mode (see composition_data.js's build_composition_layout).
+  viz_state.mat.composition_col_weights =
+    (model &&
+      typeof model.get === 'function' &&
+      model.get('composition_col_weights')) ||
+    {};
+
+  // Dotplot size channel toggle: true (default) -> dot size encodes the
+  // secondary (fraction) matrix; false -> size is forced to full tile.
+  viz_state.mat.dot_size_encoded =
+    model && typeof model.get === 'function'
+      ? model.get('dot_size_encoded') !== false
+      : true;
+
+  viz_state.global_cat_colors = network.global_cat_colors || {};
+
   viz_state.order = {};
 
   viz_state.order.current = {};
@@ -153,6 +278,10 @@ export const set_mat_constants = (
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';
   viz_state.buttons.gray = '#EEEEEE';
+  // Control-panel button text colors: state is shown by text color alone
+  // (no border/background), blue = active, gray = inactive.
+  viz_state.buttons.text_active = '#3355ff';
+  viz_state.buttons.text_inactive = '#9aa0a6';
 
   viz_state.click = {};
   viz_state.click.type = null;

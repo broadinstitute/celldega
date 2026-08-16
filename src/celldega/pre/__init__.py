@@ -8,6 +8,7 @@ except ImportError:
     pyvips = None
 
 import base64
+import colorsys
 import hashlib
 import json
 from pathlib import Path
@@ -15,8 +16,6 @@ import subprocess
 import warnings
 import xml.etree.ElementTree as ET
 
-from matplotlib.colors import to_hex
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix, issparse
@@ -28,12 +27,34 @@ import zarr
 from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
+    make_cell_boundary_tiles_row_groups,
 )
-from .image_info import get_image_info
-from .landscape import calc_meta_gene_data, read_cbg_mtx, save_cbg_gene_parquets
-from .run_pre_processing import main
+from .image_info import get_image_info, resolve_xenium_morphology_ome_path
+from .landscape import (
+    calc_meta_gene_data,
+    read_cbg_mtx,
+    save_cbg_gene_parquets,
+    save_cbg_gene_parquets_row_groups,
+)
+from .nbhd_cloud import (
+    write_cell_clusters_meta,
+    write_gene_cell_scatter,
+    write_gene_shapes,
+    write_gene_shapes_streaming,
+    write_meta_gene_for_nbhd_cloud,
+    write_meta_slice,
+    write_nbhd_cloud_cells,
+    write_nbhd_cloud_dataset,
+    write_nbhd_cloud_shapes_and_features,
+)
 from .sbg_tile import write_pseudotranscripts_from_sbg
-from .trx_tile import make_trx_tiles
+from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
+
+
+def main(*args, **kwargs):
+    from .run_pre_processing import main as _main
+
+    return _main(*args, **kwargs)
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
@@ -71,6 +92,12 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     return default_clustering, clusters, ser_counts
 
 
+def _hsv_to_hex(h: float) -> str:
+    """Convert HSV color to hex string."""
+    r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
 def _create_cluster_colors(clusters):
     """
     Create color mapping for clusters.
@@ -81,13 +108,11 @@ def _create_cluster_colors(clusters):
     Returns:
     - List of colors for clusters
     """
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
+    n = len(clusters)
+    palette = [_hsv_to_hex(i / n) for i in range(n)]
 
     return [
-        (flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF")
-        for i, cluster in enumerate(clusters)
+        (palette[i] if "Blank" not in cluster else "#FFFFFF") for i, cluster in enumerate(clusters)
     ]
 
 
@@ -118,7 +143,7 @@ def _save_cluster_data(cell_clusters_dir, default_clustering, clusters, ser_coun
 
 def cluster_gene_expression(
     technology,
-    path_landscape_files,
+    path_dega_files,
     cbg,
     data_dir=None,
     segmentation_approach="default",
@@ -129,7 +154,7 @@ def cluster_gene_expression(
     Args:
         technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
         data_dir (str): Path to the directory containing the Xenium data.
-        path_landscape_files (str): Path to the directory where the gene expression signature file will be saved.
+        path_dega_files (str): Path to the directory where the gene expression signature file will be saved.
         cbg (pd.DataFrame): A cell-by-gene matrix where rows represent cells and columns represent genes.
                             The index of the DataFrame should match the cell IDs in the Xenium metadata.
 
@@ -178,9 +203,7 @@ def cluster_gene_expression(
 
     elif technology == "custom":
         df_cluster = pd.read_parquet(
-            Path(path_landscape_files)
-            / f"cell_clusters_{segmentation_approach}"
-            / "cluster.parquet"
+            Path(path_dega_files) / f"cell_clusters_{segmentation_approach}" / "cluster.parquet"
         )
         clusters = df_cluster["cluster"].unique().tolist()
 
@@ -222,7 +245,7 @@ def cluster_gene_expression(
 
     # Save the gene expression signatures
     segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
-    output_path = Path(path_landscape_files) / f"df_sig{segmentation_suffix}.parquet"
+    output_path = Path(path_dega_files) / f"df_sig{segmentation_suffix}.parquet"
 
     if any(isinstance(dtype, pd.SparseDtype) for dtype in df_sig.dtypes):
         df_sig.sparse.to_dense().to_parquet(output_path)
@@ -264,7 +287,7 @@ def _convert_long_id_to_short(df):
 
 
 def create_cluster_and_meta_cluster(
-    technology, path_landscape_files, data_dir=None, segmentation_approach="default"
+    technology, path_dega_files, data_dir=None, segmentation_approach="default"
 ):
     """
     Creates cell clusters and meta cluster files for visualization.
@@ -273,7 +296,7 @@ def create_cluster_and_meta_cluster(
     Args:
         technology (str): The technology used (e.g., "Xenium" or "MERSCOPE"). Currently, only "Xenium" is supported.
         data_dir (str): Path to the directory containing the Xenium data.
-        path_landscape_files (str): Path to the directory where the cluster and meta cluster files will be saved.
+        path_dega_files (str): Path to the directory where the cluster and meta cluster files will be saved.
 
     Raises:
         ValueError: If the specified technology is not supported.
@@ -288,15 +311,15 @@ def create_cluster_and_meta_cluster(
 
     # Check if the cell metadata file exists
     segmentation_suffix = f"_{segmentation_approach}" if segmentation_approach != "default" else ""
-    cell_metadata_path = Path(path_landscape_files) / f"cell_metadata{segmentation_suffix}.parquet"
+    cell_metadata_path = Path(path_dega_files) / f"cell_metadata{segmentation_suffix}.parquet"
 
     if not cell_metadata_path.exists():
         raise FileNotFoundError(
-            f"The file '{cell_metadata_path.name}' does not exist in directory '{path_landscape_files}'."
+            f"The file '{cell_metadata_path.name}' does not exist in directory '{path_dega_files}'."
         )
 
     # Create the cell_clusters directory if it doesn't exist
-    cell_clusters_dir = Path(path_landscape_files) / f"cell_clusters{segmentation_suffix}"
+    cell_clusters_dir = Path(path_dega_files) / f"cell_clusters{segmentation_suffix}"
     cell_clusters_dir.mkdir(exist_ok=True)
 
     # Load the cell metadata
@@ -325,12 +348,12 @@ def create_cluster_and_meta_cluster(
     return clusters
 
 
-def _process_image_channel(path_landscape_files, channel_info, img):
+def _process_image_channel(path_dega_files, channel_info, img):
     """
     Process a single image channel for tiling.
 
     Parameters:
-    - path_landscape_files: Landscape files path
+    - path_dega_files: Landscape files path
     - channel_info: Dictionary with channel information (name, index)
     - img: Optional pre-loaded image array
 
@@ -342,7 +365,7 @@ def _process_image_channel(path_landscape_files, channel_info, img):
 
     print(f"generating {channel_name} image tiles ...")
 
-    pyramid_path = Path(path_landscape_files) / "pyramid_images" / f"{channel_name}_files"
+    pyramid_path = Path(path_dega_files) / "pyramid_images" / f"{channel_name}_files"
     if pyramid_path.exists():
         return
 
@@ -355,7 +378,7 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     else:
         raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
 
-    output_path = Path(path_landscape_files) / f"{channel_name}_output_regular.tif"
+    output_path = Path(path_dega_files) / f"{channel_name}_output_regular.tif"
     imsave(output_path, image_data)
 
     # Convert the image to PNG format
@@ -364,20 +387,20 @@ def _process_image_channel(path_landscape_files, channel_info, img):
     # Create a DeepZoom pyramid for the channel
     make_deepzoom_pyramid(
         image_png,
-        str(Path(path_landscape_files) / "pyramid_images"),
+        str(Path(path_dega_files) / "pyramid_images"),
         channel_name,
         suffix=".webp[Q=100]",
     )
 
 
-def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_layer="dapi"):
+def create_image_tiles(technology, data_dir, path_dega_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
     Args:
         technology (str): The technology used (e.g., "Xenium", "MERSCOPE", "VisiumHD", "H&E").
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
         'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
 
@@ -388,28 +411,24 @@ def create_image_tiles(technology, data_dir, path_landscape_files, image_tile_la
     print("\n========Generating image tiles========")
     if technology == "Xenium":
         print("------ xenium")
-        create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer=image_tile_layer)
+        create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
     elif technology == "MERSCOPE":
         print("------ merscope")
-        create_image_tiles_merscope(
-            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
-        )
+        create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
     elif technology == "h&e":
         print("------ h&e")
-        create_image_tiles_h_and_e(
-            data_dir, path_landscape_files, image_tile_layer=image_tile_layer
-        )
+        create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
 
     print("Image tiles created successfully.")
 
 
-def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer):
+def create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer):
     """
     Creates image tiles for visualization from the H&E image.
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies the name of the h&e image to process.
     Raises:
         FileNotFoundError: If the required input image file is not found.
@@ -418,8 +437,8 @@ def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer)
         print(tif.pages)  # Show available pages
         image = tif.pages[0].asarray()
 
-        # make this directory, path_landscape_files, if it does not exist
-        landscape_path = Path(path_landscape_files)
+        # make this directory, path_dega_files, if it does not exist
+        landscape_path = Path(path_dega_files)
         landscape_path.mkdir(exist_ok=True)
 
         temp_tiff_path = landscape_path / image_tile_layer.replace(".scn", "_output_regular.tif")
@@ -436,29 +455,29 @@ def create_image_tiles_h_and_e(data_dir, path_landscape_files, image_tile_layer)
             suffix=".webp[Q=100]",
         )
 
-        remove_intermediate_files(path_landscape_files)
+        remove_intermediate_files(path_dega_files)
 
 
-def remove_intermediate_files(path_landscape_files):
+def remove_intermediate_files(path_dega_files):
     """
     Remove intermediate image files.
 
     Parameters:
-    - path_landscape_files: Path to landscape files directory
+    - path_dega_files: Path to landscape files directory
     """
     # Remove intermediate files
-    intermediate_image_files = list(Path(path_landscape_files).glob("*output_regular*"))
+    intermediate_image_files = list(Path(path_dega_files).glob("*output_regular*"))
     for file in intermediate_image_files:
         file.unlink()
 
 
-def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="dapi"):
+def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
     Raises:
         FileNotFoundError: If the required input image file is not found.
@@ -466,37 +485,37 @@ def create_image_tiles_xenium(data_dir, path_landscape_files, image_tile_layer="
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
-    # Define the path to the morphology image
-    file_path = Path(data_dir) / "morphology_focus" / "morphology_focus_0000.ome.tif"
-
-    # Check if the morphology image exists
-    if not file_path.exists():
-        raise FileNotFoundError(
-            f"The file 'morphology_focus_0000.ome.tif' does not exist in directory '{data_dir}'."
-        )
+    file_path = resolve_xenium_morphology_ome_path(data_dir)
 
     # Load the morphology image once if processing multiple channels
     img = imread(file_path)
 
+    if image_tile_layer == "all" and file_path.name == "morphology.ome.tif":
+        raise ValueError(
+            "image_tile_layer='all' needs a multi-channel morphology_focus OME-TIFF; "
+            "this bundle only has morphology.ome.tif. Use image_tile_layer='dapi' or "
+            "supply morphology_focus/*.ome.tif from the instrument output."
+        )
+
     # Process the DAPI channel
     if image_tile_layer in ["dapi", "all"]:
-        _process_image_channel(path_landscape_files, {"name": "dapi", "index": 0}, img)
+        _process_image_channel(path_dega_files, {"name": "dapi", "index": 0}, img)
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == "all":
         for idx, channel in enumerate(["bound", "rna", "prot"]):
-            _process_image_channel(path_landscape_files, {"name": channel, "index": idx + 1}, img)
+            _process_image_channel(path_dega_files, {"name": channel, "index": idx + 1}, img)
 
-    remove_intermediate_files(path_landscape_files)
+    remove_intermediate_files(path_dega_files)
 
 
-def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer="dapi"):
+def create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_landscape_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
     Raises:
         FileNotFoundError: If the required input image file is not found.
@@ -517,7 +536,7 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
     img_dapi = imread(dapi_file_path)
 
     # Process the DAPI channel
-    _process_image_channel(path_landscape_files, {"name": "dapi", "index": 0}, img_dapi)
+    _process_image_channel(path_dega_files, {"name": "dapi", "index": 0}, img_dapi)
 
     # Process additional channels if image_tile_layer is 'all'
     if image_tile_layer == "all":
@@ -534,18 +553,18 @@ def create_image_tiles_merscope(data_dir, path_landscape_files, image_tile_layer
         img_bound = imread(bounda_file_path)
 
         # Process the boundary channel
-        _process_image_channel(path_landscape_files, {"name": "bound", "index": 0}, img_bound)
+        _process_image_channel(path_dega_files, {"name": "bound", "index": 0}, img_bound)
 
-    remove_intermediate_files(path_landscape_files)
+    remove_intermediate_files(path_dega_files)
 
 
-def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
+def _reduce_image_size(image_path, scale_image=0.5, path_dega_files=""):
     """Reduces the size of an image by a specified scale factor.
 
     Args:
         image_path (str): Path to the image file.
         scale_image (float, optional): Scale factor for the image resize. Defaults to 0.5.
-        path_landscape_files (str, optional): Directory to save the resized image. Defaults to "".
+        path_dega_files (str, optional): Directory to save the resized image. Defaults to "".
 
     Returns:
         str: Path to the resized image file.
@@ -554,7 +573,7 @@ def _reduce_image_size(image_path, scale_image=0.5, path_landscape_files=""):
     resized_image = image.resize(scale_image)
 
     new_image_name = Path(image_path).name.replace(".tif", "_downsize.tif")
-    new_image_path = Path(path_landscape_files) / new_image_name
+    new_image_path = Path(path_dega_files) / new_image_name
     resized_image.write_to_file(str(new_image_path))
 
     return str(new_image_path)
@@ -631,6 +650,245 @@ def make_deepzoom_pyramid(
     output_path.mkdir(parents=True, exist_ok=True)
     output_path = output_path / pyramid_name
     image.dzsave(str(output_path), tile_size=tile_size, overlap=overlap, suffix=suffix)
+
+
+def pack_image_tiles_to_parquet(
+    pyramid_dir,
+    channel_name,
+    output_path,
+    image_format=".webp",
+    delete_source_tiles=True,
+    max_row_groups_per_file=2000,
+):
+    """
+    Pack all image tiles from a DeepZoom pyramid into chunked parquet files with row groups.
+
+    Each zoom level's tiles are stored as row groups, allowing efficient range-based access.
+    The formula for row group index is:
+        row_group_index = sum of tiles in previous zoom levels + tile_x * num_tiles_y + tile_y
+
+    For large datasets, tiles are split across multiple parquet files, each containing
+    at most `max_row_groups_per_file` row groups.
+
+    Args:
+        pyramid_dir (str): Path to the pyramid_images directory.
+        channel_name (str): Name of the image channel (e.g., "dapi").
+        output_path (str): Path to the output directory (will contain chunk_X.parquet files).
+        image_format (str): Image file extension (default ".webp").
+        delete_source_tiles (bool): If True, delete the original tile files after packing.
+        max_row_groups_per_file (int): Maximum row groups per file (default 400).
+
+    Returns:
+        dict: Image tile metadata including grid info per zoom level and image dimensions.
+    """
+    import xml.etree.ElementTree as ET
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    tiles_dir = Path(pyramid_dir) / f"{channel_name}_files"
+
+    if not tiles_dir.exists():
+        raise FileNotFoundError(f"Tiles directory not found: {tiles_dir}")
+
+    # Read image dimensions from .dzi file before potentially deleting it
+    dzi_file = Path(pyramid_dir) / f"{channel_name}.dzi"
+    image_width = None
+    image_height = None
+    tile_size = 512  # Default tile size
+
+    if dzi_file.exists():
+        try:
+            # Read raw content to check format
+            dzi_content = dzi_file.read_text()
+            print(f"DZI file content preview: {dzi_content[:200]}")
+
+            tree = ET.parse(dzi_file)
+            root = tree.getroot()
+
+            # Try different ways to find the Size element
+            # Method 1: With namespace
+            ns = {"dzi": "http://schemas.microsoft.com/deepzoom/2008"}
+            size_elem = root.find(".//dzi:Size", ns)
+
+            # Method 2: Without namespace (pyvips may not include namespace)
+            if size_elem is None:
+                size_elem = root.find(".//Size")
+
+            # Method 3: Direct child of root
+            if size_elem is None:
+                size_elem = root.find("Size")
+
+            # Method 4: root might be Image element itself
+            if size_elem is None:
+                for child in root:
+                    if "Size" in child.tag:
+                        size_elem = child
+                        break
+
+            if size_elem is not None:
+                image_width = int(size_elem.get("Width"))
+                image_height = int(size_elem.get("Height"))
+            else:
+                print(
+                    f"Warning: Could not find Size element in DZI. Root tag: {root.tag}, children: {[c.tag for c in root]}"
+                )
+
+            # Get tile size from Image element
+            if root.get("TileSize"):
+                tile_size = int(root.get("TileSize"))
+
+            print(
+                f"Read image dimensions from DZI: {image_width}x{image_height}, tile_size={tile_size}"
+            )
+        except Exception as e:
+            print(f"Warning: Could not parse DZI file: {e}")
+            import traceback
+
+            traceback.print_exc()
+
+    # Discover zoom levels and tiles
+    zoom_levels = sorted([int(d.name) for d in tiles_dir.iterdir() if d.is_dir()])
+
+    if not zoom_levels:
+        raise ValueError(f"No zoom levels found in {tiles_dir}")
+
+    print(f"Found {len(zoom_levels)} zoom levels: {zoom_levels[0]} to {zoom_levels[-1]}")
+
+    # Collect all tiles with their metadata
+    all_tiles = []
+    zoom_info = {}
+
+    for zoom in zoom_levels:
+        zoom_dir = tiles_dir / str(zoom)
+        tile_files = list(zoom_dir.glob(f"*{image_format}"))
+
+        # Parse tile coordinates from filenames (format: x_y.webp)
+        tiles_in_zoom = []
+        for tile_file in tile_files:
+            parts = tile_file.stem.split("_")
+            if len(parts) == 2:
+                tile_x, tile_y = int(parts[0]), int(parts[1])
+                image_bytes = tile_file.read_bytes()
+                tiles_in_zoom.append((tile_x, tile_y, image_bytes))
+
+        # Sort tiles in column-major order for consistent indexing
+        tiles_in_zoom.sort(key=lambda t: (t[0], t[1]))
+
+        # Calculate grid dimensions
+        if tiles_in_zoom:
+            max_x = max(t[0] for t in tiles_in_zoom)
+            max_y = max(t[1] for t in tiles_in_zoom)
+            num_tiles_x = max_x + 1
+            num_tiles_y = max_y + 1
+        else:
+            num_tiles_x = 0
+            num_tiles_y = 0
+
+        zoom_info[zoom] = {
+            "num_tiles_x": num_tiles_x,
+            "num_tiles_y": num_tiles_y,
+            "num_tiles": len(tiles_in_zoom),
+            "row_group_offset": len(all_tiles),
+        }
+
+        all_tiles.extend([(zoom, tx, ty, data) for tx, ty, data in tiles_in_zoom])
+
+    if not all_tiles:
+        raise ValueError("No tiles found to pack")
+
+    total_tiles = len(all_tiles)
+    num_files = (total_tiles + max_row_groups_per_file - 1) // max_row_groups_per_file
+    print(
+        f"Packing {total_tiles} tiles into {num_files} parquet files "
+        f"(max {max_row_groups_per_file} per file)..."
+    )
+
+    # Create output directory
+    output_dir = Path(output_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create schema
+    schema = pa.schema(
+        [
+            pa.field("zoom", pa.int32()),
+            pa.field("tile_x", pa.int32()),
+            pa.field("tile_y", pa.int32()),
+            pa.field("image_data", pa.binary()),
+        ]
+    )
+
+    # Add metadata
+    metadata = {
+        b"storage_mode": b"row_groups_image_chunked",
+        b"zoom_info": json.dumps(zoom_info).encode("utf-8"),
+        b"channel_name": channel_name.encode("utf-8"),
+        b"image_format": image_format.encode("utf-8"),
+    }
+    schema = schema.with_metadata(metadata)
+
+    # Write tiles to chunked parquet files
+    file_list = []
+    current_file_idx = 0
+    current_row_in_file = 0
+    writer = None
+
+    for _tile_idx, (zoom, tile_x, tile_y, image_bytes) in enumerate(all_tiles):
+        # Start a new file if needed
+        if current_row_in_file == 0 or current_row_in_file >= max_row_groups_per_file:
+            if writer is not None:
+                writer.close()
+            file_name = f"chunk_{current_file_idx}.parquet"
+            file_path = output_dir / file_name
+            file_list.append(file_name)
+            writer = pq.ParquetWriter(str(file_path), schema, write_statistics=False)
+            current_file_idx += 1
+            current_row_in_file = 0
+
+        # Write this tile as a row group
+        tile_table = pa.table(
+            {
+                "zoom": [zoom],
+                "tile_x": [tile_x],
+                "tile_y": [tile_y],
+                "image_data": [image_bytes],
+            },
+            schema=schema,
+        )
+        writer.write_table(tile_table)
+        current_row_in_file += 1
+
+    if writer is not None:
+        writer.close()
+
+    print(f"Wrote {total_tiles} image tiles across {len(file_list)} files to {output_dir}")
+
+    # Delete source tile images if requested (but keep .dzi files for dimension info)
+    if delete_source_tiles:
+        import shutil
+
+        print(f"Deleting source tile images from {tiles_dir}...")
+        try:
+            shutil.rmtree(tiles_dir)
+            # Keep the .dzi file - it's tiny and provides image dimensions
+            print(f"Deleted source tile images for {channel_name} (kept .dzi file)")
+        except Exception as e:
+            print(f"Warning: Could not delete source tiles: {e}")
+
+    return {
+        "channel_name": channel_name,
+        "num_tiles": total_tiles,
+        "zoom_levels": zoom_levels,
+        "zoom_info": zoom_info,
+        "image_width": image_width,
+        "image_height": image_height,
+        "tile_size": tile_size,
+        # Chunk info for frontend
+        "directory": channel_name,
+        "files": file_list,
+        "max_row_groups_per_file": max_row_groups_per_file,
+        "total_row_groups": total_tiles,
+    }
 
 
 def _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=None, dataset=None):
@@ -777,14 +1035,7 @@ def make_meta_gene(cbg, path_output):
     print("\n========Write meta gene files========")
     genes = cbg.columns.tolist()
 
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
-
-    colors = [
-        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in gene else "#FFFFFF"
-        for i, gene in enumerate(genes)
-    ]
+    colors = _create_cluster_colors(genes)
 
     ser_color = pd.Series(colors, index=genes)
     meta_gene = calc_meta_gene_data(cbg)
@@ -800,14 +1051,14 @@ def make_meta_gene(cbg, path_output):
     print("All meta gene files are succesfully saved.")
 
 
-def make_chromium_from_anndata(adata, path_landscape_files):
+def make_chromium_from_anndata(adata, path_dega_files):
     """Generate minimal LandscapeFiles from a Chromium AnnData object.
 
     Parameters
     ----------
     adata : anndata.AnnData
         AnnData object containing scRNA-seq count data.
-    path_landscape_files : str or Path
+    path_dega_files : str or Path
         Directory where LandscapeFiles will be written.
 
     Raises
@@ -817,8 +1068,8 @@ def make_chromium_from_anndata(adata, path_landscape_files):
     """
 
     print("\n========Process Chromium AnnData========")
-    path_landscape_files = Path(path_landscape_files)
-    path_landscape_files.mkdir(parents=True, exist_ok=True)
+    path_dega_files = Path(path_dega_files)
+    path_dega_files.mkdir(parents=True, exist_ok=True)
 
     X = adata.layers.get("counts", adata.X)
 
@@ -833,17 +1084,17 @@ def make_chromium_from_anndata(adata, path_landscape_files):
         cbg = pd.DataFrame(X, index=adata.obs_names, columns=adata.var_names)
 
     cell_meta = pd.DataFrame({"name": adata.obs_names, "geometry": [[0.0, 0.0]] * adata.n_obs})
-    cell_meta.to_parquet(path_landscape_files / "cell_metadata.parquet", index=False)
+    cell_meta.to_parquet(path_dega_files / "cell_metadata.parquet", index=False)
 
-    save_cbg_gene_parquets("Chromium", path_landscape_files, cbg)
+    save_cbg_gene_parquets("Chromium", path_dega_files, cbg)
 
-    make_meta_gene(cbg, path_landscape_files / "meta_gene.parquet")
+    make_meta_gene(cbg, path_dega_files / "meta_gene.parquet")
 
-    (path_landscape_files / "pyramid_images").mkdir(exist_ok=True)
+    (path_dega_files / "pyramid_images").mkdir(exist_ok=True)
 
     save_landscape_parameters(
         technology="Chromium",
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         image_name="",
         tile_size=1,
         image_info=[],
@@ -868,24 +1119,36 @@ def get_max_zoom_level(path_image_pyramid):
 
 def save_landscape_parameters(
     technology,
-    path_landscape_files,
+    path_dega_files,
     image_name="dapi_files",
     tile_size=1000,
     image_info=None,
     image_format=".webp",
     use_int_index=True,
     segmentation_approach="default",
+    use_row_groups=False,
+    tile_grid_info=None,
+    image_tile_info=None,
+    trx_chunk_info=None,
+    cell_chunk_info=None,
+    cbg_chunk_info=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
     Args:
         technology (str): The technology used to generate the data.
-        path_landscape_files (str): Path to the directory where landscape files are stored.
+        path_dega_files (str): Path to the directory where landscape files are stored.
         image_name (str, optional): Name of the image directory. Defaults to "dapi_files".
         tile_size (int, optional): Tile size for the image pyramid. Defaults to 1000.
         image_info (dict, optional): Additional image metadata. Defaults to None.
         image_format (str, optional): Format of the image files. Defaults to ".webp".
         use_int_index (bool, optional): Use integer name for cell_tile and trx_tile.
+        use_row_groups (bool, optional): If True, tiles are stored as row groups. Defaults to False.
+        tile_grid_info (dict, optional): Tile grid metadata when using row groups.
+        image_tile_info (dict, optional): Image tile metadata from pack_image_tiles_to_parquet.
+        trx_chunk_info (dict, optional): Chunk info for transcript parquet files.
+        cell_chunk_info (dict, optional): Chunk info for cell segmentation parquet files.
+        cbg_chunk_info (dict, optional): Chunk info for CBG parquet files.
 
     Returns:
         None
@@ -899,10 +1162,20 @@ def save_landscape_parameters(
         image_name = "h_and_e_files"
         image_info = [{"name": "h&e", "button_name": "H&E", "color": [0, 0, 255]}]
 
-    path_image_pyramid = Path(path_landscape_files) / "pyramid_images" / image_name
-    max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
+    # Get max pyramid zoom - use from image_tile_info if available (row groups mode)
+    # since the tile files may have been deleted
+    if image_tile_info and use_row_groups:
+        # Get max zoom from the first channel's info
+        first_channel_info = next(iter(image_tile_info.values()), None)
+        if first_channel_info and "zoom_levels" in first_channel_info:
+            max_pyramid_zoom = max(first_channel_info["zoom_levels"])
+        else:
+            max_pyramid_zoom = None
+    else:
+        path_image_pyramid = Path(path_dega_files) / "pyramid_images" / image_name
+        max_pyramid_zoom = get_max_zoom_level(path_image_pyramid)
 
-    path_landscape_parameters = Path(path_landscape_files) / "landscape_parameters.json"
+    path_landscape_parameters = Path(path_dega_files) / "landscape_parameters.json"
 
     # if technology is 'h&e' set parameters
     if technology == "h&e":
@@ -924,7 +1197,125 @@ def save_landscape_parameters(
             "image_info": image_info,
             "image_format": image_format,
             "use_int_index": use_int_index,
+            "use_row_groups": use_row_groups,
         }
+
+        # Add row group specific metadata
+        if use_row_groups and tile_grid_info:
+            landscape_parameters["row_group_files"] = {}
+
+            # Add chunked CBG files
+            if cbg_chunk_info:
+                landscape_parameters["row_group_files"]["cbg"] = {
+                    "directory": cbg_chunk_info.get("directory", "cbg"),
+                    "files": cbg_chunk_info.get("files", []),
+                    "max_row_groups_per_file": cbg_chunk_info.get("max_row_groups_per_file", 2000),
+                    "total_row_groups": cbg_chunk_info.get("total_row_groups", 0),
+                    "gene_to_row_group": cbg_chunk_info.get("gene_to_row_group", {}),
+                }
+            else:
+                # Legacy single file mode (backwards compatibility)
+                landscape_parameters["row_group_files"]["cbg"] = "cbg.parquet"
+
+            # Add chunked transcript files
+            if trx_chunk_info:
+                landscape_parameters["row_group_files"]["transcripts"] = {
+                    "directory": "transcripts",
+                    "files": trx_chunk_info.get("files", []),
+                    "max_row_groups_per_file": trx_chunk_info.get("max_row_groups_per_file", 10000),
+                    "total_row_groups": trx_chunk_info.get("total_row_groups", 0),
+                }
+            else:
+                # Legacy single file mode (backwards compatibility)
+                landscape_parameters["row_group_files"]["transcripts"] = "transcripts.parquet"
+
+            # Add chunked cell segmentation files
+            if cell_chunk_info:
+                landscape_parameters["row_group_files"]["cell_segmentation"] = {
+                    "directory": "cell_segmentation",
+                    "files": cell_chunk_info.get("files", []),
+                    "max_row_groups_per_file": cell_chunk_info.get(
+                        "max_row_groups_per_file", 10000
+                    ),
+                    "total_row_groups": cell_chunk_info.get("total_row_groups", 0),
+                }
+            else:
+                # Legacy single file mode (backwards compatibility)
+                landscape_parameters["row_group_files"]["cell_segmentation"] = (
+                    "cell_segmentation.parquet"
+                )
+
+            # Add image parquet files for each channel with zoom info
+            # Parquet files are now in pyramid_images/{channel_name}/ directories (chunked)
+            pyramid_images_dir = Path(path_dega_files) / "pyramid_images"
+            if pyramid_images_dir.exists():
+                image_parquets = {}
+
+                # Check for chunked directories (new format)
+                for channel_dir in pyramid_images_dir.iterdir():
+                    if channel_dir.is_dir():
+                        # Sort numerically, not alphabetically (chunk_10 should come after chunk_9)
+                        chunk_files = sorted(
+                            channel_dir.glob("chunk_*.parquet"),
+                            key=lambda f: int(f.stem.split("_")[1]),
+                        )
+                        if chunk_files:
+                            channel_name = channel_dir.name
+                            image_entry = {
+                                "directory": f"pyramid_images/{channel_name}",
+                                "files": [f.name for f in chunk_files],
+                            }
+                            # Add chunk info and zoom_info if available from image_tile_info
+                            if image_tile_info and channel_name in image_tile_info:
+                                channel_info = image_tile_info[channel_name]
+                                image_entry["zoom_info"] = channel_info.get("zoom_info", {})
+                                image_entry["zoom_levels"] = channel_info.get("zoom_levels", [])
+                                image_entry["max_row_groups_per_file"] = channel_info.get(
+                                    "max_row_groups_per_file", 2000
+                                )
+                                image_entry["total_row_groups"] = channel_info.get(
+                                    "total_row_groups", 0
+                                )
+                            image_parquets[channel_name] = image_entry
+
+                # Also check for legacy single parquet files (backwards compatibility)
+                for pq_file in pyramid_images_dir.glob("*.parquet"):
+                    channel_name = pq_file.stem
+                    if channel_name not in image_parquets:
+                        image_entry = {
+                            "path": f"pyramid_images/{pq_file.name}",
+                        }
+                        # Add zoom_info if available from image_tile_info
+                        if image_tile_info and channel_name in image_tile_info:
+                            channel_info = image_tile_info[channel_name]
+                            image_entry["zoom_info"] = channel_info.get("zoom_info", {})
+                            image_entry["zoom_levels"] = channel_info.get("zoom_levels", [])
+                        image_parquets[channel_name] = image_entry
+
+                if image_parquets:
+                    landscape_parameters["row_group_files"]["images"] = image_parquets
+
+            # Store image dimensions from first channel (all channels have same dimensions)
+            if image_tile_info:
+                first_channel_info = next(iter(image_tile_info.values()), None)
+                if first_channel_info:
+                    landscape_parameters["image_dimensions"] = {
+                        "width": first_channel_info.get("image_width"),
+                        "height": first_channel_info.get("image_height"),
+                        "tile_size": first_channel_info.get("tile_size", 512),
+                    }
+
+            # Store grid dimensions - frontend computes row group index using:
+            # row_group_index = tile_x * num_tiles_y + tile_y
+            landscape_parameters["tile_grid"] = {
+                "tile_size": tile_grid_info.get("tile_size", tile_size),
+                "num_tiles_x": tile_grid_info.get("num_tiles_x"),
+                "num_tiles_y": tile_grid_info.get("num_tiles_y"),
+                "x_min": tile_grid_info.get("x_min"),
+                "x_max": tile_grid_info.get("x_max"),
+                "y_min": tile_grid_info.get("y_min"),
+                "y_max": tile_grid_info.get("y_max"),
+            }
     else:
         with path_landscape_parameters.open() as file:
             landscape_parameters = json.load(file)
@@ -937,14 +1328,14 @@ def save_landscape_parameters(
 
 
 def add_custom_segmentation(
-    technology, path_landscape_files, path_segmentation_files, image_scale=1, tile_size=250
+    technology, path_dega_files, path_segmentation_files, image_scale=1, tile_size=250
 ):
     """
     Add custom segmentation to existing landscape files.
 
     Parameters:
     - technology: Technology type (e.g., "Xenium", "MERSCOPE", "custom")
-    - path_landscape_files: Path to landscape files
+    - path_dega_files: Path to landscape files
     - path_segmentation_files: Path to segmentation files
     - image_scale: Image scale factor
     - tile_size: Tile size for processing
@@ -955,27 +1346,25 @@ def add_custom_segmentation(
     cbg_custom = pd.read_parquet(Path(path_segmentation_files) / "cell_by_gene_matrix.parquet")
 
     # make sure all genes are present in cbg_custom
-    meta_gene = pd.read_parquet(Path(path_landscape_files) / "meta_gene.parquet")
+    meta_gene = pd.read_parquet(Path(path_dega_files) / "meta_gene.parquet")
     missing_cols = meta_gene.index.difference(cbg_custom.columns)
     for col in missing_cols:
         cbg_custom[col] = 0
 
     make_meta_gene(
         cbg=cbg_custom,
-        path_output=Path(path_landscape_files)
+        path_output=Path(path_dega_files)
         / f"meta_gene_{segmentation_parameters['segmentation_approach']}.parquet",
     )
 
     make_meta_cell_image_coord(
         technology=segmentation_parameters["technology"],
-        path_transformation_matrix=str(
-            Path(path_landscape_files) / "micron_to_image_transform.csv"
-        ),
+        path_transformation_matrix=str(Path(path_dega_files) / "micron_to_image_transform.csv"),
         path_meta_cell_micron=str(
             Path(path_segmentation_files) / "cell_metadata_micron_space.parquet"
         ),
         path_meta_cell_image=str(
-            Path(path_landscape_files)
+            Path(path_dega_files)
             / f"cell_metadata_{segmentation_parameters['segmentation_approach']}.parquet"
         ),
         image_scale=image_scale,
@@ -983,7 +1372,7 @@ def add_custom_segmentation(
 
     save_cbg_gene_parquets(
         technology=technology,
-        base_path=path_landscape_files,
+        base_path=path_dega_files,
         cbg=cbg_custom,
         verbose=True,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
@@ -991,12 +1380,12 @@ def add_custom_segmentation(
 
     create_cluster_and_meta_cluster(
         technology=segmentation_parameters["technology"],
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
     # Get the first .dzi file in sorted order
-    dzi_files = sorted((Path(path_landscape_files) / "pyramid_images").glob("*.dzi"))
+    dzi_files = sorted((Path(path_dega_files) / "pyramid_images").glob("*.dzi"))
     if not dzi_files:
         raise FileNotFoundError("No .dzi files found in pyramid_images.")
 
@@ -1012,7 +1401,7 @@ def add_custom_segmentation(
         technology=segmentation_parameters["technology"],
         path_cell_boundaries=str(Path(path_segmentation_files) / "cell_polygons.parquet"),
         path_output=str(
-            Path(path_landscape_files)
+            Path(path_dega_files)
             / f"cell_segmentation_{segmentation_parameters['segmentation_approach']}"
         ),
         tile_size=tile_size,
@@ -1022,14 +1411,14 @@ def add_custom_segmentation(
 
     cluster_gene_expression(
         technology=segmentation_parameters["technology"],
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         cbg=cbg_custom,
         segmentation_approach=segmentation_parameters["segmentation_approach"],
     )
 
     save_landscape_parameters(
         technology=segmentation_parameters["technology"],
-        path_landscape_files=path_landscape_files,
+        path_dega_files=path_dega_files,
         image_name="dapi_files",
         tile_size=tile_size,
         image_format=".webp",
@@ -1122,14 +1511,14 @@ def _to_coords(geom):
 
 
 def write_xenium_transform(
-    data_dir, path_landscape_files, transform_fname="micron_to_image_transform.csv"
+    data_dir, path_dega_files, transform_fname="micron_to_image_transform.csv"
 ):
     """
     Extracts the transformation matrix from the Xenium cells.zarr.zip file and saves it as a CSV file.
 
     Args:
         data_dir (str): Path to the directory containing the Xenium data (e.g., cells.zarr.zip).
-        path_landscape_files (str): Path to the directory where the transformation matrix CSV will be saved.
+        path_dega_files (str): Path to the directory where the transformation matrix CSV will be saved.
         transform_fname (str, optional): Name of the output CSV file. Defaults to "micron_to_image_transform.csv".
 
     Returns:
@@ -1153,9 +1542,11 @@ def write_xenium_transform(
     # Function to open a Zarr file
     def open_zarr(path: str) -> zarr.Group:
         store = (
-            zarr.ZipStore(path, mode="r") if path.endswith(".zip") else zarr.DirectoryStore(path)
+            zarr.storage.ZipStore(path, mode="r")
+            if path.endswith(".zip")
+            else zarr.storage.LocalStore(path, read_only=True)
         )
-        return zarr.group(store=store)
+        return zarr.open_group(store=store, mode="r")
 
     try:
         # Open the cells Zarr file
@@ -1165,7 +1556,7 @@ def write_xenium_transform(
         transformation_matrix = root["masks"]["homogeneous_transform"][:]
 
         # Save the transformation matrix as a CSV file
-        output_path = Path(path_landscape_files) / transform_fname
+        output_path = Path(path_dega_files) / transform_fname
         pd.DataFrame(transformation_matrix[:3, :3]).to_csv(
             output_path, sep=" ", header=False, index=False
         )
@@ -1252,7 +1643,6 @@ def _check_required_files(technology, data_dir):
     # Define required files or directories for each technology
     required_files_mapping = {
         "Xenium": [
-            "morphology_focus/morphology_focus_0000.ome.tif",
             "cells.zarr",
             "cells.csv",
             "cells.csv.gz",
@@ -1281,10 +1671,18 @@ def _check_required_files(technology, data_dir):
     required_files_or_dir = required_files_mapping[technology]
     data_path = Path(data_dir)
 
-    # Raise an error if any files or directories are missing
-    if missing_files_or_dir := [
+    missing_files_or_dir = [
         file for file in required_files_or_dir if not (data_path / file).exists()
-    ]:
+    ]
+    if technology == "Xenium":
+        try:
+            resolve_xenium_morphology_ome_path(data_path)
+        except FileNotFoundError:
+            missing_files_or_dir.append(
+                "morphology OME-TIFF (morphology_focus/… or morphology.ome.tif)"
+            )
+
+    if missing_files_or_dir:
         raise FileNotFoundError(
             f"The following required files or directories are missing in directory '{data_dir}' "
             f"for technology '{technology}': {', '.join(missing_files_or_dir)}"
@@ -1294,21 +1692,138 @@ def _check_required_files(technology, data_dir):
     )
 
 
-def write_identity_transform(path_landscape_files: str) -> None:
+def write_identity_transform(path_dega_files: str) -> None:
     """Write an identity transform matrix for IST data."""
-    path = Path(path_landscape_files) / "micron_to_image_transform.csv"
+    path = Path(path_dega_files) / "micron_to_image_transform.csv"
     if not path.exists():
         pd.DataFrame(np.eye(3)).to_csv(path, sep=" ", header=False, index=False)
 
 
+def add_clustering_from_adata(
+    adata,
+    path_dega_files: str,
+    cluster_key: str = "leiden",
+    segmentation_name: str | None = None,
+) -> None:
+    """
+    Add cell clustering data from an AnnData object to LandscapeFiles.
+
+    This function exports clustering assignments and associated colors from an
+    AnnData object to the LandscapeFiles format, enabling the Landscape and
+    Yearbook widgets to use custom clustering results.
+
+    Parameters
+    ----------
+    adata : AnnData
+        AnnData object containing clustering results in `obs[cluster_key]`.
+        Colors can be provided in `uns[f"{cluster_key}_colors"]`.
+    path_dega_files : str or Path
+        Path to the LandscapeFiles directory.
+    cluster_key : str, default "leiden"
+        Column name in `adata.obs` containing cluster assignments.
+    segmentation_name : str, optional
+        Name for this segmentation/clustering result. If provided, files will be
+        saved as `cell_clusters_{segmentation_name}/`. If None, files are saved
+        to the default `cell_clusters/` directory.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> import scanpy as sc
+    >>> import celldega as dega
+    >>>
+    >>> # Load and cluster your data
+    >>> adata = sc.read_h5ad("my_data.h5ad")
+    >>> sc.tl.leiden(adata, resolution=0.5)
+    >>>
+    >>> # Add clustering to LandscapeFiles
+    >>> dega.pre.add_clustering_from_adata(
+    ...     adata,
+    ...     path_dega_files="./my_landscape_files",
+    ...     cluster_key="leiden"
+    ... )
+    >>>
+    >>> # For a custom segmentation with a specific name
+    >>> dega.pre.add_clustering_from_adata(
+    ...     adata,
+    ...     path_dega_files="./my_landscape_files",
+    ...     cluster_key="leiden",
+    ...     segmentation_name="cellpose2"
+    ... )
+
+    Notes
+    -----
+    The Landscape widget can use the custom clustering by setting the
+    `segmentation` parameter to match the `segmentation_name`.
+    """
+    path_lf = Path(path_dega_files)
+
+    # Determine output directory
+    if segmentation_name:
+        cluster_dir = path_lf / f"cell_clusters_{segmentation_name}"
+    else:
+        cluster_dir = path_lf / "cell_clusters"
+    cluster_dir.mkdir(exist_ok=True)
+
+    # Get cluster assignments
+    if cluster_key not in adata.obs.columns:
+        raise ValueError(f"Cluster key '{cluster_key}' not found in adata.obs")
+
+    # Create cluster DataFrame
+    df_cluster = pd.DataFrame(index=adata.obs.index)
+    df_cluster["cluster"] = adata.obs[cluster_key].astype("string")
+    df_cluster.to_parquet(cluster_dir / "cluster.parquet")
+
+    # Get or generate colors
+    cluster_counts = df_cluster["cluster"].value_counts().sort_index()
+    clusters = cluster_counts.index.tolist()
+
+    color_key = f"{cluster_key}_colors"
+    colors = adata.uns.get(color_key)
+
+    # Fallback to generated colors
+    if colors is None:
+        colors = _create_cluster_colors(clusters)
+
+    # Ensure we have enough colors
+    if len(colors) < len(clusters):
+        extra_colors = _create_cluster_colors(clusters[len(colors) :])
+        colors = list(colors) + extra_colors
+
+    # Create meta_cluster DataFrame
+    meta_cluster = pd.DataFrame(index=clusters)
+    meta_cluster["color"] = [
+        colors[i] if i < len(colors) else "#808080" for i in range(len(clusters))
+    ]
+    meta_cluster["count"] = cluster_counts.values
+    meta_cluster.to_parquet(cluster_dir / "meta_cluster.parquet")
+
+    print(f"Clustering data saved to {cluster_dir}")
+
+
 __all__ = [
     "_to_geometry",
+    "add_clustering_from_adata",
     "boundary_tile",
     "get_image_info",
     "landscape",
     "main",
     "make_trx_tiles",
+    "nbhd_cloud",
     "read_cbg_mtx",
+    "resolve_xenium_morphology_ome_path",
     "trx_tile",
+    "write_cell_clusters_meta",
+    "write_gene_cell_scatter",
+    "write_gene_shapes",
+    "write_gene_shapes_streaming",
     "write_identity_transform",
+    "write_meta_gene_for_nbhd_cloud",
+    "write_meta_slice",
+    "write_nbhd_cloud_cells",
+    "write_nbhd_cloud_dataset",
+    "write_nbhd_cloud_shapes_and_features",
 ]

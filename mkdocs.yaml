@@ -1,4 +1,12 @@
 site_name: Celldega Documentation
+
+# Keep large/data artifacts out of the built site (and off the gh-pages branch).
+# mkdocs copies everything under docs/ into site/ regardless of .gitignore,
+# so notebook data dirs and large files must be excluded here.
+exclude_docs: |
+  examples/**/data/
+  **/*.h5ad
+
 theme:
   name: material
   favicon: assets/img/celldega_logo_32x32_transparent.png
@@ -21,12 +29,26 @@ nav:
       - Getting Started: overview/getting_started.md
       - Installation: overview/installation.md
       - File Formats: overview/file_formats.md
-      - Usage: overview/usage.md
+      - Row Group Storage: overview/row_groups.md
+  - Visualizations:
+      - visualizations/index.md
+      - Landscape: visualizations/landscape.md
+      - Yearbook: visualizations/yearbook.md
+      - CellCloud: visualizations/cell-cloud.md
+      - NeighborhoodCloud: visualizations/neighborhood-cloud.md
+      - Clustergram: visualizations/clustergram.md
+      - Composition: visualizations/composition.md
+      - Enrich: visualizations/enrich.md
   - Python API:
       - python/index.md
-      - pre: python/pre/api.md
+      - align: python/align/api.md
       - clust: python/clust/api.md
+      - collection: python/collection/api.md
+      - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
+      - pre: python/pre/api.md
+      - select: python/select/api.md
+      - set: python/set/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
@@ -34,27 +56,40 @@ nav:
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md
-  - Cloud Environments:
-    - Terra.bio:
-        - cloud_env/Terra-segment.md
+  - Environments:
+      - cloud_env/index.md
   - Gallery:
       - gallery/index.md
-      - Xenium:
-          - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
-          - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
-          - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+      - Imaging Spatial Transcriptomics:
+          - Xenium:
+              - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
+              - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
+          - Atera:
+              - Atera Xenium Breast Cancer: gallery/gallery_atera.md
+          - CosMx:
+              - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
+      - Sequencing Spatial Transcriptomics:
+          - Visium HD:
+              - Visium HD Cell Segmentation Mouse Brain: gallery/gallery_visium_hd_cell_segmentation_mouse_brain.md
   - Example Notebooks:
     - examples/index.md
     - Tutorials:
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
-      - Scanpy_Chromium: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
-      - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-cell_Clustergram_Chromium.ipynb
+      - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
+      - Chromium Pre-process: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
-      - Landscape-Matrix View Xenium: examples/brief_notebooks/Landscape-Matrix_Xenium.ipynb
-      - Pre-Process LandscapeFiles: examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs.ipynb
-      - UMAP-Cluster_Pancreas_Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
-      - Landscape-Clustergram_Visium-HD_Human_Lung_Cancer: examples/brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer.ipynb
+      - Atera Viz: examples/brief_notebooks/Atera_viz.ipynb
+      - Yearbook-Query: examples/brief_notebooks/Yearbook_Query.ipynb
+      - CellCloud Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
+      - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
+      - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
+      - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
+      - NeighborhoodCollection Population Space: examples/brief_notebooks/NeighborhoodCollection_Population_Space.ipynb
+      - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
+      - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
+      - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
 
 markdown_extensions:
   - toc
@@ -73,6 +108,7 @@ plugins:
           options:
             docstring_style: google
             show_root_toc_entry: true
+            show_source: false
   - mkdocs-jupyter:
       include_source: true
       include_requirejs: true
@@ -85,14 +121,14 @@ extra_javascript:
     type: module
   - path: assets/js/gallery_skin_cancer.js
     type: module
+  - path: assets/js/gallery_cosmx_colon.js
+    type: module
   - path: assets/js/google-analytics.js
   - path: assets/js/hide_notebook_sidebar.js
     type: module
   - path: assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js
     type: module
-  - path: assets/js/gallery_visium_hd_human_kidney.js
-    type: module
-  - path: assets/js/gallery_visium_hd_pancreas.js
+  - path: assets/js/gallery_atera.js
     type: module
 
 extra_css:

@@ -1,5 +1,7 @@
 import { OrthographicView } from 'deck.gl';
 
+import { refresh_row_label_visibility } from '../../matrix/composition_data';
+
 import { curate_pan_x, curate_pan_y } from './curate_pan';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
@@ -120,8 +122,28 @@ export const on_view_state_change = (
   zoom_curated_x = Math.max(0, zoom_curated_x);
   zoom_curated_y = Math.max(0, zoom_curated_y);
 
-  const pan_curated_x = curate_pan_x(target[0], zoom_curated_x, viz_state);
-  const pan_curated_y = curate_pan_y(target[1], zoom_curated_y, viz_state);
+  // Composition: pin X so columns/datasets always stay fully visible,
+  // regardless of any accumulated horizontal zoom/pan gesture.
+  if (viz_state.mat.viz_mode === 'composition') {
+    zoom_curated_x = viz_state.zoom.ini_zoom_x;
+  }
+
+  const current_matrix_pan = viz_state.zoom.zoom_data.matrix;
+  const target_x =
+    viewId === 'rows' || viewId === 'dendro_rows'
+      ? current_matrix_pan.pan_x
+      : target[0];
+  const target_y =
+    viewId === 'cols' || viewId === 'dendro_cols'
+      ? current_matrix_pan.pan_y
+      : target[1];
+
+  let pan_curated_x = curate_pan_x(target_x, zoom_curated_x, viz_state);
+  const pan_curated_y = curate_pan_y(target_y, zoom_curated_y, viz_state);
+
+  if (viz_state.mat.viz_mode === 'composition') {
+    pan_curated_x = viz_state.zoom.ini_pan_x;
+  }
 
   const zoom_curated = [zoom_curated_x, zoom_curated_y];
   const pan_curated = [pan_curated_x, pan_curated_y];
@@ -145,11 +167,20 @@ export const on_view_state_change = (
     zoom_factor = Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x);
   }
 
-  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    getSize:
-      viz_state.viz.font_size.rows *
-      Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
-  });
+  if (viz_state.mat.viz_mode === 'composition') {
+    // Row label size is deliberately fixed (not rescaled with zoom) in
+    // composition mode, so zooming in on rows grows a segment relative to its
+    // label instead of both growing together — see `compute_row_label_visibility`
+    // in `composition_data.js`. Re-run the fit check every tick so labels
+    // reveal themselves as soon as there's room.
+    refresh_row_label_visibility(layers_mat, viz_state);
+  } else {
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      getSize:
+        viz_state.viz.font_size.rows *
+        Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
+    });
+  }
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     getSize:
@@ -161,7 +192,11 @@ export const on_view_state_change = (
   });
 
   let zoom_mode;
-  if (viz_state.zoom.major_zoom_axis !== 'all') {
+  if (viz_state.mat.viz_mode === 'composition') {
+    // Permanent lock, unlike the shape-driven aspect-ratio delay below (which
+    // always eventually unlocks to 'all' once zoomed in enough).
+    zoom_mode = 'Y';
+  } else if (viz_state.zoom.major_zoom_axis !== 'all') {
     zoom_mode =
       zoom_factor < viz_state.zoom.switch_ratio
         ? viz_state.zoom.major_zoom_axis
@@ -171,12 +206,18 @@ export const on_view_state_change = (
   }
 
   // Recreate each view with updated zoomAxis in controller
+  // Preserve controller: false for static views (attribute labels)
   viz_state.views.views_list = viz_state.views.views_list.map((view) => {
+    // Don't modify controller for static views
+    if (view.props.controller === false) {
+      return view;
+    }
     return new OrthographicView({
       ...view.props,
       controller: {
         ...view.props.controller,
         doubleClickZoom: false,
+        dragPan: !viz_state.crop?.active,
         scrollZoom: true,
         inertia: true,
         zoomAxis: zoom_mode,

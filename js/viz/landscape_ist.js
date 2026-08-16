@@ -15,6 +15,9 @@ import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
+  prime_cell_layer_transitions,
+  refresh_cell_layer_data,
+  reveal_cell_layer_after_prime,
   set_cell_layer_onclick,
   toggle_spatial_umap,
   update_cell_pickable_state,
@@ -27,6 +30,15 @@ import {
   update_edit_layer_mode,
 } from '../deck-gl/layers/edit_layer';
 import { make_image_layers } from '../deck-gl/layers/image_layers';
+import { ini_nbhd_cloud_cell_layer } from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import {
+  build_nbhd_cloud_slice_z_order,
+  fetch_available_gene_scatter,
+  fetch_available_gene_shapes,
+  ini_nbhd_cloud_shapes_layer,
+  reorder_nbhd_cloud_features_for_camera,
+  set_nbhd_cloud_shapes_layer_onclick,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import {
   ini_nbhd_layer,
   set_nbhd_layer_onclick,
@@ -49,13 +61,18 @@ import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
-import { set_options } from '../global_variables/fetch_options';
+import { options, set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
+  get_landscape_image_info,
+  get_primary_image_name,
+  is_neighborhood_cloud_technology,
+  is_orbit_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
+  technology_has_image_layer,
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
@@ -63,12 +80,131 @@ import { set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
+import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
+import { get_arrow_table } from '../read_parquet/get_arrow_table';
+import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
+import {
+  parse_meta_neighborhood_table,
+  parse_meta_slice_table,
+  parse_shapes_table_to_features,
+} from '../read_parquet/nbhd_cloud_tables';
+// import {
+//   testRowGroupReading,
+//   getVersion as getParquetWasmVersion,
+// } from '../read_parquet/row_group_poc';
+import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import {
+  createEmptyCellCompact,
+  createEmptyTrxCompact,
+} from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
+import { build_rotation_state } from '../utils/rotation';
+import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
+
+// Row group reading support
+
+// Log parquet-wasm version on module load
+// console.log(`[landscape_ist] parquet-wasm version: ${getParquetWasmVersion()}`);
+
+// Expose test function globally for browser console testing
+// Usage: window.testRowGroupReading("https://example.com/row_grouped.parquet")
+// if (typeof window !== 'undefined') {
+//   window.testRowGroupReading = testRowGroupReading;
+// }
+
+/**
+ * Initialize row group readers for tile data if the landscape uses row groups
+ *
+ * Uses formula-based row group indexing:
+ *   row_group_index = tile_x * num_tiles_y + tile_y
+ *
+ * Only requires grid dimensions (num_tiles_x, num_tiles_y) from landscape_parameters.json
+ *
+ * @param {Object} viz_state - Visualization state
+ * @param {string} base_url - Base URL for the landscape files
+ * @returns {Promise<void>}
+ */
+async function initializeRowGroupReaders(viz_state, base_url) {
+  const landscapeParams = viz_state.img.landscape_parameters;
+
+  if (!landscapeParams.use_row_groups) {
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  // console.log('[landscape_ist] Row group mode enabled');
+
+  const rowGroupFiles = landscapeParams.row_group_files || {};
+  const tileGrid = landscapeParams.tile_grid || {};
+
+  if (!tileGrid.num_tiles_x || !tileGrid.num_tiles_y) {
+    // console.error(
+    //   '[landscape_ist] Missing tile_grid dimensions in landscape_parameters'
+    // );
+    viz_state.use_row_groups = false;
+    return;
+  }
+
+  viz_state.use_row_groups = true;
+  viz_state.row_group_readers = {};
+  viz_state.tile_grid = tileGrid;
+
+  // Initialize transcript row group reader with grid dimensions
+  if (rowGroupFiles.transcripts) {
+    // Support both chunked (object with files array) and legacy (string path) formats
+    viz_state.row_group_readers.trx = new RowGroupTileReader(
+      base_url,
+      tileGrid,
+      rowGroupFiles.transcripts
+    );
+    await viz_state.row_group_readers.trx.initialize();
+  }
+
+  // Initialize cell segmentation row group reader with grid dimensions
+  if (rowGroupFiles.cell_segmentation) {
+    // Support both chunked (object with files array) and legacy (string path) formats
+    viz_state.row_group_readers.cell = new RowGroupTileReader(
+      base_url,
+      tileGrid,
+      rowGroupFiles.cell_segmentation
+    );
+    await viz_state.row_group_readers.cell.initialize();
+  }
+
+  // Initialize CBG row group reader
+  if (rowGroupFiles.cbg) {
+    viz_state.row_group_readers.cbg = new CBGRowGroupReader(
+      base_url,
+      rowGroupFiles.cbg
+    );
+    await viz_state.row_group_readers.cbg.initialize();
+  }
+
+  // Initialize image row group readers for each channel
+  if (rowGroupFiles.images) {
+    viz_state.row_group_readers.images = {};
+
+    for (const [channelName, imageEntry] of Object.entries(
+      rowGroupFiles.images
+    )) {
+      // Pass imageEntry directly - ImageRowGroupReader handles both:
+      // - Chunked mode: object with { directory, files, zoom_info, ... }
+      // - Legacy mode: string path or object with { path, zoom_info }
+      viz_state.row_group_readers.images[channelName] = new ImageRowGroupReader(
+        base_url,
+        imageEntry
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await viz_state.row_group_readers.images[channelName].initialize();
+    }
+  }
+}
 
 export const landscape_ist = async (
   el,
@@ -96,7 +232,13 @@ export const landscape_ist = async (
   view_change_custom_callback = null,
   rotation_orbit = 0,
   rotation_x = 0,
-  max_tiles_to_view = 50
+  rotate = 0,
+  max_tiles_to_view = 50,
+  scale_bar_microns_per_pixel = null,
+  base_urls = [],
+  cell_name_prefix = false,
+  centroids = {},
+  use_adata_3d_centroids = false
 ) => {
   if (width === 0) {
     width = '100%';
@@ -104,33 +246,44 @@ export const landscape_ist = async (
 
   const viz_state = {};
 
+  // DegaFiles manifest to fetch. Defaults to landscape_parameters.json (every
+  // 2D technology); CellCloud/NeighborhoodCloud set it to their own filename.
+  // set_landscape_parameters falls back to landscape_parameters.json when the
+  // requested file is absent, so pre-rename datasets still render.
+  const manifest_name =
+    (typeof ini_model?.get === 'function' && ini_model.get('manifest_name')) ||
+    'landscape_parameters.json';
+
   viz_state.obs_store = create_obs_store();
 
+  viz_state.highlighted_cells = new Set();
+  viz_state.selection_token = 0;
+
+  const initial_selected_cells =
+    typeof ini_model?.get === 'function'
+      ? ini_model.get('selected_cells') || []
+      : [];
+
+  if (Array.isArray(initial_selected_cells)) {
+    viz_state.highlighted_cells = new Set(initial_selected_cells);
+    viz_state.obs_store.selected_cells.set(initial_selected_cells);
+  }
+
   viz_state.max_tiles_to_view = max_tiles_to_view;
-  const update_viz_image_layers = () => {
-    if (!get_img_layer_visible()) {
-      return;
-    }
 
-    const hasCats = viz_state.obs_store.selected_cats.get().length > 0;
-    const hasGenes = viz_state.obs_store.selected_genes.get().length > 0;
-
-    if (hasCats || hasGenes) {
-      viz_state.obs_store.viz_image_layers.set(false);
-    } else {
-      // only do this if not in umap view
-      if (viz_state.obs_store.umap_state.get() === false) {
-        viz_state.obs_store.viz_image_layers.set(true);
-      }
-    }
-  };
-
-  // Subscribe both, but they call the same function
-  viz_state.obs_store.selected_cats.subscribe(update_viz_image_layers);
-  viz_state.obs_store.selected_genes.subscribe(update_viz_image_layers);
+  // Set up centralized image visibility management via obs_store
+  // This handles the logic for showing/hiding images based on gene/cluster selection and zoom level
+  viz_state.update_viz_image_layers =
+    viz_state.obs_store.setup_image_visibility_manager(get_img_layer_visible);
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
+
+  // Named alignment variant (point-cloud only): selects the cell_metadata
+  // positions file independently of the segmentation-driven clusters/genes.
+  viz_state.alignment =
+    (typeof ini_model?.get === 'function' ? ini_model.get('alignment') : '') ||
+    '';
 
   viz_state.root = el;
   viz_state.buttons = {};
@@ -140,6 +293,10 @@ export const landscape_ist = async (
   viz_state.buttons.buttons = {};
 
   set_global_base_url(viz_state, base_url);
+
+  // Store multi-dataset configuration
+  viz_state.base_urls = base_urls;
+  viz_state.cell_name_prefix = cell_name_prefix;
 
   viz_state.close_up = false;
   viz_state.model = ini_model;
@@ -162,9 +319,12 @@ export const landscape_ist = async (
     });
 
     // fetch after initialization of aws client is apparently required?
-    const response = await viz_state.aws.fetch(
-      `${base_url}/landscape_parameters.json`
-    );
+    let response = await viz_state.aws.fetch(`${base_url}/${manifest_name}`);
+    if (!response.ok && manifest_name !== 'landscape_parameters.json') {
+      response = await viz_state.aws.fetch(
+        `${base_url}/landscape_parameters.json`
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`Fetch failed: ${response.statusText}`);
@@ -176,67 +336,58 @@ export const landscape_ist = async (
     viz_state.aws = null;
   }
 
-  if (Object.keys(viz_state.model).length !== 0) {
-    if (Object.keys(nbhd).length === 0) {
-      viz_state.nbhd.is_nbhd = nbhd_edit;
+  // Set up neighborhood state - this block needs to run regardless of model type
+  // to ensure is_nbhd is set correctly for the UI to create NBHD/SKTCH buttons
+  if (Object.keys(nbhd).length === 0) {
+    viz_state.nbhd.is_nbhd = nbhd_edit;
 
-      viz_state.nbhd.ini_feature_collection = {
-        type: 'FeatureCollection',
-        features: [],
-        inst_alpha: null,
-      };
+    viz_state.nbhd.ini_feature_collection = {
+      type: 'FeatureCollection',
+      features: [],
+      inst_alpha: null,
+    };
 
-      viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
-    } else {
-      viz_state.nbhd.is_nbhd = true;
+    viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+  } else {
+    viz_state.nbhd.is_nbhd = true;
 
-      viz_state.nbhd.ini_feature_collection = nbhd; // viz_state.model.get('nbhd');
+    viz_state.nbhd.ini_feature_collection = nbhd;
 
-      // viz_state.nbhd.bar_data = nbhd.features
-      //   .map((feature) => {
-      //     return {
-      //       name: feature.properties.cat, // "1_50" → "1"
-      //       value: feature.properties.area, // use area as the value
-      //     };
-      //   })
-      //   .sort((a, b) => b.value - a.value);
+    // find all unique categories in the nbhd features
+    const unique_cats = new Set(
+      nbhd.features.map((feature) => feature.properties.cat)
+    );
 
-      // find all unique categories in the nbhd features
-      const unique_cats = new Set(
-        nbhd.features.map((feature) => feature.properties.cat)
-      );
+    // calculate the area of all unique categories
+    viz_state.nbhd.bar_data = Array.from(unique_cats)
+      .map((cat) => {
+        const features = nbhd.features.filter(
+          (feature) => feature.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, feature) => acc + feature.properties.area,
+          0
+        );
 
-      // calculate the area of all unique categories
-      viz_state.nbhd.bar_data = Array.from(unique_cats)
-        .map((cat) => {
-          const features = nbhd.features.filter(
-            (feature) => feature.properties.cat === cat
-          );
-          const area = features.reduce(
-            (acc, feature) => acc + feature.properties.area,
-            0
-          );
+        return {
+          name: cat,
+          value: area,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
 
-          return {
-            name: cat,
-            value: area,
-          };
-        })
-        .sort((a, b) => b.value - a.value);
+    // parse colors from features and make a dictionary with cat name and
+    // color as rgb array that is converted from hex
+    viz_state.nbhd.color_dict = {};
+    nbhd.features.forEach((feature) => {
+      const color = colorToRgba(feature.properties.color);
+      viz_state.nbhd.color_dict[feature.properties.cat] = color;
+    });
 
-      // parse colors from features and make a dictionary with cat name and
-      // color as rgb array that is converted from hex
-      viz_state.nbhd.color_dict = {};
-      nbhd.features.forEach((feature) => {
-        const color = colorToRgba(feature.properties.color);
-        viz_state.nbhd.color_dict[feature.properties.cat] = color;
-      });
-
-      viz_state.nbhd.feature_collection = {
-        type: 'FeatureCollection',
-        features: nbhd.features,
-      };
-    }
+    viz_state.nbhd.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features,
+    };
   }
 
   viz_state.containers = {};
@@ -253,21 +404,28 @@ export const landscape_ist = async (
   viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  if (Object.keys(meta_cell).length === 0) {
-    viz_state.cats.has_meta_cell = false;
-  } else {
-    viz_state.cats.has_meta_cell = true;
-  }
+  viz_state.cats.has_meta_cell =
+    Boolean(meta_cell) &&
+    typeof meta_cell === 'object' &&
+    meta_cell_attr.length > 0;
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
-  viz_state.cats.meta_cell_id_set = new Set(
-    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
-  );
-  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
+  viz_state.cats.meta_cell_id_set = null;
+  // Color cells by the requested `cluster_attr` when that column is present in
+  // the cell metadata; else fall back to the first attribute. Without this, a
+  // non-'leiden' cluster_attr would be ignored whenever 'leiden' also happened
+  // to be the first cell attribute.
+  const requested_cluster_attr =
+    typeof ini_model?.get === 'function' ? ini_model.get('cluster_attr') : null;
+  viz_state.cats.inst_cell_attr =
+    requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
+      ? requested_cluster_attr
+      : meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -286,9 +444,20 @@ export const landscape_ist = async (
   }
   viz_state.umap.umap = umap;
 
+  viz_state.centroids3d = {
+    has_centroids: Object.keys(centroids).length > 0,
+    centroids,
+    requested: use_adata_3d_centroids,
+  };
+
   const isUmapInit = landscape_state === 'umap';
   viz_state.obs_store.umap_state.set(isUmapInit);
-  viz_state.obs_store.landscape_view.set(landscape_state);
+  // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
+  // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
+  viz_state.nbhd.show_on_init = landscape_state === 'nbhd';
+  const base_landscape_view =
+    landscape_state === 'nbhd' ? 'spatial' : landscape_state;
+  viz_state.obs_store.landscape_view.set(base_landscape_view);
 
   viz_state.genes = {};
   viz_state.genes.color_dict_gene = {};
@@ -296,8 +465,9 @@ export const landscape_ist = async (
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
+  viz_state.genes.selected_gene_ids = new Set();
   viz_state.genes.trx_ini_radius = trx_radius;
-  viz_state.genes.trx_names_array = [];
+  viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
@@ -313,25 +483,34 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
-  const tech = viz_state.img.landscape_parameters.technology;
-  if (tech === 'Chromium' || tech === 'point-cloud') {
+  await set_landscape_parameters(
+    viz_state.img,
+    base_url,
+    viz_state.aws,
+    manifest_name
+  );
+  const { landscape_parameters } = viz_state.img;
+  const {
+    technology: tech,
+    use_int_index,
+    image_format,
+  } = landscape_parameters;
+  const has_image_layer = technology_has_image_layer(tech);
+
+  if (!has_image_layer) {
     viz_state.obs_store.viz_image_layers.set(false);
     viz_state.obs_store.viz_background_layer.set(false);
   }
 
-  const tmp_image_info = viz_state.img.landscape_parameters.image_info;
+  // Initialize row group readers if using row group storage mode
+  await initializeRowGroupReaders(viz_state, base_url);
 
-  // set image_name_for_dim using the first image info name
-  const image_name_for_dim = tmp_image_info[0].name;
+  const tmp_image_info = get_landscape_image_info(landscape_parameters);
+  const image_name_for_dim = get_primary_image_name(landscape_parameters);
 
-  viz_state.vector_name_integer =
-    viz_state.img.landscape_parameters.use_int_index;
+  viz_state.vector_name_integer = use_int_index;
 
-  set_image_format(
-    viz_state.img,
-    viz_state.img.landscape_parameters.image_format
-  );
+  set_image_format(viz_state.img, image_format);
   set_image_info(viz_state.img, tmp_image_info);
   set_image_layer_sliders(viz_state.img);
   set_image_layer_colors(
@@ -341,14 +520,49 @@ export const landscape_ist = async (
 
   // Create and append the visualization.
   const root = document.createElement('div');
+  root.style.position = 'relative';
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
 
-  if (tech === 'Chromium' || tech === 'point-cloud') {
+  const userMicronsPerPixel =
+    typeof scale_bar_microns_per_pixel === 'number' &&
+    !Number.isNaN(scale_bar_microns_per_pixel) &&
+    scale_bar_microns_per_pixel > 0
+      ? scale_bar_microns_per_pixel
+      : null;
+
+  const defaultMicronsPerPixel = PIXEL_SIZE_MICRONS[tech];
+  const micronsPerPixel = defaultMicronsPerPixel ?? userMicronsPerPixel;
+
+  if (micronsPerPixel) {
+    viz_state.scale_bar = create_scale_bar(micronsPerPixel, tech);
+    root.appendChild(viz_state.scale_bar.container);
+  }
+
+  if (viz_state.scale_bar) {
+    viz_state.obs_store.scale_bar_view_state.subscribe(
+      (viewState) => {
+        if (viewState && viz_state.scale_bar?.update) {
+          viz_state.scale_bar.update(viewState);
+        }
+      },
+      { immediate: false }
+    );
+  }
+
+  if (!has_image_layer) {
     viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
   } else {
     await set_dimensions(viz_state, base_url, image_name_for_dim);
   }
+
+  const centerX = viz_state.dimensions?.width
+    ? viz_state.dimensions.width / 2
+    : 0;
+  const centerY = viz_state.dimensions?.height
+    ? viz_state.dimensions.height / 2
+    : 0;
+  viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
 
   await set_meta_gene(
     viz_state.genes,
@@ -358,6 +572,87 @@ export const landscape_ist = async (
   );
 
   await set_cluster_metadata(viz_state);
+
+  viz_state.nbhd_cloud = {
+    is_nbhd_cloud: is_neighborhood_cloud_technology(tech),
+  };
+
+  if (viz_state.nbhd_cloud.is_nbhd_cloud) {
+    const [metaSliceTable, metaNeighborhoodTable] = await Promise.all([
+      get_arrow_table(
+        `${base_url}/nbhd_cloud/meta_slice.parquet`,
+        options.fetch,
+        viz_state.aws
+      ),
+      get_arrow_table(
+        `${base_url}/nbhd_cloud/meta_neighborhood.parquet`,
+        options.fetch,
+        viz_state.aws
+      ),
+    ]);
+
+    viz_state.nbhd_cloud.meta_slice = parse_meta_slice_table(metaSliceTable);
+    viz_state.nbhd_cloud.meta_neighborhood = parse_meta_neighborhood_table(
+      metaNeighborhoodTable
+    );
+
+    // Shapes load in full up front (neighborhood counts are small — dozens
+    // to hundreds, unlike cells), one parquet file per slice.
+    const shapeTables = await Promise.all(
+      viz_state.nbhd_cloud.meta_slice.map((s) =>
+        get_arrow_table(
+          `${base_url}/nbhd_cloud/shapes/by_slice/slice_${s.slice_id}.parquet`,
+          options.fetch,
+          viz_state.aws
+        )
+      )
+    );
+    viz_state.nbhd_cloud.shapes_features = shapeTables.flatMap((table) =>
+      parse_shapes_table_to_features(table)
+    );
+
+    if (
+      viz_state.nbhd_cloud.shapes_features.length === 0 &&
+      shapeTables.some((table) => (table?.numRows || 0) > 0)
+    ) {
+      // eslint-disable-next-line no-console -- silent-empty-render invariant
+      console.warn(
+        '[neighborhood-cloud] shapes/*.parquet had rows but parsed to zero features -- check schema/column names against parse_shapes_table_to_features (js/read_parquet/nbhd_cloud_tables.js).'
+      );
+    }
+
+    // Default to 75%, not 100% -- fully opaque shapes make it harder to see
+    // cell centroids and overlapping slices underneath.
+    viz_state.nbhd_cloud.manual_fill_opacity = 0.75;
+    viz_state.nbhd_cloud.gene_fill_opacity = 0.75;
+    viz_state.nbhd_cloud.selected_gene = null;
+    viz_state.nbhd_cloud.gene_shapes_mode = false;
+    viz_state.nbhd_cloud.gene_scatter_mode = false;
+    // Matches get_nbhd_cloud_camera_side's default so the very first
+    // camera-side check (before any rotation) is a no-op rather than an
+    // immediate, needless reorder.
+    viz_state.nbhd_cloud.camera_side = 'above';
+
+    // Apply the same draw-order fix the camera-side flip uses right away,
+    // so "smaller neighborhoods draw on top within a slice" holds from the
+    // very first frame -- not just after the user rotates past the horizon
+    // for the first time. See reorder_nbhd_cloud_features_for_camera for
+    // the full rationale.
+    viz_state.nbhd_cloud.slice_z_order = build_nbhd_cloud_slice_z_order(
+      viz_state.nbhd_cloud.meta_slice
+    );
+    viz_state.nbhd_cloud.shapes_features =
+      reorder_nbhd_cloud_features_for_camera(
+        viz_state.nbhd_cloud.shapes_features,
+        viz_state.nbhd_cloud.slice_z_order,
+        viz_state.nbhd_cloud.camera_side
+      );
+
+    viz_state.nbhd_cloud.available_gene_shapes =
+      await fetch_available_gene_shapes(base_url, viz_state.aws);
+    viz_state.nbhd_cloud.available_gene_scatter =
+      await fetch_available_gene_scatter(base_url, viz_state.aws);
+  }
 
   viz_state.views = set_views(tech);
 
@@ -372,6 +667,18 @@ export const landscape_ist = async (
   viz_state.cache.trx = await ini_cache();
 
   viz_state.combo_data = {};
+  viz_state.combo_data.trx = [];
+  viz_state.combo_data.trx_compact = createEmptyTrxCompact();
+  viz_state.combo_data.cell_compact = createEmptyCellCompact();
+  viz_state.viewport_cache = {
+    visibleTileKey: null,
+    lastGeneBarData: null,
+    lastCellBarData: null,
+    geneCountScratch: null,
+    activeGeneIds: [],
+    cellCountScratch: null,
+    activeCellIds: [],
+  };
 
   viz_state.tooltip_cat_cell = '';
 
@@ -386,7 +693,7 @@ export const landscape_ist = async (
   viz_state.edit.visible = false;
   viz_state.edit.modify_index = null;
 
-  if (Object.keys(viz_state.model).length !== 0) {
+  if (viz_state.model?.get) {
     if (Object.keys(viz_state.model.get('region')).length === 0) {
       viz_state.edit.feature_collection = {
         type: 'FeatureCollection',
@@ -402,13 +709,68 @@ export const landscape_ist = async (
     };
   }
 
+  // When nbhd_edit is true and nbhd data is provided, initialize the edit layer
+  // with the existing neighborhood features to allow editing pre-loaded neighborhoods
+  if (nbhd_edit && Object.keys(nbhd).length > 0 && nbhd.features?.length > 0) {
+    // Deep copy the nbhd features to the edit layer's feature collection
+    // Colors are kept in hex format for consistency - the edit layer converts to RGB for rendering
+    viz_state.edit.feature_collection = {
+      type: 'FeatureCollection',
+      features: nbhd.features.map((feature, index) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          // Keep color in hex format (the edit layer converts to RGB for rendering)
+          color: feature.properties.color || '#808080',
+          // Use existing name/cat or assign numeric index
+          name: feature.properties.name || (index + 1).toString(),
+          cat: feature.properties.cat || (index + 1).toString(),
+        },
+      })),
+    };
+
+    // Also update nbhd.bar_data and nbhd.color_dict for the bar graph
+    // when editing pre-loaded neighborhoods
+    const unique_cats = new Set(
+      viz_state.edit.feature_collection.features.map((f) => f.properties.cat)
+    );
+    viz_state.nbhd.bar_data = Array.from(unique_cats)
+      .map((cat) => {
+        const features = viz_state.edit.feature_collection.features.filter(
+          (f) => f.properties.cat === cat
+        );
+        const area = features.reduce(
+          (acc, f) => acc + (f.properties.area || 0),
+          0
+        );
+        return { name: cat, value: area };
+      })
+      .sort((a, b) => b.value - a.value);
+
+    viz_state.nbhd.color_dict = {};
+    viz_state.edit.feature_collection.features.forEach((feature) => {
+      const { color } = feature.properties;
+      // Convert hex to RGBA for the color dict used in bar graphs
+      viz_state.nbhd.color_dict[feature.properties.cat] = colorToRgba(color);
+    });
+  }
+
   const background_layer = ini_background_layer(viz_state);
   const image_layers = await make_image_layers(viz_state);
   const cell_layer = await ini_cell_layer(base_url, viz_state);
   const path_layer = await ini_path_layer(viz_state);
-  const trx_layer = ini_trx_layer(viz_state.genes);
+  const trx_layer = ini_trx_layer(viz_state);
   const edit_layer = ini_edit_layer(viz_state);
   const nbhd_layer = ini_nbhd_layer(viz_state, true);
+  const nbhd_cloud_shapes_layer = viz_state.nbhd_cloud.is_nbhd_cloud
+    ? ini_nbhd_cloud_shapes_layer(
+        viz_state,
+        viz_state.nbhd_cloud.shapes_features
+      )
+    : null;
+  const nbhd_cloud_cell_layer = viz_state.nbhd_cloud.is_nbhd_cloud
+    ? ini_nbhd_cloud_cell_layer(viz_state)
+    : null;
 
   // make layers object
   const layers_obj = {
@@ -418,7 +780,29 @@ export const landscape_ist = async (
     path_layer,
     trx_layer,
     nbhd_layer,
+    nbhd_cloud_shapes_layer,
+    nbhd_cloud_cell_layer,
     edit_layer,
+  };
+
+  const refresh_cell_layer = () => {
+    const selected_cats_name = viz_state.cats.selected_cats.join('-');
+
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+    });
+
+    // Toggle cell layer readiness so deck.gl re-renders when selections arrive
+    // from the Python backend.
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: false,
+    });
+
+    viz_state.obs_store.deck_check.set({
+      ...viz_state.obs_store.deck_check.get(),
+      cell_layer: true,
+    });
   };
 
   viz_state.layers_obj = layers_obj;
@@ -453,9 +837,13 @@ export const landscape_ist = async (
 
         viz_state.buttons.buttons.cell.style('color', 'gray');
         viz_state.buttons.buttons.trx.style('color', 'gray');
+        viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
         toggle_slider(viz_state.sliders.cell, false);
         toggle_slider(viz_state.sliders.trx, false);
+        if (viz_state.nbhd.is_nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, true);
+        }
       } else {
         new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
@@ -465,9 +853,13 @@ export const landscape_ist = async (
 
         viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.buttons.buttons.trx.style('color', 'blue');
+        viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
         toggle_slider(viz_state.sliders.cell, true);
         toggle_slider(viz_state.sliders.trx, true);
+        if (viz_state.nbhd.is_nbhd) {
+          toggle_slider(viz_state.sliders.nbhd, false);
+        }
       }
       if (visible) {
         viz_state.obs_store.viz_edit_layer.set(false);
@@ -483,10 +875,17 @@ export const landscape_ist = async (
   set_edit_layer_on_edit(deck_ist, layers_obj, viz_state);
   set_edit_layer_on_click(deck_ist, layers_obj, viz_state);
   set_nbhd_layer_onclick(deck_ist, layers_obj, viz_state);
+  if (viz_state.nbhd_cloud.is_nbhd_cloud) {
+    set_nbhd_cloud_shapes_layer_onclick(layers_obj, viz_state);
+  }
 
   viz_state.obs_store.deck_ready.subscribe((ready) => {
     if (ready) {
-      const list = get_layers_list(viz_state.layers_obj, viz_state.close_up);
+      const list = get_layers_list(
+        viz_state.layers_obj,
+        viz_state.close_up,
+        viz_state
+      );
       deck_ist.setProps({ layers: list });
     }
   });
@@ -541,19 +940,21 @@ export const landscape_ist = async (
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');
 
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-${selected_cats_name}`,
-    });
+    refresh_cell_layer();
 
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-${selected_cats_name}`,
     });
-
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
       path_layer: true,
-      cell_layer: true,
     });
+  });
+
+  viz_state.obs_store.selected_cells.subscribe((selected_cells) => {
+    viz_state.highlighted_cells = new Set(selected_cells ?? []);
+    viz_state.selection_token += 1;
+    refresh_cell_layer();
   });
 
   viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
@@ -591,13 +992,17 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
-  if (Object.keys(viz_state.model).length > 0) {
+  if (viz_state.model?.on) {
     viz_state.model.on('change:update_trigger', () =>
       update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
     );
     viz_state.model.on('change:cell_clusters', () =>
       update_cell_clusters(deck_ist, layers_obj, viz_state)
     );
+    viz_state.model.on('change:selected_cells', () => {
+      const cells = viz_state.model.get('selected_cells') || [];
+      viz_state.obs_store.selected_cells.set(cells);
+    });
   }
 
   const ui_container = make_ist_ui_container(
@@ -611,13 +1016,34 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
-  const isChromium = ['Chromium', 'point-cloud'].includes(
-    viz_state.img.landscape_parameters.technology
-  );
+  // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
+  // Done after the UI is built so the viz_nbhd_layer subscription can update the
+  // buttons, sliders, and category bars.
+  if (viz_state.nbhd.show_on_init && viz_state.nbhd.is_nbhd) {
+    toggle_nbhd_layer_visibility(layers_obj, true);
+    viz_state.obs_store.viz_nbhd_layer.set(true);
+  }
+
+  // Initialize neighborhood editor dialog if nbhd_edit mode is enabled
+  if (viz_state.nbhd.edit) {
+    viz_state.nbhd_editor = initialize_nbhd_editor(
+      viz_state,
+      deck_ist,
+      layers_obj
+    );
+  }
+
+  const currentTechnology = viz_state.img.landscape_parameters.technology;
+  const isChromium =
+    currentTechnology === 'Chromium' || is_orbit_technology(currentTechnology);
   viz_state.obs_store.landscape_view.subscribe(
     (view) => {
       const isUmap = view === 'umap';
       viz_state.obs_store.umap_state.set(isUmap);
+
+      if (viz_state.scale_bar) {
+        viz_state.scale_bar.setVisible(!isUmap);
+      }
 
       toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
@@ -682,7 +1108,55 @@ export const landscape_ist = async (
     { immediate: false }
   );
 
+  // Prime deck.gl's position-transition baseline while the cell layer is hidden,
+  // so the first user spatial<->UMAP toggle animates from the current positions
+  // instead of the origin. deck.gl's first getPosition transition is unavoidably
+  // from the origin (stale binary-buffer read), so we run it at opacity 0 and
+  // near-instant, then reveal once it has settled. Done a frame after init so the
+  // position buffer has been uploaded.
+  if (viz_state.umap?.has_umap) {
+    requestAnimationFrame(() => {
+      prime_cell_layer_transitions(layers_obj, viz_state);
+      // Re-render through the canonical deck_check path (same as every other
+      // layer refresh) rather than a raw setProps, so the image-layer visibility
+      // managed on that path is preserved.
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      setTimeout(() => {
+        reveal_cell_layer_after_prime(layers_obj, viz_state);
+        refresh_layer(viz_state, layers_obj, 'cell_layer');
+      }, 40);
+    });
+  }
+
+  // Callback registries for external listeners
+  const callbacks = {
+    on_gene_select: [],
+    on_cluster_select: [],
+    on_clusters_select: [],
+  };
+
   const landscape = {
+    /**
+     * Register a callback for gene selection events.
+     * @param {function} callback - Function called with (gene_name)
+     */
+    on_gene_select: (callback) => {
+      callbacks.on_gene_select.push(callback);
+    },
+    /**
+     * Register a callback for single cluster selection events.
+     * @param {function} callback - Function called with (cluster_id)
+     */
+    on_cluster_select: (callback) => {
+      callbacks.on_cluster_select.push(callback);
+    },
+    /**
+     * Register a callback for multiple cluster selection (via dendrogram).
+     * @param {function} callback - Function called with (cluster_ids_array)
+     */
+    on_clusters_select: (callback) => {
+      callbacks.on_clusters_select.push(callback);
+    },
     update_matrix_gene: async (inst_gene) => {
       const reset_gene = inst_gene === viz_state.cats.cat;
       const new_cat = reset_gene ? 'cluster' : inst_gene;
@@ -701,7 +1175,8 @@ export const landscape_ist = async (
         inst_gene,
         viz_state.seg.version,
         viz_state.vector_name_integer,
-        viz_state.aws
+        viz_state.aws,
+        viz_state.row_group_readers?.cbg
       );
 
       viz_state.layers_obj = layers_obj;
@@ -710,6 +1185,9 @@ export const landscape_ist = async (
         ...viz_state.obs_store.deck_check.get(),
         cell_layer: true,
       });
+
+      // Notify listeners
+      callbacks.on_gene_select.forEach((cb) => cb(inst_gene));
     },
     update_matrix_col: async (inst_col) => {
       update_cat(viz_state.cats, 'cluster');
@@ -723,6 +1201,9 @@ export const landscape_ist = async (
         trx_layer: false,
       });
       viz_state.layers_obj = layers_obj;
+
+      // Notify listeners
+      callbacks.on_cluster_select.forEach((cb) => cb(inst_col));
     },
     update_matrix_dendro_col: async (selected_cols) => {
       // const inst_gene = 'cluster'
@@ -740,6 +1221,9 @@ export const landscape_ist = async (
         trx_layer: false,
       });
       viz_state.layers_obj = layers_obj;
+
+      // Notify listeners
+      callbacks.on_clusters_select.forEach((cb) => cb(selected_cols));
     },
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;

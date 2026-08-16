@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from typing import Any
@@ -20,6 +21,7 @@ from .constants import (
     DEFAULT_VIZ,
     ERRORS,
     Axis,
+    AxisEntity,
     AxisInput,
     AxisType,
     CacheLevel,
@@ -29,6 +31,7 @@ from .constants import (
     LinkageType,
     Normalization,
     NormType,
+    normalize_axis_entity,
 )
 from .utils import (
     add_mixed_attributes_to_node_info,
@@ -45,6 +48,80 @@ from .utils import (
 # Global caches with size limits
 _distance_cache = weakref.WeakKeyDictionary()
 _ranking_cache = weakref.WeakKeyDictionary()
+
+
+def _is_default_entity_pair(
+    row_entity: str | dict | AxisEntity | None,
+    col_entity: str | dict | AxisEntity | None,
+) -> bool:
+    """Return True when the caller is using Matrix's default entity pair."""
+    return row_entity == "gene" and col_entity == "cell_cluster"
+
+
+def _axis_entities_from_uns(adata: AnnData) -> tuple[AxisEntity, AxisEntity] | None:
+    """Read Matrix row/column entities from AnnData metadata when available."""
+    candidates = [
+        adata.uns.get("axis_entities"),
+        adata.uns.get("matrix_axis_entities"),
+        adata.uns.get("celldega", {}).get("axis_entities")
+        if isinstance(adata.uns.get("celldega"), dict)
+        else None,
+    ]
+
+    for payload in candidates:
+        if not isinstance(payload, dict):
+            continue
+
+        row_entity = payload.get("row_entity") or payload.get("row")
+        col_entity = payload.get("col_entity") or payload.get("col")
+        if row_entity is not None and col_entity is not None:
+            return normalize_axis_entity(row_entity), normalize_axis_entity(col_entity)
+
+    if "row_entity" in adata.uns and "col_entity" in adata.uns:
+        return (
+            normalize_axis_entity(adata.uns["row_entity"]),
+            normalize_axis_entity(adata.uns["col_entity"]),
+        )
+
+    return None
+
+
+def _infer_axis_entities_from_adata(adata: AnnData) -> tuple[AxisEntity, AxisEntity] | None:
+    """Infer Matrix row/column entity specs for known AnnData modality shapes."""
+    metadata_entities = _axis_entities_from_uns(adata)
+    if metadata_entities is not None:
+        return metadata_entities
+
+    var_entity_type = adata.var.get("entity_type")
+    if var_entity_type is None:
+        return None
+
+    var_entity_values = pd.Series(var_entity_type).dropna().astype(str).unique()
+    category = adata.uns.get("category")
+
+    if (
+        len(var_entity_values) == 1
+        and var_entity_values[0] == "cell_population"
+        and category is not None
+    ):
+        row_entity: AxisEntity = {"entity": "cell", "attr": str(category)}
+
+        if "dataset_col" in adata.uns:
+            col_entity: AxisEntity = {"entity": "dataset", "attr": str(adata.uns["dataset_col"])}
+        elif (
+            "neighborhood_id" in adata.obs.columns
+            or "neighborhood_type" in adata.obs.columns
+            or adata.obs.index.name == "neighborhood_id"
+        ):
+            col_entity = {"entity": "nbhd", "attr": "name"}
+        else:
+            # Neighborhood population modalities created before collection alignment
+            # still have the same AnnData shape but may lack collection obs metadata.
+            col_entity = {"entity": "nbhd", "attr": "name"}
+
+        return row_entity, col_entity
+
+    return None
 
 
 def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) -> str:
@@ -101,6 +178,8 @@ class Matrix:
         meta_row: pd.DataFrame | None = None,
         col_attr: list[str] | None = None,
         row_attr: list[str] | None = None,
+        row_entity: str | dict | AxisEntity | None = "gene",
+        col_entity: str | dict | AxisEntity | None = "cell_cluster",
         # Processing parameters
         filter_genes: int | None = None,
         norm_col: str | None = "total",
@@ -110,6 +189,12 @@ class Matrix:
         # Visualization parameters
         global_colors: dict[str, str] | pd.DataFrame | None = None,
         name: str | None = None,
+        *,
+        # Celldega collection convenience path (alternative to `data`)
+        collection: Any = None,
+        color_by: str | None = None,
+        size_by: str | None = None,
+        dot_plot: str | None = None,
     ):
         """
         Create Matrix with automatic processing unless disabled.
@@ -120,12 +205,33 @@ class Matrix:
             meta_row: Row metadata (for DataFrame input)
             col_attr: Column attribute names (categorical or numeric)
             row_attr: Row attribute names (categorical or numeric)
+            row_entity: Entity specification for rows. Accepted formats:
+                - str: Shorthand with implicit attr mapping:
+                    - "gene" → {"entity": "gene", "attr": "name"}
+                    - "nbhd" → {"entity": "nbhd", "attr": "name"}
+                    - "cell" → {"entity": "cell", "attr": "name"}
+                    - "hextile" → {"entity": "hextile", "attr": "name"}
+                    - "cell_cluster" or "cluster" → {"entity": "cell", "attr": "leiden"}
+                - tuple: Compact format, e.g., ("nbhd", "name")
+                - dict: Full format, e.g., {"entity": "nbhd", "attr": "name"}
+            col_entity: Entity specification for columns (same formats as row_entity)
             filter_genes: Number of top variable genes to keep (None = no filtering)
             norm_col: Column normalization ('total', 'zscore', 'qn', None)
             norm_row: Row normalization ('total', 'zscore', 'qn', None)
             disable_processing: Skip automatic processing (default: False)
             global_colors: Global category color mapping (dict or DataFrame with 'color' column)
             name: Name for the matrix (default: None)
+            collection: A Celldega collection (``SetCollection``/``DatasetCollection``/etc.)
+                to build ``data`` from, in place of passing ``data`` directly —
+                equivalent to ``data=collection.mod[color_by]``. Requires `color_by`.
+            color_by: Modality key on `collection` driving color/opacity (the main
+                matrix).
+            size_by: Optional modality key on `collection` driving the secondary
+                *size* channel (dot-plot size, e.g. fraction of cells expressing —
+                but any per-cell magnitude works, e.g. significance) — equivalent to
+                calling ``.set_dot_matrix(collection.mod[size_by])`` after
+                construction. Omit for a matrix with no size channel.
+            dot_plot: Alias for `size_by` (pass either, not both).
 
         Examples:
             # Automatic processing (recommended)
@@ -138,13 +244,62 @@ class Matrix:
             # No processing
             mat = Matrix(adata, disable_processing=True)
 
+            # Dot plot directly from a SetCollection, no manual DataFrame wrangling
+            setc.calc_signature(adata, modality_name="expression")
+            setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
+            mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
+
             # Raw matrix without data
             mat = Matrix()  # Empty matrix for manual loading
+
+            # With entity specifications for widget interaction:
+            # Genes (rows) by cell clusters (columns) - typical gene expression heatmap
+            mat = Matrix(df, row_entity="gene", col_entity="cell_cluster")
+            # Or equivalently with new format:
+            mat = Matrix(df,
+                row_entity={"entity": "gene", "attr": "name"},
+                col_entity={"entity": "cell", "attr": "leiden"})
+
+            # Neighborhoods by cell types
+            mat = Matrix(df,
+                row_entity={"entity": "cell", "attr": "leiden"},
+                col_entity={"entity": "nbhd", "attr": "name"})
         """
+        if size_by is not None and dot_plot is not None:
+            raise ValueError("pass either `size_by` or `dot_plot` (alias), not both")
+        size_by = size_by if size_by is not None else dot_plot
+
+        if collection is not None:
+            if data is not None:
+                raise ValueError("pass either `data` or `collection`, not both")
+            if color_by is None:
+                raise ValueError(
+                    "`color_by` is required when constructing Matrix from `collection`"
+                )
+            if color_by not in collection.mod:
+                raise KeyError(
+                    f"color_by '{color_by}' not found; available modalities: {list(collection.mod)}"
+                )
+            data = collection.mod[color_by]
+        elif color_by is not None or size_by is not None:
+            raise ValueError("`color_by`/`size_by` require `collection`")
+
+        axis_entities_defaulted = _is_default_entity_pair(row_entity, col_entity)
+        if isinstance(data, AnnData) and axis_entities_defaulted:
+            inferred_entities = _infer_axis_entities_from_adata(data)
+            if inferred_entities is not None:
+                row_entity, col_entity = inferred_entities
+
         # Core data storage
         self.data: pd.DataFrame | None = None
         self.meta_col: pd.DataFrame = pd.DataFrame()
         self.meta_row: pd.DataFrame = pd.DataFrame()
+
+        # Optional secondary matrix (aligned to the main matrix by row/col name)
+        # used as a per-cell *size* channel for dot-plot style Clustergrams —
+        # e.g. the fraction of cells in a cluster expressing each gene. See
+        # :meth:`set_dot_matrix`.
+        self.dot_mat: pd.DataFrame | None = None
 
         self.col_attr = col_attr or list(self.meta_col.columns)
         self.row_attr = row_attr or list(self.meta_row.columns)
@@ -162,6 +317,10 @@ class Matrix:
             and not pd.api.types.is_numeric_dtype(self.meta_row[attr])
         ]
 
+        # Normalize entity specifications to the new AxisEntity format
+        self.row_entity: AxisEntity = normalize_axis_entity(row_entity)
+        self.col_entity: AxisEntity = normalize_axis_entity(col_entity)
+
         # State tracking
         self._clustered: bool = False
         self.is_downsampled: bool = False
@@ -171,8 +330,9 @@ class Matrix:
         self._data_hash: int | None = None
         self._dirty_flags: dict[str, bool] = dict.fromkeys(CACHE_HIERARCHY, True)
 
-        # Visualization structure
-        self.viz: dict[str, Any] = DEFAULT_VIZ.copy()
+        # Visualization structure. Deep copy so each Matrix gets its own nested
+        # ``linkage``/node dicts — a shallow copy would share them across instances.
+        self.viz: dict[str, Any] = copy.deepcopy(DEFAULT_VIZ)
 
         # if name is None, generate a quick hash-based name from the data content
         if name is None:
@@ -207,6 +367,16 @@ class Matrix:
 
         # Step 3: Always assign colors (auto-generated if not provided)
         self.set_global_cat_colors(global_colors)
+
+        # Step 4: Optional size channel from the same collection
+        if size_by is not None:
+            if collection is None:
+                raise ValueError("`size_by`/`dot_plot` require `collection`")
+            if size_by not in collection.mod:
+                raise KeyError(
+                    f"size_by '{size_by}' not found; available modalities: {list(collection.mod)}"
+                )
+            self.set_dot_matrix(collection.mod[size_by])
 
     @property
     def dat(self) -> dict[str, Any]:
@@ -265,7 +435,6 @@ class Matrix:
             viz_data = mat.cluster(dist_type='euclidean', linkage_type='ward')
         """
         self.clust(**cluster_kwargs)
-        return self.export_viz_json()
 
     def load_df(
         self,
@@ -350,6 +519,9 @@ class Matrix:
             col_attr,
             row_attr,
         )
+
+        # Note: row_entity and col_entity are already set in __init__ based on user input
+        # Don't overwrite them here - user may have specified entities for non-gene-expression data
 
     def filter(self, axis: AxisInput, by: FilterType, num: int) -> None:
         """
@@ -576,16 +748,88 @@ class Matrix:
         self._viz_json(dendro=self._clustered)
         self._dirty_flags[CacheLevel.VIZ.value] = False
 
-    def downsample_to(self, category: str = "leiden", axis: AxisInput = "col") -> None:
+    def to_cluster(
+        self,
+        axis: AxisInput = "row",
+        n_clusters: int | None = None,
+        threshold: float | None = None,
+        criterion: str | None = None,
+    ) -> pd.Series:
+        """Cut the dendrogram into flat cluster labels.
+
+        Cuts the hierarchical clustering linkage (computed by :meth:`clust`) along
+        one axis and returns a label per row/column. Use ``n_clusters`` to request
+        a fixed number of clusters (``fcluster`` with ``criterion="maxclust"``) or
+        ``threshold`` to cut at a linkage distance (``criterion="distance"``).
+        Exactly one of the two must be given unless ``criterion`` is set explicitly.
+
+        This is the programmatic counterpart to the Clustergram's interactive
+        dendrogram slider: it turns a clustered Matrix into discrete groups (e.g.
+        consensus domains, meta-clusters) that can be attached back to a
+        collection's ``obs`` / ``var``.
+
+        Args:
+            axis: ``"row"``/``"col"`` (or ``0``/``1``) — which dendrogram to cut.
+            n_clusters: Target number of flat clusters (``maxclust`` criterion).
+            threshold: Linkage-distance cutoff (``distance`` criterion).
+            criterion: Explicit ``scipy`` ``fcluster`` criterion; overrides the
+                ``n_clusters``/``threshold`` inference when given (paired with
+                whichever of the two is supplied as ``t``).
+
+        Returns:
+            A ``pd.Series`` of integer cluster labels indexed by the axis names
+            (``data.index`` for rows, ``data.columns`` for columns), in data order.
+
+        Raises:
+            ValueError: If the matrix is unclustered, the linkage is empty, or
+                neither ``n_clusters`` nor ``threshold`` is provided.
         """
-        Downsample data by aggregating categories.
+        from scipy.cluster.hierarchy import fcluster
+
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+        axis_enum = Axis.normalize(axis)
+        linkage_data = self.viz["linkage"].get(axis_enum.value)
+        if not linkage_data:
+            raise ValueError(
+                f"no linkage for axis '{axis_enum.value}'; call .clust() before .to_cluster()"
+            )
+
+        linkage_matrix = np.array(linkage_data)
+        if n_clusters is not None:
+            labels = fcluster(linkage_matrix, t=n_clusters, criterion=criterion or "maxclust")
+        elif threshold is not None:
+            labels = fcluster(linkage_matrix, t=threshold, criterion=criterion or "distance")
+        else:
+            raise ValueError("provide n_clusters or threshold to cut the dendrogram")
+
+        names = self.data.index if axis_enum == Axis.ROW else self.data.columns
+        return pd.Series(labels, index=names.copy(), name="cluster")
+
+    def downsample_to(
+        self,
+        category: str = "leiden",
+        axis: AxisInput = "col",
+        propagate_metadata: bool | list[str] = False,
+    ) -> None:
+        """
+        Downsample data by aggregating categories using scanpy.get.aggregate.
 
         Args:
             category: Metadata column to aggregate by
             axis: Which axis to aggregate ('col'/1/COL for cells, 'row'/0/ROW for genes)
+            propagate_metadata: Whether to propagate other metadata columns to the
+                aggregated result using the modal (most frequent) value per group.
+                - False: Skip metadata propagation (fast, default)
+                - True: Propagate all metadata columns (slow for large datasets)
+                - list[str]: Propagate only specified columns
 
         Requires:
             scanpy for aggregation functionality
+
+        Note:
+            Uses scanpy.get.aggregate under the hood for fast mean aggregation.
+            See: https://scanpy.readthedocs.io/en/stable/generated/scanpy.get.aggregate.html
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
@@ -606,32 +850,83 @@ class Matrix:
             else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
         )
 
+        # Use scanpy's fast aggregate function
         adata_agg = sc.get.aggregate(adata, by=category, func="mean")
         if adata_agg.X is None and "mean" in adata_agg.layers:
             adata_agg.X = adata_agg.layers["mean"]
 
+        # Add count column
         count_col = "n_cells" if axis_enum == Axis.COL else "n_genes"
-        adata_agg.obs[count_col] = adata.obs.groupby(category).size().values
+        group_sizes = adata.obs.groupby(category, observed=True).size()
+        adata_agg.obs[count_col] = group_sizes.reindex(adata_agg.obs.index).values
 
-        modal_cols = {
-            col: adata.obs.groupby(category)[col]
-            .agg(lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else None)
-            .values
-            for col in meta_df.columns
-            if col != category and col not in adata_agg.obs.columns
-        }
+        # Optionally propagate metadata columns using modal values
+        if propagate_metadata:
+            cols_to_propagate = (
+                [c for c in meta_df.columns if c != category and c not in adata_agg.obs.columns]
+                if propagate_metadata is True
+                else [
+                    c
+                    for c in propagate_metadata
+                    if c in meta_df.columns and c not in adata_agg.obs.columns
+                ]
+            )
 
-        for col, values in modal_cols.items():
-            adata_agg.obs[col] = values
+            if cols_to_propagate:
+                # Vectorized mode computation using value_counts
+                grouped = adata.obs.groupby(category, observed=True)
+                for col in cols_to_propagate:
+                    try:
+                        # Get the most frequent value per group
+                        mode_series = grouped[col].agg(
+                            lambda x: x.value_counts().index[0] if len(x) > 0 else None
+                        )
+                        adata_agg.obs[col] = mode_series.reindex(adata_agg.obs.index).values
+                    except Exception:
+                        pass  # Skip columns that fail
 
         self.data = pd.DataFrame(
             adata_agg.X.T if axis_enum == Axis.COL else adata_agg.X,
             index=adata_agg.var.index if axis_enum == Axis.COL else adata_agg.obs.index,
             columns=adata_agg.obs.index if axis_enum == Axis.COL else adata_agg.var.index,
         )
-        setattr(self, f"meta_{axis_enum.value}", adata_agg.obs)
+
+        # Add category column to the aggregated metadata
+        meta_agg = adata_agg.obs.copy()
+        meta_agg[category] = meta_agg.index.astype(str)
+
+        # Add colors from source adata if available
+        color_key = f"{category}_colors"
+        if color_key in adata.uns:
+            src_colors = adata.uns[color_key]
+            if hasattr(adata.obs[category], "cat"):
+                src_categories = list(adata.obs[category].cat.categories.astype(str))
+            else:
+                src_categories = list(adata.obs[category].unique().astype(str))
+
+            color_dict = {
+                str(cat): src_colors[i]
+                for i, cat in enumerate(src_categories)
+                if i < len(src_colors)
+            }
+            meta_agg["color"] = [color_dict.get(str(c), "#808080") for c in meta_agg.index]
+
+        setattr(self, f"meta_{axis_enum.value}", meta_agg)
         self.is_downsampled, self._clustered = True, False
         self._invalidate_cache(CacheLevel.DATA.value)
+
+        # Update entity specification for the downsampled axis
+        # The entity type stays the same, but the attribute changes to the aggregation category
+        current_entity = self.col_entity if axis_enum == Axis.COL else self.row_entity
+        new_entity: AxisEntity = {
+            "entity": current_entity.get("entity", "cell"),
+            "attr": category,
+        }
+
+        if axis_enum == Axis.COL:
+            self.col_entity = new_entity
+        else:
+            self.row_entity = new_entity
 
     def to_df(self) -> pd.DataFrame:
         """Return DataFrame copy of data."""
@@ -691,7 +986,62 @@ class Matrix:
         )
         return self.export_viz_json_string()
 
-    def export_viz_parquet(self) -> dict[str, bytes]:
+    def set_dot_matrix(self, dot: pd.DataFrame | np.ndarray | AnnData | Matrix) -> Matrix:
+        """Attach a secondary matrix that drives dot-plot *size* encoding.
+
+        The values are interpreted as a per-cell size channel (typically the
+        fraction of cells in a cluster expressing a gene, in ``[0, 1]``) that is
+        rendered as square/dot size in a dot-plot :class:`~celldega.viz.Clustergram`,
+        independently of the main matrix which continues to drive color/opacity
+        and the clustering order.
+
+        The dot matrix is aligned to the main matrix **by row and column name** at
+        export time, so it does not need to share the clustered ordering — only
+        the same labels. Missing entries become ``0`` (no dot).
+
+        Args:
+            dot: A ``DataFrame`` indexed by row names with columns of column
+                names, a 2D array matching the main matrix shape/order, an
+                ``AnnData`` (``X`` with ``obs_names`` rows / ``var_names`` cols),
+                or another ``Matrix``.
+
+        Returns:
+            ``self`` (to allow chaining, e.g. ``Matrix(df).set_dot_matrix(frac)``).
+        """
+        if isinstance(dot, Matrix):
+            dot = pd.DataFrame(
+                dot.dat["mat"],
+                index=dot.dat["nodes"][Axis.ROW.value],
+                columns=dot.dat["nodes"][Axis.COL.value],
+            )
+        elif isinstance(dot, AnnData):
+            # Transposed to match `load_adata`'s convention for the main matrix
+            # (features/var as rows, cells-or-sets/obs as columns) — without
+            # this, `X`'s natural obs x var orientation is exactly backwards
+            # from the main matrix's row/col names and `reindex` silently
+            # aligns nothing (see `export_viz_parquet`).
+            values = dot.X.toarray() if hasattr(dot.X, "toarray") else np.asarray(dot.X)
+            dot = pd.DataFrame(
+                values.T,
+                index=dot.var_names.astype(str),
+                columns=dot.obs_names.astype(str),
+            )
+        elif not isinstance(dot, pd.DataFrame):
+            arr = np.asarray(dot)
+            row_names = self.dat["nodes"][Axis.ROW.value]
+            col_names = self.dat["nodes"][Axis.COL.value]
+            if arr.shape != (len(row_names), len(col_names)):
+                raise ValueError(
+                    "dot array shape "
+                    f"{arr.shape} does not match matrix shape "
+                    f"{(len(row_names), len(col_names))}; pass a DataFrame to align by name"
+                )
+            dot = pd.DataFrame(arr, index=row_names, columns=col_names)
+
+        self.dot_mat = dot
+        return self
+
+    def export_viz_parquet(self) -> dict[str, bytes | str]:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
             warnings.warn(
@@ -723,11 +1073,25 @@ class Matrix:
 
         viz = self.viz
 
+        row_names = self.dat["nodes"][Axis.ROW.value]
+        col_names = self.dat["nodes"][Axis.COL.value]
+
         mat_df = pd.DataFrame(
             self.dat["mat"],
-            index=self.dat["nodes"][Axis.ROW.value],
-            columns=self.dat["nodes"][Axis.COL.value],
+            index=row_names,
+            columns=col_names,
         ).reset_index(names="row")
+
+        # Optional dot-size matrix, aligned to the main matrix order by name so it
+        # lines up cell-for-cell in the front-end (fraction expressing, etc.).
+        dot_bytes = b""
+        if self.dot_mat is not None:
+            dot_aligned = (
+                self.dot_mat.reindex(index=row_names, columns=col_names)
+                .astype("float32")
+                .fillna(0.0)
+            )
+            dot_bytes = _to_bytes(dot_aligned.reset_index(names="row"))
 
         row_nodes_df = pd.DataFrame(viz.get("row_nodes", []))
         col_nodes_df = pd.DataFrame(viz.get("col_nodes", []))
@@ -742,12 +1106,85 @@ class Matrix:
 
         return {
             "mat": _to_bytes(mat_df),
+            "dot_mat": dot_bytes,
             "row_nodes": _to_bytes(row_nodes_df),
             "col_nodes": _to_bytes(col_nodes_df),
             "row_linkage": _to_bytes(row_link_df),
             "col_linkage": _to_bytes(col_link_df),
             "meta": meta_json,
+            # Entity info as dicts with entity and attr keys
+            "row_entity": self.row_entity,
+            "col_entity": self.col_entity,
         }
+
+    def write_dega_files(
+        self,
+        path: str,
+        name: str | None = None,
+    ) -> None:
+        """
+        Write Clustergram visualization data to a DegaFiles directory.
+
+        This creates a `cgm/` subdirectory containing the parquet files needed
+        to load the Clustergram in JavaScript without a Python backend.
+
+        Parameters
+        ----------
+        path : str or Path
+            Path to the DegaFiles directory (the same directory used for
+            Landscape and Yearbook data).
+        name : str, optional
+            Name for this Clustergram. If provided, files are saved to
+            ``cgm/{name}/``. If None, uses the matrix's name attribute,
+            or "default" if no name is set.
+
+        Examples
+        --------
+        >>> mat = Matrix(adata)
+        >>> mat.clust()
+        >>> mat.write_dega_files("./my_dega_files", name="skin_cancer_clusters")
+        >>>
+        >>> # JavaScript can then load from:
+        >>> # base_url + '/cgm/skin_cancer_clusters/'
+
+        Notes
+        -----
+        The following files are created:
+        - ``mat.parquet``: The matrix data
+        - ``row_nodes.parquet``: Row node information
+        - ``col_nodes.parquet``: Column node information
+        - ``row_linkage.parquet``: Row dendrogram linkage
+        - ``col_linkage.parquet``: Column dendrogram linkage
+        - ``meta.json``: Metadata including colors and config
+        """
+        from pathlib import Path as PathLib
+
+        # Determine the name for the subdirectory
+        cgm_name = name or self.name or "default"
+
+        # Create output directory
+        cgm_dir = PathLib(path) / "cgm" / cgm_name
+        cgm_dir.mkdir(parents=True, exist_ok=True)
+
+        # Get parquet data
+        pq_data = self.export_viz_parquet()
+
+        # Write parquet files
+        (cgm_dir / "mat.parquet").write_bytes(pq_data["mat"])
+        if pq_data.get("dot_mat"):
+            (cgm_dir / "dot_mat.parquet").write_bytes(pq_data["dot_mat"])
+        (cgm_dir / "row_nodes.parquet").write_bytes(pq_data["row_nodes"])
+        (cgm_dir / "col_nodes.parquet").write_bytes(pq_data["col_nodes"])
+        (cgm_dir / "row_linkage.parquet").write_bytes(pq_data["row_linkage"])
+        (cgm_dir / "col_linkage.parquet").write_bytes(pq_data["col_linkage"])
+
+        # Write metadata JSON
+        meta = pq_data["meta"].copy()
+        meta["row_entity"] = pq_data["row_entity"]
+        meta["col_entity"] = pq_data["col_entity"]
+        (cgm_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+
+        print(f"Clustergram data saved to {cgm_dir}")
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """
@@ -840,15 +1277,39 @@ class Matrix:
         Args:
             color_mapping: Dict mapping category values to colors,
                         DataFrame with 'color' column, or None to auto-generate
+
+        Note:
+            If metadata has a 'color' column, those colors will be used automatically.
         """
         # Ensure viz structure exists
         if "global_cat_colors" not in self.viz:
             self.viz["global_cat_colors"] = {}
 
         if color_mapping is None:
-            # Build color mapping from all unique categorical values only
-            all_cats: set[str] = set()
+            # First, try to extract colors from metadata 'color' columns
+            color_mapping = {}
 
+            for meta_df, cat_list in (
+                (self.meta_row, self.row_cats),
+                (self.meta_col, self.col_cats),
+            ):
+                if meta_df is not None and not meta_df.empty:
+                    # If metadata has a 'color' column, use index -> color mapping
+                    if "color" in meta_df.columns:
+                        for idx, color in zip(meta_df.index, meta_df["color"], strict=False):
+                            color_mapping[str(idx)] = color
+
+                    # Also check each categorical column for matching color columns
+                    for cat_col in cat_list:
+                        if cat_col in meta_df.columns and "color" in meta_df.columns:
+                            for cat_val, color in zip(
+                                meta_df[cat_col].astype(str), meta_df["color"], strict=False
+                            ):
+                                if cat_val not in color_mapping:
+                                    color_mapping[cat_val] = color
+
+            # Fill in missing colors with auto-generated palette
+            all_cats: set[str] = set()
             for meta_df, cat_list in (
                 (self.meta_row, self.row_cats),
                 (self.meta_col, self.col_cats),
@@ -858,10 +1319,15 @@ class Matrix:
                         if cat_col in meta_df.columns:
                             all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
-            color_mapping = {
-                cat: _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
-                for i, cat in enumerate(sorted(all_cats))
-            }
+            # Add row/col index values as potential categories (for nbhd-by-nbhd matrices)
+            if self.meta_row is not None:
+                all_cats.update(str(x) for x in self.meta_row.index)
+            if self.meta_col is not None:
+                all_cats.update(str(x) for x in self.meta_col.index)
+
+            for i, cat in enumerate(sorted(all_cats)):
+                if cat not in color_mapping:
+                    color_mapping[cat] = _COLOR_PALETTE[i % len(_COLOR_PALETTE)]
 
         elif isinstance(color_mapping, pd.DataFrame):
             if "color" in color_mapping.columns:

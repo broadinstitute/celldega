@@ -2,8 +2,17 @@ import { OrthographicView } from 'deck.gl';
 
 export const ini_views = (viz_state) => {
   let switch_ratio;
+  const drag_pan_enabled = !viz_state.crop?.active;
 
-  if (viz_state.mat.num_rows > viz_state.mat.num_cols) {
+  if (viz_state.mat.viz_mode === 'composition') {
+    // Composition: columns (datasets/samples) should always stay fully
+    // visible; only rows (population detail) are zoomable. See the matching
+    // permanent lock in on_view_state_change.js — this shape-driven
+    // major/minor axis system otherwise always eventually unlocks to 'all'.
+    viz_state.zoom.major_zoom_axis = 'Y';
+    viz_state.zoom.minor_zoom_axis = 'none';
+    switch_ratio = 1;
+  } else if (viz_state.mat.num_rows > viz_state.mat.num_cols) {
     viz_state.zoom.major_zoom_axis = 'Y';
     viz_state.zoom.minor_zoom_axis = 'X';
     switch_ratio = viz_state.mat.num_rows / viz_state.mat.num_cols;
@@ -29,6 +38,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.mat_height}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: true,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -43,6 +53,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.mat_height}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -57,10 +68,31 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.col_region}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
       },
+    }),
+
+    // Static view for row attribute labels (top-left corner, no zoom/pan)
+    new OrthographicView({
+      id: 'row_attr_labels',
+      x: '0px',
+      y: '0px',
+      width: `${viz_state.viz.row_region}px`,
+      height: `${viz_state.viz.col_region}px`,
+      controller: false,
+    }),
+
+    // Static view for column attribute labels (right side, aligned with dendrogram)
+    new OrthographicView({
+      id: 'col_attr_labels',
+      x: `${viz_state.viz.row_region + viz_state.viz.label_buffer + viz_state.viz.mat_width}px`,
+      y: '0px',
+      width: `${viz_state.viz.dendrogram_width + 60}px`,
+      height: `${viz_state.viz.col_region}px`,
+      controller: false,
     }),
 
     // New Dendrogram Views
@@ -74,6 +106,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.dendrogram_width}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -89,6 +122,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.mat_height}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -114,6 +148,19 @@ export const ini_view_state = (viz_state) => {
     cols: {
       target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
+    },
+    row_attr_labels: {
+      // Match the rows view x-target so bars and labels align horizontally
+      target: [viz_state.viz.label_row_x, viz_state.viz.col_region / 2],
+      zoom: [0, 0],
+    },
+    col_attr_labels: {
+      // Use centered view for simple 1:1 coordinate mapping
+      target: [
+        (viz_state.viz.dendrogram_width + 60) / 2,
+        viz_state.viz.col_region / 2,
+      ],
+      zoom: [0, 0],
     },
     dendro_rows: {
       target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],

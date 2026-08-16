@@ -1,4 +1,4 @@
-import celldega from './widget.js';
+import celldega from './celldega.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -30,9 +30,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             base_url,
             '',
             0.25,
-            '100%',
-            '100%',
-            // ist_callback
+            0,    // width (0 = 100%)
+            500   // height in pixels
         );
 
     }

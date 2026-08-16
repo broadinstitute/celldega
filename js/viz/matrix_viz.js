@@ -77,6 +77,11 @@ import {
   refresh_row_label_visibility,
   set_composition_colors,
 } from '../matrix/composition_data';
+import {
+  crop_fade_signature,
+  crop_filter_signature,
+  filter_matrix_data,
+} from '../matrix/crop_filter';
 import { calc_dendro_polygons, ini_dendro } from '../matrix/dendro';
 import {
   set_row_label_data,
@@ -488,11 +493,19 @@ export const matrix_viz = async (
         });
       } else {
         apply_mat_encoding(viz_state);
+        const crop_sig = crop_filter_signature(viz_state);
+        const fade_sig = crop_fade_signature(viz_state);
         layers_mat.mat_layer = layers_mat.mat_layer.clone({
-          data: viz_state.mat.mat_data.slice(),
+          data: filter_matrix_data(viz_state),
           updateTriggers: {
-            getFillColor: new_mode,
-            getRadius: new_mode,
+            getPosition: crop_sig,
+            getFillColor: [
+              new_mode,
+              crop_sig,
+              fade_sig,
+              viz_state.dendro?._highlight_rev || 0,
+            ],
+            getRadius: [new_mode, crop_sig],
           },
         });
       }
@@ -543,9 +556,19 @@ export const matrix_viz = async (
       viz_state.mode_buttons?.dot?.setActive(value);
       if (viz_state.mat.viz_mode !== 'dotplot') return;
       apply_mat_encoding(viz_state);
+      const crop_sig = crop_filter_signature(viz_state);
+      const fade_sig = crop_fade_signature(viz_state);
       layers_mat.mat_layer = layers_mat.mat_layer.clone({
-        data: viz_state.mat.mat_data.slice(),
-        updateTriggers: { getRadius: value },
+        data: filter_matrix_data(viz_state),
+        updateTriggers: {
+          getPosition: crop_sig,
+          getFillColor: [
+            crop_sig,
+            fade_sig,
+            viz_state.dendro?._highlight_rev || 0,
+          ],
+          getRadius: [value, crop_sig],
+        },
       });
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });

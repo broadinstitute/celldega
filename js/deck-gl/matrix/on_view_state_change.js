@@ -1,8 +1,10 @@
 import { OrthographicView } from 'deck.gl';
 
 import { refresh_row_label_visibility } from '../../matrix/composition_data';
+import { get_axis_label_font_size } from '../../matrix/crop_filter';
 
 import { curate_pan_x, curate_pan_y } from './curate_pan';
+import { clear_dendro_focus } from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { update_zoom_data } from './zoom';
@@ -17,6 +19,18 @@ export const on_view_state_change = (
   const { viewId } = params;
 
   const { zoom, target } = viewState;
+
+  const interaction = params.interactionState || {};
+  const is_user_view_interaction =
+    interaction.isZooming || interaction.isPanning || interaction.isDragging;
+
+  if (is_user_view_interaction && !viz_state.dendro?._suppress_focus_clear) {
+    clear_dendro_focus(deck_mat, layers_mat, viz_state, { render: false });
+  }
+
+  if (viz_state.dendro?._suppress_focus_clear && !is_user_view_interaction) {
+    return;
+  }
 
   // zoom differentials are calculated before the redefine_global_view_state function
 
@@ -177,14 +191,14 @@ export const on_view_state_change = (
   } else {
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
       getSize:
-        viz_state.viz.font_size.rows *
+        get_axis_label_font_size(viz_state, 'row') *
         Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
     });
   }
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     getSize:
-      viz_state.viz.font_size.cols *
+      get_axis_label_font_size(viz_state, 'col') *
       Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x),
     updateTriggers: {
       getPixelOffset: viz_state.zoom.zoom_data.matrix.zoom_x,

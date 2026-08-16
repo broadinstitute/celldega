@@ -434,6 +434,11 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     setActive: (active) => {
       apply_state_button_style(crop_button, active, viz_state);
     },
+    setCropEnabled: (enabled) => {
+      crop_button
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
     setUndoEnabled: (enabled) => {
       apply_state_button_style(undo_button, enabled, viz_state)
         .style('opacity', enabled ? 1 : 0.55)

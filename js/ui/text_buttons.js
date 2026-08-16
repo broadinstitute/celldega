@@ -15,6 +15,7 @@ import {
   mat_reorder_triggers,
 } from '../deck-gl/matrix/matrix_layers';
 import { refresh_row_label_visibility } from '../matrix/composition_data';
+import { crop_filter_signature } from '../matrix/crop_filter';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import { toggle_slider } from './sliders';
@@ -28,6 +29,8 @@ export const get_img_layer_visible = () => img_layer_visible;
 const set_img_layer_visible = (visible) => {
   img_layer_visible = visible;
 };
+
+const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
 
 const toggle_visible_button = (event) => {
   const current = d3.select(event.currentTarget);
@@ -112,27 +115,43 @@ const reorder_button_callback = (
     if (axis === 'row') {
       layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
         updateTriggers: {
-          getPosition: viz_state.order.current.row,
+          ...get_layer_update_triggers(layers_mat.row_label_layer),
+          getPosition: [
+            viz_state.order.current.row,
+            crop_filter_signature(viz_state),
+          ],
         },
       });
 
       // reorder cat_layer
       layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
         updateTriggers: {
-          getPosition: viz_state.order.current.row,
+          ...get_layer_update_triggers(layers_mat.row_cat_layer),
+          getPosition: [
+            viz_state.order.current.row,
+            crop_filter_signature(viz_state),
+          ],
         },
       });
     } else {
       layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
         updateTriggers: {
-          getPosition: viz_state.order.current.col,
+          ...get_layer_update_triggers(layers_mat.col_label_layer),
+          getPosition: [
+            viz_state.order.current.col,
+            crop_filter_signature(viz_state),
+          ],
         },
       });
 
       // reorder cat_layer
       layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
         updateTriggers: {
-          getPosition: viz_state.order.current.col,
+          ...get_layer_update_triggers(layers_mat.col_cat_layer),
+          getPosition: [
+            viz_state.order.current.col,
+            crop_filter_signature(viz_state),
+          ],
         },
       });
     }

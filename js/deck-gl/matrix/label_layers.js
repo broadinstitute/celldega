@@ -10,6 +10,15 @@ import {
   composition_row_label_position,
   refresh_row_label_visibility,
 } from '../../matrix/composition_data';
+import {
+  crop_fade_axis_alpha_factor,
+  crop_fade_signature,
+  crop_filter_signature,
+  filter_label_data,
+  get_axis_center_position,
+  get_axis_display_count,
+  get_axis_label_font_size,
+} from '../../matrix/crop_filter';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
 import {
@@ -25,8 +34,10 @@ import {
 } from './dendro_layers';
 import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
+const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
+
 const row_label_get_position = (d, index, viz_state) => {
-  const inst_index = index.index;
+  const inst_index = d.index ?? index.index;
 
   // Composition mode: position at the row's actual stacked-bar segment
   // (next to the leftmost bar) so labels track reordering/normalization
@@ -35,14 +46,10 @@ const row_label_get_position = (d, index, viz_state) => {
     return composition_row_label_position(viz_state, inst_index);
   }
 
-  const inst_order = viz_state.order.current.row;
   const row_offset = 50; // 25
 
-  const inst_row_index =
-    viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][inst_index];
-
   const pos_x = row_offset;
-  const pos_y = viz_state.viz.row_offset * (inst_row_index + 1.5);
+  const pos_y = get_axis_center_position(viz_state, 'row', inst_index) ?? 0;
 
   const position = [pos_x, pos_y];
 
@@ -50,14 +57,10 @@ const row_label_get_position = (d, index, viz_state) => {
 };
 
 const col_label_get_position = (d, index, viz_state) => {
-  const inst_index = index.index;
-  const inst_order = viz_state.order.current.col;
+  const inst_index = d.index ?? index.index;
   const col_offset = 50;
 
-  const inst_col_index =
-    viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][inst_index];
-
-  const pos_x = viz_state.viz.col_offset * (inst_col_index + 0.5);
+  const pos_x = get_axis_center_position(viz_state, 'col', inst_index) ?? 0;
   const pos_y = col_offset; // * zoom_factor
 
   const position = [pos_x, pos_y];
@@ -66,6 +69,8 @@ const col_label_get_position = (d, index, viz_state) => {
 };
 
 export const ini_row_label_layer = (viz_state) => {
+  const crop_sig = crop_filter_signature(viz_state);
+  const fade_sig = crop_fade_signature(viz_state);
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,
@@ -75,18 +80,24 @@ export const ini_row_label_layer = (viz_state) => {
 
   const row_label_layer = new TextLayer({
     id: 'row-label-layer',
-    data: viz_state.labels.row_label_data,
+    data: filter_label_data(viz_state, 'row'),
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
-    getSize: viz_state.viz.font_size.rows,
+    getSize: get_axis_label_font_size(viz_state, 'row'),
     // Per-instance so composition mode can hide labels that don't fit their
     // segment (fully transparent, rather than removed from `data`, so
     // reorder/index-keyed picking stays stable).
     getColor: (d) => {
-      if (viz_state.mat.viz_mode !== 'composition') return [0, 0, 0, 255];
+      const crop_alpha = Math.round(
+        255 * crop_fade_axis_alpha_factor(viz_state, 'row', d.index)
+      );
+      if (crop_alpha === 0) return [0, 0, 0, 0];
+      if (viz_state.mat.viz_mode !== 'composition') {
+        return [0, 0, 0, crop_alpha];
+      }
       const visible = viz_state.labels.row_visibility;
       return !visible || visible[d.index] !== false
-        ? [0, 0, 0, 255]
+        ? [0, 0, 0, crop_alpha]
         : [0, 0, 0, 0];
     },
     getAngle: 0,
@@ -96,7 +107,9 @@ export const ini_row_label_layer = (viz_state) => {
     sizeUnits: 'pixels',
     sizeScale: 2,
     updateTriggers: {
-      getColor: viz_state.labels._row_vis_rev || 0,
+      getPosition: crop_sig,
+      getColor: [crop_sig, fade_sig, viz_state.labels._row_vis_rev || 0],
+      getSize: crop_sig,
     },
     pickable: true,
     transitions,
@@ -106,6 +119,8 @@ export const ini_row_label_layer = (viz_state) => {
 };
 
 export const ini_col_label_layer = (viz_state) => {
+  const crop_sig = crop_filter_signature(viz_state);
+  const fade_sig = crop_fade_signature(viz_state);
   // Define zoom-dependent offset
   function getPixelOffset(zoom_x, num_cols) {
     const zoom_factor = Math.pow(2, zoom_x);
@@ -124,11 +139,16 @@ export const ini_col_label_layer = (viz_state) => {
 
   const col_label_layer = new TextLayer({
     id: 'col-label-layer',
-    data: viz_state.labels.col_label_data,
+    data: filter_label_data(viz_state, 'col'),
     getPosition: (d, index) => col_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
-    getSize: viz_state.viz.font_size.cols,
-    getColor: [0, 0, 0],
+    getSize: get_axis_label_font_size(viz_state, 'col'),
+    getColor: (d) => [
+      0,
+      0,
+      0,
+      Math.round(255 * crop_fade_axis_alpha_factor(viz_state, 'col', d.index)),
+    ],
     getAngle: 45, // Optional: Text angle in degrees
     getTextAnchor: 'start', // middle
     getAlignmentBaseline: 'bottom',
@@ -145,8 +165,14 @@ export const ini_col_label_layer = (viz_state) => {
     getPixelOffset: () =>
       getPixelOffset(
         viz_state.zoom.zoom_data.matrix.zoom_x,
-        viz_state.mat.num_cols
+        get_axis_display_count(viz_state, 'col')
       ),
+    updateTriggers: {
+      getPosition: crop_sig,
+      getPixelOffset: [crop_sig, viz_state.zoom.zoom_data.matrix.zoom_x],
+      getColor: [crop_sig, fade_sig],
+      getSize: crop_sig,
+    },
   });
 
   return col_label_layer;
@@ -199,14 +225,23 @@ const custom_label_reorder = (
   if (other_axis === 'col') {
     layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
       updateTriggers: {
-        getPosition: [viz_state.order.current.col, name],
+        ...get_layer_update_triggers(layers_mat.col_label_layer),
+        getPosition: [
+          viz_state.order.current.col,
+          name,
+          crop_filter_signature(viz_state),
+        ],
       },
     });
 
     // reorder cat_layer
     layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
       updateTriggers: {
-        getPosition: viz_state.order.current.col,
+        ...get_layer_update_triggers(layers_mat.col_cat_layer),
+        getPosition: [
+          viz_state.order.current.col,
+          crop_filter_signature(viz_state),
+        ],
       },
     });
 
@@ -214,14 +249,23 @@ const custom_label_reorder = (
   } else if (other_axis === 'row') {
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
       updateTriggers: {
-        getPosition: [viz_state.order.current.row, name],
+        ...get_layer_update_triggers(layers_mat.row_label_layer),
+        getPosition: [
+          viz_state.order.current.row,
+          name,
+          crop_filter_signature(viz_state),
+        ],
       },
     });
 
     // reorder cat_layer
     layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
       updateTriggers: {
-        getPosition: viz_state.order.current.row,
+        ...get_layer_update_triggers(layers_mat.row_cat_layer),
+        getPosition: [
+          viz_state.order.current.row,
+          crop_filter_signature(viz_state),
+        ],
       },
     });
 

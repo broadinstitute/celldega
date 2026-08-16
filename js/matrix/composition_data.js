@@ -1,6 +1,14 @@
 import * as d3 from 'd3';
 
 import { colorToRgba } from './cat_data';
+import {
+  crop_filter_signature,
+  get_axis_center_position,
+  get_axis_display_index,
+  get_axis_display_state,
+  get_axis_label_font_size,
+  get_axis_slot_size,
+} from './crop_filter';
 
 // Composition (stacked-bar) layout for the Clustergram body.
 //
@@ -54,7 +62,9 @@ const order_signature = (viz_state) => {
     .sort()
     .map((k) => `${k}:${weights[k]}`)
     .join(',');
-  return `${row_key}|${col_key}|${normalized}|${weights_sig}|${row_arr.join(',')}|${col_arr.join(',')}`;
+  return `${row_key}|${col_key}|${normalized}|${weights_sig}|${crop_filter_signature(
+    viz_state
+  )}|${row_arr.join(',')}|${col_arr.join(',')}`;
 };
 
 /**
@@ -67,18 +77,22 @@ const order_signature = (viz_state) => {
  * @returns {Record<string, {position: number[], half: number[]}>}
  */
 export const build_composition_layout = (viz_state) => {
-  const { num_rows, num_cols, net_mat, orders, composition_normalized } =
-    viz_state.mat;
-  const { mat_height, col_width, row_offset } = viz_state.viz;
+  const { num_cols, net_mat, orders, composition_normalized } = viz_state.mat;
+  const { mat_height } = viz_state.viz;
   const row_order = orders.row[viz_state.order.current.row];
-  const col_order = orders.col[viz_state.order.current.col];
   const normalized = composition_normalized;
+  const row_state = get_axis_display_state(viz_state, 'row');
+  const col_state = get_axis_display_state(viz_state, 'col');
+  const visible_rows = row_state.visible_indices;
+  const visible_cols = col_state.visible_indices;
+  const row_slot = get_axis_slot_size(viz_state, 'row');
+  const col_slot = get_axis_slot_size(viz_state, 'col');
 
   // Column sums (only non-negative contributions stack).
   const col_sums = new Array(num_cols).fill(0);
-  for (let r = 0; r < num_rows; r++) {
+  for (const r of visible_rows) {
     const row = net_mat[r];
-    for (let c = 0; c < num_cols; c++) {
+    for (const c of visible_cols) {
       const v = row[c];
       if (v > 0) col_sums[c] += v;
     }
@@ -92,15 +106,16 @@ export const build_composition_layout = (viz_state) => {
   // explicit weights only matter when the matrix holds proportions (every
   // column summing to ~1) and true magnitude would otherwise be lost.
   const col_weights_by_name = viz_state.mat.composition_col_weights || {};
-  const col_weights = Array.from({ length: num_cols }, (_, c) => {
+  const col_weights = new Array(num_cols).fill(0);
+  visible_cols.forEach((c) => {
     const name = viz_state.col_nodes[c]?.name;
     const explicit = name != null ? col_weights_by_name[name] : undefined;
-    return explicit != null ? explicit : col_sums[c];
+    col_weights[c] = explicit != null ? explicit : col_sums[c];
   });
-  const max_weight = Math.max(...col_weights, 1e-9);
+  const max_weight = Math.max(...visible_cols.map((c) => col_weights[c]), 1e-9);
 
-  const y_top = row_offset * 1.0; // top edge of the body region
-  const half_width = col_width * 0.5 * 0.95; // small (5%) gap between bars
+  const y_top = row_slot * 1.0; // top edge of the body region
+  const half_width = col_slot * 0.5 * 0.95; // small (5%) gap between bars
 
   // Stack rows in the SAME order across every bar (row identity always maps
   // to the same relative vertical band everywhere), driven by the shared
@@ -109,14 +124,14 @@ export const build_composition_layout = (viz_state) => {
   // custom_label_reorder) puts that column's largest population at the
   // bottom, matching the standard bar-chart "biggest at the base" look —
   // without making each bar sort independently by its own local values.
-  const rows_sorted = Array.from({ length: num_rows }, (_, i) => i).sort(
-    (a, b) => row_order[a] - row_order[b]
-  );
+  const rows_sorted = visible_rows
+    .slice()
+    .sort((a, b) => row_order[a] - row_order[b]);
 
   const layout = {};
-  for (let c = 0; c < num_cols; c++) {
-    const x_index = num_cols - col_order[c];
-    const x_center = col_width * (x_index + 0.5);
+  for (const c of visible_cols) {
+    const x_center = get_axis_center_position(viz_state, 'col', c);
+    if (x_center === null) continue;
     const col_sum = col_sums[c] || 1;
     // Bar's own height: full mat_height when normalized, else scaled by its
     // share of the largest column weight (so datasets with more cells get
@@ -166,13 +181,13 @@ export const comp_geom_for = (viz_state, d) => {
 };
 
 const edge_composition_col = (viz_state, is_better) => {
-  const { num_cols, orders } = viz_state.mat;
-  const col_order = orders.col[viz_state.order.current.col];
+  const visible_cols = get_axis_display_state(viz_state, 'col').visible_indices;
 
-  let best_col = 0;
+  let best_col = visible_cols[0] ?? 0;
   let best_x_index = null;
-  for (let c = 0; c < num_cols; c++) {
-    const x_index = num_cols - col_order[c];
+  for (const c of visible_cols) {
+    const x_index = get_axis_display_index(viz_state, 'col', c);
+    if (x_index === null) continue;
     if (best_x_index === null || is_better(x_index, best_x_index)) {
       best_x_index = x_index;
       best_col = c;
@@ -232,13 +247,13 @@ export const compute_row_label_visibility = (viz_state) => {
   const leftmost_col = leftmost_composition_col(viz_state);
   const zoom_factor = composition_row_zoom_factor(viz_state);
   const min_height =
-    (viz_state.viz.font_size.rows * MIN_FIT_RATIO) / zoom_factor;
+    (get_axis_label_font_size(viz_state, 'row') * MIN_FIT_RATIO) / zoom_factor;
 
   const visible = new Array(num_rows).fill(false);
-  for (let r = 0; r < num_rows; r++) {
+  get_axis_display_state(viz_state, 'row').visible_indices.forEach((r) => {
     const seg = layout[`${r}_${leftmost_col}`];
     visible[r] = !!seg && seg.half[1] * 2 >= min_height;
-  }
+  });
   return visible;
 };
 

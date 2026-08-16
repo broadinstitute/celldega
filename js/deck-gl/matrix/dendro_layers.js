@@ -7,6 +7,13 @@ import {
   sync_selected_cols,
 } from '../../global_variables/selected_genes';
 import {
+  crop_fade_signature,
+  crop_filter_signature,
+  get_axis_slot_size,
+  get_default_pan_x,
+  get_default_pan_y,
+} from '../../matrix/crop_filter';
+import {
   calc_dendro_triangles,
   calc_dendro_polygons,
 } from '../../matrix/dendro';
@@ -18,11 +25,13 @@ import { update_zoom_data } from './zoom';
 
 const DENDRO_AXES = ['row', 'col'];
 const DEFAULT_FILL_COLOR = [0, 0, 0, 90];
+const SELECTED_FILL_COLOR = [0, 0, 0, 135];
 const FOCUSED_FILL_COLOR = [0, 0, 0, 180];
-const DOUBLE_CLICK_DELAY = 250;
-const DENDRO_FOCUS_TRANSITION = 650;
-const DENDRO_HIGHLIGHT_DIM_ALPHA = 0.2;
-const DENDRO_HOVER_DELAY_MS = 250;
+const DOUBLE_CLICK_DELAY = 350;
+const DENDRO_FOCUS_TRANSITION = 260;
+const DENDRO_HIGHLIGHT_DIM_ALPHA = 0.04;
+const DENDRO_HOVER_DELAY_MS = 60;
+const DENDRO_CLICK_VIEWPORT_TOLERANCE = 16;
 
 const ease_out_cubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -36,6 +45,80 @@ const ensure_click_tracking = (viz_state) => {
   if (!viz_state.dendro.pending_click) {
     viz_state.dendro.pending_click = { row: null, col: null };
   }
+};
+
+const ensure_selection_tracking = (viz_state) => {
+  if (!viz_state.dendro.selected_polygon) {
+    viz_state.dendro.selected_polygon = { row: null, col: null };
+  }
+
+  return viz_state.dendro.selected_polygon;
+};
+
+const clear_pending_axis_click = (viz_state, axis) => {
+  ensure_click_tracking(viz_state);
+  clearTimeout(viz_state.dendro.click_timeouts[axis]);
+  viz_state.dendro.click_timeouts[axis] = null;
+  viz_state.dendro.pending_click[axis] = null;
+};
+
+const polygon_props_from_pick_info = (info) => {
+  if (!info?.object?.properties) return null;
+
+  return {
+    ...info.object.properties,
+    all_names: [...(info.object.properties.all_names || [])],
+  };
+};
+
+const point_in_polygon = (point, polygon) => {
+  const [x, y] = point;
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const intersects =
+      yi > y !== yj > y &&
+      x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi;
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+};
+
+const point_in_viewport = (viewport, x, y) =>
+  x >= viewport.x - DENDRO_CLICK_VIEWPORT_TOLERANCE &&
+  x <= viewport.x + viewport.width + DENDRO_CLICK_VIEWPORT_TOLERANCE &&
+  y >= viewport.y - DENDRO_CLICK_VIEWPORT_TOLERANCE &&
+  y <= viewport.y + viewport.height + DENDRO_CLICK_VIEWPORT_TOLERANCE;
+
+const manual_pick_dendro_polygon = (deck_mat, viz_state, x, y) => {
+  const viewports = deck_mat.viewManager?.getViewports?.() || [];
+
+  for (const axis of DENDRO_AXES) {
+    const viewport_id = axis === 'row' ? 'dendro_rows' : 'dendro_cols';
+    const viewport = viewports.find(
+      (inst_viewport) => inst_viewport.id === viewport_id
+    );
+    if (!viewport || typeof viewport.unproject !== 'function') continue;
+    if (!point_in_viewport(viewport, x, y)) continue;
+
+    const point = viewport.unproject([x - viewport.x, y - viewport.y]);
+    if (!Array.isArray(point)) continue;
+
+    const polygon = viz_state.dendro.polygons?.[axis]?.find((candidate) =>
+      point_in_polygon(point, candidate.coordinates)
+    );
+    if (polygon) {
+      return {
+        axis,
+        polygon_props: polygon_props_from_pick_info({ object: polygon }),
+      };
+    }
+  }
+
+  return { axis: null, polygon_props: null };
 };
 
 const normalize_focus_map = (raw_focus) => {
@@ -118,10 +201,16 @@ const apply_zoom_state = (
   viz_state.zoom.zoom_data.total_zoom.x = zoom_curated[0];
   viz_state.zoom.zoom_data.total_zoom.y = zoom_curated[1];
 
+  viz_state.dendro._suppress_focus_clear = true;
+  clearTimeout(viz_state.dendro._focus_clear_timer);
   deck_mat.setProps({
     viewState: transition_view_state(global_view_state),
     layers: get_mat_layers_list(layers_mat),
   });
+  viz_state.dendro._focus_clear_timer = setTimeout(() => {
+    viz_state.dendro._suppress_focus_clear = false;
+    viz_state.dendro._focus_clear_timer = null;
+  }, DENDRO_FOCUS_TRANSITION + 50);
 };
 
 const animate_focus_to_cluster = (
@@ -141,8 +230,8 @@ const animate_focus_to_cluster = (
     ? viz_state.viz.mat_height
     : viz_state.viz.mat_width;
   const min_unit = is_row_axis
-    ? viz_state.viz.row_offset
-    : viz_state.viz.col_offset;
+    ? get_axis_slot_size(viz_state, 'row')
+    : get_axis_slot_size(viz_state, 'col');
   const cluster_span = Math.max(
     Math.abs((polygon_props.pos_bot ?? 0) - (polygon_props.pos_top ?? 0)),
     min_unit
@@ -150,19 +239,40 @@ const animate_focus_to_cluster = (
   const target_zoom = Math.max(0, Math.log2(matrix_span / cluster_span));
   const cluster_center =
     ((polygon_props.pos_top ?? 0) + (polygon_props.pos_bot ?? 0)) / 2;
+  const other_axis = is_row_axis ? 'col' : 'row';
+  const other_focus = get_axis_focus(viz_state, other_axis);
+  const preserve_other_focus = !!other_focus;
+  const default_pan_x = get_default_pan_x(viz_state);
+  const default_pan_y = get_default_pan_y(viz_state);
 
   const zoom_curated = [
-    is_row_axis ? current.zoom_x : target_zoom,
-    is_row_axis ? target_zoom : current.zoom_y,
+    is_row_axis
+      ? preserve_other_focus
+        ? current.zoom_x
+        : viz_state.zoom.ini_zoom_x
+      : target_zoom,
+    is_row_axis
+      ? target_zoom
+      : preserve_other_focus
+        ? current.zoom_y
+        : viz_state.zoom.ini_zoom_y,
   ];
   const pan_curated = [
     curate_pan_x(
-      is_row_axis ? current.pan_x : cluster_center,
+      is_row_axis
+        ? preserve_other_focus
+          ? current.pan_x
+          : default_pan_x
+        : cluster_center,
       zoom_curated[0],
       viz_state
     ),
     curate_pan_y(
-      is_row_axis ? cluster_center : current.pan_y,
+      is_row_axis
+        ? cluster_center
+        : preserve_other_focus
+          ? current.pan_y
+          : default_pan_y,
       zoom_curated[1],
       viz_state
     ),
@@ -186,14 +296,16 @@ const animate_focus_reset_axis = (deck_mat, layers_mat, viz_state, axis) => {
     is_row_axis ? current.zoom_x : viz_state.zoom.ini_zoom_x,
     is_row_axis ? viz_state.zoom.ini_zoom_y : current.zoom_y,
   ];
+  const default_pan_x = get_default_pan_x(viz_state);
+  const default_pan_y = get_default_pan_y(viz_state);
   const pan_curated = [
     curate_pan_x(
-      is_row_axis ? current.pan_x : viz_state.zoom.ini_pan_x,
+      is_row_axis ? current.pan_x : default_pan_x,
       zoom_curated[0],
       viz_state
     ),
     curate_pan_y(
-      is_row_axis ? viz_state.zoom.ini_pan_y : current.pan_y,
+      is_row_axis ? default_pan_y : current.pan_y,
       zoom_curated[1],
       viz_state
     ),
@@ -207,6 +319,186 @@ const animate_focus_reset_axis = (deck_mat, layers_mat, viz_state, axis) => {
     zoom_curated,
     pan_curated
   );
+};
+
+export const clear_dendro_focus = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  options = {}
+) => {
+  const { clearHighlight = true, render = true } = options;
+  const focus = get_current_focus_map(viz_state);
+
+  ensure_click_tracking(viz_state);
+  DENDRO_AXES.forEach((axis) => {
+    clear_pending_axis_click(viz_state, axis);
+  });
+
+  if (!focus.row && !focus.col) {
+    return false;
+  }
+
+  viz_state.dendro.active_polygon = { row: null, col: null };
+
+  if (viz_state.obs_store?.focused_dendro) {
+    viz_state.obs_store.focused_dendro.set(viz_state.dendro.active_polygon);
+  }
+
+  DENDRO_AXES.forEach((axis) => {
+    const polygons = viz_state.dendro.polygons?.[axis];
+    if (!polygons) return;
+
+    const updated_polygons = polygons.map((polygon) =>
+      polygon.properties.is_focused
+        ? {
+            ...polygon,
+            properties: {
+              ...polygon.properties,
+              is_focused: false,
+            },
+          }
+        : polygon
+    );
+
+    viz_state.dendro.polygons[axis] = updated_polygons;
+
+    if (layers_mat[`${axis}_dendro_layer`]) {
+      layers_mat[`${axis}_dendro_layer`] = layers_mat[
+        `${axis}_dendro_layer`
+      ].clone({
+        data: updated_polygons,
+      });
+    }
+  });
+
+  if (clearHighlight) {
+    viz_state.dendro.highlight = { row: null, col: null };
+    viz_state.dendro._highlight_rev =
+      (viz_state.dendro._highlight_rev || 0) + 1;
+
+    if (layers_mat.mat_layer) {
+      layers_mat.mat_layer = layers_mat.mat_layer.clone({
+        updateTriggers: {
+          ...get_layer_update_triggers(layers_mat.mat_layer),
+          getFillColor: [
+            crop_filter_signature(viz_state),
+            crop_fade_signature(viz_state),
+            viz_state.mat?.comp_hover_row,
+            viz_state.mat?.comp_hover_col,
+            viz_state.dendro._highlight_rev,
+          ],
+        },
+      });
+    }
+  }
+
+  if (render && typeof deck_mat?.setProps === 'function') {
+    deck_mat.setProps({
+      layers: get_mat_layers_list(layers_mat),
+    });
+  }
+
+  return true;
+};
+
+export const clear_dendro_selection = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  options = {}
+) => {
+  const { render = true } = options;
+  ensure_selection_tracking(viz_state);
+
+  viz_state.dendro.selected_polygon = { row: null, col: null };
+
+  let did_update = false;
+  DENDRO_AXES.forEach((axis) => {
+    const polygons = viz_state.dendro.polygons?.[axis];
+    if (!polygons) return;
+
+    const updated_polygons = polygons.map((polygon) => {
+      if (!polygon.properties.is_selected) return polygon;
+      did_update = true;
+      return {
+        ...polygon,
+        properties: {
+          ...polygon.properties,
+          is_selected: false,
+        },
+      };
+    });
+
+    viz_state.dendro.polygons[axis] = updated_polygons;
+
+    if (layers_mat[`${axis}_dendro_layer`]) {
+      layers_mat[`${axis}_dendro_layer`] = layers_mat[
+        `${axis}_dendro_layer`
+      ].clone({
+        data: updated_polygons,
+      });
+    }
+  });
+
+  if (did_update && render && typeof deck_mat?.setProps === 'function') {
+    deck_mat.setProps({
+      layers: get_mat_layers_list(layers_mat),
+    });
+  }
+
+  return did_update;
+};
+
+const apply_dendro_selection_visual = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  axis,
+  polygon_name
+) => {
+  const next_selection = { row: null, col: null };
+  if (axis && polygon_name) {
+    next_selection[axis] = { axis, name: polygon_name };
+  }
+  viz_state.dendro.selected_polygon = next_selection;
+
+  let did_update = false;
+  DENDRO_AXES.forEach((target_axis) => {
+    const polygons = viz_state.dendro.polygons?.[target_axis];
+    if (!polygons) return;
+
+    const selected_name = next_selection[target_axis]?.name || null;
+    const updated_polygons = polygons.map((polygon) => {
+      const is_selected = polygon.properties.name === selected_name;
+      if (polygon.properties.is_selected === is_selected) return polygon;
+
+      did_update = true;
+      return {
+        ...polygon,
+        properties: {
+          ...polygon.properties,
+          is_selected,
+        },
+      };
+    });
+
+    viz_state.dendro.polygons[target_axis] = updated_polygons;
+
+    if (layers_mat[`${target_axis}_dendro_layer`]) {
+      layers_mat[`${target_axis}_dendro_layer`] = layers_mat[
+        `${target_axis}_dendro_layer`
+      ].clone({
+        data: updated_polygons,
+      });
+    }
+  });
+
+  if (did_update && typeof deck_mat?.setProps === 'function') {
+    deck_mat.setProps({
+      layers: get_mat_layers_list(layers_mat),
+    });
+  }
 };
 
 /**
@@ -335,7 +627,13 @@ export const set_dendro_highlight = (
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
     updateTriggers: {
       ...get_layer_update_triggers(layers_mat.mat_layer),
-      getFillColor: viz_state.dendro._highlight_rev,
+      getFillColor: [
+        crop_filter_signature(viz_state),
+        crop_fade_signature(viz_state),
+        viz_state.mat?.comp_hover_row,
+        viz_state.mat?.comp_hover_col,
+        viz_state.dendro._highlight_rev,
+      ],
     },
   });
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
@@ -387,6 +685,10 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     getFillColor: (d) => {
       if (d.properties.is_focused) {
         return FOCUSED_FILL_COLOR;
+      }
+
+      if (d.properties.is_selected) {
+        return SELECTED_FILL_COLOR;
       }
 
       if (Array.isArray(d.properties.fill_color)) {
@@ -587,6 +889,9 @@ const apply_single_click_selection = (
 ) => {
   const selected_names = polygon_props.all_names || [];
   let is_unselecting = false;
+  const selected = ensure_selection_tracking(viz_state);
+  const current_selection =
+    viz_state.obs_store?.dendro_selection?.get?.() || selected[axis] || null;
 
   viz_state.click.type = `${axis}_dendro`;
   viz_state.click.value = build_click_value(
@@ -597,12 +902,10 @@ const apply_single_click_selection = (
   );
 
   if (viz_state.obs_store?.dendro_selection) {
-    const current = viz_state.obs_store.dendro_selection.get();
-
     if (
-      current &&
-      current.axis === axis &&
-      current.name === polygon_props.name
+      current_selection &&
+      current_selection.axis === axis &&
+      current_selection.name === polygon_props.name
     ) {
       is_unselecting = true;
       viz_state.obs_store.dendro_selection.set(null);
@@ -623,20 +926,34 @@ const apply_single_click_selection = (
           axis,
           selected_names
         );
-        const current_breakdown =
-          viz_state.obs_store.category_breakdown.get() || { row: {}, col: {} };
         viz_state.obs_store.category_breakdown.set({
-          ...current_breakdown,
+          row: {},
+          col: {},
           [axis]: breakdown,
         });
       }
     }
+  } else if (
+    current_selection &&
+    current_selection.axis === axis &&
+    current_selection.name === polygon_props.name
+  ) {
+    is_unselecting = true;
   }
 
   if (is_unselecting) {
     viz_state.click.value.selected_names = [];
     viz_state.click.value.is_unselecting = true;
     viz_state.attr?.editor?.close?.();
+    clear_dendro_selection(deck_mat, layers_mat, viz_state);
+  } else {
+    apply_dendro_selection_visual(
+      deck_mat,
+      layers_mat,
+      viz_state,
+      axis,
+      polygon_props.name
+    );
   }
 
   if (Object.keys(viz_state.model).length > 0) {
@@ -718,23 +1035,39 @@ const queue_single_click = (
   }, DOUBLE_CLICK_DELAY);
 };
 
-const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
-  ensure_click_tracking(viz_state);
+const handle_dendro_polygon_click = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  axis,
+  polygon_props,
+  is_double_click = false
+) => {
+  if (!axis || !polygon_props) {
+    return;
+  }
 
-  const polygon_props = {
-    ...event.object.properties,
-    all_names: [...(event.object.properties.all_names || [])],
-  };
+  ensure_click_tracking(viz_state);
   const pending = viz_state.dendro.pending_click[axis];
+
+  if (is_double_click && (!pending || pending.name === polygon_props.name)) {
+    clear_pending_axis_click(viz_state, axis);
+    apply_double_click_focus(
+      deck_mat,
+      layers_mat,
+      viz_state,
+      axis,
+      polygon_props
+    );
+    return;
+  }
 
   if (!viz_state.dendro.click_timeouts[axis]) {
     queue_single_click(deck_mat, layers_mat, viz_state, axis, polygon_props);
     return;
   }
 
-  clearTimeout(viz_state.dendro.click_timeouts[axis]);
-  viz_state.dendro.click_timeouts[axis] = null;
-  viz_state.dendro.pending_click[axis] = null;
+  clear_pending_axis_click(viz_state, axis);
 
   if (pending?.name === polygon_props.name) {
     apply_double_click_focus(
@@ -751,16 +1084,93 @@ const dendro_layer_onclick = (event, deck_mat, layers_mat, viz_state, axis) => {
   queue_single_click(deck_mat, layers_mat, viz_state, axis, polygon_props);
 };
 
+const pick_dendro_polygon_at = (deck_mat, viz_state, x, y) => {
+  if (typeof deck_mat.pickObject === 'function') {
+    const info = deck_mat.pickObject({
+      x,
+      y,
+      radius: 8,
+      layerIds: ['row-dendro-layer', 'col-dendro-layer'],
+    });
+    const axis =
+      info?.layer?.id === 'row-dendro-layer'
+        ? 'row'
+        : info?.layer?.id === 'col-dendro-layer'
+          ? 'col'
+          : null;
+    const polygon_props = polygon_props_from_pick_info(info);
+
+    if (axis && polygon_props) {
+      return { axis, polygon_props };
+    }
+  }
+
+  return manual_pick_dendro_polygon(deck_mat, viz_state, x, y);
+};
+
+const ensure_native_dendro_click = (deck_mat, layers_mat, viz_state) => {
+  if (viz_state.dendro._native_click_handler) {
+    return;
+  }
+
+  if (viz_state.dendro._native_dblclick_handler) {
+    viz_state.root?.removeEventListener?.(
+      'dblclick',
+      viz_state.dendro._native_dblclick_handler
+    );
+    viz_state.dendro._native_dblclick_handler = null;
+  }
+
+  viz_state.dendro._native_click_handler = (native_event) => {
+    if (native_event.button > 0) return;
+
+    const rect =
+      deck_mat.canvas?.getBoundingClientRect?.() ||
+      viz_state.root?.getBoundingClientRect?.();
+    if (!rect) return;
+
+    const x = native_event.clientX - rect.left;
+    const y = native_event.clientY - rect.top;
+    const { axis, polygon_props } = pick_dendro_polygon_at(
+      deck_mat,
+      viz_state,
+      x,
+      y
+    );
+    if (!axis || !polygon_props) return;
+
+    native_event.preventDefault();
+    native_event.stopPropagation();
+    native_event.stopImmediatePropagation?.();
+
+    handle_dendro_polygon_click(
+      deck_mat,
+      layers_mat,
+      viz_state,
+      axis,
+      polygon_props,
+      native_event.detail >= 2
+    );
+  };
+
+  viz_state.root?.addEventListener?.(
+    'click',
+    viz_state.dendro._native_click_handler,
+    true
+  );
+};
+
 export const set_dendro_layer_onclick = (
   deck_mat,
   layers_mat,
   viz_state,
   axis
 ) => {
+  ensure_native_dendro_click(deck_mat, layers_mat, viz_state);
+
   layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone(
     {
-      onClick: (event) =>
-        dendro_layer_onclick(event, deck_mat, layers_mat, viz_state, axis),
+      onClick: () => true,
     }
   );
 };
@@ -786,13 +1196,27 @@ export const set_dendro_layer_onhover = (
     clearTimeout(viz_state.dendro._hover_timer);
 
     const names = info?.object ? info.object.properties.all_names : null;
+    const hover_name = info?.object ? info.object.properties.name : null;
 
     if (!names) {
+      if (viz_state.dendro._hover_target?.axis === axis) {
+        viz_state.dendro._hover_target = null;
+      }
       restore_axis_highlight_from_focus(deck_mat, layers_mat, viz_state, axis);
       return;
     }
 
+    const hover_target = { axis, name: hover_name };
+    viz_state.dendro._hover_target = hover_target;
+
     viz_state.dendro._hover_timer = setTimeout(() => {
+      const current_target = viz_state.dendro._hover_target;
+      if (
+        current_target?.axis !== hover_target.axis ||
+        current_target?.name !== hover_target.name
+      ) {
+        return;
+      }
       set_dendro_highlight(deck_mat, layers_mat, viz_state, axis, names);
     }, DENDRO_HOVER_DELAY_MS);
   };
@@ -818,6 +1242,7 @@ export const set_dendro_layer_onhover = (
  */
 export const clear_dendro_hover = (deck_mat, layers_mat, viz_state) => {
   clearTimeout(viz_state.dendro._hover_timer);
+  viz_state.dendro._hover_target = null;
   DENDRO_AXES.forEach((axis) => {
     if (layers_mat[`${axis}_dendro_layer`]) {
       restore_axis_highlight_from_focus(deck_mat, layers_mat, viz_state, axis);

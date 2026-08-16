@@ -1,7 +1,25 @@
 import * as d3 from 'd3';
 
+import {
+  crop_fade_axis_alpha_factor,
+  crop_fade_signature,
+  crop_filter_signature,
+  filter_cat_data,
+  get_axis_center_position,
+  get_axis_slot_size,
+  is_axis_index_visible,
+} from '../../matrix/crop_filter';
+
 import { CustomMatrixLayer } from './custom_matrix_layer';
 import { get_mat_layers_list } from './matrix_layers';
+
+const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
+
+const cat_fill_trigger = (viz_state, hovered = viz_state.hovered_cat) => [
+  crop_filter_signature(viz_state),
+  crop_fade_signature(viz_state),
+  hovered,
+];
 
 /**
  * Get the fill color for a category tile, with hover highlighting support.
@@ -11,21 +29,33 @@ import { get_mat_layers_list } from './matrix_layers';
  */
 const getCatFillColor = (d, viz_state, _axis) => {
   const hovered = viz_state.hovered_cat;
+  const crop_factor = crop_fade_axis_alpha_factor(
+    viz_state,
+    _axis,
+    d.original_index
+  );
+
+  const apply_crop_fade = (color) => [
+    color[0],
+    color[1],
+    color[2],
+    Math.round((color[3] ?? 255) * crop_factor),
+  ];
 
   // If nothing is hovered, return normal color
   if (!hovered || !hovered.name) {
-    return d.color;
+    return crop_factor === 1 ? d.color : apply_crop_fade(d.color);
   }
 
   // If this tile matches the hovered category VALUE (regardless of axis or attribute level)
   // Keep it at normal opacity
   if (d.name === hovered.name) {
-    return d.color;
+    return crop_factor === 1 ? d.color : apply_crop_fade(d.color);
   }
 
   // Otherwise, make this tile very transparent so the hovered category stands out
   const [r, g, b] = d.color.slice(0, 3);
-  return [r, g, b, 40]; // Very low alpha
+  return [r, g, b, Math.round(40 * crop_factor)]; // Very low alpha
 };
 
 /**
@@ -50,7 +80,10 @@ const cat_layer_onclick = (event, viz_state, axis) => {
   const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
   const cat_key = `cat-${attr_index}`;
   const matching_nodes = nodes
-    .filter((node) => node[cat_key] === value)
+    .filter(
+      (node, index) =>
+        node[cat_key] === value && is_axis_index_visible(viz_state, axis, index)
+    )
     .map((node) => node.name);
 
   // Get entity info for this axis
@@ -121,10 +154,16 @@ const apply_cat_hover = (deck_mat, layers_mat, viz_state, hovered) => {
 
   // Trigger re-render of both cat layers to update transparency
   layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-    updateTriggers: { getFillColor: [hovered] },
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.row_cat_layer),
+      getFillColor: cat_fill_trigger(viz_state, hovered),
+    },
   });
   layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-    updateTriggers: { getFillColor: [hovered] },
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.col_cat_layer),
+      getFillColor: cat_fill_trigger(viz_state, hovered),
+    },
   });
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 
@@ -197,6 +236,7 @@ export const clear_cat_hover = (deck_mat, layers_mat, viz_state) => {
 };
 
 export const ini_row_cat_layer = (viz_state) => {
+  const crop_sig = crop_filter_signature(viz_state);
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,
@@ -206,17 +246,11 @@ export const ini_row_cat_layer = (viz_state) => {
 
   const row_cat_layer = new CustomMatrixLayer({
     id: 'row-layer',
-    data: viz_state.cats.row_cat_data,
+    data: filter_cat_data(viz_state, 'row'),
     getPosition: (d) => {
-      const row_order = viz_state.mat.orders.row[viz_state.order.current.row];
-
-      // Use original_index to look up its rank
-      const clustered_index =
-        viz_state.mat.num_rows - row_order[d.original_index];
-
       return [
         d.position[0] + viz_state.viz.cat_shift_row,
-        viz_state.viz.row_offset * (clustered_index + 1.5),
+        get_axis_center_position(viz_state, 'row', d.original_index) ?? 0,
       ];
     },
     getFillColor: (d) => getCatFillColor(d, viz_state, 'row'),
@@ -226,13 +260,18 @@ export const ini_row_cat_layer = (viz_state) => {
     transitions,
     opacity: 0.8,
     tile_width: (viz_state.viz.row_cat_width / 2) * 0.9,
-    tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
+    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
+    updateTriggers: {
+      getPosition: crop_sig,
+      getFillColor: cat_fill_trigger(viz_state),
+    },
   });
 
   return row_cat_layer;
 };
 
 export const ini_col_cat_layer = (viz_state) => {
+  const crop_sig = crop_filter_signature(viz_state);
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,
@@ -242,16 +281,10 @@ export const ini_col_cat_layer = (viz_state) => {
 
   const col_cat_layer = new CustomMatrixLayer({
     id: 'col-layer',
-    data: viz_state.cats.col_cat_data,
+    data: filter_cat_data(viz_state, 'col'),
     getPosition: (d) => {
-      const col_order = viz_state.mat.orders.col[viz_state.order.current.col];
-
-      // Use original_index to look up its rank
-      const clustered_index =
-        viz_state.mat.num_cols - col_order[d.original_index];
-
       return [
-        viz_state.viz.col_offset * (clustered_index + 0.5),
+        get_axis_center_position(viz_state, 'col', d.original_index) ?? 0,
         d.position[1] + viz_state.viz.cat_shift_col,
       ];
     },
@@ -261,8 +294,12 @@ export const ini_col_cat_layer = (viz_state) => {
     highlightColor: [255, 255, 255, 80],
     transitions,
     opacity: 0.8,
-    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
+    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
     tile_height: viz_state.viz.col_cat_height / 2,
+    updateTriggers: {
+      getPosition: crop_sig,
+      getFillColor: cat_fill_trigger(viz_state),
+    },
   });
 
   return col_cat_layer;

@@ -7,6 +7,16 @@ import {
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 
 import { colorToRgba } from './cat_data';
+import {
+  clear_crop_display_cache,
+  crop_fade_signature,
+  crop_filter_signature,
+  filter_cat_data,
+  filter_label_data,
+  filter_matrix_data,
+  get_axis_label_font_size,
+  get_axis_slot_size,
+} from './crop_filter';
 
 const FALLBACK_COLORS = [
   '#1f77b4',
@@ -223,23 +233,34 @@ export const initialize_attr_state = (viz_state, network) => {
 
 export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   compute_geometry(viz_state);
+  clear_crop_display_cache(viz_state);
 
   const row_data = build_cat_data_for_axis(viz_state, 'row');
   const col_data = build_cat_data_for_axis(viz_state, 'col');
+  const crop_sig = crop_filter_signature(viz_state);
+  const fade_sig = crop_fade_signature(viz_state);
 
   viz_state.cats.row_cat_data = row_data;
   viz_state.cats.col_cat_data = col_data;
 
   layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-    data: row_data,
+    data: filter_cat_data(viz_state, 'row'),
     tile_width: (viz_state.viz.row_cat_width / 2) * 0.9,
-    tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
+    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
+    updateTriggers: {
+      getPosition: crop_sig,
+      getFillColor: [crop_sig, fade_sig, viz_state.hovered_cat],
+    },
   });
 
   layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-    data: col_data,
-    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
+    data: filter_cat_data(viz_state, 'col'),
+    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
     tile_height: viz_state.viz.col_cat_height / 2,
+    updateTriggers: {
+      getPosition: crop_sig,
+      getFillColor: [crop_sig, fade_sig, viz_state.hovered_cat],
+    },
   });
 
   // Geometry (mat_height/col_width) may have changed with attribute count, so
@@ -247,19 +268,39 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   viz_state.mat._comp_cache = null;
 
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
-    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
-    updateTriggers: mat_reorder_triggers(viz_state),
+    data: filter_matrix_data(viz_state),
+    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
+    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
+    updateTriggers: {
+      ...mat_reorder_triggers(viz_state),
+      getFillColor: [
+        crop_sig,
+        fade_sig,
+        viz_state.mat.comp_hover_row,
+        viz_state.mat.comp_hover_col,
+        viz_state.dendro?._highlight_rev || 0,
+      ],
+    },
   });
 
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    data: viz_state.labels.row_label_data,
-    updateTriggers: { getPosition: viz_state.order.current.row },
+    data: filter_label_data(viz_state, 'row'),
+    getSize: get_axis_label_font_size(viz_state, 'row'),
+    updateTriggers: {
+      getPosition: [viz_state.order.current.row, crop_sig],
+      getColor: [crop_sig, fade_sig, viz_state.labels._row_vis_rev || 0],
+      getSize: crop_sig,
+    },
   });
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-    data: viz_state.labels.col_label_data,
-    updateTriggers: { getPosition: viz_state.order.current.col },
+    data: filter_label_data(viz_state, 'col'),
+    getSize: get_axis_label_font_size(viz_state, 'col'),
+    updateTriggers: {
+      getPosition: [viz_state.order.current.col, crop_sig],
+      getColor: [crop_sig, fade_sig],
+      getSize: crop_sig,
+    },
   });
 
   ini_views(viz_state);

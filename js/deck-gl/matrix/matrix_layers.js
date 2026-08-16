@@ -1,3 +1,8 @@
+import {
+  crop_fade_signature,
+  crop_filter_signature,
+} from '../../matrix/crop_filter';
+
 /**
  * Shared updateTriggers for the matrix body layer at reorder time. Keying
  * getPosition/getSize/getRadius off the current order (plus mode + composition
@@ -14,12 +19,20 @@ export const mat_reorder_triggers = (viz_state, extra = []) => {
     viz_state.order.current.col,
     viz_state.mat.viz_mode,
     viz_state.mat.composition_normalized,
+    crop_filter_signature(viz_state),
+    crop_fade_signature(viz_state),
     ...extra,
   ];
   return {
     getPosition: key,
     getSize: key,
     getRadius: key,
+    getFillColor: [
+      ...key,
+      viz_state.mat?.comp_hover_row,
+      viz_state.mat?.comp_hover_col,
+      viz_state.dendro?._highlight_rev || 0,
+    ],
   };
 };
 

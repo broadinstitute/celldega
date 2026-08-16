@@ -2,6 +2,12 @@ import * as d3 from 'd3';
 import { ScatterplotLayer } from 'deck.gl';
 
 import { comp_geom_for } from '../../matrix/composition_data';
+import {
+  crop_fade_alpha_factor,
+  crop_fade_signature,
+  crop_filter_signature,
+  filter_matrix_data,
+} from '../../matrix/crop_filter';
 
 import { comp_vs, comp_fs } from './composition_shaders';
 import {
@@ -53,7 +59,7 @@ const HOVER_DIM_ALPHA = 0.25;
 // Fill color has no reason to animate slowly here: population colors are
 // static for the life of the widget, so the only thing that ever changes
 // `getFillColor` is the hover highlight below, which should feel immediate.
-const FILL_COLOR_TRANSITION_MS = 200;
+const FILL_COLOR_TRANSITION_MS = 120;
 
 // Hover must dwell this long before the cross-bar highlight kicks in, so a
 // quick mouse pass-over doesn't flash; leaving a segment clears instantly.
@@ -61,13 +67,19 @@ const FILL_COLOR_TRANSITION_MS = 200;
 // delay for a consistent feel across every hover-highlight in composition mode.
 export const HOVER_HIGHLIGHT_DELAY_MS = 250;
 
+const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
+
 const hover_trigger_key = (viz_state) => [
   viz_state.mat.viz_mode,
   viz_state.mat.comp_hover_row,
   viz_state.mat.comp_hover_col,
+  crop_filter_signature(viz_state),
+  crop_fade_signature(viz_state),
+  viz_state.dendro?._highlight_rev || 0,
 ];
 
 export const ini_composition_layer = (viz_state) => {
+  const crop_sig = crop_filter_signature(viz_state);
   const transitions = {
     getPosition: { duration: viz_state.animate.duration, easing: d3.easeCubic },
     getSize: { duration: viz_state.animate.duration, easing: d3.easeCubic },
@@ -82,11 +94,12 @@ export const ini_composition_layer = (viz_state) => {
     viz_state.order.current.col,
     viz_state.mat.viz_mode,
     viz_state.mat.composition_normalized,
+    crop_sig,
   ];
 
   return new CompositionLayer({
     id: 'mat-layer',
-    data: viz_state.mat.mat_data,
+    data: filter_matrix_data(viz_state),
     getPosition: (d) => comp_geom_for(viz_state, d).position,
     getSize: (d) => comp_geom_for(viz_state, d).half,
     getFillColor: (d) => {
@@ -102,7 +115,9 @@ export const ini_composition_layer = (viz_state) => {
         d.row,
         d.col
       );
-      const alpha_factor = row_factor * col_factor * dendro_factor;
+      const crop_factor = crop_fade_alpha_factor(viz_state, d.row, d.col);
+      const alpha_factor =
+        row_factor * col_factor * dendro_factor * crop_factor;
       if (alpha_factor === 1) return base;
       return [
         base[0],
@@ -116,10 +131,7 @@ export const ini_composition_layer = (viz_state) => {
     updateTriggers: {
       getPosition: trig,
       getSize: trig,
-      getFillColor: [
-        ...hover_trigger_key(viz_state),
-        viz_state.dendro?._highlight_rev || 0,
-      ],
+      getFillColor: hover_trigger_key(viz_state),
     },
     transitions,
   });
@@ -152,6 +164,7 @@ export const set_composition_normalized = (
   if (viz_state.mat.viz_mode !== 'composition') return;
 
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    data: filter_matrix_data(viz_state),
     updateTriggers: mat_reorder_triggers(viz_state),
   });
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
@@ -178,7 +191,10 @@ export const apply_composition_hover_row = (
   if (viz_state.mat.comp_hover_row === row) return;
   viz_state.mat.comp_hover_row = row;
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    updateTriggers: { getFillColor: hover_trigger_key(viz_state) },
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.mat_layer),
+      getFillColor: hover_trigger_key(viz_state),
+    },
   });
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };
@@ -205,7 +221,10 @@ export const apply_composition_hover_col = (
   if (viz_state.mat.comp_hover_col === col) return;
   viz_state.mat.comp_hover_col = col;
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    updateTriggers: { getFillColor: hover_trigger_key(viz_state) },
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.mat_layer),
+      getFillColor: hover_trigger_key(viz_state),
+    },
   });
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };

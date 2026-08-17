@@ -1,14 +1,11 @@
-import { refresh_row_label_visibility } from '../../matrix/composition_data';
+import {
+  refresh_row_label_visibility,
+  set_composition_colors,
+} from '../../matrix/composition_data';
 import {
   clear_crop_display_cache,
   clone_crop_filter,
-  crop_fade_signature,
-  crop_filter_signature,
-  filter_cat_data,
-  filter_label_data,
-  filter_matrix_data,
   get_axis_indices_in_range,
-  get_axis_label_font_size,
   get_axis_slot_size,
   get_default_pan,
   has_crop_filter,
@@ -18,14 +15,40 @@ import {
   calc_dendro_polygons,
   calc_dendro_triangles,
 } from '../../matrix/dendro';
+import { apply_mat_encoding } from '../../matrix/mat_data';
 import { refresh_matrix_cat_bars } from '../../ui/matrix_cat_bars';
 
 import {
+  ini_row_cat_layer,
+  ini_col_cat_layer,
+  set_cat_layer_handlers,
+} from './cat_layers';
+import {
+  ini_composition_layer,
+  set_composition_layer_onhover,
+} from './composition_layer';
+import {
   clear_dendro_focus,
   clear_dendro_selection,
+  set_dendro_layer_onclick,
+  set_dendro_layer_onhover,
+  toggle_dendro_layer_visibility,
   update_dendro_layer_data,
 } from './dendro_layers';
-import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
+import {
+  ini_row_label_layer,
+  ini_col_label_layer,
+  set_col_label_layer_onclick,
+  set_col_label_layer_onhover,
+  set_row_label_layer_onclick,
+  set_row_label_layer_onhover,
+} from './label_layers';
+import {
+  ini_mat_layer,
+  set_mat_layer_onclick,
+  set_mat_layer_onhover,
+} from './mat_layer';
+import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { ini_views } from './views';
 import { update_zoom_data } from './zoom';
@@ -33,8 +56,6 @@ import { update_zoom_data } from './zoom';
 const CROP_MIN_DRAG_PX = 8;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
 
 const get_matrix_screen_bounds = (viz_state) => {
   const left = viz_state.viz.row_region + viz_state.viz.label_buffer;
@@ -155,106 +176,56 @@ const clear_crop_interaction_state = (deck_mat, layers_mat, viz_state) => {
   clear_dendro_focus(deck_mat, layers_mat, viz_state, { render: false });
 };
 
-const mat_fill_trigger = (viz_state) => {
-  const crop_sig = crop_filter_signature(viz_state);
-  const fade_sig = crop_fade_signature(viz_state);
-
-  if (viz_state.mat.viz_mode === 'composition') {
-    return [
-      viz_state.mat.viz_mode,
-      viz_state.mat.comp_hover_row,
-      viz_state.mat.comp_hover_col,
-      crop_sig,
-      fade_sig,
-      viz_state.dendro?._highlight_rev || 0,
-    ];
-  }
-
-  return [crop_sig, fade_sig, viz_state.dendro?._highlight_rev || 0];
-};
-
-const cat_fill_trigger = (viz_state) => [
-  crop_filter_signature(viz_state),
-  crop_fade_signature(viz_state),
-  viz_state.hovered_cat,
-];
-
-const row_label_color_trigger = (viz_state) => [
-  crop_filter_signature(viz_state),
-  crop_fade_signature(viz_state),
-  viz_state.labels._row_vis_rev || 0,
-];
-
-const col_label_color_trigger = (viz_state) => [
-  crop_filter_signature(viz_state),
-  crop_fade_signature(viz_state),
-];
-
-const refresh_filtered_layers = (layers_mat, viz_state) => {
-  const crop_sig = crop_filter_signature(viz_state);
+const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
   clear_crop_display_cache(viz_state);
 
   viz_state.mat._comp_cache = null;
 
-  layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    data: filter_matrix_data(viz_state),
-    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
-    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
-    updateTriggers: {
-      ...get_layer_update_triggers(layers_mat.mat_layer),
-      ...mat_reorder_triggers(viz_state),
-      getFillColor: mat_fill_trigger(viz_state),
-    },
-  });
+  if (viz_state.mat.viz_mode === 'composition') {
+    set_composition_colors(viz_state);
+    layers_mat.mat_layer = ini_composition_layer(viz_state);
+    set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+    set_composition_layer_onhover(deck_mat, layers_mat, viz_state);
+  } else {
+    apply_mat_encoding(viz_state);
+    layers_mat.mat_layer = ini_mat_layer(viz_state);
+    set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
+    set_mat_layer_onhover(deck_mat, layers_mat, viz_state);
+  }
 
-  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    data: filter_label_data(viz_state, 'row'),
-    getSize: get_axis_label_font_size(viz_state, 'row'),
-    updateTriggers: {
-      ...get_layer_update_triggers(layers_mat.row_label_layer),
-      getPosition: [viz_state.order.current.row, crop_sig],
-      getColor: row_label_color_trigger(viz_state),
-      getSize: crop_sig,
-    },
-  });
+  layers_mat.row_label_layer = ini_row_label_layer(viz_state);
+  layers_mat.col_label_layer = ini_col_label_layer(viz_state);
+  layers_mat.row_cat_layer = ini_row_cat_layer(viz_state);
+  layers_mat.col_cat_layer = ini_col_cat_layer(viz_state);
 
-  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-    data: filter_label_data(viz_state, 'col'),
-    getSize: get_axis_label_font_size(viz_state, 'col'),
-    updateTriggers: {
-      ...get_layer_update_triggers(layers_mat.col_label_layer),
-      getPosition: [viz_state.order.current.col, crop_sig],
-      getPixelOffset: [crop_sig, viz_state.zoom.zoom_data.matrix.zoom_x],
-      getColor: col_label_color_trigger(viz_state),
-      getSize: crop_sig,
-    },
-  });
-
-  layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-    data: filter_cat_data(viz_state, 'row'),
-    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
-    updateTriggers: {
-      ...get_layer_update_triggers(layers_mat.row_cat_layer),
-      getPosition: [viz_state.order.current.row, crop_sig],
-      getFillColor: cat_fill_trigger(viz_state),
-    },
-  });
-
-  layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-    data: filter_cat_data(viz_state, 'col'),
-    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
-    updateTriggers: {
-      ...get_layer_update_triggers(layers_mat.col_cat_layer),
-      getPosition: [viz_state.order.current.col, crop_sig],
-      getFillColor: cat_fill_trigger(viz_state),
-    },
-  });
+  set_row_label_layer_onclick(deck_mat, layers_mat, viz_state);
+  set_col_label_layer_onclick(deck_mat, layers_mat, viz_state);
+  set_row_label_layer_onhover(deck_mat, layers_mat, viz_state);
+  set_col_label_layer_onhover(deck_mat, layers_mat, viz_state);
+  set_cat_layer_handlers(deck_mat, layers_mat, viz_state, 'row');
+  set_cat_layer_handlers(deck_mat, layers_mat, viz_state, 'col');
 
   ['row', 'col'].forEach((axis) => {
     calc_dendro_triangles(viz_state, axis);
     calc_dendro_polygons(viz_state, axis);
     update_dendro_layer_data(layers_mat, viz_state, axis);
+    set_dendro_layer_onclick(deck_mat, layers_mat, viz_state, axis);
+    set_dendro_layer_onhover(deck_mat, layers_mat, viz_state, axis);
+    toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
   });
+
+  if (viz_state.mat.viz_mode === 'composition') {
+    layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+      visible: false,
+    });
+  } else {
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      visible: true,
+    });
+    layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+      visible: true,
+    });
+  }
 
   refresh_row_label_visibility(layers_mat, viz_state);
   refresh_matrix_cat_bars(viz_state);
@@ -295,9 +266,10 @@ const refresh_controls = (viz_state) => {
 const apply_crop_filter = (deck_mat, layers_mat, viz_state, filter) => {
   clear_crop_fade(viz_state);
   viz_state.crop.filter = normalize_crop_filter(viz_state, filter);
+  viz_state.mat._body_layer_rev = (viz_state.mat._body_layer_rev || 0) + 1;
   clear_crop_display_cache(viz_state);
   clear_crop_interaction_state(deck_mat, layers_mat, viz_state);
-  refresh_filtered_layers(layers_mat, viz_state);
+  refresh_filtered_layers(deck_mat, layers_mat, viz_state);
 
   [
     'mat_layer',

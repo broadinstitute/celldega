@@ -14,7 +14,11 @@ import {
   clear_dendro_hover,
   dendro_highlight_alpha_factor,
 } from './dendro_layers';
-import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
+import {
+  get_mat_layers_list,
+  get_matrix_body_layer_id,
+  mat_reorder_triggers,
+} from './matrix_layers';
 
 /**
  * A ScatterplotLayer variant that renders the Clustergram body as column-wise
@@ -98,7 +102,7 @@ export const ini_composition_layer = (viz_state) => {
   ];
 
   return new CompositionLayer({
-    id: 'mat-layer',
+    id: get_matrix_body_layer_id(viz_state),
     data: filter_matrix_data(viz_state),
     getPosition: (d) => comp_geom_for(viz_state, d).position,
     getSize: (d) => comp_geom_for(viz_state, d).half,

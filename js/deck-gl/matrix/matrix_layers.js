@@ -3,6 +3,11 @@ import {
   crop_filter_signature,
 } from '../../matrix/crop_filter';
 
+export const get_matrix_body_layer_id = (viz_state) => {
+  const rev = viz_state.mat?._body_layer_rev || 0;
+  return rev > 0 ? `mat-layer-${rev}` : 'mat-layer';
+};
+
 /**
  * Shared updateTriggers for the matrix body layer at reorder time. Keying
  * getPosition/getSize/getRadius off the current order (plus mode + composition

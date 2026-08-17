@@ -15,7 +15,7 @@ import {
   clear_dendro_hover,
   dendro_highlight_alpha_factor,
 } from './dendro_layers';
-import { get_mat_layers_list } from './matrix_layers';
+import { get_mat_layers_list, get_matrix_body_layer_id } from './matrix_layers';
 
 const mat_layer_get_fill_color = (d, viz_state) => {
   const alpha_factor =
@@ -53,7 +53,7 @@ export const ini_mat_layer = (viz_state) => {
   };
 
   const mat_layer = new CustomMatrixLayer({
-    id: 'mat-layer',
+    id: get_matrix_body_layer_id(viz_state),
     data: filter_matrix_data(viz_state),
     getPosition: (d) => mat_layer_get_position(d, viz_state),
     getFillColor: (d) => mat_layer_get_fill_color(d, viz_state),

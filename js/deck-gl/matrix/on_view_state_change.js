@@ -1,7 +1,7 @@
 import { OrthographicView } from 'deck.gl';
 
 import { refresh_row_label_visibility } from '../../matrix/composition_data';
-import { get_axis_label_font_size } from '../../matrix/crop_filter';
+import { get_zoomed_axis_label_font_size } from '../../matrix/crop_filter';
 
 import { curate_pan_x, curate_pan_y } from './curate_pan';
 import { clear_dendro_focus } from './dendro_layers';
@@ -190,16 +190,20 @@ export const on_view_state_change = (
     refresh_row_label_visibility(layers_mat, viz_state);
   } else {
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-      getSize:
-        get_axis_label_font_size(viz_state, 'row') *
-        Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_y),
+      getSize: get_zoomed_axis_label_font_size(
+        viz_state,
+        'row',
+        viz_state.zoom.zoom_data.matrix.zoom_y
+      ),
     });
   }
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-    getSize:
-      get_axis_label_font_size(viz_state, 'col') *
-      Math.pow(2, viz_state.zoom.zoom_data.matrix.zoom_x),
+    getSize: get_zoomed_axis_label_font_size(
+      viz_state,
+      'col',
+      viz_state.zoom.zoom_data.matrix.zoom_x
+    ),
     updateTriggers: {
       getPixelOffset: viz_state.zoom.zoom_data.matrix.zoom_x,
     },

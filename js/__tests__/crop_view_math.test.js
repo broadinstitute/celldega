@@ -8,6 +8,7 @@ describe('compute_crop_filter', () => {
   let get_axis_center_position;
   let get_axis_display_count;
   let get_axis_label_font_size;
+  let get_zoomed_axis_label_font_size;
   let get_default_pan;
   let initialize_matrix_crop;
   let normalize_crop_filter;
@@ -44,7 +45,7 @@ describe('compute_crop_filter', () => {
       const update_zoom_data = () => {};
     `;
 
-    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
+    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
@@ -55,6 +56,7 @@ describe('compute_crop_filter', () => {
       get_axis_center_position,
       get_axis_display_count,
       get_axis_label_font_size,
+      get_zoomed_axis_label_font_size,
       get_default_pan,
       initialize_matrix_crop,
       normalize_crop_filter,
@@ -169,8 +171,15 @@ describe('compute_crop_filter', () => {
     expect(get_axis_label_font_size(unfiltered, 'row')).toBeCloseTo(12.5);
 
     const filtered = makeVizState({ row: [1, 2], col: [1, 2, 3] });
-    expect(get_axis_label_font_size(filtered, 'row')).toBe(18);
+    expect(get_axis_label_font_size(filtered, 'row')).toBe(24);
     expect(get_axis_label_font_size(filtered, 'col')).toBeCloseTo(50 / 3);
+  });
+
+  test('zoomed label sizing is capped but still grows from the crop-aware base', () => {
+    const viz_state = makeVizState({ row: [1, 2], col: [1, 2, 3] });
+
+    expect(get_zoomed_axis_label_font_size(viz_state, 'row', 0)).toBe(24);
+    expect(get_zoomed_axis_label_font_size(viz_state, 'row', 4)).toBe(28);
   });
 
   test('crop fade helpers hide marks outside the pending filter', () => {

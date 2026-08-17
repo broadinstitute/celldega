@@ -6,12 +6,14 @@ import {
   sync_selected_rows,
   sync_selected_cols,
 } from '../../global_variables/selected_genes';
+import { refresh_row_label_visibility } from '../../matrix/composition_data';
 import {
   crop_fade_signature,
   crop_filter_signature,
   get_axis_slot_size,
   get_default_pan_x,
   get_default_pan_y,
+  get_zoomed_axis_label_font_size,
 } from '../../matrix/crop_filter';
 import {
   calc_dendro_triangles,
@@ -182,6 +184,37 @@ const transition_view_state = (view_state) =>
     ])
   );
 
+const refresh_label_sizes_for_zoom = (layers_mat, viz_state, zoom_curated) => {
+  if (viz_state.mat.viz_mode === 'composition') {
+    refresh_row_label_visibility(layers_mat, viz_state);
+    return;
+  }
+
+  if (layers_mat.row_label_layer) {
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      getSize: get_zoomed_axis_label_font_size(
+        viz_state,
+        'row',
+        zoom_curated[1]
+      ),
+    });
+  }
+
+  if (layers_mat.col_label_layer) {
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+      getSize: get_zoomed_axis_label_font_size(
+        viz_state,
+        'col',
+        zoom_curated[0]
+      ),
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_label_layer),
+        getPixelOffset: [crop_filter_signature(viz_state), zoom_curated[0]],
+      },
+    });
+  }
+};
+
 const apply_zoom_state = (
   deck_mat,
   layers_mat,
@@ -200,6 +233,7 @@ const apply_zoom_state = (
   update_zoom_data(viz_state, view_id, zoom_curated, pan_curated);
   viz_state.zoom.zoom_data.total_zoom.x = zoom_curated[0];
   viz_state.zoom.zoom_data.total_zoom.y = zoom_curated[1];
+  refresh_label_sizes_for_zoom(layers_mat, viz_state, zoom_curated);
 
   viz_state.dendro._suppress_focus_clear = true;
   clearTimeout(viz_state.dendro._focus_clear_timer);

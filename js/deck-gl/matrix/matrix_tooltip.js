@@ -41,7 +41,7 @@ export const get_tooltip = (viz_state, params) => {
         html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
         style: { color: 'white' },
       };
-    } else if (layer.id === 'mat-layer') {
+    } else if (layer.id.includes('mat-layer')) {
       // Display the default tooltip for other layers
 
       const row_entry = viz_state.labels.row_label_data[object.row];

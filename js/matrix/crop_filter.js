@@ -4,7 +4,9 @@ const axis_count = (viz_state, axis) =>
 const axis_span = (viz_state, axis) =>
   axis === 'row' ? viz_state.viz.mat_height : viz_state.viz.mat_width;
 
-const MAX_FILTER_FONT_SIZE = 18;
+const MAX_FILTER_FONT_SIZE = 24;
+const MAX_ZOOM_FONT_SIZE = 28;
+const FILTER_FONT_SLOT_FACTOR = 0.45;
 const CROP_FADE_ALPHA = 0;
 
 const axis_filter_array = (viz_state, axis) => {
@@ -219,10 +221,22 @@ export const get_default_pan = (viz_state) => [
 export const get_axis_label_font_size = (viz_state, axis) => {
   const font_key = axis === 'row' ? 'rows' : 'cols';
   const original_size = viz_state.viz.font_size[font_key];
-  const filtered_size =
-    viz_state.viz.base_font_size / get_axis_display_count(viz_state, axis);
+  const filtered_size = Math.max(
+    viz_state.viz.base_font_size / get_axis_display_count(viz_state, axis),
+    get_axis_slot_size(viz_state, axis) * FILTER_FONT_SLOT_FACTOR
+  );
 
   return Math.max(original_size, Math.min(MAX_FILTER_FONT_SIZE, filtered_size));
+};
+
+export const get_zoomed_axis_label_font_size = (
+  viz_state,
+  axis,
+  zoom_value
+) => {
+  const base_size = get_axis_label_font_size(viz_state, axis);
+  const max_size = Math.max(base_size, MAX_ZOOM_FONT_SIZE);
+  return Math.min(max_size, base_size * Math.pow(2, zoom_value));
 };
 
 export const get_crop_fade_filter = (viz_state) =>

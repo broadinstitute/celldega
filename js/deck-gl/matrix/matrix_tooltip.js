@@ -49,8 +49,35 @@ export const get_tooltip = (viz_state, params) => {
       const row_name = row_entry?.display_name || row_entry?.name;
       const col_name = col_entry?.display_name || col_entry?.name;
 
+      // Mode-specific secondary lines: dotplot surfaces the size channel;
+      // composition labels the axes as population / dataset and surfaces the
+      // dataset's total cell count alongside this cell's value.
+      if (viz_state.mat.viz_mode === 'composition') {
+        const col_node_name = viz_state.col_nodes?.[object.col]?.name;
+        const weights = viz_state.mat.composition_col_weights || {};
+        const explicit_total =
+          col_node_name != null ? weights[col_node_name] : undefined;
+        const total = explicit_total != null ? explicit_total : object.col_sum;
+        const total_line =
+          total != null ? `<br>Total cells: ${Math.round(total)}` : '';
+
+        return {
+          html: `Population: ${row_name}<br>Dataset: ${col_name}<br>Value: ${object.value.toFixed(
+            2
+          )}${total_line}`,
+          style: { color: 'white' },
+        };
+      }
+
+      const size_line =
+        viz_state.mat.viz_mode === 'dotplot' && object.size_value != null
+          ? `<br> Size: ${object.size_value.toFixed(2)}`
+          : '';
+
       return {
-        html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(2)}`,
+        html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(
+          2
+        )}${size_line}`,
         style: { color: 'white' },
       };
     } else if (layer.id === 'row-attr-label-layer') {

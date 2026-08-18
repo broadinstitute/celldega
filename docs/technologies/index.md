@@ -2,7 +2,7 @@
 Celldega utilizes a suite of complementary technologies to develop an efficient web-based spatial-omics analysis and visualization toolkit.
 
 ## Visualization Technologies
-Spatial transcriptomics (ST) datasets can be very large and difficult for researchers to analyze and visualize collaboratively. Additionally, visualization that is linked to analysis is key to extracting biological insights. To address these issues, we built the Celldega [`viz`](../python/viz/) module to help researchers interactively visualize large ST datasets within notebook-based workflows on the cloud (e.g., Terra.bio).
+Spatial transcriptomics (ST) datasets can be very large and difficult for researchers to analyze and visualize collaboratively. Additionally, visualization that is linked to analysis is key to extracting biological insights. To address these issues, we built the Celldega [`viz`](../visualizations/index.md) module to help researchers interactively visualize large ST datasets within notebook-based workflows on the cloud (e.g., Terra.bio).
 
 The Celldega Landscape visualization method (see [Gallery](../gallery)) utilizes novel vector tiling approaches to enable interactive visualization of large ST datasets in a notebook environment or as a stand-alone webpage. This approach allows Celldega to visualize larger datasets than currently available open-source tools (e.g., datasets with hundreds of millions of transcripts). We also utilize modern web image data formats ([WebP](#webp)) to reduce the data storage burden for interactive visualization. The resulting [LandscapeFiles](../file_formats/index.md#landscapefiles) data format serves as a compact and highly performant visualization-specific data format.
 
@@ -10,7 +10,11 @@ The Celldega Landscape visualization method (see [Gallery](../gallery)) utilizes
 Terra.bio is a cloud-based compute and data storage platform that is being developed by the <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Broad Institute of MIT and Harvard</a>. We are utilizing Terra.bio to help <a href='https://www.broadinstitute.org/spatial-technology-platform' target='_blank'>Spatial Technology Platform</a> clients access, analyze, and visualize their ST data.
 
 ### Manifold.ai
+<<<<<<< HEAD
 Manifold.ai is a cloud-based compute and data storage platform that the Broad Institute partners with. It enables users to securely store, access, analyze, and visualize ST data.
+=======
+<a href='https://www.manifold.ai/' target='_blank'>Manifold.ai</a> is an AI-powered cloud platform for life sciences research.
+>>>>>>> origin/main
 
 ### Jupyter Widget
 We utilize the Jupyter Widget ecosystem to build interactive spatial and data visualizations that enable users to perform two way communication between JavaScript (front-end) and Python (back-end). We are utilizing the <a href='https://anywidget.dev/' target='_blank'>AnyWidget</a> implementation to build our custom widgets.

@@ -381,6 +381,88 @@ class TestMatrix:
         for node in mat.viz["row_nodes"]:
             assert "num-0" in node
 
+    def test_set_dot_matrix_aligns_anndata_by_name(self) -> None:
+        """`set_dot_matrix` must transpose AnnData input like `load_adata` does,
+        so the dot matrix lines up with the main matrix's row/col names instead
+        of silently aligning to nothing."""
+        from anndata import AnnData
+
+        genes = ["g0", "g1", "g2"]
+        sets = ["s0", "s1"]
+        mean = AnnData(
+            X=np.arange(6).reshape(2, 3).astype(float),
+            obs=pd.DataFrame(index=sets),
+            var=pd.DataFrame(index=genes),
+        )
+        frac = AnnData(
+            X=np.arange(6).reshape(2, 3).astype(float) / 10 + 0.5,
+            obs=pd.DataFrame(index=sets),
+            var=pd.DataFrame(index=genes),
+        )
+
+        mat = Matrix(mean, disable_processing=True, row_entity="gene", col_entity="cell_cluster")
+        mat.set_dot_matrix(frac)
+        assert list(mat.dot_mat.index) == genes
+        assert list(mat.dot_mat.columns) == sets
+
+        mat.clust()
+        out = mat.export_viz_parquet()
+
+        import io
+
+        import pyarrow.parquet as pq
+
+        dot_df = pq.read_table(io.BytesIO(out["dot_mat"])).to_pandas().set_index("row")
+        assert not np.allclose(dot_df.to_numpy(), 0.0)
+        np.testing.assert_allclose(
+            dot_df.loc[genes, sets].to_numpy(), frac.X.T, rtol=1e-5, atol=1e-6
+        )
+
+    def test_matrix_from_collection_color_by_size_by(self) -> None:
+        """`Matrix(collection=..., color_by=..., size_by=...)` should build the
+        main matrix and attach the named size-channel modality, with no manual
+        DataFrame wrangling. `dot_plot=` is an alias for `size_by=`."""
+        from anndata import AnnData
+
+        from celldega.set import SetCollection
+
+        rng = np.random.default_rng(0)
+        n = 40
+        adata = AnnData(X=rng.random((n, 5)))
+        adata.var_names = [f"g{i}" for i in range(5)]
+        adata.obs["leiden"] = rng.choice(["0", "1", "2"], n)
+
+        setc = SetCollection(adata, set_col="leiden", name="leiden")
+        setc.calc_signature(adata, modality_name="expression")
+        setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
+
+        mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
+        assert mat.data.shape == (5, 3)
+        assert mat.dot_mat is not None
+        assert list(mat.dot_mat.index) == list(mat.data.index)
+        assert list(mat.dot_mat.columns) == list(mat.data.columns)
+
+        # dot_plot= is an alias for size_by=
+        mat_alias = Matrix(collection=setc, color_by="expression", dot_plot="fraction_expressing")
+        assert mat_alias.dot_mat is not None
+
+        # size_by/dot_plot are mutually exclusive
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(
+                collection=setc,
+                color_by="expression",
+                size_by="fraction_expressing",
+                dot_plot="fraction_expressing",
+            )
+
+        # data/collection are mutually exclusive
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(data=adata, collection=setc, color_by="expression")
+
+        # unknown size_by modality raises a clear error
+        with pytest.raises(KeyError, match="size_by"):
+            Matrix(collection=setc, color_by="expression", size_by="nope")
+
     def test_matrix_error_handling(self) -> None:
         """Test Matrix error handling and edge cases."""
         # Test empty Matrix

@@ -1,37 +1,10 @@
-import importlib.util
-from pathlib import Path
-import sys
-import types
-
 from anndata import AnnData
 import geopandas as gpd
 import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-
-# --- Dynamic Import Setup ---
-ROOT_DIR = Path(__file__).resolve().parents[3]
-NBHD_ROOT = ROOT_DIR / "src" / "celldega" / "nbhd"
-
-CELLPKG = types.ModuleType("celldega")
-CELLPKG.__path__ = [str(ROOT_DIR / "src" / "celldega")]
-sys.modules.setdefault("celldega", CELLPKG)
-
-NBHDPKG = types.ModuleType("celldega.nbhd")
-NBHDPKG.__path__ = [str(NBHD_ROOT)]
-sys.modules.setdefault("celldega.nbhd", NBHDPKG)
-
-spec = importlib.util.spec_from_file_location(
-    "celldega.nbhd.neighborhoods", NBHD_ROOT / "neighborhoods.py"
-)
-neighborhoods = importlib.util.module_from_spec(spec)
-neighborhoods.__package__ = "celldega.nbhd"
-sys.modules["celldega.nbhd.neighborhoods"] = neighborhoods
-spec.loader.exec_module(neighborhoods)
-
-# --- Load function ---
-calc_nbhd_by_pop = neighborhoods.calc_nbhd_by_pop
+from celldega.nbhd.neighborhoods import _calc_nbhd_by_pop as calc_nbhd_by_pop
 
 
 # --- Fixtures and Tests ---
@@ -68,6 +41,7 @@ def test_calc_nbhd_by_pop_basic(synthetic_data):
     assert "A" in adata_nbp.obs.index, "Neighborhood A should be included"
     assert isinstance(adata_nbp, AnnData)
     assert adata_nbp.shape[1] == 2, "Should have 2 categories (X and Y)"
+    assert adata_nbp.uns["output"] == "proportion"
     np.testing.assert_array_equal(sorted(adata_nbp.var.index), ["X", "Y"])
 
 
@@ -82,6 +56,18 @@ def test_calc_nbhd_by_pop_with_lower_min_cells(synthetic_data):
     assert isinstance(adata_nbp, AnnData)
 
 
+def test_calc_nbhd_by_pop_allows_index_name_matching_nbhd_column(synthetic_data):
+    """Test GeoDataFrames that keep the identifier as both index name and column."""
+    gdf_nbhd, adata = synthetic_data
+    gdf_nbhd = gdf_nbhd.set_index("name")
+    gdf_nbhd["name"] = gdf_nbhd.index
+
+    adata_nbp = calc_nbhd_by_pop(adata, gdf_nbhd, category="leiden", min_cells=3)
+
+    assert adata_nbp.shape[0] == 2
+    assert list(adata_nbp.obs_names) == ["A", "B"]
+
+
 def test_calc_nbhd_by_pop_raises_on_missing_columns(synthetic_data):
     """Test that calc_nbhd_by_pop raises appropriate errors for missing columns."""
     gdf_nbhd, adata = synthetic_data
@@ -94,11 +80,14 @@ def test_calc_nbhd_by_pop_raises_on_missing_columns(synthetic_data):
     # Test missing category in adata.obs
     bad_adata = adata.copy()
     del bad_adata.obs["leiden"]
-    with pytest.raises(ValueError, match="adata.obs missing required 'leiden' column"):
+    with pytest.raises(ValueError, match=r"adata\.obs missing required 'leiden' column"):
         calc_nbhd_by_pop(bad_adata, gdf_nbhd, category="leiden")
 
     # Test missing spatial coordinates
     bad_adata2 = adata.copy()
     del bad_adata2.obsm["spatial"]
-    with pytest.raises(ValueError, match="adata.obsm missing 'spatial' coordinates"):
+    with pytest.raises(ValueError, match=r"adata\.obsm missing 'spatial' coordinates"):
         calc_nbhd_by_pop(bad_adata2, gdf_nbhd, category="leiden")
+
+    with pytest.raises(ValueError, match="output must be 'proportion' or 'counts'"):
+        calc_nbhd_by_pop(adata, gdf_nbhd, category="leiden", output="percentage")

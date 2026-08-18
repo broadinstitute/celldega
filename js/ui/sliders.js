@@ -1,7 +1,10 @@
 import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
+import {
+  update_nbhd_cloud_gene_fill_opacity,
+  update_nbhd_cloud_manual_fill_opacity,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
-import { square_scatter_layer_opacity } from '../deck-gl/layers/square_scatter_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -200,13 +203,6 @@ export const set_image_layer_sliders = (img) => {
   });
 };
 
-const tile_slider_callback = async (deck_sst, viz_state, layers_sst) => {
-  square_scatter_layer_opacity(layers_sst, viz_state.sliders.tile.value / 100);
-  deck_sst.setProps({
-    layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-  });
-};
-
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   const scale_down_cell_radius = 5;
 
@@ -220,6 +216,20 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
+  // Repurposed for neighborhood-cloud only: an independent opacity control
+  // for gene-shapes mode (disabled/enabled opposite the NBHD slider, see
+  // sync_nbhd_cloud_opacity_sliders in bar_plot.js), not the legacy
+  // per-transcript radius this slot controls for every other technology.
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    update_nbhd_cloud_gene_fill_opacity(
+      viz_state,
+      layers_obj,
+      viz_state.sliders.trx.value / 100
+    );
+    refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
+
   const scale_down_trx_radius = 100;
 
   update_trx_layer_radius(
@@ -232,6 +242,12 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
 const nbhd_slider_callback = async (_deck_ist, layers_obj, viz_state) => {
   const opacity = viz_state.sliders.nbhd.value / 100;
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    update_nbhd_cloud_manual_fill_opacity(viz_state, layers_obj, opacity);
+    refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
 
   update_nbhd_layer_opacity(layers_obj, opacity);
 
@@ -296,21 +312,29 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
   const slider = make_slider();
 
   switch (slider_type) {
-    case 'tile':
-      ini_value = 100;
-      // may want to debouce later
-      callback = () => tile_slider_callback(inst_deck, viz_state, layers_obj);
-      break;
     case 'cell':
       ini_value = viz_state.genes.trx_ini_raidus * 100;
       callback = () => cell_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'trx':
-      ini_value = viz_state.genes.trx_ini_raidus * 100;
+      // Repurposed as neighborhood-cloud's gene-shapes opacity control --
+      // matches gene_fill_opacity's default (0.75 = 75%, see landscape_ist.js)
+      // rather than the unrelated legacy per-transcript radius default.
+      ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? 75
+        : viz_state.genes.trx_ini_raidus * 100;
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'nbhd':
-      ini_value = layers_obj.nbhd_layer.props.opacity * 100;
+      // neighborhood-cloud's manual multiplier defaults to 75% (see
+      // landscape_ist.js -- less than fully opaque so cell centroids and
+      // overlapping slices stay visible underneath) -- match that here
+      // rather than reading the unrelated legacy nbhd_layer's opacity, so
+      // the slider's initial position doesn't lie about the actual
+      // starting opacity.
+      ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? 75
+        : layers_obj.nbhd_layer.props.opacity * 100;
       callback = () => nbhd_slider_callback(inst_deck, layers_obj, viz_state);
       break;
 

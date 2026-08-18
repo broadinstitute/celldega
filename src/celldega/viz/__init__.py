@@ -2,10 +2,125 @@
 Module for visualization
 """
 
+import json
+
 from ipywidgets import HBox, Layout, VBox, jslink
 
+from .cloud import CellCloud, NeighborhoodCloud
+from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
-from .widget import Clustergram, Enrich, Landscape, Yearbook
+from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
+
+
+def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
+    """The cell attribute a Clustergram's columns represent (e.g. ``leiden``, ``cell_type``).
+
+    Read from the Clustergram's ``col_entity`` (``{"entity": ..., "attr": ...}``) so
+    linked Landscape/Yearbook queries color cells by whatever attribute the columns
+    actually encode, rather than assuming ``leiden``.
+    """
+    raw = getattr(cgm, "col_entity", None)
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            raw = None
+    if isinstance(raw, dict):
+        return raw.get("attr") or default
+    return default
+
+
+def spatial_clustergram(
+    spatial: "Landscape | CellCloud | NeighborhoodCloud | Yearbook",
+    mat: Clustergram,
+    width: str = "600px",
+    height: str = "700px",
+    *,
+    enrich: bool | Enrich = False,
+    row_enrich: bool = True,
+    col_enrich: bool = False,
+    enrich_kwargs: dict | None = None,
+    cluster_attr: str | None = None,
+) -> HBox:
+    """
+    Display a spatial widget and a `Clustergram` widget side by side, linked
+    so that clicking a Clustergram row/column updates the spatial widget.
+
+    Works with any of celldega's spatial widgets: `Landscape`, `CellCloud`,
+    `NeighborhoodCloud`, or `Yearbook`. `Landscape`/`CellCloud`/
+    `NeighborhoodCloud` share an ``update_trigger`` trait and are linked via
+    a front-end ``jslink`` (no round-trip through Python); `Yearbook` has no
+    such trait and is instead linked by observing the Clustergram's
+    ``click_info`` in Python and translating it into a
+    ``front_end_query`` (same mechanism as `landscape_yearbook_clustergram`).
+
+    Args:
+        spatial (Landscape | CellCloud | NeighborhoodCloud | Yearbook): The
+            spatial widget to link.
+        mat (Clustergram): A `Clustergram` widget.
+        width (str): The width of the widgets.
+        height (str): The height of the widgets.
+        enrich (bool | Enrich): If True, create an `Enrich` widget; if an
+            `Enrich` instance is provided, use it directly. If False, no
+            enrichment widget is shown. Ignored for a `Yearbook` `spatial`.
+        row_enrich (bool): If True (default), run enrichment analysis when
+            row dendrogram clusters are selected.
+        col_enrich (bool): If True, run enrichment analysis when column
+            dendrogram clusters are selected.
+        enrich_kwargs (dict | None): Optional kwargs passed to `Enrich` when
+            `enrich=True`.
+        cluster_attr (str | None): The cell attribute (``adata.obs`` column)
+            a clicked cluster refers to. Only used when `spatial` is a
+            `Yearbook`; defaults to the Clustergram's own ``col_entity``
+            attribute (see `_clustergram_col_attr`).
+
+    Returns:
+        HBox: Visualization display containing the widgets.
+    """
+    if isinstance(spatial, Yearbook):
+        attr = cluster_attr or _clustergram_col_attr(mat)
+        _link_clustergram_to_yearbook(mat, spatial, attr)
+
+        mat.layout = Layout(width=width)
+        spatial.layout = Layout(width="100%", height=height)
+
+        return HBox([spatial, mat])
+
+    # Link clustergram click_info to the spatial widget's update_trigger
+    jslink((mat, "click_info"), (spatial, "update_trigger"))
+
+    # Layouts
+    mat.layout = Layout(width=width)
+    spatial.layout = Layout(width=width, height=height)
+
+    enrich_widget: Enrich | None = None
+    if isinstance(enrich, Enrich):
+        enrich_widget = enrich
+    elif enrich:
+        config = dict(enrich_kwargs or {})
+        config.setdefault("gene_list", [])
+        config.setdefault("width", 250)
+        enrich_widget = Enrich(**config)
+
+    if enrich_widget is not None:
+
+        def _forward_gene_to_spatial(gene: str) -> None:
+            if gene:
+                spatial.trigger_update({"type": "row_label", "value": {"name": gene}})
+
+        _link_clustergram_to_enrich(
+            mat,
+            enrich_widget,
+            row_enrich=row_enrich,
+            col_enrich=col_enrich,
+            gene_focus_callback=_forward_gene_to_spatial,
+        )
+
+    children = [spatial, mat]
+    if enrich_widget is not None:
+        children.append(enrich_widget)
+
+    return HBox(children)
 
 
 def landscape_clustergram(
@@ -19,62 +134,20 @@ def landscape_clustergram(
     col_enrich: bool = False,
     enrich_kwargs: dict | None = None,
 ) -> HBox:
+    """Deprecated alias for :func:`spatial_clustergram`, kept for backward
+    compatibility. Prefer `spatial_clustergram`, which also works with
+    `CellCloud`, `NeighborhoodCloud`, and `Yearbook`.
     """
-    Display a `Landscape` widget and a `Clustergram` widget side by side.
-
-    Args:
-        landscape (Landscape): A `Landscape` widget.
-        mat (Clustergram): A `Clustergram` widget.
-        width (str): The width of the widgets.
-        height (str): The height of the widgets.
-        enrich (bool | Enrich): If True, create an `Enrich` widget; if an
-            `Enrich` instance is provided, use it directly. If False, no
-            enrichment widget is shown.
-        row_enrich (bool): If True (default), run enrichment analysis when
-            row dendrogram clusters are selected.
-        col_enrich (bool): If True, run enrichment analysis when column
-            dendrogram clusters are selected.
-        enrich_kwargs (dict | None): Optional kwargs passed to `Enrich` when
-            `enrich=True`.
-
-    Returns:
-        HBox: Visualization display containing the widgets.
-    """
-    # Link clustergram click_info to landscape update_trigger
-    jslink((mat, "click_info"), (landscape, "update_trigger"))
-
-    # Layouts
-    mat.layout = Layout(width=width)
-    landscape.layout = Layout(width=width, height=height)
-
-    enrich_widget: Enrich | None = None
-    if isinstance(enrich, Enrich):
-        enrich_widget = enrich
-    elif enrich:
-        config = dict(enrich_kwargs or {})
-        config.setdefault("gene_list", [])
-        config.setdefault("width", 250)
-        enrich_widget = Enrich(**config)
-
-    if enrich_widget is not None:
-
-        def _forward_gene_to_landscape(gene: str) -> None:
-            if gene:
-                landscape.trigger_update({"type": "row_label", "value": {"name": gene}})
-
-        _link_clustergram_to_enrich(
-            mat,
-            enrich_widget,
-            row_enrich=row_enrich,
-            col_enrich=col_enrich,
-            gene_focus_callback=_forward_gene_to_landscape,
-        )
-
-    children = [landscape, mat]
-    if enrich_widget is not None:
-        children.append(enrich_widget)
-
-    return HBox(children)
+    return spatial_clustergram(
+        landscape,
+        mat,
+        width,
+        height,
+        enrich=enrich,
+        row_enrich=row_enrich,
+        col_enrich=col_enrich,
+        enrich_kwargs=enrich_kwargs,
+    )
 
 
 def _link_clustergram_to_enrich(
@@ -184,6 +257,7 @@ def landscape_yearbook(
     yearbook: Yearbook,
     width: str = "100%",
     height: str = "400px",
+    cluster_attr: str = "leiden",
 ) -> "VBox":
     """
     Display a `Landscape` widget above a `Yearbook` widget with linked queries.
@@ -197,6 +271,10 @@ def landscape_yearbook(
         yearbook (Yearbook): A `Yearbook` widget.
         width (str): The width of the widgets.
         height (str): The height of each widget.
+        cluster_attr (str): The cell attribute (``adata.obs`` column) a clicked
+            cluster value refers to (default ``"leiden"``). If the click payload
+            carries its own ``attr`` it takes precedence, so linked Clustergrams
+            over non-leiden sets (cell types, domains) color the right cells.
 
     Returns:
         VBox: Visualization display containing both widgets stacked vertically.
@@ -213,27 +291,28 @@ def landscape_yearbook(
         info = change["new"] or {}
         click_type = (info.get("type") or "").lower()
         value = info.get("value") or {}
+        attr = value.get("attr") or cluster_attr
 
-        current_query = dict(yearbook.query or {})
+        current_query = dict(yearbook.front_end_query or {})
 
         if click_type == "col_label":
             # Cluster selected
             cluster_name = value.get("name", "")
             if cluster_name:
-                current_query["cluster"] = {"attr": "leiden", "value": str(cluster_name)}
-                yearbook.query = current_query
+                current_query["cluster"] = {"attr": attr, "value": str(cluster_name)}
+                yearbook.front_end_query = current_query
         elif click_type == "row_label":
             # Gene selected
             gene_name = value.get("name", "")
             if gene_name:
                 current_query["gene"] = gene_name
-                yearbook.query = current_query
+                yearbook.front_end_query = current_query
         elif click_type == "col_dendro":
             # Multiple clusters selected via dendrogram
             selected_names = value.get("selected_names", [])
             if selected_names and len(selected_names) == 1:
-                current_query["cluster"] = {"attr": "leiden", "value": str(selected_names[0])}
-                yearbook.query = current_query
+                current_query["cluster"] = {"attr": attr, "value": str(selected_names[0])}
+                yearbook.front_end_query = current_query
 
     landscape.observe(_on_update_trigger, names="update_trigger")
 
@@ -244,12 +323,54 @@ def landscape_yearbook(
     return VBox([landscape, yearbook])
 
 
+def _link_clustergram_to_yearbook(cgm: Clustergram, yearbook: Yearbook, attr: str) -> None:
+    """Observe a Clustergram's ``click_info`` and translate it into a Yearbook
+    ``front_end_query`` (cluster selection or gene ranking). Shared by
+    `spatial_clustergram` (Yearbook branch) and `landscape_yearbook_clustergram`.
+    """
+
+    def _on_click_info(change):
+        info = change["new"] or {}
+        click_type = (info.get("type") or "").lower()
+        value = info.get("value") or {}
+
+        current_query = dict(yearbook.front_end_query or {})
+
+        if click_type == "col_label":
+            # Cluster selected
+            cluster_name = value.get("name", "")
+            if cluster_name:
+                current_query["cluster"] = {"attr": attr, "value": str(cluster_name)}
+                yearbook.front_end_query = current_query
+        elif click_type == "row_label":
+            # Gene selected
+            gene_name = value.get("name", "")
+            if gene_name:
+                current_query["gene"] = gene_name
+                yearbook.front_end_query = current_query
+        elif click_type.startswith("col_dendro"):
+            # Multiple clusters selected via dendrogram
+            selected_names = value.get("selected_names", [])
+            if selected_names and len(selected_names) == 1:
+                current_query["cluster"] = {"attr": attr, "value": str(selected_names[0])}
+                yearbook.front_end_query = current_query
+        elif click_type.startswith("row_dendro"):
+            # Multiple genes selected - use first one
+            selected_names = value.get("selected_names", [])
+            if selected_names:
+                current_query["gene"] = selected_names[0]
+                yearbook.front_end_query = current_query
+
+    cgm.observe(_on_click_info, names="click_info")
+
+
 def landscape_yearbook_clustergram(
     landscape: Landscape,
     yearbook: Yearbook,
     cgm: Clustergram,
     width: str = "600px",
     height: str = "400px",
+    cluster_attr: str | None = None,
 ) -> "VBox":
     """
     Display a `Landscape` and `Clustergram` side by side, with a `Yearbook` below.
@@ -279,40 +400,11 @@ def landscape_yearbook_clustergram(
     # Link clustergram click_info to landscape update_trigger
     jslink((cgm, "click_info"), (landscape, "update_trigger"))
 
+    # Attribute the Clustergram's columns encode (e.g. leiden, cell_type, domain)
+    attr = cluster_attr or _clustergram_col_attr(cgm)
+
     # Link Clustergram to Yearbook
-    def _on_click_info(change):
-        info = change["new"] or {}
-        click_type = (info.get("type") or "").lower()
-        value = info.get("value") or {}
-
-        current_query = dict(yearbook.query or {})
-
-        if click_type == "col_label":
-            # Cluster selected
-            cluster_name = value.get("name", "")
-            if cluster_name:
-                current_query["cluster"] = {"attr": "leiden", "value": str(cluster_name)}
-                yearbook.query = current_query
-        elif click_type == "row_label":
-            # Gene selected
-            gene_name = value.get("name", "")
-            if gene_name:
-                current_query["gene"] = gene_name
-                yearbook.query = current_query
-        elif click_type.startswith("col_dendro"):
-            # Multiple clusters selected via dendrogram
-            selected_names = value.get("selected_names", [])
-            if selected_names and len(selected_names) == 1:
-                current_query["cluster"] = {"attr": "leiden", "value": str(selected_names[0])}
-                yearbook.query = current_query
-        elif click_type.startswith("row_dendro"):
-            # Multiple genes selected - use first one
-            selected_names = value.get("selected_names", [])
-            if selected_names:
-                current_query["gene"] = selected_names[0]
-                yearbook.query = current_query
-
-    cgm.observe(_on_click_info, names="click_info")
+    _link_clustergram_to_yearbook(cgm, yearbook, attr)
 
     # Layouts
     landscape.layout = Layout(width=width, height=height)
@@ -324,9 +416,13 @@ def landscape_yearbook_clustergram(
 
 
 __all__ = [
+    "CellCloud",
     "Clustergram",
+    "Composition",
     "Enrich",
+    "Landmark",
     "Landscape",
+    "NeighborhoodCloud",
     "Yearbook",
     "clustergram_enrich",
     "get_local_server",
@@ -334,4 +430,5 @@ __all__ = [
     "landscape_clustergram",
     "landscape_yearbook",
     "landscape_yearbook_clustergram",
+    "spatial_clustergram",
 ]

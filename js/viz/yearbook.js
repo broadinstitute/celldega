@@ -8,10 +8,13 @@ import {
 import {
   create_yearbook_views,
   get_discontiguous_tiles,
+  get_grid_pixel_height,
 } from '../deck-gl/core/yearbook_viewports';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   ini_cell_layer,
+  refresh_cell_layer_data,
+  refresh_point_cloud_cell_layer_data,
   set_cell_layer_onclick,
 } from '../deck-gl/layers/cell_layer';
 import {
@@ -37,13 +40,17 @@ import { set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
 import { set_dimensions } from '../global_variables/image_dimensions';
 import {
+  get_landscape_image_info,
+  get_primary_image_name,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
+  technology_has_image_layer,
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
+import { force_set_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
@@ -51,8 +58,15 @@ import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { execute_cell_query } from '../utils/cell_query';
+import {
+  areBarDataEqual,
+  createEmptyCellCompact,
+  createEmptyTrxCompact,
+} from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+
+import { compute_portrait_centers } from './yearbook_portrait_centers';
 
 // Row group reading support
 
@@ -218,6 +232,12 @@ export const yearbook = async (
     zoom_level: 0,
     portrait_centers: [], // Will store the center coordinates for each portrait
     query, // Query object for finding cells from LandscapeFiles
+    lastGeneBarData: null,
+    lastCellBarData: null,
+    geneCountScratch: null,
+    activeGeneIds: [],
+    cellCountScratch: null,
+    activeCellIds: [],
   };
 
   viz_state.max_tiles_to_view = 50;
@@ -247,21 +267,26 @@ export const yearbook = async (
   viz_state.cats.selected_cats = [];
   viz_state.cats.cell_cats = [];
   viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
   viz_state.cats.color_dict_cluster = {};
   viz_state.cats.cluster_counts = [];
   viz_state.cats.polygon_cell_names = [];
 
-  if (Object.keys(meta_cell).length === 0) {
-    viz_state.cats.has_meta_cell = false;
-  } else {
-    viz_state.cats.has_meta_cell = true;
-  }
+  viz_state.cats.has_meta_cell =
+    Boolean(meta_cell) &&
+    typeof meta_cell === 'object' &&
+    meta_cell_attr.length > 0;
   viz_state.cats.meta_cell = meta_cell;
   viz_state.cats.meta_cell_attr = meta_cell_attr;
-  viz_state.cats.meta_cell_id_set = new Set(
-    Object.keys(meta_cell || {}).map((cell_id) => String(cell_id))
-  );
-  viz_state.cats.inst_cell_attr = meta_cell_attr[0] || 'N.A.';
+  viz_state.cats.meta_cell_id_set = null;
+  // Color cells by the requested `cluster_attr` when present; else the first
+  // attribute (matches Landscape — see landscape_ist.js).
+  const requested_cluster_attr =
+    typeof ini_model?.get === 'function' ? ini_model.get('cluster_attr') : null;
+  viz_state.cats.inst_cell_attr =
+    requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
+      ? requested_cluster_attr
+      : meta_cell_attr[0] || 'N.A.';
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -278,8 +303,9 @@ export const yearbook = async (
   viz_state.genes.meta_gene = {};
   viz_state.genes.gene_counts = [];
   viz_state.genes.selected_genes = [];
+  viz_state.genes.selected_gene_ids = new Set();
   viz_state.genes.trx_ini_radius = 0.25;
-  viz_state.genes.trx_names_array = [];
+  viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.genes.trx_data = [];
   viz_state.genes.gene_text_box = '';
   viz_state.genes.trx_slider = document.createElement('input');
@@ -327,21 +353,28 @@ export const yearbook = async (
   set_options(token);
 
   await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
-  const tech = viz_state.img.landscape_parameters.technology;
+  const { landscape_parameters } = viz_state.img;
+  const {
+    technology: tech,
+    use_int_index,
+    image_format,
+  } = landscape_parameters;
+  const has_image_layer = technology_has_image_layer(tech);
+
+  if (!has_image_layer) {
+    viz_state.obs_store.viz_image_layers.set(false);
+    viz_state.obs_store.viz_background_layer.set(false);
+  }
 
   // Initialize row group readers if enabled
   await initializeYearbookRowGroupReaders(viz_state, base_url);
 
-  const tmp_image_info = viz_state.img.landscape_parameters.image_info;
-  const image_name_for_dim = tmp_image_info[0].name;
+  const tmp_image_info = get_landscape_image_info(landscape_parameters);
+  const image_name_for_dim = get_primary_image_name(landscape_parameters);
 
-  viz_state.vector_name_integer =
-    viz_state.img.landscape_parameters.use_int_index;
+  viz_state.vector_name_integer = use_int_index;
 
-  set_image_format(
-    viz_state.img,
-    viz_state.img.landscape_parameters.image_format
-  );
+  set_image_format(viz_state.img, image_format);
   set_image_info(viz_state.img, tmp_image_info);
   set_image_layer_sliders(viz_state.img);
   set_image_layer_colors(
@@ -372,7 +405,11 @@ export const yearbook = async (
     root.appendChild(viz_state.scale_bar.container);
   }
 
-  await set_dimensions(viz_state, base_url, image_name_for_dim);
+  if (has_image_layer) {
+    await set_dimensions(viz_state, base_url, image_name_for_dim);
+  } else {
+    viz_state.dimensions = { width: 1, height: 1, tileSize: 1 };
+  }
 
   await set_meta_gene(
     viz_state.genes,
@@ -412,7 +449,8 @@ export const yearbook = async (
 
   viz_state.combo_data = {};
   viz_state.combo_data.trx = [];
-  viz_state.combo_data.cell = [];
+  viz_state.combo_data.trx_compact = createEmptyTrxCompact();
+  viz_state.combo_data.cell_compact = createEmptyCellCompact();
   viz_state.tooltip_cat_cell = '';
 
   // Edit state (not used in yearbook but needed for layer compatibility)
@@ -436,6 +474,18 @@ export const yearbook = async (
   );
 
   viz_state.yearbook.portrait_pixel_size = portrait_pixel_size;
+
+  // The grid uses the smaller of the width-/height-derived portrait sizes, so a
+  // width-limited grid (many columns) ends up shorter than the reserved canvas
+  // height. Sizing the canvas and root container to the actual grid height keeps
+  // the container from extending well below the last portrait row (the dead
+  // space); in the height-limited case this equals the previous `height - 100`.
+  const grid_pixel_height = get_grid_pixel_height(
+    num_rows,
+    portrait_pixel_size,
+    portrait_gap
+  );
+  root.style.height = `${grid_pixel_height}px`;
 
   // Calculate initial zoom based on portrait_size_um
   // Also calculate portrait size in image/data coordinates for tile loading
@@ -503,7 +553,12 @@ export const yearbook = async (
   );
   viz_state.views = views;
 
-  const deck_yearbook = await ini_deck(root, actual_width, height - 100, tech);
+  const deck_yearbook = await ini_deck(
+    root,
+    actual_width,
+    grid_pixel_height,
+    tech
+  );
   set_views_prop(deck_yearbook, views);
   set_get_tooltip(deck_yearbook, viz_state);
 
@@ -548,66 +603,123 @@ export const yearbook = async (
     // Use half the portrait data size as the radius for filtering
     const half_view_size = portrait_data_size / 2;
 
-    // Filter transcripts visible in any portrait
-    const filtered_transcripts = (viz_state.combo_data.trx || []).filter(
-      (pos) => {
-        return centers.some((center) => {
-          return (
-            pos.x >= center.x - half_view_size &&
-            pos.x <= center.x + half_view_size &&
-            pos.y >= center.y - half_view_size &&
-            pos.y <= center.y + half_view_size
-          );
-        });
-      }
-    );
+    // Filter transcripts visible in any portrait using compact buffers
+    const trxCompact =
+      viz_state.combo_data.trx_compact || createEmptyTrxCompact();
+    const geneCountLength = viz_state.genes.gene_names.length;
 
-    const filtered_gene_names = filtered_transcripts.map((t) => t.name);
+    if (
+      !viz_state.yearbook.geneCountScratch ||
+      viz_state.yearbook.geneCountScratch.length !== geneCountLength
+    ) {
+      viz_state.yearbook.geneCountScratch = new Uint32Array(geneCountLength);
+      viz_state.yearbook.activeGeneIds = [];
+    }
 
-    const new_bar_data = filtered_gene_names
-      .reduce((acc, gene) => {
-        const existingGene = acc.find((item) => item.name === gene);
-        if (existingGene) {
-          existingGene.value += 1;
-        } else {
-          acc.push({ name: gene, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 100);
+    const geneCounts = viz_state.yearbook.geneCountScratch;
+    const activeGeneIds = viz_state.yearbook.activeGeneIds;
+    activeGeneIds.length = 0;
 
-    viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
-
-    // Filter cells visible in any portrait
-    const filtered_cells = (viz_state.combo_data.cell || []).filter((pos) => {
-      return centers.some((center) => {
+    for (let i = 0; i < trxCompact.geneIds.length; i++) {
+      const positions = trxCompact.positions;
+      const x = positions[i * trxCompact.size];
+      const y = positions[i * trxCompact.size + 1];
+      const inPortrait = centers.some((center) => {
         return (
-          pos.x >= center.x - half_view_size &&
-          pos.x <= center.x + half_view_size &&
-          pos.y >= center.y - half_view_size &&
-          pos.y <= center.y + half_view_size
+          x >= center.x - half_view_size &&
+          x <= center.x + half_view_size &&
+          y >= center.y - half_view_size &&
+          y <= center.y + half_view_size
         );
       });
-    });
+      if (!inPortrait) {
+        continue;
+      }
 
-    const filtered_cell_cats = filtered_cells.map((cell) => cell.cat);
+      const geneId = trxCompact.geneIds[i];
+      if (geneId < 0) {
+        continue;
+      }
 
-    const new_bar_data_cell = filtered_cell_cats
-      .reduce((acc, cat) => {
-        const existing_cat = acc.find((item) => item.name === cat);
-        if (existing_cat) {
-          existing_cat.value += 1;
-        } else {
-          acc.push({ name: cat, value: 1 });
-        }
-        return acc;
-      }, [])
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value);
+      if (geneCounts[geneId] === 0) {
+        activeGeneIds.push(geneId);
+      }
+      geneCounts[geneId] += 1;
+    }
 
-    viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
+    activeGeneIds.sort((a, b) => geneCounts[b] - geneCounts[a]);
+    const new_bar_data = activeGeneIds.slice(0, 100).map((geneId) => ({
+      name: viz_state.genes.g_nameMapping_inv?.[geneId] ?? String(geneId),
+      value: geneCounts[geneId],
+    }));
+
+    for (const geneId of activeGeneIds) {
+      geneCounts[geneId] = 0;
+    }
+
+    if (!areBarDataEqual(viz_state.yearbook.lastGeneBarData, new_bar_data)) {
+      viz_state.yearbook.lastGeneBarData = new_bar_data;
+      viz_state.obs_store.new_gene_bar_data.set(new_bar_data);
+    }
+
+    // Filter cells visible in any portrait
+    const cellCompact =
+      viz_state.combo_data.cell_compact || createEmptyCellCompact();
+    const categoryCountLength = cellCompact.categoryNames.length;
+
+    if (
+      !viz_state.yearbook.cellCountScratch ||
+      viz_state.yearbook.cellCountScratch.length !== categoryCountLength
+    ) {
+      viz_state.yearbook.cellCountScratch = new Uint32Array(
+        categoryCountLength
+      );
+      viz_state.yearbook.activeCellIds = [];
+    }
+
+    const cellCounts = viz_state.yearbook.cellCountScratch;
+    const activeCellIds = viz_state.yearbook.activeCellIds;
+    activeCellIds.length = 0;
+
+    for (let i = 0; i < cellCompact.categoryIds.length; i++) {
+      const positions = cellCompact.positions;
+      const x = positions[i * cellCompact.size];
+      const y = positions[i * cellCompact.size + 1];
+      const inPortrait = centers.some((center) => {
+        return (
+          x >= center.x - half_view_size &&
+          x <= center.x + half_view_size &&
+          y >= center.y - half_view_size &&
+          y <= center.y + half_view_size
+        );
+      });
+      if (!inPortrait) {
+        continue;
+      }
+
+      const categoryId = cellCompact.categoryIds[i];
+      if (cellCounts[categoryId] === 0) {
+        activeCellIds.push(categoryId);
+      }
+      cellCounts[categoryId] += 1;
+    }
+
+    activeCellIds.sort((a, b) => cellCounts[b] - cellCounts[a]);
+    const new_bar_data_cell = activeCellIds.map((categoryId) => ({
+      name: cellCompact.categoryNames[categoryId],
+      value: cellCounts[categoryId],
+    }));
+
+    for (const categoryId of activeCellIds) {
+      cellCounts[categoryId] = 0;
+    }
+
+    if (
+      !areBarDataEqual(viz_state.yearbook.lastCellBarData, new_bar_data_cell)
+    ) {
+      viz_state.yearbook.lastCellBarData = new_bar_data_cell;
+      viz_state.obs_store.new_cell_bar_data.set(new_bar_data_cell);
+    }
   };
 
   // Calculate portrait centers based on cell positions
@@ -622,30 +734,18 @@ export const yearbook = async (
       start_index + portraits_per_page
     );
 
-    // Get cell positions from the scatter data
-    const centers = page_cells.map((cell_id) => {
-      const cell_index = viz_state.cats.cell_name_to_index_map.get(cell_id);
-      if (
-        cell_index !== undefined &&
-        viz_state.spatial.cell_scatter_data_objects
-      ) {
-        const cell_data =
-          viz_state.spatial.cell_scatter_data_objects[cell_index];
-        if (cell_data && cell_data.position) {
-          return {
-            cell_id,
-            x: cell_data.position[0],
-            y: cell_data.position[1],
-          };
-        }
-      }
-      // Fallback to center of image if cell not found
-      return {
-        cell_id,
+    // Resolve each portrait's spatial center from the flat scatter-data buffer.
+    // See compute_portrait_centers for why the old cell_scatter_data_objects
+    // buffer no longer works.
+    const centers = compute_portrait_centers(
+      page_cells,
+      viz_state.cats.cell_name_to_index_map,
+      viz_state.spatial.cell_scatter_data,
+      {
         x: viz_state.dimensions.width / 2,
         y: viz_state.dimensions.height / 2,
-      };
-    });
+      }
+    );
 
     viz_state.yearbook.portrait_centers = centers;
     return centers;
@@ -703,10 +803,23 @@ export const yearbook = async (
     // Use a unique timestamp to force layer recreation
     const timestamp = Date.now();
 
-    // Clone layers with new IDs to force refresh
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
-    });
+    // Clone layers with new IDs to force refresh. Point-cloud layers keep a
+    // stable ID so deck.gl only updates the binary attributes.
+    const refreshedPointCloud = refresh_point_cloud_cell_layer_data(
+      layers_obj,
+      viz_state
+    );
+
+    if (!refreshedPointCloud) {
+      // 2D (scatterplot) yearbook: rebuild the layer data so its color buffer
+      // reflects the current cluster/gene selection. get_scatterplot_cell_data
+      // recomputes colors via update_cell_color_buffer, so selecting a gene
+      // turns centroids red (opacity = expression). Cloning only the id left the
+      // stale cluster colors baked in, which is why gene queries never recolored.
+      refresh_cell_layer_data(layers_obj, viz_state, {
+        id: `cell-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
+      });
+    }
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-page-${viz_state.yearbook.current_page}-${timestamp}`,
     });
@@ -715,9 +828,11 @@ export const yearbook = async (
     });
 
     // Get the updated layers list (filter out null layers for yearbook)
-    const layers_list = get_layers_list(layers_obj, viz_state.close_up).filter(
-      (l) => l !== null
-    );
+    const layers_list = get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    ).filter((l) => l !== null);
 
     // Apply all changes at once
     deck_yearbook.setProps({
@@ -752,7 +867,8 @@ export const yearbook = async (
     if (ready) {
       const list = get_layers_list(
         viz_state.layers_obj,
-        viz_state.close_up
+        viz_state.close_up,
+        viz_state
       ).filter((l) => l !== null);
       deck_yearbook.setProps({ layers: list });
     }
@@ -762,9 +878,22 @@ export const yearbook = async (
   viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
     const selected_cats_name = selected_cats.join('-');
 
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
-    });
+    const refreshedPointCloud = refresh_point_cloud_cell_layer_data(
+      layers_obj,
+      viz_state,
+      {
+        id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+      }
+    );
+
+    if (!refreshedPointCloud) {
+      // Rebuild the 2D scatterplot data (recomputes the color buffer) so gene-
+      // bar clicks and cluster selections actually recolor the centroids instead
+      // of keeping the stale colors from the previous selection.
+      refresh_cell_layer_data(layers_obj, viz_state, {
+        id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+      });
+    }
 
     layers_obj.path_layer = layers_obj.path_layer.clone({
       id: `path-layer-${selected_cats_name}`,
@@ -915,9 +1044,14 @@ export const yearbook = async (
         // Update category to gene mode
         update_cat(viz_state.cats, inst_gene);
 
-        // Force-set selected genes (bypass toggle behavior)
-        viz_state.genes.selected_genes = [inst_gene];
-        viz_state.obs_store.selected_genes.set([inst_gene]);
+        // Force-set selected genes (bypass toggle behavior). Goes through
+        // force_set_selected_genes so genes.selected_gene_ids is updated too --
+        // the trx layer reads that Set to focus the queried gene's transcripts.
+        force_set_selected_genes(
+          viz_state.genes,
+          [inst_gene],
+          viz_state.obs_store
+        );
 
         // Load gene expression data for cell coloring
         await update_cell_exp_array(
@@ -942,9 +1076,9 @@ export const yearbook = async (
         // No gene - reset to cluster mode
         update_cat(viz_state.cats, 'cluster');
 
-        // Force-clear selections
-        viz_state.genes.selected_genes = [];
-        viz_state.obs_store.selected_genes.set([]);
+        // Force-clear selections (also clears genes.selected_gene_ids so the
+        // trx layer stops focusing / dimming transcripts).
+        force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
         viz_state.cats.selected_cats = [];
         viz_state.obs_store.selected_cats.set([]);
 
@@ -965,7 +1099,7 @@ export const yearbook = async (
       // Sync to model if available
       if (viz_state.model && typeof viz_state.model.set === 'function') {
         viz_state.model.set('cells', queried_cells);
-        viz_state.model.set('query', new_query);
+        viz_state.model.set('front_end_query', new_query);
         viz_state.model.set('current_page', 0);
         viz_state.model.save_changes();
       }
@@ -1018,8 +1152,8 @@ export const yearbook = async (
       }
     });
 
-    viz_state.model.on('change:query', async () => {
-      const new_query = viz_state.model.get('query') || {};
+    viz_state.model.on('change:front_end_query', async () => {
+      const new_query = viz_state.model.get('front_end_query') || {};
       viz_state.yearbook.query = new_query;
 
       // Update query UI inputs to reflect the new query
@@ -1048,9 +1182,14 @@ export const yearbook = async (
           // Update category to gene mode
           update_cat(viz_state.cats, inst_gene);
 
-          // Force-set selected genes (bypass toggle behavior)
-          viz_state.genes.selected_genes = [inst_gene];
-          viz_state.obs_store.selected_genes.set([inst_gene]);
+          // Force-set selected genes (bypass toggle behavior). Uses
+          // force_set_selected_genes so genes.selected_gene_ids stays in sync and
+          // the trx layer focuses the queried gene's transcripts.
+          force_set_selected_genes(
+            viz_state.genes,
+            [inst_gene],
+            viz_state.obs_store
+          );
 
           // Load gene expression data for cell coloring
           await update_cell_exp_array(
@@ -1075,8 +1214,8 @@ export const yearbook = async (
           update_cat(viz_state.cats, 'cluster');
 
           // Force-clear selections
-          viz_state.genes.selected_genes = [];
-          viz_state.obs_store.selected_genes.set([]);
+          // Force-clear selections (also clears genes.selected_gene_ids).
+          force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
           viz_state.cats.selected_cats = [];
           viz_state.obs_store.selected_cats.set([]);
 

@@ -8,6 +8,7 @@ in vec3 instancePositions;
 in vec3 instancePositions64Low;
 in vec3 instancePickingColors;
 in vec4 instanceFillColors;
+in float instanceRadius;
 
 uniform float opacity;
 uniform float tile_height;
@@ -18,7 +19,10 @@ out vec2 unitPosition;
 
 void main(void) {
 
-  vec3 scaled_positions = vec3(tile_width * positions.x, tile_height * positions.y, positions.z);
+  // instanceRadius (from getRadius) is a per-cell size scale in [0, 1] that
+  // shrinks the square around its center for the "dotplot" encoding.
+  // It defaults to 1.0 (full tile) so the classic heatmap is unchanged.
+  vec3 scaled_positions = vec3(tile_width * positions.x * instanceRadius, tile_height * positions.y * instanceRadius, positions.z);
 
   vec3 positionCommon = project_position(instancePositions + scaled_positions , instancePositions64Low);
 

@@ -1,33 +1,79 @@
+const updateSelectedGeneState = (genes, selectedGenes) => {
+  if (!genes) {
+    return;
+  }
+
+  genes.selected_genes = selectedGenes;
+  genes.selected_gene_ids = new Set(
+    selectedGenes
+      .map((gene) => genes.g_nameMapping?.[gene])
+      .filter((geneId) => geneId !== undefined)
+  );
+};
+
 export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
-  // Check if the arrays are equal
+  const currentSelectedGenes = Array.isArray(genes?.selected_genes)
+    ? genes.selected_genes
+    : [];
+  const nextSelectedGenes = Array.isArray(new_selected_genes)
+    ? new_selected_genes
+    : [];
+
   const areArraysEqual =
-    new_selected_genes.length === genes.selected_genes.length &&
-    new_selected_genes.every(
-      (value, index) => value === genes.selected_genes[index]
+    nextSelectedGenes.length === currentSelectedGenes.length &&
+    nextSelectedGenes.every(
+      (value, index) => value === currentSelectedGenes[index]
     );
 
-  // Use the ternary operator to update selected_genes
-  genes.selected_genes = areArraysEqual ? [] : new_selected_genes;
+  const selectedGenes = areArraysEqual ? [] : nextSelectedGenes;
+  updateSelectedGeneState(genes, selectedGenes);
 
-  // Update obs_store
-  obs_store.selected_genes.set(genes.selected_genes);
+  if (obs_store?.selected_genes) {
+    obs_store.selected_genes.set(selectedGenes);
+  }
+};
+
+/**
+ * Force the selected-gene state to exactly `new_selected_genes`, skipping
+ * update_selected_genes' "same array toggles off" heuristic. Crucially this
+ * keeps genes.selected_gene_ids (the Set the transcript layer reads to focus a
+ * gene) in sync -- assigning genes.selected_genes directly leaves that Set
+ * stale, so the trx layer never dims the other genes' transcripts.
+ */
+export const force_set_selected_genes = (
+  genes,
+  new_selected_genes,
+  obs_store
+) => {
+  const selectedGenes = Array.isArray(new_selected_genes)
+    ? new_selected_genes
+    : [];
+  updateSelectedGeneState(genes, selectedGenes);
+
+  if (obs_store?.selected_genes) {
+    obs_store.selected_genes.set(selectedGenes);
+  }
 };
 
 export const sync_selected_genes = (viz_state, genes) => {
+  const selectedGenes = Array.isArray(genes) ? genes : [];
+
   if (viz_state.model && typeof viz_state.model.set === 'function') {
-    viz_state.model.set('selected_genes', genes);
+    viz_state.model.set('selected_genes', selectedGenes);
 
     // Also sync to selected_rows if row entity is 'gene'
     const { row_entity } = viz_state;
     if (row_entity?.entity === 'gene') {
-      viz_state.model.set('selected_rows', genes);
+      viz_state.model.set('selected_rows', selectedGenes);
     }
 
     viz_state.model.save_changes();
   }
 
-  if (viz_state.obs_store && viz_state.obs_store.selected_genes) {
-    viz_state.obs_store.selected_genes.set(genes);
+  updateSelectedGeneState(viz_state.genes, selectedGenes);
+
+  if (viz_state.obs_store?.selected_genes) {
+    viz_state.obs_store.selected_genes.set(selectedGenes);
   }
 };
 

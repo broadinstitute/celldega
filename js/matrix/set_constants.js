@@ -2,6 +2,7 @@ import { create_clustergram_store } from '../obs_store/clustergram_store';
 import { ManualCategoryStore } from '../obs_store/manual_category_store';
 
 import { initialize_attr_state } from './attr_state';
+import { resolve_viz_mode } from './mat_data';
 
 /**
  * Parse entity specification from string or object.
@@ -105,6 +106,14 @@ export const set_mat_constants = (
   initialize_attr_state(viz_state, network);
 
   viz_state.root.style.height = `${height + viz_state.viz.height_margin}px`;
+  // Mirrors `ini_deck`'s own `width + 100` buffer on the deck.gl canvas
+  // itself (already true of the height line above) — without this, the
+  // container div under-reports its true rendered width, so content past
+  // the under-reported edge (in practice, whatever sits furthest right —
+  // the row dendrogram) can end up outside the box the browser and host
+  // notebook UI think the widget occupies, causing mouse events there to
+  // misbehave.
+  viz_state.root.style.width = `${width + viz_state.viz.height_margin}px`;
 
   // height of attribute bars
   viz_state.viz.row_cat_offset = 9;
@@ -222,6 +231,42 @@ export const set_mat_constants = (
   const perc_idx = Math.floor(0.99 * (abs_vals.length - 1));
   viz_state.mat.max_abs_value = abs_vals[perc_idx] || 1;
 
+  // Secondary matrix (dot-plot size channel) and its normalization scale.
+  const has_size_mat = Array.isArray(network.size_mat);
+  viz_state.mat.max_size_value = has_size_mat
+    ? network.size_mat.flat().reduce((m, x) => Math.max(m, Math.abs(x)), 0) || 1
+    : 1;
+
+  // Requested encoding mode (heatmap | size | dotplot); dotplot needs a size mat.
+  const requested_mode =
+    (model && typeof model.get === 'function' && model.get('viz_mode')) ||
+    'heatmap';
+  viz_state.mat.viz_mode = resolve_viz_mode(requested_mode, has_size_mat);
+
+  // Composition (stacked-bar) body configuration. `composition_normalized`
+  // defaults to true (each column normalized to 100%); set false for raw counts.
+  viz_state.mat.composition_normalized =
+    model && typeof model.get === 'function'
+      ? model.get('composition_normalized') !== false
+      : true;
+
+  // Optional {group_name: n_cells} true per-group magnitude for "counts"
+  // mode (see composition_data.js's build_composition_layout).
+  viz_state.mat.composition_col_weights =
+    (model &&
+      typeof model.get === 'function' &&
+      model.get('composition_col_weights')) ||
+    {};
+
+  // Dotplot size channel toggle: true (default) -> dot size encodes the
+  // secondary (fraction) matrix; false -> size is forced to full tile.
+  viz_state.mat.dot_size_encoded =
+    model && typeof model.get === 'function'
+      ? model.get('dot_size_encoded') !== false
+      : true;
+
+  viz_state.global_cat_colors = network.global_cat_colors || {};
+
   viz_state.order = {};
 
   viz_state.order.current = {};
@@ -233,6 +278,10 @@ export const set_mat_constants = (
   viz_state.buttons = {};
   viz_state.buttons.blue = '#8797ff';
   viz_state.buttons.gray = '#EEEEEE';
+  // Control-panel button text colors: state is shown by text color alone
+  // (no border/background), blue = active, gray = inactive.
+  viz_state.buttons.text_active = '#3355ff';
+  viz_state.buttons.text_inactive = '#9aa0a6';
 
   viz_state.click = {};
   viz_state.click.type = null;

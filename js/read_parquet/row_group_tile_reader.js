@@ -34,6 +34,8 @@ export class RowGroupTileReader {
     this.numTilesX = tileGrid?.num_tiles_x || 0;
     this.numTilesY = tileGrid?.num_tiles_y || 0;
     this.initialized = false;
+    this.requestCache = new Map();
+    this.maxCachedReads = 4;
 
     // Determine mode: chunked or single file
     if (typeof fileConfig === 'string') {
@@ -64,6 +66,73 @@ export class RowGroupTileReader {
         '[RowGroupTileReader] Invalid fileConfig: must be string URL or chunk config object'
       );
     }
+  }
+
+  _getCachedRead(cacheKey) {
+    if (!this.requestCache.has(cacheKey)) {
+      return null;
+    }
+
+    const cachedRead = this.requestCache.get(cacheKey);
+    this.requestCache.delete(cacheKey);
+    this.requestCache.set(cacheKey, cachedRead);
+    return cachedRead;
+  }
+
+  _setCachedRead(cacheKey, readPromise) {
+    this.requestCache.set(cacheKey, readPromise);
+
+    while (this.requestCache.size > this.maxCachedReads) {
+      const oldestKey = this.requestCache.keys().next().value;
+      this.requestCache.delete(oldestKey);
+    }
+
+    return readPromise;
+  }
+
+  async _readRowGroups(uniqueIndices, options = {}) {
+    const returnTablesArray = options.returnTablesArray === true;
+
+    if (!this.chunkedMode) {
+      const wasmTable = await this.parquetFile.read({
+        rowGroups: uniqueIndices,
+      });
+      const arrowIPC = wasmTable.intoIPCStream();
+      const table = arrow.tableFromIPC(arrowIPC);
+      return returnTablesArray ? [table] : table;
+    }
+
+    const byFile = new Map();
+    for (const globalIndex of uniqueIndices) {
+      const { fileIndex, localIndex } = this.computeChunkLocation(globalIndex);
+      if (!byFile.has(fileIndex)) {
+        byFile.set(fileIndex, []);
+      }
+      byFile.get(fileIndex).push(localIndex);
+    }
+
+    const tables = await Promise.all(
+      [...byFile.entries()].map(async ([fileIndex, localIndices]) => {
+        const pqFile = await this._getParquetFile(fileIndex);
+        const wasmTable = await pqFile.read({ rowGroups: localIndices });
+        const arrowIPC = wasmTable.intoIPCStream();
+        return arrow.tableFromIPC(arrowIPC);
+      })
+    );
+
+    if (tables.length === 0) {
+      return null;
+    }
+
+    if (returnTablesArray) {
+      return tables;
+    }
+
+    if (tables.length === 1) {
+      return tables[0];
+    }
+
+    return concatenate_arrow_tables(tables);
   }
 
   /**
@@ -224,7 +293,7 @@ export class RowGroupTileReader {
    * @param {Array<{tile_x: number, tile_y: number}>} tilesInView - Array of tile coordinates
    * @returns {Promise<arrow.Table|null>} - Arrow Table with data for requested tiles
    */
-  async readTiles(tilesInView) {
+  async readTiles(tilesInView, options = {}) {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -247,68 +316,21 @@ export class RowGroupTileReader {
 
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
-
-    try {
-      if (!this.chunkedMode) {
-        // Single file mode - read all from one file
-        // console.log(
-        //   `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups: ${uniqueIndices.slice(0, 5).join(', ')}${uniqueIndices.length > 5 ? '...' : ''}`
-        // );
-
-        const wasmTable = await this.parquetFile.read({
-          rowGroups: uniqueIndices,
-        });
-        const arrowIPC = wasmTable.intoIPCStream();
-        const table = arrow.tableFromIPC(arrowIPC);
-
-        // console.log(`[RowGroupTileReader] Read ${table.numRows} rows`);
-        return table;
-      } else {
-        // Chunked mode - partition by file and read from each
-        const byFile = new Map();
-        for (const globalIndex of uniqueIndices) {
-          const { fileIndex, localIndex } =
-            this.computeChunkLocation(globalIndex);
-          if (!byFile.has(fileIndex)) {
-            byFile.set(fileIndex, []);
-          }
-          byFile.get(fileIndex).push(localIndex);
-        }
-
-        // console.log(
-        //   `[RowGroupTileReader] Reading ${uniqueIndices.length} row groups from ${byFile.size} files`
-        // );
-
-        // Read from each file and collect tables
-        // Note: Sequential reads are intentional - each file needs its own ParquetFile handle
-        const tables = [];
-        for (const [fileIndex, localIndices] of byFile) {
-          // eslint-disable-next-line no-await-in-loop
-          const pqFile = await this._getParquetFile(fileIndex);
-          // eslint-disable-next-line no-await-in-loop
-          const wasmTable = await pqFile.read({ rowGroups: localIndices });
-          const arrowIPC = wasmTable.intoIPCStream();
-          const table = arrow.tableFromIPC(arrowIPC);
-          tables.push(table);
-        }
-
-        // Concatenate all tables
-        if (tables.length === 0) {
-          return null;
-        } else if (tables.length === 1) {
-          // console.log(`[RowGroupTileReader] Read ${tables[0].numRows} rows`);
-          return tables[0];
-        } else {
-          // Concatenate multiple tables using existing utility
-          const combined = concatenate_arrow_tables(tables);
-          // console.log(`[RowGroupTileReader] Read ${combined.numRows} rows from ${tables.length} files`);
-          return combined;
-        }
-      }
-    } catch {
-      // Error reading row groups - return null to indicate failure
-      return null;
+    const returnTablesArray = options.returnTablesArray === true;
+    const cacheKey = `${returnTablesArray ? 'tables' : 'table'}:${uniqueIndices.join(',')}`;
+    const cachedRead = this._getCachedRead(cacheKey);
+    if (cachedRead) {
+      return cachedRead;
     }
+
+    const readPromise = this._readRowGroups(uniqueIndices, options).catch(
+      () => {
+        this.requestCache.delete(cacheKey);
+        return null;
+      }
+    );
+
+    return this._setCachedRead(cacheKey, readPromise);
   }
 
   /**

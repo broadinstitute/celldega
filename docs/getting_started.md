@@ -30,7 +30,7 @@ Celldega provides several Jupyter Widget classes for interactive visualization:
 
 | Widget | Description |
 |--------|-------------|
-| `Landscape` | Main spatial visualization for IST/SST data |
+| `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap (matrix) |
 | `Yearbook` | Grid of cell portraits |
 | `Enrich` | Gene enrichment analysis widget |
@@ -42,6 +42,7 @@ Celldega supports multiple spatial transcriptomics platforms:
 - **Xenium** (10x Genomics)
 - **MERSCOPE** (Vizgen)
 - **Visium HD** (10x Genomics)
+- **CosMx** (NanoString)
 - **Chromium** (single-cell RNA-seq)
 - **Custom point-cloud data**
 
@@ -130,7 +131,7 @@ import celldega as dega
 dega.pre.main(
     technology="Xenium",
     data_dir="/path/to/xenium_outs",
-    path_landscape_files="/path/to/output",
+    path_dega_files="/path/to/output",
     tile_size=250
 )
 ```
@@ -186,13 +187,20 @@ Try Celldega in Google Colab without any installation:
 
 Explore Celldega as a standalone JavaScript library:
 
-- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq)
+- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs)
 
 ## Next Steps
 
 - [Installation](installation.md) - Detailed installation instructions
+<<<<<<< HEAD:docs/getting_started.md
 - [Usage](usage.md) - In-depth usage guide
 - [File Formats](file_formats/index.md) - DegaFiles format specification
 - [Python API](python/index.md) - Full Python API reference
 - [JavaScript API](javascript/index.md) - JavaScript API for web applications
 - [Tutorials](tutorials/index.md) - Jupyter notebook tutorials
+=======
+- [File Formats](file_formats.md) - LandscapeFiles format specification
+- [Python API](../python/index.md) - Full Python API reference
+- [JavaScript API](../javascript/index.md) - JavaScript API for web applications
+- [Example Notebooks](../examples/index.md) - Jupyter notebook tutorials
+>>>>>>> origin/main:docs/overview/getting_started.md

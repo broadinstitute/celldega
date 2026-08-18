@@ -1,3 +1,4 @@
+import { is_orbit_technology } from './global_variables/image_info';
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
@@ -5,9 +6,9 @@ import {
   handleAsyncError,
   handleValidationWarning,
 } from './temp_utils/errorHandler';
+import { landmark } from './viz/landmark';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
-import { landscape_sst } from './viz/landscape_sst';
 import { matrix_viz } from './viz/matrix_viz';
 import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
@@ -43,9 +44,13 @@ const render_landscape_ist = async ({ model, el }) => {
     meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
   }
 
+  const clusterAttr = model.get('cluster_attr') || 'leiden';
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+    meta_cluster_data = await objects_from_parquet(
+      metaClusterBytes,
+      clusterAttr
+    );
   }
 
   const umapBytes = model.get('umap_parquet');
@@ -53,11 +58,30 @@ const render_landscape_ist = async ({ model, el }) => {
     umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
   }
 
+  let centroids_data = {};
+  const use_adata_3d_centroids = model.get('use_adata_3d_centroids') || false;
+  const centroidsUrl = model.get('centroids_url') || '';
+  if (centroidsUrl) {
+    // Millions of per-cell centroids don't fit through the widget comm
+    // channel, so they're served as a plain file (same as cell_metadata.parquet)
+    // instead of synced through model state — see `centroids_url` in widget.py.
+    const response = await fetch(centroidsUrl);
+    const centroidsBytes = new Uint8Array(await response.arrayBuffer());
+    centroids_data = (await objects_from_parquet(centroidsBytes, 'cell_id'))
+      .result;
+  } else {
+    const centroidsBytes = model.get('centroids_parquet');
+    if (centroidsBytes && centroidsBytes.byteLength > 0) {
+      centroids_data = (await objects_from_parquet(centroidsBytes, 'cell_id'))
+        .result;
+    }
+  }
+
   const technology = model.get('technology');
   let landscape_state = model.get('landscape_state');
   if (technology === 'Chromium') {
     landscape_state = 'umap';
-  } else if (technology === 'point-cloud') {
+  } else if (is_orbit_technology(technology)) {
     landscape_state = 'spatial';
   }
   const segmentation = model.get('segmentation');
@@ -92,35 +116,9 @@ const render_landscape_ist = async ({ model, el }) => {
     max_tiles_to_view,
     scale_bar_microns_per_pixel,
     base_urls,
-    cell_name_prefix
-  );
-};
-
-const render_landscape_sst = async ({ model, el }) => {
-  const token = model.get('token');
-  const ini_x = model.get('ini_x');
-  const ini_y = model.get('ini_y');
-  const ini_z = model.get('ini_z');
-  const ini_zoom = model.get('ini_zoom');
-  const base_url = model.get('base_url');
-  const dataset_name = model.get('dataset_name');
-  const square_tile_size = model.get('square_tile_size');
-  const width = model.get('width');
-  const height = model.get('height');
-
-  landscape_sst(
-    model,
-    el,
-    base_url,
-    token,
-    ini_x,
-    ini_y,
-    ini_z,
-    ini_zoom,
-    square_tile_size,
-    dataset_name,
-    width,
-    height
+    cell_name_prefix,
+    centroids_data,
+    use_adata_3d_centroids
   );
 };
 
@@ -156,13 +154,10 @@ const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
   if (
-    ['MERSCOPE', 'Xenium', 'Chromium', 'point-cloud', 'Visium-HD'].includes(
-      technology
-    )
+    ['MERSCOPE', 'Xenium', 'Chromium', 'Visium-HD'].includes(technology) ||
+    is_orbit_technology(technology)
   ) {
     return render_landscape_ist({ model, el });
-  } else if (['Visium-HD-no-jitter'].includes(technology)) {
-    return render_landscape_sst({ model, el });
   } else if (['h&e'].includes(technology)) {
     return render_landscape_h_e({ model, el });
   }
@@ -183,7 +178,7 @@ const render_yearbook = async ({ model, el }) => {
   const segmentation = model.get('segmentation') || 'default';
   const scale_bar_microns_per_pixel = model.get('scale_bar_microns_per_pixel');
   const current_page = model.get('current_page') || 0;
-  const query = model.get('query') || {};
+  const query = model.get('front_end_query') || {};
   const cell_name_prefix = model.get('cell_name_prefix') || false;
 
   let meta_cell_data = { result: {}, attr: [] };
@@ -194,9 +189,13 @@ const render_yearbook = async ({ model, el }) => {
     meta_cell_data = await objects_from_parquet(metaCellBytes, 'cell_id');
   }
 
+  const clusterAttr = model.get('cluster_attr') || 'leiden';
   const metaClusterBytes = model.get('meta_cluster_parquet');
   if (metaClusterBytes && metaClusterBytes.byteLength > 0) {
-    meta_cluster_data = await objects_from_parquet(metaClusterBytes, 'leiden');
+    meta_cluster_data = await objects_from_parquet(
+      metaClusterBytes,
+      clusterAttr
+    );
   }
 
   return yearbook(
@@ -225,6 +224,8 @@ const render_yearbook = async ({ model, el }) => {
   );
 };
 
+const render_landmark = async ({ model, el }) => landmark(model, el);
+
 const render_matrix_new = async ({ model, el }) => {
   // let network = model.get('network');
   let network;
@@ -240,8 +241,7 @@ const render_matrix_new = async ({ model, el }) => {
       model.get('col_nodes_parquet'),
       model.get('row_linkage_parquet'),
       model.get('col_linkage_parquet'),
-      model.get('row_entity'),
-      model.get('col_entity')
+      model.get('dot_mat_parquet')
     );
   }
 
@@ -266,6 +266,13 @@ async function render({ model, el }) {
       case 'Landscape':
         cleanup = await render_landscape({ model, el });
         break;
+      case 'CellCloud':
+      case 'NeighborhoodCloud':
+        // 3D-orbit widgets reuse the ist render path; the orbit view, layers,
+        // and manifest filename are driven by the model's technology /
+        // manifest_name traits (see render_landscape_ist and landscape_ist).
+        cleanup = await render_landscape_ist({ model, el });
+        break;
       case 'Yearbook':
         cleanup = await render_yearbook({ model, el });
         break;
@@ -275,6 +282,9 @@ async function render({ model, el }) {
         break;
       case 'Enrich':
         cleanup = await render_enrich({ model, el });
+        break;
+      case 'Landmark':
+        cleanup = await render_landmark({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
@@ -373,16 +383,16 @@ const matrix_from_dega_files = async (
 };
 
 export default {
+  landmark,
   landscape_ist,
-  landscape_sst,
   landscape_h_e,
   matrix_viz,
   matrix_from_dega_files,
   networkFromDegaFiles,
   yearbook,
   render,
+  render_landmark,
   render_landscape_ist,
-  render_landscape_sst,
   render_landscape_h_e,
   render_landscape,
   render_yearbook,

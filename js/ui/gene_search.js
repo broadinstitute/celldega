@@ -1,46 +1,74 @@
-import { update_square_scatter_layer } from '../deck-gl/layers/square_scatter_layer';
+import { select_nbhd_cloud_gene } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
-import { update_tile_exp_array } from '../global_variables/tile_exp_array';
+import { sync_nbhd_cloud_opacity_sliders } from '../ui/bar_plot';
+import { refresh_layer } from '../utils/refresh_layer';
 
 import { set_gene_search_input } from './gene_search_input';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
 
-const sst_gene_search_callback = async (deck_sst, viz_state, layers_sst) => {
+// neighborhood-cloud's gene search is entirely separate from the legacy
+// per-cell path below: there's no cell_exp_array to update, and typing a
+// gene selects/clears its gene-shapes the same way clicking its bar does
+// (bar_callback_gene, bar_plot.js) -- this just drives the same underlying
+// function from the text input instead.
+const ist_gene_search_callback_nbhd_cloud = async (layers_obj, viz_state) => {
   const inst_gene = viz_state.genes.gene_search_input.value;
+  // '' (cleared) and the literal 'cluster' option both mean "go back to
+  // cluster color" -- re-selecting the already-selected gene is exactly
+  // select_nbhd_cloud_gene's own reset case.
+  const isReset =
+    inst_gene === '' ||
+    inst_gene === 'cluster' ||
+    inst_gene === viz_state.nbhd_cloud.selected_gene;
+  const gene = isReset ? viz_state.nbhd_cloud.selected_gene : inst_gene;
 
-  const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
+  if (gene == null) {
+    return;
+  }
 
-  if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
-    update_cat(viz_state.cats, new_cat);
+  const previousSelectedGene = viz_state.nbhd_cloud.selected_gene;
+  await select_nbhd_cloud_gene(gene, viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
+  sync_nbhd_cloud_opacity_sliders(viz_state);
 
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      square_scatter_layer: false,
-    });
-
+  // Drives the Uniprot gene-info panel (ui_containers.js's
+  // obs_store.selected_genes subscriber) -- only when the gene actually
+  // changed (an unavailable gene is a no-op in select_nbhd_cloud_gene, so
+  // `selected_gene` is unchanged; re-pushing the same value would trip
+  // update_selected_genes' own same-array-means-toggle-off heuristic and
+  // incorrectly clear the panel).
+  if (viz_state.nbhd_cloud.selected_gene !== previousSelectedGene) {
     update_selected_genes(
       viz_state.genes,
-      inst_gene === '' ? [] : [inst_gene],
+      viz_state.nbhd_cloud.selected_gene != null
+        ? [viz_state.nbhd_cloud.selected_gene]
+        : [],
       viz_state.obs_store
     );
-    update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-
-    if (inst_gene !== '' && gene_search_options.includes(inst_gene)) {
-      await update_tile_exp_array(viz_state, inst_gene);
-    }
-
-    update_square_scatter_layer(viz_state, layers_sst);
-    deck_sst.setProps({
-      layers: [layers_sst.simple_image_layer, layers_sst.square_scatter_layer],
-    });
   }
+
+  const hasSelection = viz_state.nbhd_cloud.selected_gene != null;
+  viz_state.genes.svg_bar_gene
+    ?.selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection || bar.name === viz_state.nbhd_cloud.selected_gene
+        ? 1.0
+        : 0.2
+    );
+  viz_state.nbhd_cloud.svg_bar_cluster?.selectAll('rect').style('opacity', 1.0);
 };
 
 const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    await ist_gene_search_callback_nbhd_cloud(layers_obj, viz_state);
+    return;
+  }
+
   const inst_gene = viz_state.genes.gene_search_input.value;
 
   const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
@@ -91,12 +119,23 @@ const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 export const set_gene_search = async (
-  tech_type,
+  _tech_type,
   inst_deck,
   layers_obj,
   viz_state
 ) => {
-  gene_search_options = ['cluster', ...viz_state.genes.gene_names];
+  // neighborhood-cloud only ever responds to genes with a shape or a cell
+  // scatter (see select_nbhd_cloud_gene) -- listing the full gene panel
+  // here would mean most entries silently do nothing when picked.
+  gene_search_options = viz_state.nbhd_cloud?.is_nbhd_cloud
+    ? [
+        'cluster',
+        ...new Set([
+          ...(viz_state.nbhd_cloud.available_gene_shapes?.keys() ?? []),
+          ...(viz_state.nbhd_cloud.available_gene_scatter?.keys() ?? []),
+        ]),
+      ]
+    : ['cluster', ...viz_state.genes.gene_names];
 
   viz_state.genes.gene_search.style.width = '115px';
 
@@ -162,15 +201,9 @@ export const set_gene_search = async (
   update_cat(viz_state.cats, 'cluster');
 
   // Event listener when an option is selected or the input is cleared
-  let callback;
-  if (tech_type === 'sst') {
-    callback = () => sst_gene_search_callback(inst_deck, viz_state, layers_obj);
-    viz_state.genes.gene_search_input.style.marginTop = '10px';
-    viz_state.genes.gene_search.style.height = '50px';
-  } else {
-    callback = () => ist_gene_search_callback(inst_deck, layers_obj, viz_state);
-    viz_state.genes.gene_search_input.style.marginTop = '5px';
-  }
+  const callback = () =>
+    ist_gene_search_callback(inst_deck, layers_obj, viz_state);
+  viz_state.genes.gene_search_input.style.marginTop = '5px';
 
   viz_state.genes.gene_search_input.addEventListener('input', callback);
 };

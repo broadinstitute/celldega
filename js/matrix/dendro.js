@@ -125,11 +125,13 @@ export const calc_dendro_triangles = (viz_state, axis) => {
         pos_mid: (inst_top + inst_bot) / 2,
         name: inst_group,
         all_names: [],
+        all_indices: [],
         axis,
       };
     }
 
     triangle_info[inst_group].all_names.push(inst_name);
+    triangle_info[inst_group].all_indices.push(index);
 
     if (inst_top < triangle_info[inst_group].pos_top) {
       triangle_info[inst_group].name_top = inst_name;

@@ -41,7 +41,17 @@ describe('compute_crop_filter', () => {
       const toggle_dendro_layer_visibility = () => {};
       const set_dendro_layer_onclick = () => {};
       const set_dendro_layer_onhover = () => {};
-      const get_mat_layers_list = () => [];
+      const get_mat_layers_list = (layers_mat) => [
+        layers_mat.mat_layer,
+        layers_mat.row_cat_layer,
+        layers_mat.col_cat_layer,
+        layers_mat.row_label_layer,
+        layers_mat.col_label_layer,
+        layers_mat.row_dendro_layer,
+        layers_mat.col_dendro_layer,
+        layers_mat.col_attr_label_layer,
+        layers_mat.row_attr_label_layer,
+      ].filter(Boolean);
       const mat_reorder_triggers = () => ({});
       const redefine_global_view_state = () => ({});
       const ini_views = () => {};
@@ -142,6 +152,25 @@ describe('compute_crop_filter', () => {
     },
     crop: {
       filter,
+    },
+  });
+
+  const make_test_layer = (id) => ({
+    id,
+    props: {
+      transitions: {
+        getPosition: { duration: 250 },
+      },
+    },
+    clone(props = {}) {
+      return {
+        ...this,
+        props: {
+          ...this.props,
+          ...props,
+        },
+        clone: this.clone,
+      };
     },
   });
 
@@ -265,7 +294,7 @@ describe('compute_crop_filter', () => {
     expect(controls.crop_enabled).toBe(false);
   });
 
-  test('axis crop composes filters and keeps rebuilt layer transitions', () => {
+  test('axis crop composes filters while only displayed crop annotations snap', () => {
     const base_mat = makeVizState().mat;
     const viz_state = {
       ...makeVizState({ row: [1, 2], col: null }),
@@ -292,10 +321,16 @@ describe('compute_crop_filter', () => {
         duration: 250,
       },
     };
+    viz_state.dendro.sliders = {
+      row: document.createElement('input'),
+      col: document.createElement('input'),
+    };
     const deck_mat = {
       setProps: jest.fn(),
     };
     const layers_mat = {};
+    layers_mat.row_attr_label_layer = make_test_layer('row-attr-label-layer');
+    layers_mat.col_attr_label_layer = make_test_layer('col-attr-label-layer');
     const controls = {
       set_active: jest.fn(),
       set_crop_enabled: jest.fn(),
@@ -305,15 +340,103 @@ describe('compute_crop_filter', () => {
     initialize_matrix_crop(deck_mat, layers_mat, viz_state);
     viz_state.crop.set_controls(controls);
 
-    expect(viz_state.crop.apply_axis_crop('col', [1, 2])).toBe(true);
+    expect(viz_state.dendro.sliders.row.disabled).toBe(true);
+    expect(viz_state.dendro.sliders.col.disabled).toBe(false);
+
+    expect(
+      viz_state.crop.apply_axis_crop('col', [1, 2], {
+        source: { name: 'cluster-c', indices: [1, 2] },
+      })
+    ).toBe(true);
 
     expect(viz_state.crop.filter).toEqual({ row: [2, 1], col: [2, 1] });
-    expect(viz_state.crop.history).toEqual([{ row: [2, 1], col: null }]);
+    expect(viz_state.crop.dendro_axes).toEqual({
+      row: null,
+      col: { name: 'cluster-c', indices: [1, 2] },
+    });
+    expect(viz_state.crop.history).toEqual([
+      {
+        filter: { row: [2, 1], col: null },
+        dendro_axes: { row: null, col: null },
+      },
+    ]);
     expect(layers_mat.mat_layer.props.transitions).not.toBe(false);
     expect(layers_mat.row_label_layer.props.transitions).not.toBe(false);
     expect(layers_mat.col_label_layer.props.transitions).not.toBe(false);
     expect(layers_mat.row_cat_layer.props.transitions).not.toBe(false);
     expect(layers_mat.col_cat_layer.props.transitions).not.toBe(false);
+    expect(layers_mat.row_attr_label_layer.props.transitions).not.toBe(false);
+    expect(layers_mat.col_attr_label_layer.props.transitions).not.toBe(false);
+    expect(viz_state.dendro.sliders.row.disabled).toBe(true);
+    expect(viz_state.dendro.sliders.col.disabled).toBe(true);
+
+    const displayed_layers =
+      deck_mat.setProps.mock.calls[deck_mat.setProps.mock.calls.length - 1][0]
+        .layers;
+    const displayed_by_id = new Map(
+      displayed_layers.map((layer) => [layer.id, layer])
+    );
+    expect(displayed_by_id.get('mat-layer').props.transitions).not.toBe(false);
+    expect(displayed_by_id.get('row-label-layer').props.transitions).toBe(
+      false
+    );
+    expect(displayed_by_id.get('col-label-layer').props.transitions).toBe(
+      false
+    );
+    expect(displayed_by_id.get('row-layer').props.transitions).toBe(false);
+    expect(displayed_by_id.get('col-layer').props.transitions).toBe(false);
+    expect(displayed_by_id.get('row-attr-label-layer').props.transitions).toBe(
+      false
+    );
+    expect(displayed_by_id.get('col-attr-label-layer').props.transitions).toBe(
+      false
+    );
     expect(controls.set_undo_enabled).toHaveBeenLastCalledWith(true);
+  });
+
+  test('axis crop toggles off an already cropped axis', () => {
+    const base_mat = makeVizState().mat;
+    const viz_state = {
+      ...makeVizState(),
+      root: document.createElement('div'),
+      dendro: {},
+      mat: {
+        ...base_mat,
+        viz_mode: 'heatmap',
+        comp_hover_row: null,
+        comp_hover_col: null,
+      },
+      obs_store: {},
+      zoom: {
+        ini_zoom_x: 0,
+        ini_zoom_y: 0,
+        zoom_data: {
+          total_zoom: {},
+        },
+      },
+      views: {
+        views_list: [],
+      },
+      animate: {
+        duration: 250,
+      },
+    };
+
+    initialize_matrix_crop({ setProps: jest.fn() }, {}, viz_state);
+
+    expect(
+      viz_state.crop.apply_axis_crop('row', [1, 2], {
+        source: { name: 'cluster-r', indices: [1, 2] },
+      })
+    ).toBe(true);
+    expect(viz_state.crop.filter.row).toEqual([2, 1]);
+    expect(viz_state.crop.dendro_axes.row).toEqual({
+      name: 'cluster-r',
+      indices: [1, 2],
+    });
+
+    expect(viz_state.crop.apply_axis_crop('row', [1, 2])).toBe(true);
+    expect(viz_state.crop.filter).toEqual({ row: null, col: null });
+    expect(viz_state.crop.dendro_axes.row).toBe(null);
   });
 });

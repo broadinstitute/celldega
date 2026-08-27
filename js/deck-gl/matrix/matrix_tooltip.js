@@ -34,7 +34,9 @@ const dendro_tooltip_style = (viz_state, params, preferred_side) => {
 
   return {
     ...base_tooltip_style(),
-    translate: use_above ? `${offset} calc(-100% - ${offset})` : `${offset} ${offset}`,
+    translate: use_above
+      ? `${offset} calc(-100% - ${offset})`
+      : `${offset} ${offset}`,
   };
 };
 

@@ -6,6 +6,7 @@
 // weight changes) snaps instantly, since those change WHICH leaves are
 // grouped together rather than smoothly repositioning the same group.
 describe('dendrogram layer animation is opt-in, not default', () => {
+  let ini_dendro_layer;
   let update_dendro_layer_data;
   let refresh_composition_dendro;
   let refresh_dendro_for_viz_mode;
@@ -34,7 +35,7 @@ describe('dendrogram layer animation is opt-in, not default', () => {
       const get_mat_layers_list = () => [];
     `;
 
-    const code = `${shims}\n${source}\nmodule.exports = { update_dendro_layer_data, refresh_composition_dendro, refresh_dendro_for_viz_mode };`;
+    const code = `${shims}\n${source}\nmodule.exports = { ini_dendro_layer, update_dendro_layer_data, refresh_composition_dendro, refresh_dendro_for_viz_mode };`;
     const module = { exports: {} };
     new Function('module', 'exports', 'calls', code)(
       module,
@@ -42,6 +43,7 @@ describe('dendrogram layer animation is opt-in, not default', () => {
       calls
     );
     ({
+      ini_dendro_layer,
       update_dendro_layer_data,
       refresh_composition_dendro,
       refresh_dendro_for_viz_mode,
@@ -74,6 +76,31 @@ describe('dendrogram layer animation is opt-in, not default', () => {
 
     expect(layers_mat.row_dendro_layer.lastCloneProps.transitions).toBe(false);
     expect(layers_mat.row_dendro_layer.lastCloneProps.data).toEqual(['r-poly']);
+  });
+
+  test('dendrogram crop source renders very dark', () => {
+    const viz_state = makeVizState({
+      crop: {
+        filter: { row: [1, 2], col: null },
+        dendro_axes: {
+          row: { name: 'cluster-r', indices: [1, 2] },
+          col: null,
+        },
+      },
+    });
+
+    const layer = ini_dendro_layer({}, viz_state, 'row');
+
+    expect(
+      layer.props.getFillColor({
+        properties: { name: 'cluster-r', all_indices: [1, 2] },
+      })
+    ).toEqual([0, 0, 0, 235]);
+    expect(
+      layer.props.getFillColor({
+        properties: { name: 'cluster-other', all_indices: [0] },
+      })
+    ).toEqual([0, 0, 0, 90]);
   });
 
   test('update_dendro_layer_data(animate=true) sets a real getPolygon transition', () => {

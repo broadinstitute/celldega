@@ -21,6 +21,7 @@ const DENDRO_AXES = ['row', 'col'];
 const DEFAULT_FILL_COLOR = [0, 0, 0, 90];
 const SELECTED_FILL_COLOR = [0, 0, 0, 135];
 const FOCUSED_FILL_COLOR = [0, 0, 0, 180];
+const CROPPED_FILL_COLOR = [0, 0, 0, 235];
 const DOUBLE_CLICK_DELAY = 350;
 const DENDRO_HIGHLIGHT_DIM_ALPHA = 0.04;
 const DENDRO_HOVER_DELAY_MS = 60;
@@ -157,6 +158,30 @@ const get_polygon_by_name = (viz_state, axis, polygon_name) =>
   viz_state.dendro.polygons?.[axis]?.find(
     (polygon) => polygon.properties.name === polygon_name
   );
+
+const sorted_number_key = (values) =>
+  Array.isArray(values)
+    ? values
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value))
+        .sort((a, b) => a - b)
+        .join(',')
+    : '';
+
+const is_dendro_crop_source = (viz_state, axis, polygon) => {
+  const source = viz_state.crop?.dendro_axes?.[axis];
+  const axis_filter = viz_state.crop?.filter?.[axis];
+  if (!source || !Array.isArray(axis_filter)) return false;
+
+  if (source.name != null && polygon.properties.name === source.name) {
+    return true;
+  }
+
+  return (
+    sorted_number_key(source.indices || axis_filter) ===
+    sorted_number_key(polygon.properties.all_indices)
+  );
+};
 
 export const clear_dendro_focus = (
   deck_mat,
@@ -458,6 +483,10 @@ export const ini_dendro_layer = (layers_mat, viz_state, axis) => {
     data: viz_state.dendro.polygons[axis],
     getPolygon: (d) => d.coordinates,
     getFillColor: (d) => {
+      if (is_dendro_crop_source(viz_state, axis, d)) {
+        return CROPPED_FILL_COLOR;
+      }
+
       if (d.properties.is_focused) {
         return FOCUSED_FILL_COLOR;
       }
@@ -797,7 +826,12 @@ const apply_double_click_crop = (viz_state, axis, polygon_props) => {
     return;
   }
 
-  viz_state.crop?.apply_axis_crop?.(axis, indices);
+  viz_state.crop?.apply_axis_crop?.(axis, indices, {
+    source: {
+      name: polygon_props.name,
+      indices,
+    },
+  });
 };
 
 const queue_single_click = (

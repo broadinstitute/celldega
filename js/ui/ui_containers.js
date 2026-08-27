@@ -249,7 +249,18 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   viz_state.dendro.sliders = {};
 
+  const axis_has_crop_filter = (_viz_state, axis) =>
+    Array.isArray(_viz_state.crop?.filter?.[axis]) &&
+    _viz_state.crop.filter[axis].length > 0;
+
   const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
+    if (axis_has_crop_filter(_viz_state, axis)) {
+      event.target.value = _viz_state.dendro.sliders[`${axis}_percent`] ?? 50;
+      return;
+    }
+
+    _viz_state.dendro.sliders[`${axis}_percent`] = event.target.value;
+
     // Update the dendrogram layer
     _viz_state.dendro.sliders[`${axis}_value`] =
       (_viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
@@ -273,6 +284,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     viz_state.dendro.sliders[axis] = slider;
 
     const ini_dendro_value = 50;
+    viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
 
     ini_slider_params(slider, ini_dendro_value, (event) =>
       dendro_slider_callback(deck_mat, viz_state, axis, event)

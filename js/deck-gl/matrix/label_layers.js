@@ -35,6 +35,7 @@ import {
 import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
 
 const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
+const MAX_COL_LABEL_PIXEL_OFFSET = 18;
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = d.index ?? index.index;
@@ -121,13 +122,9 @@ export const ini_row_label_layer = (viz_state) => {
 export const ini_col_label_layer = (viz_state) => {
   const crop_sig = crop_filter_signature(viz_state);
   const fade_sig = crop_fade_signature(viz_state);
-  // Define zoom-dependent offset
-  function getPixelOffset(zoom_x, num_cols) {
-    const zoom_factor = Math.pow(2, zoom_x);
-    const offset_y = 75 / num_cols;
-    const scaled_offset_y = offset_y * zoom_factor;
-
-    return [0, scaled_offset_y];
+  function get_pixel_offset(num_cols) {
+    const offset_y = 75 / Math.max(num_cols, 1);
+    return [0, Math.min(MAX_COL_LABEL_PIXEL_OFFSET, offset_y)];
   }
 
   const transitions = {
@@ -163,13 +160,10 @@ export const ini_col_label_layer = (viz_state) => {
     pickable: true,
     transitions,
     getPixelOffset: () =>
-      getPixelOffset(
-        viz_state.zoom.zoom_data.matrix.zoom_x,
-        get_axis_display_count(viz_state, 'col')
-      ),
+      get_pixel_offset(get_axis_display_count(viz_state, 'col')),
     updateTriggers: {
       getPosition: crop_sig,
-      getPixelOffset: [crop_sig, viz_state.zoom.zoom_data.matrix.zoom_x],
+      getPixelOffset: crop_sig,
       getColor: [crop_sig, fade_sig],
       getSize: crop_sig,
     },

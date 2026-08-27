@@ -165,7 +165,7 @@ export const matrix_viz = async (
   layers_mat.col_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'col');
 
   initialize_matrix_crop(deck_mat, layers_mat, viz_state, {
-    onModeChange: () => {
+    on_mode_change: () => {
       ini_views(viz_state);
       deck_mat.setProps({
         views: viz_state.views.views_list,
@@ -284,9 +284,9 @@ export const matrix_viz = async (
   deck_mat.setProps({
     onViewStateChange: (params) =>
       on_view_state_change(params, deck_mat, layers_mat, viz_state),
-    onDragStart: (info) => viz_state.crop.onDragStart(info),
-    onDrag: (info) => viz_state.crop.onDrag(info),
-    onDragEnd: (info) => viz_state.crop.onDragEnd(info),
+    onDragStart: (info) => viz_state.crop.on_drag_start(info),
+    onDrag: (info) => viz_state.crop.on_drag(info),
+    onDragEnd: (info) => viz_state.crop.on_drag_end(info),
     getCursor: ({ isDragging }) => {
       if (viz_state.crop?.active) {
         return 'crosshair';

@@ -430,16 +430,16 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       viz_state.crop?.undo();
     });
 
-  viz_state.crop?.setControls({
-    setActive: (active) => {
+  viz_state.crop?.set_controls({
+    set_active: (active) => {
       apply_state_button_style(crop_button, active, viz_state);
     },
-    setCropEnabled: (enabled) => {
+    set_crop_enabled: (enabled) => {
       crop_button
         .style('opacity', enabled ? 1 : 0.55)
         .style('pointer-events', enabled ? 'auto' : 'none');
     },
-    setUndoEnabled: (enabled) => {
+    set_undo_enabled: (enabled) => {
       apply_state_button_style(undo_button, enabled, viz_state)
         .style('opacity', enabled ? 1 : 0.55)
         .style('pointer-events', enabled ? 'auto' : 'none');

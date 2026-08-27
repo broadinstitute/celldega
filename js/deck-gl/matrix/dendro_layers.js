@@ -797,7 +797,7 @@ const apply_double_click_crop = (viz_state, axis, polygon_props) => {
     return;
   }
 
-  viz_state.crop?.applyAxisCrop?.(axis, indices);
+  viz_state.crop?.apply_axis_crop?.(axis, indices);
 };
 
 const queue_single_click = (

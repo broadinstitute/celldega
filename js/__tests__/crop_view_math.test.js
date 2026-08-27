@@ -38,11 +38,48 @@ describe('compute_crop_filter', () => {
       const clear_dendro_focus = () => {};
       const clear_dendro_selection = () => {};
       const update_dendro_layer_data = () => {};
+      const toggle_dendro_layer_visibility = () => {};
+      const set_dendro_layer_onclick = () => {};
+      const set_dendro_layer_onhover = () => {};
       const get_mat_layers_list = () => [];
       const mat_reorder_triggers = () => ({});
       const redefine_global_view_state = () => ({});
       const ini_views = () => {};
       const update_zoom_data = () => {};
+      const apply_mat_encoding = () => {};
+      const make_layer = (id) => ({
+        id,
+        props: {
+          transitions: {
+            getPosition: { duration: 250 },
+          },
+        },
+        clone(props = {}) {
+          return {
+            ...this,
+            props: {
+              ...this.props,
+              ...props,
+            },
+            clone: this.clone,
+          };
+        },
+      });
+      const ini_mat_layer = () => make_layer('mat-layer');
+      const ini_composition_layer = () => make_layer('composition-layer');
+      const ini_row_label_layer = () => make_layer('row-label-layer');
+      const ini_col_label_layer = () => make_layer('col-label-layer');
+      const ini_row_cat_layer = () => make_layer('row-layer');
+      const ini_col_cat_layer = () => make_layer('col-layer');
+      const set_mat_layer_onclick = () => {};
+      const set_mat_layer_onhover = () => {};
+      const set_composition_layer_onhover = () => {};
+      const set_row_label_layer_onclick = () => {};
+      const set_col_label_layer_onclick = () => {};
+      const set_row_label_layer_onhover = () => {};
+      const set_col_label_layer_onhover = () => {};
+      const set_cat_layer_handlers = () => {};
+      const set_composition_colors = () => {};
     `;
 
     const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
@@ -206,25 +243,77 @@ describe('compute_crop_filter', () => {
     };
     const controls = {
       active: null,
-      cropEnabled: null,
-      undoEnabled: null,
-      setActive(value) {
+      crop_enabled: null,
+      undo_enabled: null,
+      set_active(value) {
         this.active = value;
       },
-      setCropEnabled(value) {
-        this.cropEnabled = value;
+      set_crop_enabled(value) {
+        this.crop_enabled = value;
       },
-      setUndoEnabled(value) {
-        this.undoEnabled = value;
+      set_undo_enabled(value) {
+        this.undo_enabled = value;
       },
     };
 
     initialize_matrix_crop({}, {}, viz_state);
-    viz_state.crop.setControls(controls);
+    viz_state.crop.set_controls(controls);
     viz_state.crop.toggle();
 
     expect(viz_state.crop.active).toBe(false);
     expect(controls.active).toBe(false);
-    expect(controls.cropEnabled).toBe(false);
+    expect(controls.crop_enabled).toBe(false);
+  });
+
+  test('axis crop composes filters and keeps rebuilt layer transitions', () => {
+    const base_mat = makeVizState().mat;
+    const viz_state = {
+      ...makeVizState({ row: [1, 2], col: null }),
+      root: document.createElement('div'),
+      dendro: {},
+      mat: {
+        ...base_mat,
+        viz_mode: 'heatmap',
+        comp_hover_row: null,
+        comp_hover_col: null,
+      },
+      obs_store: {},
+      zoom: {
+        ini_zoom_x: 0,
+        ini_zoom_y: 0,
+        zoom_data: {
+          total_zoom: {},
+        },
+      },
+      views: {
+        views_list: [],
+      },
+      animate: {
+        duration: 250,
+      },
+    };
+    const deck_mat = {
+      setProps: jest.fn(),
+    };
+    const layers_mat = {};
+    const controls = {
+      set_active: jest.fn(),
+      set_crop_enabled: jest.fn(),
+      set_undo_enabled: jest.fn(),
+    };
+
+    initialize_matrix_crop(deck_mat, layers_mat, viz_state);
+    viz_state.crop.set_controls(controls);
+
+    expect(viz_state.crop.apply_axis_crop('col', [1, 2])).toBe(true);
+
+    expect(viz_state.crop.filter).toEqual({ row: [2, 1], col: [2, 1] });
+    expect(viz_state.crop.history).toEqual([{ row: [2, 1], col: null }]);
+    expect(layers_mat.mat_layer.props.transitions).not.toBe(false);
+    expect(layers_mat.row_label_layer.props.transitions).not.toBe(false);
+    expect(layers_mat.col_label_layer.props.transitions).not.toBe(false);
+    expect(layers_mat.row_cat_layer.props.transitions).not.toBe(false);
+    expect(layers_mat.col_cat_layer.props.transitions).not.toBe(false);
+    expect(controls.set_undo_enabled).toHaveBeenLastCalledWith(true);
   });
 });

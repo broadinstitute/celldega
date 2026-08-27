@@ -1,45 +1,81 @@
+const DENDRO_TOOLTIP_OFFSET_PX = 8;
+const DENDRO_TOOLTIP_EDGE_BUFFER_PX = 72;
+
+const base_tooltip_style = () => ({
+  color: 'white',
+  marginLeft: '0px',
+  marginTop: '0px',
+  translate: '0 0',
+});
+
+const reset_tooltip_position = (viz_state) => {
+  const tooltip_container = viz_state.root?.querySelector?.('.deck-tooltip');
+  if (!tooltip_container) return;
+
+  tooltip_container.style.marginLeft = '0px';
+  tooltip_container.style.marginTop = '0px';
+  tooltip_container.style.translate = '0 0';
+
+  const tooltip_parent = tooltip_container.parentElement?.parentElement;
+  if (tooltip_parent) {
+    tooltip_parent.style.position = 'unset';
+  }
+};
+
+const dendro_tooltip_style = (viz_state, params, preferred_side) => {
+  const y = params?.y ?? 0;
+  const root_height = viz_state.root?.clientHeight || 0;
+  const near_top = y < DENDRO_TOOLTIP_EDGE_BUFFER_PX;
+  const near_bottom =
+    root_height > 0 && y > root_height - DENDRO_TOOLTIP_EDGE_BUFFER_PX;
+  const use_above =
+    preferred_side === 'above' ? !near_top : Boolean(near_bottom);
+  const offset = `${DENDRO_TOOLTIP_OFFSET_PX}px`;
+
+  return {
+    ...base_tooltip_style(),
+    translate: use_above ? `${offset} calc(-100% - ${offset})` : `${offset} ${offset}`,
+  };
+};
+
 export const get_tooltip = (viz_state, params) => {
   const { object, layer } = params;
 
-  // select the parent element of .deck-tooltip within viz_state.root
-  const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');
-  tooltipContainer.style.marginTop = '50px';
-  const tooltipParent = tooltipContainer.parentElement.parentElement;
-  tooltipParent.style.position = 'unset';
+  reset_tooltip_position(viz_state);
 
   if (object) {
     // Check which layer the tooltip is currently over
     if (layer.id === 'row-label-layer') {
       return {
         html: `Row Label: ${object.display_name || object.name}`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     } else if (layer.id === 'col-label-layer') {
       return {
         html: `Col Label: ${object.display_name || object.name}`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     } else if (layer.id === 'row-layer') {
       const row_attr_name = viz_state.attr.names.row[object.level];
       return {
         html: `${row_attr_name}: ${object.name}`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     } else if (layer.id === 'col-layer') {
       const col_attr_name = viz_state.attr.names.col[object.level];
       return {
         html: `${col_attr_name}: ${object.name}`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     } else if (layer.id === 'row-dendro-layer') {
       return {
-        html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
-        style: { color: 'white' },
+        html: `Row dendrogram: ${object.properties.name}<br>${object.properties.all_names}`,
+        style: dendro_tooltip_style(viz_state, params, 'below'),
       };
     } else if (layer.id === 'col-dendro-layer') {
       return {
-        html: `row-dendro-${object.properties.name}<br>${object.properties.all_names}`,
-        style: { color: 'white' },
+        html: `Column dendrogram: ${object.properties.name}<br>${object.properties.all_names}`,
+        style: dendro_tooltip_style(viz_state, params, 'above'),
       };
     } else if (layer.id.includes('mat-layer')) {
       // Display the default tooltip for other layers
@@ -65,7 +101,7 @@ export const get_tooltip = (viz_state, params) => {
           html: `Population: ${row_name}<br>Dataset: ${col_name}<br>Value: ${object.value.toFixed(
             2
           )}${total_line}`,
-          style: { color: 'white' },
+          style: base_tooltip_style(),
         };
       }
 
@@ -78,17 +114,17 @@ export const get_tooltip = (viz_state, params) => {
         html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(
           2
         )}${size_line}`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     } else if (layer.id === 'row-attr-label-layer') {
       return {
         html: `Row Attribute: ${object.name}<br><i>Double-click to reorder by this attribute</i>`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     } else if (layer.id === 'col-attr-label-layer') {
       return {
         html: `Column Attribute: ${object.name}<br><i>Double-click to reorder by this attribute</i>`,
-        style: { color: 'white' },
+        style: base_tooltip_style(),
       };
     }
   }

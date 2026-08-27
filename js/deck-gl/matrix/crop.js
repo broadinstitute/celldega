@@ -258,9 +258,9 @@ const refresh_controls = (viz_state) => {
 
   const can_crop = !has_crop_filter(viz_state) && !viz_state.crop.fade_filter;
 
-  viz_state.crop.controls.setActive(viz_state.crop.active && can_crop);
-  viz_state.crop.controls.setCropEnabled?.(can_crop);
-  viz_state.crop.controls.setUndoEnabled(viz_state.crop.history.length > 0);
+  viz_state.crop.controls.set_active(viz_state.crop.active && can_crop);
+  viz_state.crop.controls.set_crop_enabled?.(can_crop);
+  viz_state.crop.controls.set_undo_enabled(viz_state.crop.history.length > 0);
 };
 
 const apply_crop_filter = (deck_mat, layers_mat, viz_state, filter) => {
@@ -270,19 +270,6 @@ const apply_crop_filter = (deck_mat, layers_mat, viz_state, filter) => {
   clear_crop_display_cache(viz_state);
   clear_crop_interaction_state(deck_mat, layers_mat, viz_state);
   refresh_filtered_layers(deck_mat, layers_mat, viz_state);
-
-  [
-    'mat_layer',
-    'row_label_layer',
-    'col_label_layer',
-    'row_cat_layer',
-    'col_cat_layer',
-  ].forEach((layer_key) => {
-    if (!layers_mat[layer_key]) return;
-    layers_mat[layer_key] = layers_mat[layer_key].clone({
-      transitions: false,
-    });
-  });
 
   reset_view_to_filter(deck_mat, layers_mat, viz_state);
   refresh_controls(viz_state);
@@ -329,10 +316,10 @@ export const initialize_matrix_crop = (
     _fade_timer: null,
     controls: null,
     overlay,
-    onModeChange: options.onModeChange || null,
-    refreshControls: () => refresh_controls(viz_state),
-    applyFilter: (filter, apply_options = {}) => {
-      const { pushHistory = true } = apply_options;
+    on_mode_change: options.on_mode_change || null,
+    refresh_controls: () => refresh_controls(viz_state),
+    apply_filter: (filter, apply_options = {}) => {
+      const { push_history = true } = apply_options;
       const current_filter = normalize_crop_filter(
         viz_state,
         viz_state.crop.filter
@@ -343,15 +330,15 @@ export const initialize_matrix_crop = (
         return false;
       }
 
-      if (pushHistory) {
+      if (push_history) {
         viz_state.crop.history.push(clone_crop_filter(current_filter));
       }
 
-      viz_state.crop.setMode(false);
+      viz_state.crop.set_mode(false);
       apply_crop_filter(deck_mat, layers_mat, viz_state, next_filter);
       return true;
     },
-    applyAxisCrop: (axis, indices) => {
+    apply_axis_crop: (axis, indices) => {
       if (axis !== 'row' && axis !== 'col') {
         return false;
       }
@@ -363,13 +350,13 @@ export const initialize_matrix_crop = (
       const next_filter = clone_crop_filter(current_filter);
       next_filter[axis] = Array.isArray(indices) ? indices.slice() : null;
 
-      return viz_state.crop.applyFilter(next_filter, { pushHistory: true });
+      return viz_state.crop.apply_filter(next_filter, { push_history: true });
     },
-    setControls: (controls) => {
+    set_controls: (controls) => {
       viz_state.crop.controls = controls;
       refresh_controls(viz_state);
     },
-    setMode: (active) => {
+    set_mode: (active) => {
       if (
         active &&
         (has_crop_filter(viz_state) || viz_state.crop.fade_filter)
@@ -380,26 +367,26 @@ export const initialize_matrix_crop = (
       viz_state.crop.active = active;
       viz_state.crop.drag = null;
       hide_overlay(overlay);
-      viz_state.crop.onModeChange?.(active);
+      viz_state.crop.on_mode_change?.(active);
       refresh_controls(viz_state);
     },
     toggle: () => {
       if (has_crop_filter(viz_state)) {
-        viz_state.crop.setMode(false);
+        viz_state.crop.set_mode(false);
         return;
       }
 
-      viz_state.crop.setMode(!viz_state.crop.active);
+      viz_state.crop.set_mode(!viz_state.crop.active);
     },
     undo: () => {
       const previous = viz_state.crop.history.pop();
       if (!previous) return;
 
       clear_crop_fade(viz_state);
-      viz_state.crop.setMode(false);
+      viz_state.crop.set_mode(false);
       apply_crop_filter(deck_mat, layers_mat, viz_state, previous);
     },
-    onDragStart: (info) => {
+    on_drag_start: (info) => {
       if (
         !viz_state.crop.active ||
         has_crop_filter(viz_state) ||
@@ -426,7 +413,7 @@ export const initialize_matrix_crop = (
 
       set_overlay_bounds(overlay, start_screen, start_screen);
     },
-    onDrag: (info) => {
+    on_drag: (info) => {
       if (!viz_state.crop.drag) return;
 
       const end_screen = clamp_screen_point(viz_state, info.x, info.y);
@@ -448,7 +435,7 @@ export const initialize_matrix_crop = (
         viz_state.crop.drag.end_screen
       );
     },
-    onDragEnd: (info) => {
+    on_drag_end: (info) => {
       if (!viz_state.crop.drag) return;
 
       if (info?.x != null && info?.y != null) {
@@ -494,7 +481,7 @@ export const initialize_matrix_crop = (
         return;
       }
 
-      viz_state.crop.applyFilter(next_filter, { pushHistory: true });
+      viz_state.crop.apply_filter(next_filter, { push_history: true });
     },
   };
 };

@@ -49,6 +49,7 @@ import {
   set_mat_layer_onhover,
 } from './mat_layer';
 import { get_mat_layers_list } from './matrix_layers';
+import { hide_tooltip } from './matrix_tooltip';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { ini_views } from './views';
 import { update_zoom_data } from './zoom';
@@ -528,6 +529,7 @@ export const initialize_matrix_crop = (
         end_coord: start_coord,
       };
 
+      hide_tooltip(viz_state);
       set_overlay_bounds(overlay, start_screen, start_screen);
     },
     on_drag: (info) => {

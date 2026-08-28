@@ -3,6 +3,7 @@ const DENDRO_TOOLTIP_EDGE_BUFFER_PX = 72;
 
 const base_tooltip_style = () => ({
   color: 'white',
+  display: 'block',
   marginLeft: '0px',
   marginTop: '0px',
   translate: '0 0',
@@ -40,10 +41,24 @@ const dendro_tooltip_style = (viz_state, params, preferred_side) => {
   };
 };
 
+export const hide_tooltip = (viz_state) => {
+  const tooltip_container = viz_state.root?.querySelector?.('.deck-tooltip');
+  if (!tooltip_container) return;
+
+  reset_tooltip_position(viz_state);
+  tooltip_container.innerHTML = '';
+  tooltip_container.style.display = 'none';
+};
+
 export const get_tooltip = (viz_state, params) => {
   const { object, layer } = params;
 
   reset_tooltip_position(viz_state);
+
+  if (viz_state.crop?.drag) {
+    hide_tooltip(viz_state);
+    return null;
+  }
 
   if (object) {
     // Check which layer the tooltip is currently over

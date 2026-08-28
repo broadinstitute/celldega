@@ -12,6 +12,9 @@ const SNAP_ANNOTATION_LAYER_IDS = new Set([
   'col-attr-label-layer',
 ]);
 
+export const get_layer_update_triggers = (layer) =>
+  layer?.props?.updateTriggers || {};
+
 export const get_matrix_body_layer_id = (viz_state) => {
   const rev = viz_state.mat?._body_layer_rev || 0;
   return rev > 0 ? `mat-layer-${rev}` : 'mat-layer';

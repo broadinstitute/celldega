@@ -7,6 +7,7 @@
 // grouped together rather than smoothly repositioning the same group.
 describe('dendrogram layer animation is opt-in, not default', () => {
   let ini_dendro_layer;
+  let dendro_axis_is_interactive;
   let set_dendro_highlight;
   let update_dendro_layer_data;
   let refresh_composition_dendro;
@@ -35,10 +36,11 @@ describe('dendrogram layer animation is opt-in, not default', () => {
       const calc_dendro_polygons = (viz_state, axis) => { calls.calc_polygons.push(axis); };
       const crop_fade_signature = () => 'fade';
       const crop_filter_signature = () => 'crop';
+      const get_layer_update_triggers = () => ({});
       const get_mat_layers_list = () => [];
     `;
 
-    const code = `${shims}\n${source}\nmodule.exports = { ini_dendro_layer, set_dendro_highlight, update_dendro_layer_data, refresh_composition_dendro, refresh_dendro_for_viz_mode };`;
+    const code = `${shims}\n${source}\nmodule.exports = { dendro_axis_is_interactive, ini_dendro_layer, set_dendro_highlight, update_dendro_layer_data, refresh_composition_dendro, refresh_dendro_for_viz_mode };`;
     const module = { exports: {} };
     new Function('module', 'exports', 'calls', code)(
       module,
@@ -46,6 +48,7 @@ describe('dendrogram layer animation is opt-in, not default', () => {
       calls
     );
     ({
+      dendro_axis_is_interactive,
       ini_dendro_layer,
       set_dendro_highlight,
       update_dendro_layer_data,
@@ -105,6 +108,21 @@ describe('dendrogram layer animation is opt-in, not default', () => {
         properties: { name: 'cluster-other', all_indices: [0] },
       })
     ).toEqual([0, 0, 0, 90]);
+  });
+
+  test('hidden dendrograms are not eligible for fallback click picking', () => {
+    const viz_state = makeVizState({
+      order: { current: { row: 'rank', col: 'clust' } },
+    });
+    const layers_mat = {
+      row_dendro_layer: { props: { visible: false } },
+      col_dendro_layer: { props: { visible: true } },
+    };
+
+    expect(dendro_axis_is_interactive(layers_mat, viz_state, 'row')).toBe(
+      false
+    );
+    expect(dendro_axis_is_interactive(layers_mat, viz_state, 'col')).toBe(true);
   });
 
   test('dendrogram hover highlight prefers direct leaf indices', () => {

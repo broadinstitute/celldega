@@ -48,16 +48,59 @@ const uncropped_axis_center_position = (viz_state, axis, raw_index) => {
   return axis === 'row' ? slot_size * (rank + 1.5) : slot_size * (rank + 0.5);
 };
 
-export const crop_filter_signature = (viz_state) =>
-  ['row', 'col']
+export const crop_filter_signature = (viz_state) => {
+  const inputs = ['row', 'col'].map((axis) => {
+    const { order_name, order } = axis_order_info(viz_state, axis);
+    return {
+      axis,
+      order_name,
+      order,
+      filter: axis_filter_array(viz_state, axis),
+    };
+  });
+  const cache_owner = viz_state.crop || viz_state.mat;
+  const cached = cache_owner?._crop_signature_cache;
+
+  if (
+    cached &&
+    inputs.every(
+      ({ axis, order_name, order, filter }) =>
+        cached[axis].order_name === order_name &&
+        cached[axis].order_ref === order &&
+        cached[axis].filter_ref === filter
+    )
+  ) {
+    return cached.signature;
+  }
+
+  const signature = inputs
     .map(
-      (axis) =>
+      ({ axis }) =>
         `${axis}:${axis_order_key(viz_state, axis)}:${axis_filter_key(
           viz_state,
           axis
         )}`
     )
     .join('|');
+
+  if (cache_owner) {
+    cache_owner._crop_signature_cache = {
+      signature,
+      row: {
+        order_name: inputs[0].order_name,
+        order_ref: inputs[0].order,
+        filter_ref: inputs[0].filter,
+      },
+      col: {
+        order_name: inputs[1].order_name,
+        order_ref: inputs[1].order,
+        filter_ref: inputs[1].filter,
+      },
+    };
+  }
+
+  return signature;
+};
 
 export const has_crop_filter = (viz_state) =>
   Boolean(

@@ -15,6 +15,7 @@ import {
   dendro_highlight_alpha_factor,
 } from './dendro_layers';
 import {
+  get_layer_update_triggers,
   get_mat_layers_list,
   get_matrix_body_layer_id,
   mat_reorder_triggers,
@@ -70,8 +71,6 @@ const FILL_COLOR_TRANSITION_MS = 120;
 // Exported so row/col label hover (`label_layers.js`) uses the identical
 // delay for a consistent feel across every hover-highlight in composition mode.
 export const HOVER_HIGHLIGHT_DELAY_MS = 250;
-
-const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
 
 const hover_trigger_key = (viz_state) => [
   viz_state.mat.viz_mode,

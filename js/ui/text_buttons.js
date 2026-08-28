@@ -11,6 +11,7 @@ import {
   toggle_dendro_layer_visibility,
 } from '../deck-gl/matrix/dendro_layers';
 import {
+  get_layer_update_triggers,
   get_mat_layers_list,
   mat_reorder_triggers,
 } from '../deck-gl/matrix/matrix_layers';
@@ -29,8 +30,6 @@ export const get_img_layer_visible = () => img_layer_visible;
 const set_img_layer_visible = (visible) => {
   img_layer_visible = visible;
 };
-
-const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
 
 const toggle_visible_button = (event) => {
   const current = d3.select(event.currentTarget);

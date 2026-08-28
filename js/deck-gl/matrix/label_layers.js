@@ -33,9 +33,12 @@ import {
   refresh_composition_dendro,
   toggle_dendro_layer_visibility,
 } from './dendro_layers';
-import { get_mat_layers_list, mat_reorder_triggers } from './matrix_layers';
+import {
+  get_layer_update_triggers,
+  get_mat_layers_list,
+  mat_reorder_triggers,
+} from './matrix_layers';
 
-const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
 const MAX_COL_LABEL_PIXEL_OFFSET = 18;
 
 const row_label_get_position = (d, index, viz_state) => {

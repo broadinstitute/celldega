@@ -1,6 +1,7 @@
 """Widget module for interactive visualization components."""
 
 from collections.abc import Sequence
+import asyncio
 import colorsys
 from contextlib import suppress
 from copy import deepcopy
@@ -1233,8 +1234,9 @@ class Clustergram(anywidget.AnyWidget):
         widget's trait with ``jslink((cgm, "matrix_slice_result"), ...)`` to consume
         slices without a Python round-trip.
 
-        Use :meth:`request_matrix_slice` from Python when you need an explicit pull
-        (requires a **live kernel**).
+        Use :meth:`request_matrix_slice` to dispatch a non-blocking request, or
+        ``await`` :meth:`request_matrix_slice_async` when you need the response in
+        Python (both require a **live kernel**).
 
         **jslink:** Only traits sync between models. For linked custom widgets, mirror
         ``matrix_slice_result``; Python does not run in standalone exported HTML.
@@ -1622,14 +1624,14 @@ class Clustergram(anywidget.AnyWidget):
         row_index: int | None = None,
         col_index: int | None = None,
         max_entries: int | None = None,
-        timeout: float = 5.0,
-        poll_interval: float = 0.02,
-    ) -> dict | None:
+    ) -> str:
         """
-        Ask the browser Matrix to return a slice from ``net_mat`` (blocking).
+        Request a slice from the browser Matrix and return its request ID.
 
-        Requires a running Jupyter kernel and an active widget comm. Not available in
-        standalone exported HTML without a kernel.
+        This method deliberately does not wait for ``matrix_slice_result``: blocking
+        the executing kernel thread prevents inbound widget comm messages from being
+        processed. Observe ``matrix_slice_result`` using the returned ID, or use
+        ``await request_matrix_slice_async(...)`` in an async notebook cell.
 
         Parameters
         ----------
@@ -1638,13 +1640,11 @@ class Clustergram(anywidget.AnyWidget):
             ``row`` and ``col`` matrix indices. ``row_col``: pass ``row_index`` and
             ``col_index`` to get both axis slices in one result; optional
             ``max_entries`` (negative means all, subject to a browser-side cap).
-        timeout
-            Seconds to wait for :attr:`matrix_slice_result` to match ``req_id``.
 
         Returns
         -------
-        dict | None
-            The front-end payload (includes ``req_id``), or ``None`` on timeout.
+        str
+            Request ID that will be included in :attr:`matrix_slice_result`.
         """
         if op not in ("row", "col", "cell", "row_col"):
             raise ValueError("op must be 'row', 'col', 'cell', or 'row_col'")
@@ -1671,13 +1671,43 @@ class Clustergram(anywidget.AnyWidget):
         self.matrix_slice_result = {}
         self.matrix_slice_request = {}
         self.matrix_slice_request = payload
+        return req_id
+
+    async def request_matrix_slice_async(
+        self,
+        op: Literal["row", "col", "cell", "row_col"],
+        *,
+        index: int | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        row_index: int | None = None,
+        col_index: int | None = None,
+        max_entries: int | None = None,
+        timeout: float = 5.0,
+        poll_interval: float = 0.02,
+    ) -> dict | None:
+        """Request a browser matrix slice and asynchronously wait for its result.
+
+        ``await`` this method from an async notebook cell. Awaiting ``asyncio.sleep``
+        yields to the kernel event loop so it can process the front-end comm message;
+        a synchronous sleep would prevent the result from arriving.
+        """
+        req_id = self.request_matrix_slice(
+            op,
+            index=index,
+            row=row,
+            col=col,
+            row_index=row_index,
+            col_index=col_index,
+            max_entries=max_entries,
+        )
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             res = dict(self.matrix_slice_result or {})
             if res.get("req_id") == req_id:
                 return res
-            time.sleep(poll_interval)
+            await asyncio.sleep(poll_interval)
 
         return None
 

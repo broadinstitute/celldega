@@ -1,6 +1,9 @@
 import * as d3 from 'd3';
 
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import {
+  get_layer_update_triggers,
+  get_mat_layers_list,
+} from '../deck-gl/matrix/matrix_layers';
 import {
   crop_fade_signature,
   crop_filter_signature,
@@ -351,7 +354,7 @@ const update_cat_tile_layers = (viz_state) => {
   if (layers_mat.row_cat_layer) {
     layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
       updateTriggers: {
-        ...(layers_mat.row_cat_layer.props?.updateTriggers || {}),
+        ...get_layer_update_triggers(layers_mat.row_cat_layer),
         getFillColor: [
           crop_filter_signature(viz_state),
           crop_fade_signature(viz_state),
@@ -363,7 +366,7 @@ const update_cat_tile_layers = (viz_state) => {
   if (layers_mat.col_cat_layer) {
     layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
       updateTriggers: {
-        ...(layers_mat.col_cat_layer.props?.updateTriggers || {}),
+        ...get_layer_update_triggers(layers_mat.col_cat_layer),
         getFillColor: [
           crop_filter_signature(viz_state),
           crop_fade_signature(viz_state),

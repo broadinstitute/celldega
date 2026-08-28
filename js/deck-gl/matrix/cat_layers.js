@@ -11,9 +11,10 @@ import {
 } from '../../matrix/crop_filter';
 
 import { CustomMatrixLayer } from './custom_matrix_layer';
-import { get_mat_layers_list } from './matrix_layers';
-
-const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
+import {
+  get_layer_update_triggers,
+  get_mat_layers_list,
+} from './matrix_layers';
 
 const cat_fill_trigger = (viz_state, hovered = viz_state.hovered_cat) => [
   crop_filter_signature(viz_state),

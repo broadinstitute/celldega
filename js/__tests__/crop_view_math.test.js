@@ -2,6 +2,7 @@
 
 describe('compute_crop_filter', () => {
   let compute_crop_filter;
+  let crop_filter_signature;
   let crop_fade_alpha_factor;
   let crop_fade_axis_alpha_factor;
   let filter_cat_data;
@@ -112,11 +113,12 @@ describe('compute_crop_filter', () => {
       const set_composition_colors = () => {};
     `;
 
-    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_cat_data, filter_label_data, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
+    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_filter_signature, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_cat_data, filter_label_data, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
       compute_crop_filter,
+      crop_filter_signature,
       crop_fade_alpha_factor,
       crop_fade_axis_alpha_factor,
       filter_cat_data,
@@ -241,6 +243,22 @@ describe('compute_crop_filter', () => {
     expect(filter_cat_data(viz_state, 'col')).toBe(viz_state.cats.col_cat_data);
     expect(get_axis_center_position(viz_state, 'row', 0)).toBeCloseTo(90);
     expect(viz_state.crop._display_cache).toBeUndefined();
+  });
+
+  test('crop signatures are cached and refresh when an order or filter changes', () => {
+    const viz_state = makeVizState();
+
+    const initial = crop_filter_signature(viz_state);
+    expect(viz_state.crop._crop_signature_cache.signature).toBe(initial);
+    expect(crop_filter_signature(viz_state)).toBe(initial);
+
+    viz_state.order.current.row = 'rank';
+    viz_state.mat.orders.row.rank = [4, 3, 2, 1];
+    const reordered = crop_filter_signature(viz_state);
+    expect(reordered).not.toBe(initial);
+
+    viz_state.crop.filter = { row: [1, 2], col: null };
+    expect(crop_filter_signature(viz_state)).not.toBe(reordered);
   });
 
   test('nested crops are computed within the current visible filter', () => {

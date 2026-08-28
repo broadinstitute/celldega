@@ -15,7 +15,10 @@ import {
   calc_dendro_polygons,
 } from '../../matrix/dendro';
 
-import { get_mat_layers_list } from './matrix_layers';
+import {
+  get_layer_update_triggers,
+  get_mat_layers_list,
+} from './matrix_layers';
 
 const DENDRO_AXES = ['row', 'col'];
 const DEFAULT_FILL_COLOR = [0, 0, 0, 90];
@@ -26,8 +29,6 @@ const DOUBLE_CLICK_DELAY = 350;
 const DENDRO_HIGHLIGHT_DIM_ALPHA = 0.04;
 const DENDRO_HOVER_DELAY_MS = 60;
 const DENDRO_CLICK_VIEWPORT_TOLERANCE = 16;
-
-const get_layer_update_triggers = (layer) => layer?.props?.updateTriggers || {};
 
 const ensure_click_tracking = (viz_state) => {
   if (!viz_state.dendro.click_timeouts) {
@@ -86,10 +87,20 @@ const point_in_viewport = (viewport, x, y) =>
   y >= viewport.y - DENDRO_CLICK_VIEWPORT_TOLERANCE &&
   y <= viewport.y + viewport.height + DENDRO_CLICK_VIEWPORT_TOLERANCE;
 
-const manual_pick_dendro_polygon = (deck_mat, viz_state, x, y) => {
+const dendro_axis_is_interactive = (layers_mat, viz_state, axis) => {
+  const layer = layers_mat?.[`${axis}_dendro_layer`];
+  const order = viz_state.order?.current?.[axis];
+  return (
+    layer?.props?.visible !== false && (order == null || order === 'clust')
+  );
+};
+
+const manual_pick_dendro_polygon = (deck_mat, layers_mat, viz_state, x, y) => {
   const viewports = deck_mat.viewManager?.getViewports?.() || [];
 
   for (const axis of DENDRO_AXES) {
+    if (!dendro_axis_is_interactive(layers_mat, viz_state, axis)) continue;
+
     const viewport_id = axis === 'row' ? 'dendro_rows' : 'dendro_cols';
     const viewport = viewports.find(
       (inst_viewport) => inst_viewport.id === viewport_id
@@ -920,7 +931,7 @@ const handle_dendro_polygon_click = (
   queue_single_click(deck_mat, layers_mat, viz_state, axis, polygon_props);
 };
 
-const pick_dendro_polygon_at = (deck_mat, viz_state, x, y) => {
+const pick_dendro_polygon_at = (deck_mat, layers_mat, viz_state, x, y) => {
   if (typeof deck_mat.pickObject === 'function') {
     const info = deck_mat.pickObject({
       x,
@@ -936,12 +947,16 @@ const pick_dendro_polygon_at = (deck_mat, viz_state, x, y) => {
           : null;
     const polygon_props = polygon_props_from_pick_info(info);
 
-    if (axis && polygon_props) {
+    if (
+      axis &&
+      polygon_props &&
+      dendro_axis_is_interactive(layers_mat, viz_state, axis)
+    ) {
       return { axis, polygon_props };
     }
   }
 
-  return manual_pick_dendro_polygon(deck_mat, viz_state, x, y);
+  return manual_pick_dendro_polygon(deck_mat, layers_mat, viz_state, x, y);
 };
 
 const ensure_native_dendro_click = (deck_mat, layers_mat, viz_state) => {
@@ -969,6 +984,7 @@ const ensure_native_dendro_click = (deck_mat, layers_mat, viz_state) => {
     const y = native_event.clientY - rect.top;
     const { axis, polygon_props } = pick_dendro_polygon_at(
       deck_mat,
+      layers_mat,
       viz_state,
       x,
       y

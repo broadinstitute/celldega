@@ -175,6 +175,55 @@ export const ini_col_label_layer = (viz_state) => {
 
 const DOUBLE_CLICK_DELAY = 250;
 
+const ensure_label_click_tracking = (viz_state) => {
+  viz_state.labels.click_timeouts ||= { row: null, col: null };
+  viz_state.labels.pending_click ||= { row: null, col: null };
+  viz_state.labels.clicks ||= { row: 0, col: 0 };
+};
+
+const clear_pending_label_click = (viz_state, axis) => {
+  ensure_label_click_tracking(viz_state);
+  clearTimeout(viz_state.labels.click_timeouts[axis]);
+  viz_state.labels.click_timeouts[axis] = null;
+  viz_state.labels.pending_click[axis] = null;
+  viz_state.labels.clicks[axis] = 0;
+};
+
+const resolve_top_gene_count = (viz_state) => {
+  const top_n = Number(viz_state.top_n_genes || 15);
+  return Number.isFinite(top_n) && top_n > 0 ? Math.floor(top_n) : 15;
+};
+
+const insert_top_gene_entry = (entries, entry, max_entries) => {
+  if (max_entries <= 0) return;
+
+  const insert_index = entries.findIndex(
+    (candidate) => entry.value > candidate.value
+  );
+  entries.splice(insert_index === -1 ? entries.length : insert_index, 0, entry);
+
+  if (entries.length > max_entries) {
+    entries.pop();
+  }
+};
+
+const top_gene_names_for_column = (viz_state, col_index) => {
+  const max_entries = resolve_top_gene_count(viz_state);
+  const entries = [];
+  const rows = viz_state.mat?.net_mat || [];
+  const row_nodes = viz_state.row_nodes || [];
+
+  rows.forEach((row, row_index) => {
+    const node = row_nodes[row_index];
+    const value = Number(row?.[col_index]);
+    if (!node || !Number.isFinite(value)) return;
+
+    insert_top_gene_entry(entries, { name: node.name, value }, max_entries);
+  });
+
+  return entries.map((entry) => entry.name);
+};
+
 const custom_label_reorder = (
   deck_mat,
   layers_mat,
@@ -278,117 +327,141 @@ const custom_label_reorder = (
   });
 };
 
-const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
-  const visibility = viz_state.labels.row_visibility;
-  if (visibility && visibility[event.object.index] === false) return;
+const apply_row_label_single_click = (label, viz_state) => {
+  viz_state.click.type = 'row_label';
+  const { name, index: rowMatrixIndex } = label;
+  // Include full entity info (entity type + attribute)
+  viz_state.click.value = {
+    name,
+    index: rowMatrixIndex,
+    entity: viz_state.row_entity.entity,
+    attr: viz_state.row_entity.attr,
+    row_entity: viz_state.row_entity.entity,
+  };
 
-  viz_state.labels.clicks.row += 1;
-
-  if (viz_state.labels.clicks.row === 1) {
-    viz_state.click.type = 'row_label';
-    const { name, index: rowMatrixIndex } = event.object;
-    // Include full entity info (entity type + attribute)
-    viz_state.click.value = {
-      name,
+  if (viz_state.model?.set) {
+    viz_state.model.set('click_info', null);
+    viz_state.model.set('click_info', viz_state.click);
+    viz_state.model.save_changes();
+    emitMatrixSliceRequest(viz_state.model, 'row', {
       index: rowMatrixIndex,
-      entity: viz_state.row_entity.entity,
-      attr: viz_state.row_entity.attr,
-      row_entity: viz_state.row_entity.entity,
-    };
+    });
+  }
 
-    setTimeout(() => {
-      viz_state.labels.clicks.row = 0;
-    }, DOUBLE_CLICK_DELAY);
+  // Sync selected row to Python model
+  sync_selected_rows(viz_state, [name]);
+  // Also sync to selected_genes for backwards compatibility
+  sync_selected_genes(viz_state, [name]);
 
-    if (viz_state.model?.set) {
-      viz_state.model.set('click_info', null);
-      viz_state.model.set('click_info', viz_state.click);
-      viz_state.model.save_changes();
-      emitMatrixSliceRequest(viz_state.model, 'row', {
-        index: rowMatrixIndex,
-        max_entries: -1,
-      });
-    }
-
-    // Sync selected row to Python model
-    sync_selected_rows(viz_state, [name]);
-    // Also sync to selected_genes for backwards compatibility
-    sync_selected_genes(viz_state, [name]);
-
-    if (typeof viz_state.custom_callbacks.row === 'function') {
-      viz_state.custom_callbacks.row(name);
-    }
-  } else if (viz_state.labels.clicks.row === 2) {
-    viz_state.labels.clicks.row = 0;
-
-    custom_label_reorder(
-      deck_mat,
-      layers_mat,
-      viz_state,
-      'row',
-      event.object.name,
-      event.object.index
-    );
+  if (typeof viz_state.custom_callbacks.row === 'function') {
+    viz_state.custom_callbacks.row(name);
   }
 };
 
-const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
-  viz_state.labels.clicks.col += 1;
+const apply_col_label_single_click = (label, viz_state) => {
+  viz_state.click.type = 'col_label';
+  const { name, index: colMatrixIndex } = label;
+  viz_state.click.value = {
+    name,
+    index: colMatrixIndex,
+    entity: viz_state.col_entity.entity,
+    attr: viz_state.col_entity.attr,
+    col_entity: viz_state.col_entity.entity,
+  };
 
-  if (viz_state.labels.clicks.col === 1) {
-    viz_state.click.type = 'col_label';
-    const { name, index: colMatrixIndex } = event.object;
-    viz_state.click.value = {
-      name,
+  if (viz_state.model?.set) {
+    viz_state.model.set('click_info', null);
+    viz_state.model.set('click_info', viz_state.click);
+    viz_state.model.save_changes();
+    emitMatrixSliceRequest(viz_state.model, 'col', {
       index: colMatrixIndex,
-      entity: viz_state.col_entity.entity,
-      attr: viz_state.col_entity.attr,
-      col_entity: viz_state.col_entity.entity,
-    };
+    });
+  }
 
-    setTimeout(() => {
-      viz_state.labels.clicks.col = 0;
-    }, DOUBLE_CLICK_DELAY);
+  // Sync selected column to Python model
+  sync_selected_cols(viz_state, [name]);
 
-    if (viz_state.model?.set) {
-      viz_state.model.set('click_info', null);
-      viz_state.model.set('click_info', viz_state.click);
-      viz_state.model.save_changes();
-      emitMatrixSliceRequest(viz_state.model, 'col', {
-        index: colMatrixIndex,
-        max_entries: -1,
-      });
+  sync_selected_genes(
+    viz_state,
+    top_gene_names_for_column(viz_state, colMatrixIndex)
+  );
+
+  if (typeof viz_state.custom_callbacks.col === 'function') {
+    viz_state.custom_callbacks.col(name);
+  }
+};
+
+const queue_label_single_click = (viz_state, axis, label, callback) => {
+  ensure_label_click_tracking(viz_state);
+  viz_state.labels.pending_click[axis] = label;
+  viz_state.labels.click_timeouts[axis] = setTimeout(() => {
+    const pending = viz_state.labels.pending_click[axis];
+    clear_pending_label_click(viz_state, axis);
+
+    if (pending) {
+      callback(pending);
     }
+  }, DOUBLE_CLICK_DELAY);
+};
 
-    // Sync selected column to Python model
-    sync_selected_cols(viz_state, [name]);
+const handle_label_click = (
+  event,
+  deck_mat,
+  layers_mat,
+  viz_state,
+  axis,
+  single_click_callback
+) => {
+  if (!event?.object) return;
 
-    const col_index = event.object.index;
-    const values = viz_state.mat.net_mat.map((row) => row[col_index]);
-    const sorted = Array.from(values.keys()).sort(
-      (a, b) => values[b] - values[a]
-    );
-    const top_n = viz_state.top_n_genes || 15;
-    const gene_names = sorted
-      .slice(0, top_n)
-      .map((i) => viz_state.row_nodes[i].name);
-    sync_selected_genes(viz_state, gene_names);
+  const label = {
+    name: event.object.name,
+    index: event.object.index,
+  };
 
-    if (typeof viz_state.custom_callbacks.col === 'function') {
-      viz_state.custom_callbacks.col(name);
-    }
-  } else if (viz_state.labels.clicks.col === 2) {
-    viz_state.labels.clicks.col = 0;
+  ensure_label_click_tracking(viz_state);
+  const pending = viz_state.labels.pending_click[axis];
 
+  if (!viz_state.labels.click_timeouts[axis]) {
+    queue_label_single_click(viz_state, axis, label, single_click_callback);
+    return;
+  }
+
+  clear_pending_label_click(viz_state, axis);
+
+  if (pending?.index === label.index) {
     custom_label_reorder(
       deck_mat,
       layers_mat,
       viz_state,
-      'col',
-      event.object.name,
-      event.object.index
+      axis,
+      label.name,
+      label.index
     );
+    return;
   }
+
+  if (pending) {
+    single_click_callback(pending);
+  }
+  queue_label_single_click(viz_state, axis, label, single_click_callback);
+};
+
+const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+  if (!event?.object) return;
+
+  const visibility = viz_state.labels.row_visibility;
+  if (visibility && visibility[event.object.index] === false) return;
+
+  handle_label_click(event, deck_mat, layers_mat, viz_state, 'row', (label) =>
+    apply_row_label_single_click(label, viz_state)
+  );
+};
+
+const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+  handle_label_click(event, deck_mat, layers_mat, viz_state, 'col', (label) =>
+    apply_col_label_single_click(label, viz_state)
+  );
 };
 
 export const set_row_label_layer_onclick = (

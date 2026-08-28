@@ -12,6 +12,71 @@ const UNBOUNDED_AXIS_CAP = 500_000;
 export const MATRIX_NET_CONVENTION =
   'net_mat[row][col] is the matrix entry at row index (row entity) and column index (col entity)';
 
+const resolve_entry_cap = (max_entries) => {
+  if (max_entries == null) return MAX_ENTRIES;
+
+  const value = Number(max_entries);
+  if (!Number.isFinite(value)) return MAX_ENTRIES;
+  if (value < 0) return UNBOUNDED_AXIS_CAP;
+
+  return Math.min(Math.floor(value), UNBOUNDED_AXIS_CAP);
+};
+
+const swap = (array, i, j) => {
+  const tmp = array[i];
+  array[i] = array[j];
+  array[j] = tmp;
+};
+
+const bubble_up = (heap, index) => {
+  let child = index;
+  while (child > 0) {
+    const parent = Math.floor((child - 1) / 2);
+    if (heap[parent].value <= heap[child].value) break;
+    swap(heap, parent, child);
+    child = parent;
+  }
+};
+
+const sink_down = (heap, index) => {
+  let parent = index;
+
+  while (true) {
+    const left = parent * 2 + 1;
+    const right = left + 1;
+    let smallest = parent;
+
+    if (left < heap.length && heap[left].value < heap[smallest].value) {
+      smallest = left;
+    }
+    if (right < heap.length && heap[right].value < heap[smallest].value) {
+      smallest = right;
+    }
+    if (smallest === parent) break;
+
+    swap(heap, parent, smallest);
+    parent = smallest;
+  }
+};
+
+const push_top_entry = (heap, cap, entry) => {
+  if (cap <= 0) return;
+
+  if (heap.length < cap) {
+    heap.push(entry);
+    bubble_up(heap, heap.length - 1);
+    return;
+  }
+
+  if (entry.value <= heap[0].value) return;
+
+  heap[0] = entry;
+  sink_down(heap, 0);
+};
+
+const sort_entries_desc = (entries) =>
+  entries.sort((a, b) => b.value - a.value);
+
 /**
  * Ask the widget model to run the front-end slice handler (second step after a click).
  * @param {any} model  ipywidgets Backbone model with get/set/save_changes
@@ -56,33 +121,27 @@ export function buildRowAxisSlice(viz_state, rowIndex, maxEntries) {
   const row = net[r];
   if (!Array.isArray(row)) return null;
 
+  const cap = resolve_entry_cap(maxEntries);
   const entries = [];
   for (let c = 0; c < row.length; c++) {
     const val = Number(row[c]);
     if (!Number.isFinite(val) || val === 0) continue;
     const cn = colNodes[c];
     if (!cn) continue;
-    entries.push({
+    push_top_entry(entries, cap, {
       row: r,
       col: c,
       counterpart_name: cn.name,
       value: val,
     });
   }
-  entries.sort((a, b) => b.value - a.value);
-  const cap =
-    maxEntries == null
-      ? MAX_ENTRIES
-      : maxEntries < 0
-        ? Math.min(entries.length, UNBOUNDED_AXIS_CAP)
-        : Math.min(entries.length, maxEntries, UNBOUNDED_AXIS_CAP);
   const primaryNode = rowNodes[r];
   return {
     slice_kind: 'row_axis',
     matrix_convention: MATRIX_NET_CONVENTION,
     primary_index: r,
     primary_name: primaryNode ? primaryNode.name : null,
-    entries: entries.slice(0, cap),
+    entries: sort_entries_desc(entries),
   };
 }
 
@@ -108,6 +167,7 @@ export function buildColAxisSlice(viz_state, colIndex, maxEntries) {
   const c = Number(colIndex);
   if (c < 0 || c >= colNodes.length) return null;
 
+  const cap = resolve_entry_cap(maxEntries);
   const entries = [];
   for (let r = 0; r < net.length; r++) {
     const row = net[r];
@@ -116,27 +176,20 @@ export function buildColAxisSlice(viz_state, colIndex, maxEntries) {
     if (!Number.isFinite(val) || val === 0) continue;
     const rn = rowNodes[r];
     if (!rn) continue;
-    entries.push({
+    push_top_entry(entries, cap, {
       row: r,
       col: c,
       counterpart_name: rn.name,
       value: val,
     });
   }
-  entries.sort((a, b) => b.value - a.value);
-  const cap =
-    maxEntries == null
-      ? MAX_ENTRIES
-      : maxEntries < 0
-        ? Math.min(entries.length, UNBOUNDED_AXIS_CAP)
-        : Math.min(entries.length, maxEntries, UNBOUNDED_AXIS_CAP);
   const primaryNode = colNodes[c];
   return {
     slice_kind: 'col_axis',
     matrix_convention: MATRIX_NET_CONVENTION,
     primary_index: c,
     primary_name: primaryNode ? primaryNode.name : null,
-    entries: entries.slice(0, cap),
+    entries: sort_entries_desc(entries),
   };
 }
 

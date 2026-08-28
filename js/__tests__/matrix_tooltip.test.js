@@ -73,6 +73,28 @@ describe('matrix tooltip positioning', () => {
     expect(tooltip_outer.style.position).toBe('unset');
   });
 
+  test('dendrogram tooltip truncates large member lists', () => {
+    const { viz_state } = make_viz_state();
+    const names = Array.from({ length: 15 }, (_, index) => `cell-${index}`);
+
+    const result = get_tooltip(viz_state, {
+      object: {
+        properties: {
+          name: '<cluster-a>',
+          all_names: names,
+        },
+      },
+      layer: { id: 'row-dendro-layer' },
+      y: 100,
+    });
+
+    expect(result.html).toContain('Row dendrogram: &lt;cluster-a&gt;');
+    expect(result.html).toContain('cell-0');
+    expect(result.html).toContain('cell-11');
+    expect(result.html).not.toContain('cell-12');
+    expect(result.html).toContain('+3 more (15 total)');
+  });
+
   test('dendrogram tooltip placement avoids top and bottom edges', () => {
     const { viz_state } = make_viz_state();
 

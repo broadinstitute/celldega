@@ -387,22 +387,23 @@ export const dendro_highlight_alpha_factor = (viz_state, row, col) => {
  * Set (or clear) the dendrogram-driven cell/segment highlight for one axis,
  * and re-render the body layer (`mat_layer`, whichever layer class is
  * currently assigned there — heatmap/dotplot or composition) so
- * `dendro_highlight_alpha_factor` picks up the change. Converts the leaf
- * name list into an index set once here, so the per-cell render accessor is
- * just a fast `Set.has(index)` check.
+ * `dendro_highlight_alpha_factor` picks up the change. Uses the precomputed
+ * leaf indices when available, so the per-cell render accessor is just a
+ * fast `Set.has(index)` check and hover does not scan every label.
  *
  * @param {object} deck_mat - deck.gl instance.
  * @param {object} layers_mat - Layer registry.
  * @param {object} viz_state - Visualization state.
  * @param {string} axis - "row" or "col".
- * @param {string[]|null} names - Leaf names to highlight, or null to clear.
+ * @param {string[]|object|null} highlight - Leaf names or
+ *   `{indices, names}` to highlight, or null to clear.
  */
 export const set_dendro_highlight = (
   deck_mat,
   layers_mat,
   viz_state,
   axis,
-  names
+  highlight
 ) => {
   viz_state.dendro.highlight = viz_state.dendro.highlight || {
     row: null,
@@ -410,15 +411,38 @@ export const set_dendro_highlight = (
   };
 
   let indices = null;
-  if (names) {
-    const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
-    const name_set = new Set(names.map((name) => String(name)));
+  const direct_indices =
+    Array.isArray(highlight?.indices) && highlight.indices.length > 0
+      ? highlight.indices
+      : Array.isArray(highlight?.all_indices) &&
+          highlight.all_indices.length > 0
+        ? highlight.all_indices
+        : null;
+
+  if (direct_indices) {
     indices = new Set();
-    nodes.forEach((node, index) => {
-      if (name_set.has(String(node.name))) {
+    direct_indices.forEach((value) => {
+      const index = Number(value);
+      if (Number.isInteger(index) && index >= 0) {
         indices.add(index);
       }
     });
+  } else {
+    const names = Array.isArray(highlight)
+      ? highlight
+      : highlight?.names || highlight?.all_names || null;
+
+    if (Array.isArray(names) && names.length > 0) {
+      const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+      const name_set = new Set(names.map((name) => String(name)));
+      indices = new Set();
+
+      nodes.forEach((node, index) => {
+        if (name_set.has(String(node.name))) {
+          indices.add(index);
+        }
+      });
+    }
   }
 
   viz_state.dendro.highlight[axis] = indices;
@@ -454,7 +478,7 @@ const restore_axis_highlight_from_focus = (
     layers_mat,
     viz_state,
     axis,
-    polygon?.properties?.all_names || null
+    polygon?.properties || null
   );
 };
 
@@ -991,7 +1015,7 @@ export const set_dendro_layer_onclick = (
  * Wire up hover-to-highlight for a dendrogram trapezoid: hovering a leaf
  * group highlights every row/column it covers (dimming everything else)
  * after a short dwell delay, so a quick pass-over doesn't flash; moving off
- * restores any persistent double-click zoom highlight for that axis.
+ * restores any persistent crop/focus highlight for that axis.
  *
  * @param {object} deck_mat - deck.gl instance.
  * @param {object} layers_mat - Layer registry.
@@ -1007,10 +1031,18 @@ export const set_dendro_layer_onhover = (
   const on_hover = (info) => {
     clearTimeout(viz_state.dendro._hover_timer);
 
-    const names = info?.object ? info.object.properties.all_names : null;
-    const hover_name = info?.object ? info.object.properties.name : null;
+    const properties = info?.object?.properties || null;
+    const hover_payload =
+      properties &&
+      ((Array.isArray(properties.all_indices) &&
+        properties.all_indices.length > 0) ||
+        (Array.isArray(properties.all_names) &&
+          properties.all_names.length > 0))
+        ? properties
+        : null;
+    const hover_name = properties?.name || null;
 
-    if (!names) {
+    if (!hover_payload) {
       if (viz_state.dendro._hover_target?.axis === axis) {
         viz_state.dendro._hover_target = null;
       }
@@ -1029,7 +1061,13 @@ export const set_dendro_layer_onhover = (
       ) {
         return;
       }
-      set_dendro_highlight(deck_mat, layers_mat, viz_state, axis, names);
+      set_dendro_highlight(
+        deck_mat,
+        layers_mat,
+        viz_state,
+        axis,
+        hover_payload
+      );
     }, DENDRO_HOVER_DELAY_MS);
   };
 

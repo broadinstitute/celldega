@@ -1,5 +1,33 @@
 const DENDRO_TOOLTIP_OFFSET_PX = 8;
 const DENDRO_TOOLTIP_EDGE_BUFFER_PX = 72;
+const DENDRO_TOOLTIP_NAME_LIMIT = 12;
+
+const escape_html = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const dendro_names_html = (names) => {
+  const list = Array.isArray(names) ? names : [];
+  if (list.length === 0) return '';
+
+  const shown = list.slice(0, DENDRO_TOOLTIP_NAME_LIMIT);
+  const hidden_count = list.length - shown.length;
+  const shown_html = shown.map((name) => escape_html(name)).join(', ');
+  if (hidden_count <= 0) return shown_html;
+
+  return `${shown_html}<br><i>+${hidden_count} more (${list.length} total)</i>`;
+};
+
+const dendro_tooltip_html = (label, object) => {
+  const properties = object?.properties || {};
+  const names_html = dendro_names_html(properties.all_names);
+  const names_line = names_html ? `<br>${names_html}` : '';
+  return `${label} dendrogram: ${escape_html(properties.name)}${names_line}`;
+};
 
 const base_tooltip_style = () => ({
   color: 'white',
@@ -51,7 +79,8 @@ export const hide_tooltip = (viz_state) => {
 };
 
 export const get_tooltip = (viz_state, params) => {
-  const { object, layer } = params;
+  const { object, layer } = params || {};
+  const layer_id = layer?.id || '';
 
   reset_tooltip_position(viz_state);
 
@@ -62,45 +91,45 @@ export const get_tooltip = (viz_state, params) => {
 
   if (object) {
     // Check which layer the tooltip is currently over
-    if (layer.id === 'row-label-layer') {
+    if (layer_id === 'row-label-layer') {
       return {
-        html: `Row Label: ${object.display_name || object.name}`,
+        html: `Row Label: ${escape_html(object.display_name || object.name)}`,
         style: base_tooltip_style(),
       };
-    } else if (layer.id === 'col-label-layer') {
+    } else if (layer_id === 'col-label-layer') {
       return {
-        html: `Col Label: ${object.display_name || object.name}`,
+        html: `Col Label: ${escape_html(object.display_name || object.name)}`,
         style: base_tooltip_style(),
       };
-    } else if (layer.id === 'row-layer') {
+    } else if (layer_id === 'row-layer') {
       const row_attr_name = viz_state.attr.names.row[object.level];
       return {
-        html: `${row_attr_name}: ${object.name}`,
+        html: `${escape_html(row_attr_name)}: ${escape_html(object.name)}`,
         style: base_tooltip_style(),
       };
-    } else if (layer.id === 'col-layer') {
+    } else if (layer_id === 'col-layer') {
       const col_attr_name = viz_state.attr.names.col[object.level];
       return {
-        html: `${col_attr_name}: ${object.name}`,
+        html: `${escape_html(col_attr_name)}: ${escape_html(object.name)}`,
         style: base_tooltip_style(),
       };
-    } else if (layer.id === 'row-dendro-layer') {
+    } else if (layer_id === 'row-dendro-layer') {
       return {
-        html: `Row dendrogram: ${object.properties.name}<br>${object.properties.all_names}`,
+        html: dendro_tooltip_html('Row', object),
         style: dendro_tooltip_style(viz_state, params, 'below'),
       };
-    } else if (layer.id === 'col-dendro-layer') {
+    } else if (layer_id === 'col-dendro-layer') {
       return {
-        html: `Column dendrogram: ${object.properties.name}<br>${object.properties.all_names}`,
+        html: dendro_tooltip_html('Column', object),
         style: dendro_tooltip_style(viz_state, params, 'above'),
       };
-    } else if (layer.id.includes('mat-layer')) {
+    } else if (layer_id.includes('mat-layer')) {
       // Display the default tooltip for other layers
 
       const row_entry = viz_state.labels.row_label_data[object.row];
       const col_entry = viz_state.labels.col_label_data[object.col];
-      const row_name = row_entry?.display_name || row_entry?.name;
-      const col_name = col_entry?.display_name || col_entry?.name;
+      const row_name = escape_html(row_entry?.display_name || row_entry?.name);
+      const col_name = escape_html(col_entry?.display_name || col_entry?.name);
 
       // Mode-specific secondary lines: dotplot surfaces the size channel;
       // composition labels the axes as population / dataset and surfaces the
@@ -133,14 +162,18 @@ export const get_tooltip = (viz_state, params) => {
         )}${size_line}`,
         style: base_tooltip_style(),
       };
-    } else if (layer.id === 'row-attr-label-layer') {
+    } else if (layer_id === 'row-attr-label-layer') {
       return {
-        html: `Row Attribute: ${object.name}<br><i>Double-click to reorder by this attribute</i>`,
+        html: `Row Attribute: ${escape_html(
+          object.name
+        )}<br><i>Double-click to reorder by this attribute</i>`,
         style: base_tooltip_style(),
       };
-    } else if (layer.id === 'col-attr-label-layer') {
+    } else if (layer_id === 'col-attr-label-layer') {
       return {
-        html: `Column Attribute: ${object.name}<br><i>Double-click to reorder by this attribute</i>`,
+        html: `Column Attribute: ${escape_html(
+          object.name
+        )}<br><i>Double-click to reorder by this attribute</i>`,
         style: base_tooltip_style(),
       };
     }

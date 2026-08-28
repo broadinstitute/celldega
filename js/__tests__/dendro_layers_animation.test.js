@@ -7,6 +7,7 @@
 // grouped together rather than smoothly repositioning the same group.
 describe('dendrogram layer animation is opt-in, not default', () => {
   let ini_dendro_layer;
+  let set_dendro_highlight;
   let update_dendro_layer_data;
   let refresh_composition_dendro;
   let refresh_dendro_for_viz_mode;
@@ -32,10 +33,12 @@ describe('dendrogram layer animation is opt-in, not default', () => {
       const sync_selected_cols = () => {};
       const calc_dendro_triangles = (viz_state, axis) => { calls.calc_triangles.push(axis); };
       const calc_dendro_polygons = (viz_state, axis) => { calls.calc_polygons.push(axis); };
+      const crop_fade_signature = () => 'fade';
+      const crop_filter_signature = () => 'crop';
       const get_mat_layers_list = () => [];
     `;
 
-    const code = `${shims}\n${source}\nmodule.exports = { ini_dendro_layer, update_dendro_layer_data, refresh_composition_dendro, refresh_dendro_for_viz_mode };`;
+    const code = `${shims}\n${source}\nmodule.exports = { ini_dendro_layer, set_dendro_highlight, update_dendro_layer_data, refresh_composition_dendro, refresh_dendro_for_viz_mode };`;
     const module = { exports: {} };
     new Function('module', 'exports', 'calls', code)(
       module,
@@ -44,6 +47,7 @@ describe('dendrogram layer animation is opt-in, not default', () => {
     );
     ({
       ini_dendro_layer,
+      set_dendro_highlight,
       update_dendro_layer_data,
       refresh_composition_dendro,
       refresh_dendro_for_viz_mode,
@@ -101,6 +105,25 @@ describe('dendrogram layer animation is opt-in, not default', () => {
         properties: { name: 'cluster-other', all_indices: [0] },
       })
     ).toEqual([0, 0, 0, 90]);
+  });
+
+  test('dendrogram hover highlight prefers direct leaf indices', () => {
+    const layers_mat = { mat_layer: makeLayerStub() };
+    const deck_mat = { setProps: jest.fn() };
+    const viz_state = makeVizState({
+      dendro: {},
+      row_nodes: [{ name: 'not-the-hovered-leaf' }],
+      col_nodes: [],
+      mat: {},
+    });
+
+    set_dendro_highlight(deck_mat, layers_mat, viz_state, 'row', {
+      all_indices: [3, '5'],
+      all_names: ['missing-name'],
+    });
+
+    expect([...viz_state.dendro.highlight.row]).toEqual([3, 5]);
+    expect(deck_mat.setProps).toHaveBeenCalledWith({ layers: [] });
   });
 
   test('update_dendro_layer_data(animate=true) sets a real getPolygon transition', () => {

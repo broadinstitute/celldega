@@ -362,7 +362,10 @@ const apply_crop_filter = (
 };
 
 const clear_all_crops = (deck_mat, layers_mat, viz_state) => {
-  const current_filter = normalize_crop_filter(viz_state, viz_state.crop.filter);
+  const current_filter = normalize_crop_filter(
+    viz_state,
+    viz_state.crop.filter
+  );
 
   if (!has_crop_filter(viz_state) && viz_state.crop.history.length === 0) {
     return false;

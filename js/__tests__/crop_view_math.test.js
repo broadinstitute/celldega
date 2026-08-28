@@ -4,6 +4,8 @@ describe('compute_crop_filter', () => {
   let compute_crop_filter;
   let crop_fade_alpha_factor;
   let crop_fade_axis_alpha_factor;
+  let filter_cat_data;
+  let filter_label_data;
   let filter_matrix_data;
   let get_axis_center_position;
   let get_axis_display_count;
@@ -110,13 +112,15 @@ describe('compute_crop_filter', () => {
       const set_composition_colors = () => {};
     `;
 
-    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
+    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_cat_data, filter_label_data, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
       compute_crop_filter,
       crop_fade_alpha_factor,
       crop_fade_axis_alpha_factor,
+      filter_cat_data,
+      filter_label_data,
       filter_matrix_data,
       get_axis_center_position,
       get_axis_display_count,
@@ -133,6 +137,8 @@ describe('compute_crop_filter', () => {
     viz: {
       mat_width: 100,
       mat_height: 80,
+      row_offset: 20,
+      col_offset: 20,
       row_region: 20,
       col_region: 30,
       label_buffer: 2,
@@ -161,12 +167,22 @@ describe('compute_crop_filter', () => {
       ],
     },
     labels: {
-      row_label_data: [],
-      col_label_data: [],
+      row_label_data: Array.from({ length: 4 }, (_, index) => ({
+        index,
+        name: `row-${index}`,
+      })),
+      col_label_data: Array.from({ length: 5 }, (_, index) => ({
+        index,
+        name: `col-${index}`,
+      })),
     },
     cats: {
-      row_cat_data: [],
-      col_cat_data: [],
+      row_cat_data: Array.from({ length: 4 }, (_, original_index) => ({
+        original_index,
+      })),
+      col_cat_data: Array.from({ length: 5 }, (_, original_index) => ({
+        original_index,
+      })),
     },
     crop: {
       filter,
@@ -213,6 +229,18 @@ describe('compute_crop_filter', () => {
     expect(get_axis_center_position(viz_state, 'row', 2)).toBeCloseTo(60);
     expect(get_axis_center_position(viz_state, 'col', 3)).toBeCloseTo(100 / 6);
     expect(get_default_pan(viz_state)).toEqual([50, 80]);
+  });
+
+  test('leaves uncropped data arrays and position lookup on the fast path', () => {
+    const viz_state = makeVizState();
+
+    expect(filter_matrix_data(viz_state)).toBe(viz_state.mat.mat_data);
+    expect(filter_label_data(viz_state, 'row')).toBe(
+      viz_state.labels.row_label_data
+    );
+    expect(filter_cat_data(viz_state, 'col')).toBe(viz_state.cats.col_cat_data);
+    expect(get_axis_center_position(viz_state, 'row', 0)).toBeCloseTo(90);
+    expect(viz_state.crop._display_cache).toBeUndefined();
   });
 
   test('nested crops are computed within the current visible filter', () => {

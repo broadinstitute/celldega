@@ -54,14 +54,7 @@ import { ini_views } from './views';
 import { update_zoom_data } from './zoom';
 
 const CROP_MIN_DRAG_PX = 8;
-const CROP_SNAP_LAYER_KEYS = [
-  'row_label_layer',
-  'col_label_layer',
-  'row_cat_layer',
-  'col_cat_layer',
-  'row_attr_label_layer',
-  'col_attr_label_layer',
-];
+const CROP_SNAP_RENDER_WINDOW_MS = 120;
 const CROP_AXES = ['row', 'col'];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -155,6 +148,11 @@ const empty_dendro_crop_axes = () => ({
   col: null,
 });
 
+const empty_crop_filter = () => ({
+  row: null,
+  col: null,
+});
+
 const axis_has_crop_filter = (viz_state, axis) =>
   Array.isArray(viz_state.crop?.filter?.[axis]) &&
   viz_state.crop.filter[axis].length > 0;
@@ -181,20 +179,6 @@ const clone_crop_state = (viz_state) => ({
   filter: clone_crop_filter(viz_state.crop?.filter),
   dendro_axes: clone_dendro_crop_axes(viz_state.crop?.dendro_axes),
 });
-
-const normalize_history_entry = (entry) => {
-  if (entry?.filter) {
-    return {
-      filter: clone_crop_filter(entry.filter),
-      dendro_axes: clone_dendro_crop_axes(entry.dendro_axes),
-    };
-  }
-
-  return {
-    filter: clone_crop_filter(entry),
-    dendro_axes: empty_dendro_crop_axes(),
-  };
-};
 
 const clear_crop_fade = (viz_state) => {
   if (!viz_state.crop) return;
@@ -286,18 +270,15 @@ const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
   refresh_matrix_cat_bars(viz_state);
 };
 
-const get_crop_snap_layers_list = (layers_mat) => {
-  const snap_layer_ids = new Set(
-    CROP_SNAP_LAYER_KEYS.map((layer_key) => layers_mat[layer_key]?.id).filter(
-      Boolean
-    )
-  );
+const enable_crop_annotation_snap = (viz_state) => {
+  if (!viz_state.crop) return;
 
-  return get_mat_layers_list(layers_mat).map((layer) =>
-    layer && snap_layer_ids.has(layer.id)
-      ? layer.clone({ transitions: false })
-      : layer
-  );
+  clearTimeout(viz_state.crop._snap_timer);
+  viz_state.crop._snap_annotation_transitions = true;
+  viz_state.crop._snap_timer = setTimeout(() => {
+    viz_state.crop._snap_annotation_transitions = false;
+    viz_state.crop._snap_timer = null;
+  }, CROP_SNAP_RENDER_WINDOW_MS);
 };
 
 const reset_view_to_filter = (
@@ -320,13 +301,14 @@ const reset_view_to_filter = (
   viz_state.zoom.zoom_data.total_zoom.x = zoom_curated[0];
   viz_state.zoom.zoom_data.total_zoom.y = zoom_curated[1];
   ini_views(viz_state);
+  if (snap_annotations) {
+    enable_crop_annotation_snap(viz_state);
+  }
 
   deck_mat.setProps({
     viewState: global_view_state,
     views: viz_state.views.views_list,
-    layers: snap_annotations
-      ? get_crop_snap_layers_list(layers_mat)
-      : get_mat_layers_list(layers_mat),
+    layers: get_mat_layers_list(layers_mat, { snap_annotations }),
   });
 };
 
@@ -354,7 +336,7 @@ const refresh_controls = (viz_state) => {
 
   viz_state.crop.controls.set_active(viz_state.crop.active && can_crop);
   viz_state.crop.controls.set_crop_enabled?.(can_crop);
-  viz_state.crop.controls.set_undo_enabled(viz_state.crop.history.length > 0);
+  viz_state.crop.controls.set_undo_enabled(has_crop_filter(viz_state));
 };
 
 const apply_crop_filter = (
@@ -376,6 +358,22 @@ const apply_crop_filter = (
     snap_annotations: true,
   });
   refresh_controls(viz_state);
+};
+
+const clear_all_crops = (deck_mat, layers_mat, viz_state) => {
+  const current_filter = normalize_crop_filter(viz_state, viz_state.crop.filter);
+
+  if (!has_crop_filter(viz_state) && viz_state.crop.history.length === 0) {
+    return false;
+  }
+
+  viz_state.crop.history = [];
+  viz_state.crop.set_mode(false);
+  apply_crop_filter(deck_mat, layers_mat, viz_state, empty_crop_filter(), {
+    dendro_axes: empty_dendro_crop_axes(),
+  });
+
+  return !filters_equal(current_filter, empty_crop_filter());
 };
 
 export const compute_crop_filter = (viz_state, start_coord, end_coord) => {
@@ -418,6 +416,8 @@ export const initialize_matrix_crop = (
     fade_filter: null,
     _fade_rev: existing_crop._fade_rev || 0,
     _fade_timer: null,
+    _snap_annotation_transitions: false,
+    _snap_timer: null,
     controls: null,
     overlay,
     on_mode_change: options.on_mode_change || null,
@@ -435,7 +435,7 @@ export const initialize_matrix_crop = (
         return false;
       }
 
-      if (push_history) {
+      if (push_history && viz_state.crop.history.length === 0) {
         viz_state.crop.history.push(clone_crop_state(viz_state));
       }
 
@@ -460,15 +460,14 @@ export const initialize_matrix_crop = (
       );
 
       if (current_filter[axis]) {
-        next_filter[axis] = null;
-        next_dendro_axes[axis] = null;
-      } else {
-        next_filter[axis] = Array.isArray(indices) ? indices.slice() : null;
-        next_dendro_axes[axis] = clone_dendro_crop_source(
-          crop_options.source,
-          indices
-        );
+        return clear_all_crops(deck_mat, layers_mat, viz_state);
       }
+
+      next_filter[axis] = Array.isArray(indices) ? indices.slice() : null;
+      next_dendro_axes[axis] = clone_dendro_crop_source(
+        crop_options.source,
+        indices
+      );
 
       return viz_state.crop.apply_filter(next_filter, {
         push_history: true,
@@ -502,15 +501,7 @@ export const initialize_matrix_crop = (
       viz_state.crop.set_mode(!viz_state.crop.active);
     },
     undo: () => {
-      const previous_entry = viz_state.crop.history.pop();
-      if (!previous_entry) return;
-
-      const previous = normalize_history_entry(previous_entry);
-      clear_crop_fade(viz_state);
-      viz_state.crop.set_mode(false);
-      apply_crop_filter(deck_mat, layers_mat, viz_state, previous.filter, {
-        dendro_axes: previous.dendro_axes,
-      });
+      clear_all_crops(deck_mat, layers_mat, viz_state);
     },
     on_drag_start: (info) => {
       if (

@@ -19,6 +19,7 @@ import {
   get_axis_display_count,
   get_axis_label_font_size,
 } from '../../matrix/crop_filter';
+import { emitMatrixSliceRequest } from '../../matrix/matrix_axis_slice';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
 import {
@@ -285,14 +286,13 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
   if (viz_state.labels.clicks.row === 1) {
     viz_state.click.type = 'row_label';
-    const { name } = event.object;
+    const { name, index: rowMatrixIndex } = event.object;
     // Include full entity info (entity type + attribute)
     viz_state.click.value = {
       name,
-      // New structured entity info
+      index: rowMatrixIndex,
       entity: viz_state.row_entity.entity,
       attr: viz_state.row_entity.attr,
-      // Legacy field for backwards compatibility
       row_entity: viz_state.row_entity.entity,
     };
 
@@ -304,6 +304,10 @@ const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.set('click_info', null);
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
+      emitMatrixSliceRequest(viz_state.model, 'row', {
+        index: rowMatrixIndex,
+        max_entries: -1,
+      });
     }
 
     // Sync selected row to Python model
@@ -333,14 +337,12 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
 
   if (viz_state.labels.clicks.col === 1) {
     viz_state.click.type = 'col_label';
-    const { name } = event.object;
-    // Include full entity info (entity type + attribute)
+    const { name, index: colMatrixIndex } = event.object;
     viz_state.click.value = {
       name,
-      // New structured entity info
+      index: colMatrixIndex,
       entity: viz_state.col_entity.entity,
       attr: viz_state.col_entity.attr,
-      // Legacy field for backwards compatibility
       col_entity: viz_state.col_entity.entity,
     };
 
@@ -352,6 +354,10 @@ const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
       viz_state.model.set('click_info', null);
       viz_state.model.set('click_info', viz_state.click);
       viz_state.model.save_changes();
+      emitMatrixSliceRequest(viz_state.model, 'col', {
+        index: colMatrixIndex,
+        max_entries: -1,
+      });
     }
 
     // Sync selected column to Python model

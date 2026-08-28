@@ -93,6 +93,12 @@ import {
   apply_mat_encoding,
   resolve_viz_mode,
 } from '../matrix/mat_data';
+import {
+  buildCellSlice,
+  buildColAxisSlice,
+  buildRowAxisSlice,
+  buildRowColPairSlice,
+} from '../matrix/matrix_axis_slice';
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
@@ -572,6 +578,58 @@ export const matrix_viz = async (
       });
       deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
     });
+
+    const flushMatrixSliceRequest = () => {
+      const req = viz_state.model.get('matrix_slice_request');
+      if (!req || typeof req !== 'object') return;
+      const reqId = req.req_id;
+      if (!reqId || !req.op) return;
+
+      const result = { req_id: reqId };
+      let maxEntries;
+      if (req.max_entries === undefined || req.max_entries === null) {
+        maxEntries = undefined;
+      } else {
+        const n = Number(req.max_entries);
+        maxEntries = Number.isFinite(n) ? n : undefined;
+      }
+      try {
+        if (req.op === 'row') {
+          const slice = buildRowAxisSlice(viz_state, req.index, maxEntries);
+          if (slice) Object.assign(result, slice);
+          else result.error = 'no_data';
+        } else if (req.op === 'col') {
+          const slice = buildColAxisSlice(viz_state, req.index, maxEntries);
+          if (slice) Object.assign(result, slice);
+          else result.error = 'no_data';
+        } else if (req.op === 'cell') {
+          const r = req.row;
+          const c = req.col;
+          const net = viz_state.mat?.net_mat;
+          let val = null;
+          if (net?.[r] && c >= 0 && c < net[r].length) {
+            val = net[r][c];
+          }
+          Object.assign(result, buildCellSlice(r, c, val));
+        } else if (req.op === 'row_col') {
+          const r = req.row_index;
+          const c = req.col_index;
+          const slice = buildRowColPairSlice(viz_state, r, c, maxEntries);
+          if (slice) Object.assign(result, slice);
+          else result.error = 'no_data';
+        } else {
+          result.error = 'unknown_op';
+        }
+      } catch (e) {
+        result.error = String(e?.message || e);
+      }
+
+      viz_state.model.set('matrix_slice_result', {});
+      viz_state.model.set('matrix_slice_result', result);
+      viz_state.model.save_changes();
+    };
+
+    viz_state.model.on('change:matrix_slice_request', flushMatrixSliceRequest);
   }
 
   const matrix = {

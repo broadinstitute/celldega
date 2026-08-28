@@ -245,7 +245,9 @@ export const on_view_state_change = (
 
   deck_mat.setProps({
     viewState: global_view_state,
-    layers: get_mat_layers_list(layers_mat),
+    layers: get_mat_layers_list(layers_mat, {
+      snap_annotations: viz_state.crop?._snap_annotation_transitions,
+    }),
     views: viz_state.views.views_list,
   });
 };

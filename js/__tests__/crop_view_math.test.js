@@ -41,17 +41,35 @@ describe('compute_crop_filter', () => {
       const toggle_dendro_layer_visibility = () => {};
       const set_dendro_layer_onclick = () => {};
       const set_dendro_layer_onhover = () => {};
-      const get_mat_layers_list = (layers_mat) => [
-        layers_mat.mat_layer,
-        layers_mat.row_cat_layer,
-        layers_mat.col_cat_layer,
-        layers_mat.row_label_layer,
-        layers_mat.col_label_layer,
-        layers_mat.row_dendro_layer,
-        layers_mat.col_dendro_layer,
-        layers_mat.col_attr_label_layer,
-        layers_mat.row_attr_label_layer,
-      ].filter(Boolean);
+      const SNAP_ANNOTATION_LAYER_IDS = new Set([
+        'row-layer',
+        'col-layer',
+        'row-label-layer',
+        'col-label-layer',
+        'row-attr-label-layer',
+        'col-attr-label-layer',
+      ]);
+      const get_mat_layers_list = (layers_mat, options = {}) => {
+        const layers = [
+          layers_mat.mat_layer,
+          layers_mat.row_cat_layer,
+          layers_mat.col_cat_layer,
+          layers_mat.row_label_layer,
+          layers_mat.col_label_layer,
+          layers_mat.row_dendro_layer,
+          layers_mat.col_dendro_layer,
+          layers_mat.col_attr_label_layer,
+          layers_mat.row_attr_label_layer,
+        ].filter(Boolean);
+
+        return options.snap_annotations
+          ? layers.map((layer) =>
+              SNAP_ANNOTATION_LAYER_IDS.has(layer.id)
+                ? layer.clone({ transitions: false })
+                : layer
+            )
+          : layers;
+      };
       const mat_reorder_triggers = () => ({});
       const redefine_global_view_state = () => ({});
       const ini_views = () => {};
@@ -394,7 +412,7 @@ describe('compute_crop_filter', () => {
     expect(controls.set_undo_enabled).toHaveBeenLastCalledWith(true);
   });
 
-  test('axis crop toggles off an already cropped axis', () => {
+  test('undo clears composed crops back to the uncropped state', () => {
     const base_mat = makeVizState().mat;
     const viz_state = {
       ...makeVizState(),
@@ -435,8 +453,63 @@ describe('compute_crop_filter', () => {
       indices: [1, 2],
     });
 
+    expect(
+      viz_state.crop.apply_axis_crop('col', [1, 2], {
+        source: { name: 'cluster-c', indices: [1, 2] },
+      })
+    ).toBe(true);
+    expect(viz_state.crop.filter).toEqual({ row: [2, 1], col: [2, 1] });
+
+    viz_state.crop.undo();
+
+    expect(viz_state.crop.filter).toEqual({ row: null, col: null });
+    expect(viz_state.crop.dendro_axes).toEqual({ row: null, col: null });
+    expect(viz_state.crop.history).toEqual([]);
+  });
+
+  test('double clicking an already cropped dendrogram axis clears all crops', () => {
+    const base_mat = makeVizState().mat;
+    const viz_state = {
+      ...makeVizState(),
+      root: document.createElement('div'),
+      dendro: {},
+      mat: {
+        ...base_mat,
+        viz_mode: 'heatmap',
+        comp_hover_row: null,
+        comp_hover_col: null,
+      },
+      obs_store: {},
+      zoom: {
+        ini_zoom_x: 0,
+        ini_zoom_y: 0,
+        zoom_data: {
+          total_zoom: {},
+        },
+      },
+      views: {
+        views_list: [],
+      },
+      animate: {
+        duration: 250,
+      },
+    };
+
+    initialize_matrix_crop({ setProps: jest.fn() }, {}, viz_state);
+
+    expect(
+      viz_state.crop.apply_axis_crop('row', [1, 2], {
+        source: { name: 'cluster-r', indices: [1, 2] },
+      })
+    ).toBe(true);
+    expect(
+      viz_state.crop.apply_axis_crop('col', [1, 2], {
+        source: { name: 'cluster-c', indices: [1, 2] },
+      })
+    ).toBe(true);
+
     expect(viz_state.crop.apply_axis_crop('row', [1, 2])).toBe(true);
     expect(viz_state.crop.filter).toEqual({ row: null, col: null });
-    expect(viz_state.crop.dendro_axes.row).toBe(null);
+    expect(viz_state.crop.dendro_axes).toEqual({ row: null, col: null });
   });
 });

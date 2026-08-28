@@ -3,6 +3,15 @@ import {
   crop_filter_signature,
 } from '../../matrix/crop_filter';
 
+const SNAP_ANNOTATION_LAYER_IDS = new Set([
+  'row-layer',
+  'col-layer',
+  'row-label-layer',
+  'col-label-layer',
+  'row-attr-label-layer',
+  'col-attr-label-layer',
+]);
+
 export const get_matrix_body_layer_id = (viz_state) => {
   const rev = viz_state.mat?._body_layer_rev || 0;
   return rev > 0 ? `mat-layer-${rev}` : 'mat-layer';
@@ -41,7 +50,8 @@ export const mat_reorder_triggers = (viz_state, extra = []) => {
   };
 };
 
-export const get_mat_layers_list = (layers_mat) => {
+export const get_mat_layers_list = (layers_mat, options = {}) => {
+  const { snap_annotations = false } = options;
   const layers_list = [
     layers_mat.mat_layer,
     layers_mat.row_cat_layer,
@@ -60,7 +70,15 @@ export const get_mat_layers_list = (layers_mat) => {
     layers_list.push(layers_mat.row_attr_label_layer);
   }
 
-  return layers_list;
+  if (!snap_annotations) {
+    return layers_list;
+  }
+
+  return layers_list.map((layer) =>
+    layer && SNAP_ANNOTATION_LAYER_IDS.has(layer.id)
+      ? layer.clone({ transitions: false })
+      : layer
+  );
 };
 
 export const layer_filter = ({ layer, viewport }) => {

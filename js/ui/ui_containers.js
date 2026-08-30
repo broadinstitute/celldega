@@ -44,7 +44,7 @@ import {
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
-import { set_gene_search } from './gene_search';
+import { set_gene_search, set_matrix_row_search } from './gene_search';
 import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
@@ -332,58 +332,36 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   ui_container.appendChild(slider_container);
 
   // ---------------------------------------------------------------------
-  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
-  // (composition only). Mounted to the right of the reorder buttons, always
-  // present but shown/hidden per `viz_mode` (see `update_mode_button_visibility`).
+  // Matrix actions: Crop/Undo stays above the body-mode toggles so the
+  // selection workflow is visually separate from tile encoding controls.
   // ---------------------------------------------------------------------
+  const action_container = flex_container('matrix_action_container', 'column');
+  action_container.style.alignItems = 'flex-start';
+  action_container.style.marginTop = '4px';
+  action_container.style.marginLeft = '10px';
+  action_container.style.flexShrink = '0';
+
+  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
+  // (composition only). Shown/hidden per `viz_mode`
+  // (see `update_mode_button_visibility`).
   const mode_container = flex_container('mode_container', 'row');
-  // Top-align with the first reorder-button row (ctrl_container's own
-  // marginTop, below), not vertically centered against the taller sibling
-  // columns to its left.
+  // This sits below Crop/Undo in action_container.
   mode_container.style.alignItems = 'flex-start';
-  mode_container.style.marginTop = '10px';
-  mode_container.style.marginLeft = '10px';
+  mode_container.style.marginTop = '6px';
+  mode_container.style.marginLeft = '0px';
   mode_container.style.flexShrink = '0';
-
-  // Titled group wrapper (e.g. "TILE:" + a toggle group), shown/hidden as one
-  // unit so a title never dangles without its buttons.
-  const make_titled_group = (title, build_group) => {
-    const wrapper = document.createElement('div');
-    wrapper.style.display = 'inline-flex';
-    wrapper.style.alignItems = 'center';
-    mode_container.appendChild(wrapper);
-
-    d3.select(wrapper)
-      .append('div')
-      .text(title)
-      .style('font-size', '9px')
-      .style('font-weight', 'bold')
-      .style('color', 'black')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
-
-    const group = build_group(wrapper);
-    group.container.style.marginLeft = '4px';
-    return { wrapper, group };
-  };
 
   // dot_size_encoded: true -> size encodes the fraction/dot matrix ("PROP"),
   // false -> forced to a full, unit-scaled tile ("UNIT").
-  const { wrapper: dot_wrapper, group: dot_toggle } = make_titled_group(
-    'TILE:',
-    (container) =>
-      make_text_toggle_group(
-        container,
-        [
-          { label: 'prop', value: true },
-          { label: 'unit', value: false },
-        ],
-        viz_state.mat.dot_size_encoded,
-        (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
-        viz_state
-      )
+  const dot_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'prop', value: true },
+      { label: 'unit', value: false },
+    ],
+    viz_state.mat.dot_size_encoded,
+    (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
+    viz_state
   );
 
   const normalized_toggle = make_text_toggle_group(
@@ -397,20 +375,18 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       set_composition_normalized(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
-  normalized_toggle.container.style.marginLeft = '10px';
+  normalized_toggle.container.style.marginLeft = '0px';
 
   viz_state.mode_buttons = {
-    dot: { container: dot_wrapper, setActive: dot_toggle.setActive },
+    dot: dot_toggle,
     normalized: normalized_toggle,
   };
   update_mode_button_visibility(viz_state);
 
-  ui_container.appendChild(mode_container);
-
   const crop_container = flex_container('crop_container', 'row');
   crop_container.style.alignItems = 'flex-start';
-  crop_container.style.marginTop = '10px';
-  crop_container.style.marginLeft = '10px';
+  crop_container.style.marginTop = '0px';
+  crop_container.style.marginLeft = '0px';
   crop_container.style.flexShrink = '0';
 
   const crop_button = d3
@@ -458,7 +434,14 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     },
   });
 
-  ui_container.appendChild(crop_container);
+  action_container.appendChild(crop_container);
+  action_container.appendChild(mode_container);
+  ui_container.appendChild(action_container);
+
+  const row_search = set_matrix_row_search(viz_state, (row_index) =>
+    viz_state.focus_row?.(row_index)
+  );
+  ui_container.appendChild(row_search);
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);
@@ -1182,6 +1165,19 @@ export const make_ist_ui_container = (
 
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
+
+  const sync_clustergram_search_owner = () => {
+    const clustergram_owns_search =
+      viz_state.model?.get('clustergram_search_owner') === true;
+    viz_state.genes.gene_search.style.display = clustergram_owns_search
+      ? 'none'
+      : '';
+  };
+  sync_clustergram_search_owner();
+  viz_state.model?.on(
+    'change:clustergram_search_owner',
+    sync_clustergram_search_owner
+  );
 
   // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
   //   const current = d3.select(event.currentTarget);

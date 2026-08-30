@@ -319,6 +319,9 @@ class Landscape(anywidget.AnyWidget):
 
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
+    # Set by ``spatial_clustergram`` so the linked Clustergram owns the
+    # shared gene/row search and Landscape does not render a duplicate input.
+    clustergram_search_owner = traitlets.Bool(False).tag(sync=True)
 
     # AnnData obs columns (cell attributes)
     cell_attr = traitlets.List(
@@ -1280,6 +1283,9 @@ class Clustergram(anywidget.AnyWidget):
 
     # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    # A gene selected in Enrich. The Clustergram front-end centers its matching
+    # row without replacing the current enrichment gene set.
+    focused_gene = traitlets.Unicode("").tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
     row_names = traitlets.List(default_value=[]).tag(sync=True)

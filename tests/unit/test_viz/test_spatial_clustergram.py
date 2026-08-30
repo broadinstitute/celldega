@@ -48,6 +48,9 @@ def test_spatial_clustergram_links_update_trigger_for_every_spatial_widget(widge
     assert spatial in box.children
     assert cgm in box.children
 
+    if isinstance(spatial, Landscape):
+        assert spatial.clustergram_search_owner is True
+
     # jslink is front-end-only, but clicking the Clustergram row/col also
     # calls trigger_update via the front end; here we only assert the link
     # itself was established without raising (widget_cls must expose
@@ -94,6 +97,12 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     }
     cgm.selected_genes = ["g2", "g3"]
 
+    assert enrich.gene_list == ["g2", "g3"]
+
+    # Clicking a gene in Enrich focuses the matching Clustergram row without
+    # changing the enrichment gene list.
+    enrich.focused_gene = "g1"
+    assert cgm.focused_gene == "g1"
     assert enrich.gene_list == ["g2", "g3"]
 
 

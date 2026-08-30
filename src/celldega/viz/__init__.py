@@ -89,6 +89,12 @@ def spatial_clustergram(
     # Link clustergram click_info to the spatial widget's update_trigger
     jslink((mat, "click_info"), (spatial, "update_trigger"))
 
+    # Keep a single gene-search control in linked Landscape/Clustergram
+    # layouts. The Clustergram can also search generic row names, so it is the
+    # more complete owner of this shared workflow.
+    if isinstance(spatial, Landscape):
+        spatial.clustergram_search_owner = True
+
     # Layouts
     mat.layout = Layout(width=width)
     spatial.layout = Layout(width=width, height=height)
@@ -106,6 +112,7 @@ def spatial_clustergram(
 
         def _forward_gene_to_spatial(gene: str) -> None:
             if gene:
+                mat.focused_gene = gene
                 spatial.trigger_update({"type": "row_label", "value": {"name": gene}})
 
         _link_clustergram_to_enrich(
@@ -249,11 +256,16 @@ def clustergram_enrich(
 
     enrich = Enrich(gene_list=[], width=250)
 
+    def _focus_gene_in_clustergram(gene: str) -> None:
+        if gene:
+            cgm.focused_gene = gene
+
     _link_clustergram_to_enrich(
         cgm,
         enrich,
         row_enrich=row_enrich,
         col_enrich=col_enrich,
+        gene_focus_callback=_focus_gene_in_clustergram,
     )
 
     return HBox([cgm, enrich], layout=Layout(width="1000px"))

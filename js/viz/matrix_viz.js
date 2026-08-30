@@ -67,6 +67,7 @@ import {
 } from '../deck-gl/matrix/matrix_layers';
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip';
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change';
+import { focus_matrix_row } from '../deck-gl/matrix/row_search';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 import { ini_zoom_data } from '../deck-gl/matrix/zoom';
 import {
@@ -182,6 +183,8 @@ export const matrix_viz = async (
   // Store references on viz_state for use by UI components (e.g., bar graph hover)
   viz_state.deck_mat = deck_mat;
   viz_state.layers_mat = layers_mat;
+  viz_state.focus_row = (row_index) =>
+    focus_matrix_row(deck_mat, layers_mat, viz_state, row_index);
 
   // ---------------------------------------------------------------------------
   // Body mode: heatmap/size/dotplot (square grid) vs composition (stacked bars).
@@ -465,6 +468,15 @@ export const matrix_viz = async (
         viz_state.model.get('selected_genes') || []
       );
     });
+
+    viz_state.model.on('change:focused_gene', () => {
+      viz_state.row_search?.focus(viz_state.model.get('focused_gene') || '');
+    });
+
+    const focused_gene = viz_state.model.get('focused_gene') || '';
+    if (focused_gene) {
+      viz_state.row_search?.focus(focused_gene);
+    }
 
     viz_state.model.on('change:top_n_genes', () => {
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;

@@ -5,7 +5,10 @@ const axis_span = (viz_state, axis) =>
   axis === 'row' ? viz_state.viz.mat_height : viz_state.viz.mat_width;
 
 const MAX_FILTER_FONT_SIZE = 24;
-const MAX_ZOOM_FONT_SIZE = 28;
+// TextLayer uses `sizeScale: 2`, so a 10-unit cap renders at roughly 20 px.
+// Stop label growth at that readable density; subsequent scroll zoom reveals
+// more rows/columns instead of enlarging the labels until they are clipped.
+const MAX_ZOOM_FONT_SIZE = 10;
 const FILTER_FONT_SLOT_FACTOR = 0.45;
 const CROP_FADE_ALPHA = 0;
 

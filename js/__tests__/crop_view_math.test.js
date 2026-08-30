@@ -335,11 +335,20 @@ describe('compute_crop_filter', () => {
     expect(get_axis_label_font_size(filtered, 'col')).toBeCloseTo(50 / 3);
   });
 
-  test('zoomed label sizing is capped but still grows from the crop-aware base', () => {
+  test('zoomed label sizing caps at a readable density', () => {
     const viz_state = makeVizState({ row: [1, 2], col: [1, 2, 3] });
 
     expect(get_zoomed_axis_label_font_size(viz_state, 'row', 0)).toBe(24);
-    expect(get_zoomed_axis_label_font_size(viz_state, 'row', 4)).toBe(28);
+    // A crop's base size can already exceed the normal zoom cap.
+    expect(get_zoomed_axis_label_font_size(viz_state, 'row', 4)).toBe(24);
+
+    const dense_gene_matrix = makeVizState();
+    dense_gene_matrix.mat.num_rows = 100;
+    dense_gene_matrix.viz.row_offset = 0.8;
+    dense_gene_matrix.viz.font_size.rows = 0.5;
+    expect(get_zoomed_axis_label_font_size(dense_gene_matrix, 'row', 6)).toBe(
+      10
+    );
   });
 
   test('crop fade helpers hide marks outside the pending filter', () => {

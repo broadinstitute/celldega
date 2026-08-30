@@ -1,3 +1,4 @@
+import { sync_selected_genes } from '../../global_variables/selected_genes';
 import {
   refresh_row_label_visibility,
   set_composition_colors,
@@ -153,6 +154,49 @@ const empty_crop_filter = () => ({
   row: null,
   col: null,
 });
+
+export const sync_gene_row_crop_selection = (viz_state) => {
+  const row_entity =
+    viz_state.row_entity?.entity ?? viz_state.row_entity ?? null;
+  if (String(row_entity).toLowerCase() !== 'gene') return [];
+
+  const row_indices = viz_state.crop?.filter?.row;
+  if (!Array.isArray(row_indices) || row_indices.length === 0) return [];
+
+  const genes = Array.from(
+    new Set(
+      row_indices
+        .map(
+          (index) =>
+            viz_state.row_nodes?.[index]?.name ||
+            viz_state.labels?.row_label_data?.[index]?.name
+        )
+        .filter(Boolean)
+        .map((name) => String(name))
+    )
+  );
+  if (genes.length === 0) return [];
+
+  viz_state.click = {
+    type: 'row_crop',
+    value: {
+      selected_names: genes,
+      selected_indices: row_indices.slice(),
+      entity: viz_state.row_entity.entity,
+      attr: viz_state.row_entity.attr,
+      row_entity: viz_state.row_entity.entity,
+      row_entity_full: viz_state.row_entity,
+    },
+  };
+
+  if (viz_state.model?.set) {
+    viz_state.model.set('click_info', null);
+    viz_state.model.set('click_info', viz_state.click);
+  }
+
+  sync_selected_genes(viz_state, genes);
+  return genes;
+};
 
 const axis_has_crop_filter = (viz_state, axis) =>
   Array.isArray(viz_state.crop?.filter?.[axis]) &&
@@ -354,6 +398,7 @@ const apply_crop_filter = (
   clear_crop_display_cache(viz_state);
   clear_crop_interaction_state(deck_mat, layers_mat, viz_state);
   refresh_filtered_layers(deck_mat, layers_mat, viz_state);
+  sync_gene_row_crop_selection(viz_state);
 
   reset_view_to_filter(deck_mat, layers_mat, viz_state, {
     snap_annotations: true,

@@ -16,6 +16,8 @@ describe('compute_crop_filter', () => {
   let initialize_matrix_crop;
   let normalize_crop_filter;
   let screen_to_matrix_world;
+  let sync_gene_row_crop_selection;
+  let crop_gene_sync_calls;
 
   beforeAll(() => {
     const fs = require('fs');
@@ -111,9 +113,13 @@ describe('compute_crop_filter', () => {
       const set_col_label_layer_onhover = () => {};
       const set_cat_layer_handlers = () => {};
       const set_composition_colors = () => {};
+      const crop_gene_sync_calls = [];
+      const sync_selected_genes = (_viz_state, genes) => {
+        crop_gene_sync_calls.push(genes);
+      };
     `;
 
-    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_filter_signature, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_cat_data, filter_label_data, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world };`;
+    const code = `${shims}\n${cropFilterSource}\n${cropSource}\nmodule.exports = { compute_crop_filter, crop_filter_signature, crop_fade_alpha_factor, crop_fade_axis_alpha_factor, filter_cat_data, filter_label_data, filter_matrix_data, get_axis_center_position, get_axis_display_count, get_axis_label_font_size, get_zoomed_axis_label_font_size, get_default_pan, initialize_matrix_crop, normalize_crop_filter, screen_to_matrix_world, sync_gene_row_crop_selection, crop_gene_sync_calls };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({
@@ -132,6 +138,8 @@ describe('compute_crop_filter', () => {
       initialize_matrix_crop,
       normalize_crop_filter,
       screen_to_matrix_world,
+      sync_gene_row_crop_selection,
+      crop_gene_sync_calls,
     } = module.exports);
   });
 
@@ -217,6 +225,28 @@ describe('compute_crop_filter', () => {
 
     expect(filter.row).toEqual([2, 1]);
     expect(filter.col).toEqual([3, 2, 1]);
+  });
+
+  test('forwards only gene-row crop selections to the shared gene state', () => {
+    crop_gene_sync_calls.length = 0;
+    const viz_state = makeVizState({ row: [2, 1], col: [1, 2] });
+    viz_state.row_entity = { entity: 'gene', attr: 'symbol' };
+    viz_state.row_nodes = Array.from({ length: 4 }, (_, index) => ({
+      name: `gene-${index}`,
+    }));
+    viz_state.model = { set: jest.fn(), save_changes: jest.fn() };
+
+    expect(sync_gene_row_crop_selection(viz_state)).toEqual([
+      'gene-2',
+      'gene-1',
+    ]);
+    expect(crop_gene_sync_calls).toEqual([['gene-2', 'gene-1']]);
+    expect(viz_state.click.type).toBe('row_crop');
+    expect(viz_state.click.value.selected_names).toEqual(['gene-2', 'gene-1']);
+
+    viz_state.row_entity = { entity: 'cell', attr: 'leiden' };
+    expect(sync_gene_row_crop_selection(viz_state)).toEqual([]);
+    expect(crop_gene_sync_calls).toEqual([['gene-2', 'gene-1']]);
   });
 
   test('filters matrix data and rescales display positions after crop', () => {

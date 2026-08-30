@@ -87,6 +87,15 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
 
     assert enrich.gene_list == ["g0", "g1"]
 
+    # Gene row crops are also meaningful enrichment gene sets.
+    cgm.click_info = {
+        "type": "row_crop",
+        "value": {"selected_names": ["g2", "g3"]},
+    }
+    cgm.selected_genes = ["g2", "g3"]
+
+    assert enrich.gene_list == ["g2", "g3"]
+
 
 def test_spatial_clustergram_yearbook_uses_front_end_query():
     yearbook = Yearbook(base_url="https://example.com/data")

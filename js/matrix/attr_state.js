@@ -6,6 +6,7 @@ import {
   mat_reorder_triggers,
 } from '../deck-gl/matrix/matrix_layers';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
+import { update_zoom_data } from '../deck-gl/matrix/zoom';
 
 import { colorToRgba } from './cat_data';
 import {
@@ -233,7 +234,17 @@ export const initialize_attr_state = (viz_state, network) => {
 };
 
 export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
+  const previous_geometry = {
+    mat_width: viz_state.viz.mat_width,
+    mat_height: viz_state.viz.mat_height,
+    row_region: viz_state.viz.row_region,
+    col_region: viz_state.viz.col_region,
+  };
+
   compute_geometry(viz_state);
+  const geometry_changed = Object.entries(previous_geometry).some(
+    ([key, value]) => value !== viz_state.viz[key]
+  );
   clear_crop_display_cache(viz_state);
 
   const row_data = build_cat_data_for_axis(viz_state, 'row');
@@ -322,6 +333,18 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   if (!viz_state.attr.did_initialize) {
     props.initialViewState = view_state;
     viz_state.attr.did_initialize = true;
+  } else if (geometry_changed) {
+    // A manual attribute can arrive after the first render and shrink the
+    // matrix viewport. Reset the linked views and zoom bookkeeping together,
+    // just as crop reset does, so the initial dendrogram spacing immediately
+    // reflects the reduced matrix area instead of waiting for a scroll event.
+    const zoom = [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y];
+    const pan = view_state.matrix.target;
+
+    update_zoom_data(viz_state, 'matrix', zoom, pan);
+    viz_state.zoom.zoom_data.total_zoom.x = zoom[0];
+    viz_state.zoom.zoom_data.total_zoom.y = zoom[1];
+    props.viewState = view_state;
   }
 
   deck_mat.setProps(props);

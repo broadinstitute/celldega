@@ -1,5 +1,6 @@
 import * as d3 from 'd3-color';
 
+import { refresh_dendro_for_viz_mode } from '../deck-gl/matrix/dendro_layers';
 import {
   get_mat_layers_list,
   mat_reorder_triggers,
@@ -302,6 +303,13 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
       getSize: crop_sig,
     },
   });
+
+  // `compute_geometry` can change mat_width, which is the coordinate system
+  // shared by the matrix columns, their labels, and the column dendrogram.
+  // Rebuild both dendrograms after that geometry update. Crop already follows
+  // this order; without it, the first render can retain polygons calculated
+  // with the pre-refresh column width until a crop happens to rebuild them.
+  refresh_dendro_for_viz_mode(layers_mat, viz_state);
 
   ini_views(viz_state);
   const view_state = ini_view_state(viz_state);

@@ -177,16 +177,10 @@ def _link_clustergram_to_enrich(
         click_value = click_info.get("value") or {}
         selected_names = click_value.get("selected_names") or []
 
-        # A row label denotes one gene, not a gene set, so enrichment is not
-        # meaningful for that interaction. Keep the enrichment panel clear
-        # even though the selected_genes trait is still useful elsewhere
-        # (for example, to focus a spatial view on the clicked gene).
-        if (
-            click_type == "row_label"
-            and len(genes) == 1
-            and genes[0] == click_value.get("name")
-        ):
-            _set_gene_list([])
+        # A row label selects one gene for linked views, but it is not an
+        # enrichment gene set. Preserve the current enrichment result instead
+        # of replacing or clearing it.
+        if click_type == "row_label":
             return
 
         is_dendro = click_type.startswith(("row", "col"))
@@ -217,9 +211,7 @@ def _link_clustergram_to_enrich(
                 return
             if selected_names:
                 cgm.selected_genes = list(selected_names)
-        elif click_type == "row_label":
-            _set_gene_list([])
-        elif click_type.startswith("row"):
+        elif click_type.startswith("row") and click_type != "row_label":
             if not row_enrich:
                 _set_gene_list([])
 

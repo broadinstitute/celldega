@@ -66,15 +66,16 @@ def test_landscape_clustergram_is_still_a_working_alias():
     assert cgm in box.children
 
 
-def test_clustergram_enrich_ignores_a_single_row_label():
+def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     cgm = _clustergram()
     box = clustergram_enrich(cgm)
     enrich = box.children[1]
 
+    enrich.gene_list = ["g0", "g1"]
     cgm.click_info = {"type": "row_label", "value": {"name": "g1"}}
     cgm.selected_genes = ["g1"]
 
-    assert enrich.gene_list == []
+    assert enrich.gene_list == ["g0", "g1"]
 
     # Row dendrogram selections remain meaningful gene sets and continue to
     # populate the enrichment widget under the default configuration.

@@ -9,6 +9,19 @@ import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { update_zoom_data } from './zoom';
 
+// Label and dendrogram viewports have their own local coordinate systems.
+// Map a scroll gesture from one of those viewports to the matching *matrix*
+// edge, rather than treating the pointer's local position as a matrix target.
+// `curate_pan_*` turns the sentinels into the current finite pan bounds.
+export const get_matrix_edge_zoom_target = (viewId, target) => {
+  if (viewId === 'rows') return [Number.NEGATIVE_INFINITY, target[1]];
+  if (viewId === 'dendro_rows') return [Number.POSITIVE_INFINITY, target[1]];
+  if (viewId === 'cols') return [target[0], Number.NEGATIVE_INFINITY];
+  if (viewId === 'dendro_cols') return [target[0], Number.POSITIVE_INFINITY];
+
+  return target;
+};
+
 export const on_view_state_change = (
   params,
   deck_mat,
@@ -142,15 +155,7 @@ export const on_view_state_change = (
     zoom_curated_x = viz_state.zoom.ini_zoom_x;
   }
 
-  const current_matrix_pan = viz_state.zoom.zoom_data.matrix;
-  const target_x =
-    viewId === 'rows' || viewId === 'dendro_rows'
-      ? current_matrix_pan.pan_x
-      : target[0];
-  const target_y =
-    viewId === 'cols' || viewId === 'dendro_cols'
-      ? current_matrix_pan.pan_y
-      : target[1];
+  const [target_x, target_y] = get_matrix_edge_zoom_target(viewId, target);
 
   let pan_curated_x = curate_pan_x(target_x, zoom_curated_x, viz_state);
   const pan_curated_y = curate_pan_y(target_y, zoom_curated_y, viz_state);

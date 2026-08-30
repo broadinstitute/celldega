@@ -18,6 +18,7 @@ try:
         Landscape,
         NeighborhoodCloud,
         Yearbook,
+        clustergram_enrich,
         landscape_clustergram,
         spatial_clustergram,
     )
@@ -63,6 +64,27 @@ def test_landscape_clustergram_is_still_a_working_alias():
     assert isinstance(box, HBox)
     assert landscape in box.children
     assert cgm in box.children
+
+
+def test_clustergram_enrich_ignores_a_single_row_label():
+    cgm = _clustergram()
+    box = clustergram_enrich(cgm)
+    enrich = box.children[1]
+
+    cgm.click_info = {"type": "row_label", "value": {"name": "g1"}}
+    cgm.selected_genes = ["g1"]
+
+    assert enrich.gene_list == []
+
+    # Row dendrogram selections remain meaningful gene sets and continue to
+    # populate the enrichment widget under the default configuration.
+    cgm.click_info = {
+        "type": "row_dendro",
+        "value": {"selected_names": ["g0", "g1"]},
+    }
+    cgm.selected_genes = ["g0", "g1"]
+
+    assert enrich.gene_list == ["g0", "g1"]
 
 
 def test_spatial_clustergram_yearbook_uses_front_end_query():

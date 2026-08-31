@@ -4,7 +4,6 @@ import { refresh_row_label_visibility } from '../../matrix/composition_data';
 import { get_zoomed_axis_label_font_size } from '../../matrix/crop_filter';
 
 import { curate_pan_x, curate_pan_y } from './curate_pan';
-import { clear_dendro_focus } from './dendro_layers';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { update_zoom_data } from './zoom';
@@ -33,17 +32,11 @@ export const on_view_state_change = (
 
   const { zoom, target } = viewState;
 
-  const interaction = params.interactionState || {};
-  const is_user_view_interaction =
-    interaction.isZooming || interaction.isPanning || interaction.isDragging;
-
-  if (is_user_view_interaction && !viz_state.dendro?._suppress_focus_clear) {
-    clear_dendro_focus(deck_mat, layers_mat, viz_state, { render: false });
-  }
-
-  if (viz_state.dendro?._suppress_focus_clear && !is_user_view_interaction) {
-    return;
-  }
+  // Note: view-state changes deliberately do not touch the dendrogram
+  // pending-click state. Scroll-zoom and pan-inertia events keep arriving for
+  // hundreds of ms, and cancelling queued clicks here silently swallowed
+  // legitimate dendrogram clicks (and split double-clicks) that landed while
+  // the view was still settling.
 
   // zoom differentials are calculated before the redefine_global_view_state function
 

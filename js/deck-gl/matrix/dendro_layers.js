@@ -65,22 +65,6 @@ const polygon_props_from_pick_info = (info) => {
   };
 };
 
-const point_in_polygon = (point, polygon) => {
-  const [x, y] = point;
-  let inside = false;
-
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const [xi, yi] = polygon[i];
-    const [xj, yj] = polygon[j];
-    const intersects =
-      yi > y !== yj > y &&
-      x < ((xj - xi) * (y - yi)) / (yj - yi || Number.EPSILON) + xi;
-    if (intersects) inside = !inside;
-  }
-
-  return inside;
-};
-
 const point_in_viewport = (viewport, x, y) =>
   x >= viewport.x - DENDRO_CLICK_VIEWPORT_TOLERANCE &&
   x <= viewport.x + viewport.width + DENDRO_CLICK_VIEWPORT_TOLERANCE &&
@@ -112,7 +96,7 @@ const manual_pick_dendro_polygon = (deck_mat, layers_mat, viz_state, x, y) => {
     if (!Array.isArray(point)) continue;
 
     const polygon = viz_state.dendro.polygons?.[axis]?.find((candidate) =>
-      point_in_polygon(point, candidate.coordinates)
+      d3.polygonContains(candidate.coordinates, point)
     );
     if (polygon) {
       return {
@@ -894,13 +878,17 @@ const queue_single_click = (
   }, DOUBLE_CLICK_DELAY);
 };
 
+// Double-click detection rests entirely on the pending-click timer: a second
+// click on the same trapezoid within DOUBLE_CLICK_DELAY crops. The browser's
+// native `detail` counter is deliberately not used — its ~500ms window
+// outlives the 350ms timer, so a slower second click (which the user means as
+// a toggle-off of the applied selection) would crop instead.
 const handle_dendro_polygon_click = (
   deck_mat,
   layers_mat,
   viz_state,
   axis,
-  polygon_props,
-  is_double_click = false
+  polygon_props
 ) => {
   if (!axis || !polygon_props) {
     return;
@@ -908,12 +896,6 @@ const handle_dendro_polygon_click = (
 
   ensure_click_tracking(viz_state);
   const pending = viz_state.dendro.pending_click[axis];
-
-  if (is_double_click && (!pending || pending.name === polygon_props.name)) {
-    clear_pending_axis_click(viz_state, axis);
-    apply_double_click_crop(viz_state, axis, polygon_props);
-    return;
-  }
 
   if (!viz_state.dendro.click_timeouts[axis]) {
     queue_single_click(deck_mat, layers_mat, viz_state, axis, polygon_props);
@@ -931,7 +913,28 @@ const handle_dendro_polygon_click = (
   queue_single_click(deck_mat, layers_mat, viz_state, axis, polygon_props);
 };
 
+// Strict (no-tolerance) containment: only clicks that land inside a
+// dendrogram viewport are treated as dendrogram clicks. Without this gate,
+// pickObject's pick radius would also claim clicks in the adjacent band of
+// matrix cells, which deck.gl has already delivered to the cell onClick —
+// double-handling one physical click.
+const point_in_dendro_viewport_bounds = (deck_mat, x, y) => {
+  const viewports = deck_mat.viewManager?.getViewports?.() || [];
+  return viewports.some(
+    (viewport) =>
+      (viewport.id === 'dendro_rows' || viewport.id === 'dendro_cols') &&
+      x >= viewport.x &&
+      x <= viewport.x + viewport.width &&
+      y >= viewport.y &&
+      y <= viewport.y + viewport.height
+  );
+};
+
 const pick_dendro_polygon_at = (deck_mat, layers_mat, viz_state, x, y) => {
+  if (!point_in_dendro_viewport_bounds(deck_mat, x, y)) {
+    return { axis: null, polygon_props: null };
+  }
+
   if (typeof deck_mat.pickObject === 'function') {
     const info = deck_mat.pickObject({
       x,
@@ -959,21 +962,35 @@ const pick_dendro_polygon_at = (deck_mat, layers_mat, viz_state, x, y) => {
   return manual_pick_dendro_polygon(deck_mat, layers_mat, viz_state, x, y);
 };
 
+// A DOM 'click' fires on mouseup even after a drag (there is no movement
+// threshold in the click event, unlike deck.gl's tap recognizer), so a pan
+// that ends over a trapezoid would register as a selection. Track the
+// pointer-down position and ignore clicks that moved more than a few pixels.
+const DENDRO_CLICK_MAX_DRAG_PX = 5;
+
 const ensure_native_dendro_click = (deck_mat, layers_mat, viz_state) => {
   if (viz_state.dendro._native_click_handler) {
     return;
   }
 
-  if (viz_state.dendro._native_dblclick_handler) {
-    viz_state.root?.removeEventListener?.(
-      'dblclick',
-      viz_state.dendro._native_dblclick_handler
-    );
-    viz_state.dendro._native_dblclick_handler = null;
-  }
+  viz_state.dendro._native_pointerdown_handler = (native_event) => {
+    viz_state.dendro._native_click_start = {
+      x: native_event.clientX,
+      y: native_event.clientY,
+    };
+  };
 
   viz_state.dendro._native_click_handler = (native_event) => {
     if (native_event.button > 0) return;
+
+    const start = viz_state.dendro._native_click_start;
+    if (
+      start &&
+      (Math.abs(native_event.clientX - start.x) > DENDRO_CLICK_MAX_DRAG_PX ||
+        Math.abs(native_event.clientY - start.y) > DENDRO_CLICK_MAX_DRAG_PX)
+    ) {
+      return;
+    }
 
     const rect =
       deck_mat.canvas?.getBoundingClientRect?.() ||
@@ -1000,11 +1017,15 @@ const ensure_native_dendro_click = (deck_mat, layers_mat, viz_state) => {
       layers_mat,
       viz_state,
       axis,
-      polygon_props,
-      native_event.detail >= 2
+      polygon_props
     );
   };
 
+  viz_state.root?.addEventListener?.(
+    'pointerdown',
+    viz_state.dendro._native_pointerdown_handler,
+    true
+  );
   viz_state.root?.addEventListener?.(
     'click',
     viz_state.dendro._native_click_handler,

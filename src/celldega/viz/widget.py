@@ -10,7 +10,6 @@ import json
 import os
 from pathlib import Path
 import re
-import time
 from typing import Any, Literal
 import urllib.error
 from urllib.parse import urlparse
@@ -1678,7 +1677,11 @@ class Clustergram(anywidget.AnyWidget):
         if max_entries is not None:
             payload["max_entries"] = int(max_entries)
 
-        self.matrix_slice_result = {}
+        # Deliberately do not blank matrix_slice_result here: it is a shared
+        # mailbox that click-driven front-end slices also write, and clearing
+        # it would destroy a concurrent caller's not-yet-read response. The
+        # per-request UUID makes stale reads impossible for req_id-checking
+        # consumers.
         self.matrix_slice_request = {}
         self.matrix_slice_request = payload
         return req_id
@@ -1694,32 +1697,46 @@ class Clustergram(anywidget.AnyWidget):
         col_index: int | None = None,
         max_entries: int | None = None,
         timeout: float = 5.0,
-        poll_interval: float = 0.02,
     ) -> dict | None:
         """Request a browser matrix slice and asynchronously wait for its result.
 
-        ``await`` this method from an async notebook cell. Awaiting ``asyncio.sleep``
-        yields to the kernel event loop so it can process the front-end comm message;
-        a synchronous sleep would prevent the result from arriving.
+        ``await`` this method from an async notebook cell (awaiting yields to the
+        kernel event loop so it can process the front-end comm message). Resolution
+        is observer-driven: a temporary ``matrix_slice_result`` observer fulfills
+        the wait the moment the response with this request's ID arrives, so the
+        response cannot be missed even if a click-driven slice overwrites the
+        shared ``matrix_slice_result`` mailbox immediately afterwards.
         """
-        req_id = self.request_matrix_slice(
-            op,
-            index=index,
-            row=row,
-            col=col,
-            row_index=row_index,
-            col_index=col_index,
-            max_entries=max_entries,
-        )
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        expected: dict[str, str] = {}
 
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
+        def _on_result(change: dict) -> None:
+            res = dict(change["new"] or {})
+            if res.get("req_id") == expected.get("req_id") and not future.done():
+                future.set_result(res)
+
+        self.observe(_on_result, names="matrix_slice_result")
+        try:
+            expected["req_id"] = self.request_matrix_slice(
+                op,
+                index=index,
+                row=row,
+                col=col,
+                row_index=row_index,
+                col_index=col_index,
+                max_entries=max_entries,
+            )
+            # A synchronous in-process responder can fill the result during
+            # request_matrix_slice, before `expected` was populated — check once.
             res = dict(self.matrix_slice_result or {})
-            if res.get("req_id") == req_id:
+            if res.get("req_id") == expected["req_id"]:
                 return res
-            await asyncio.sleep(poll_interval)
-
-        return None
+            return await asyncio.wait_for(future, timeout)
+        except TimeoutError:
+            return None
+        finally:
+            self.unobserve(_on_result, names="matrix_slice_result")
 
     def matrix_dataframe(self) -> pd.DataFrame | None:
         """Return a copy of the Matrix ``data`` when this widget was created with ``matrix=``."""

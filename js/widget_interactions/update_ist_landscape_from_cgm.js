@@ -395,7 +395,10 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }
-    } else if (click_type === 'row_dendro') {
+    } else if (click_type === 'row_dendro' || click_type === 'row_crop') {
+      // row_crop payloads (crop.js sync_gene_row_crop_selection) carry the
+      // same selected_names/row_entity_full shape as row_dendro selections,
+      // and an empty-names unselect on crop undo.
       const new_cats = click_info.value.selected_names || [];
       const is_unselecting =
         click_info.value.is_unselecting || new_cats.length === 0;

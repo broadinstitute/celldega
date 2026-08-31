@@ -26,6 +26,7 @@ import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
+import { has_axis_filter } from '../matrix/crop_filter';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
@@ -249,12 +250,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   viz_state.dendro.sliders = {};
 
-  const axis_has_crop_filter = (_viz_state, axis) =>
-    Array.isArray(_viz_state.crop?.filter?.[axis]) &&
-    _viz_state.crop.filter[axis].length > 0;
-
   const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
-    if (axis_has_crop_filter(_viz_state, axis)) {
+    if (has_axis_filter(_viz_state, axis)) {
       event.target.value = _viz_state.dendro.sliders[`${axis}_percent`] ?? 50;
       return;
     }

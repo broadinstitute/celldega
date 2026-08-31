@@ -178,8 +178,6 @@ export const ini_dendro = (viz_state) => {
   viz_state.dendro.selected_polygon = { row: null, col: null };
   viz_state.dendro._highlight_rev = 0;
   viz_state.dendro._hover_timer = null;
-  viz_state.dendro._focus_clear_timer = null;
-  viz_state.dendro._suppress_focus_clear = false;
 
   viz_state.dendro.default_link_level = 0.5;
 

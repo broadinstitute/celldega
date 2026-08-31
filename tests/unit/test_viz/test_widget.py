@@ -219,9 +219,7 @@ def test_clustergram_matrix_slice_async_waits_for_matching_response() -> None:
     widget = Clustergram(matrix=make_simple_matrix())
 
     async def request_and_reply() -> dict | None:
-        pending = asyncio.create_task(
-            widget.request_matrix_slice_async("cell", row=1, col=3)
-        )
+        pending = asyncio.create_task(widget.request_matrix_slice_async("cell", row=1, col=3))
         await asyncio.sleep(0)
         req_id = widget.matrix_slice_request["req_id"]
         widget.matrix_slice_result = {"req_id": req_id, "value": 42}

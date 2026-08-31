@@ -1,3 +1,4 @@
+import { composition_row_label_position } from '../../matrix/composition_data';
 import {
   get_axis_center_position,
   get_axis_display_count,
@@ -47,7 +48,12 @@ export const focus_matrix_row = (
   viz_state,
   row_index
 ) => {
-  const row_center = get_axis_center_position(viz_state, 'row', row_index);
+  // Composition mode lays rows out as stacked bar segments, not uniform grid
+  // slots, so the pan target must come from the composition layout.
+  const row_center =
+    viz_state.mat.viz_mode === 'composition'
+      ? composition_row_label_position(viz_state, row_index)[1]
+      : get_axis_center_position(viz_state, 'row', row_index);
   if (row_center === null) return false;
 
   const current_zoom = [

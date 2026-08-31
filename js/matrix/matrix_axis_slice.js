@@ -98,12 +98,25 @@ export function emitMatrixSliceRequest(model, op, fields) {
 }
 
 /**
+ * Shared core for the row/col axis slices: rank the counterpart axis of
+ * `index` by value (non-zero entries only), keeping the top `maxEntries`.
+ *
+ * @param {'row'|'col'} axis  Primary axis `index` refers to.
  * @param {object} viz_state
- * @param {number} rowIndex
+ * @param {number} index  Primary-axis matrix index.
  * @param {number} [maxEntries]  Default {@link MAX_ENTRIES}. Use `< 0` for all entries (capped by {@link UNBOUNDED_AXIS_CAP}).
+ * @param {(counterpartIndex: number) => boolean} [counterpartFilter]  Optional
+ *   predicate on counterpart matrix indices (e.g. crop visibility); entries
+ *   failing it are skipped before top-N ranking.
  * @returns {object|null}
  */
-export function buildRowAxisSlice(viz_state, rowIndex, maxEntries) {
+const buildAxisSlice = (
+  axis,
+  viz_state,
+  index,
+  maxEntries,
+  counterpartFilter
+) => {
   const net = viz_state?.mat?.net_mat;
   const rowNodes = viz_state?.row_nodes;
   const colNodes = viz_state?.col_nodes;
@@ -111,86 +124,94 @@ export function buildRowAxisSlice(viz_state, rowIndex, maxEntries) {
     !Array.isArray(net) ||
     !Array.isArray(rowNodes) ||
     !Array.isArray(colNodes) ||
-    rowIndex == null ||
-    Number.isNaN(Number(rowIndex))
+    index == null ||
+    Number.isNaN(Number(index))
   ) {
     return null;
   }
-  const r = Number(rowIndex);
-  if (r < 0 || r >= net.length) return null;
-  const row = net[r];
-  if (!Array.isArray(row)) return null;
+
+  const is_row = axis === 'row';
+  const idx = Number(index);
+  if (idx < 0 || idx >= (is_row ? net.length : colNodes.length)) return null;
+  if (is_row && !Array.isArray(net[idx])) return null;
+
+  const counterpart_nodes = is_row ? colNodes : rowNodes;
+  const counterpart_count = is_row ? net[idx].length : net.length;
+  const value_at = is_row
+    ? (i) => net[idx][i]
+    : (i) => {
+        const row = net[i];
+        return Array.isArray(row) && idx < row.length ? row[idx] : null;
+      };
 
   const cap = resolve_entry_cap(maxEntries);
   const entries = [];
-  for (let c = 0; c < row.length; c++) {
-    const val = Number(row[c]);
+  for (let i = 0; i < counterpart_count; i++) {
+    if (counterpartFilter && !counterpartFilter(i)) continue;
+    const val = Number(value_at(i));
     if (!Number.isFinite(val) || val === 0) continue;
-    const cn = colNodes[c];
-    if (!cn) continue;
+    const node = counterpart_nodes[i];
+    if (!node) continue;
     push_top_entry(entries, cap, {
-      row: r,
-      col: c,
-      counterpart_name: cn.name,
+      row: is_row ? idx : i,
+      col: is_row ? i : idx,
+      counterpart_name: node.name,
       value: val,
     });
   }
-  const primaryNode = rowNodes[r];
+
+  const primary_node = (is_row ? rowNodes : colNodes)[idx];
   return {
-    slice_kind: 'row_axis',
+    slice_kind: is_row ? 'row_axis' : 'col_axis',
     matrix_convention: MATRIX_NET_CONVENTION,
-    primary_index: r,
-    primary_name: primaryNode ? primaryNode.name : null,
+    primary_index: idx,
+    primary_name: primary_node ? primary_node.name : null,
     entries: sort_entries_desc(entries),
   };
+};
+
+/**
+ * @param {object} viz_state
+ * @param {number} rowIndex
+ * @param {number} [maxEntries]  Default {@link MAX_ENTRIES}. Use `< 0` for all entries (capped by {@link UNBOUNDED_AXIS_CAP}).
+ * @param {(colIndex: number) => boolean} [counterpartFilter]
+ * @returns {object|null}
+ */
+export function buildRowAxisSlice(
+  viz_state,
+  rowIndex,
+  maxEntries,
+  counterpartFilter
+) {
+  return buildAxisSlice(
+    'row',
+    viz_state,
+    rowIndex,
+    maxEntries,
+    counterpartFilter
+  );
 }
 
 /**
  * @param {object} viz_state
  * @param {number} colIndex
  * @param {number} [maxEntries]  Default {@link MAX_ENTRIES}. Use `< 0` for all entries (capped by {@link UNBOUNDED_AXIS_CAP}).
+ * @param {(rowIndex: number) => boolean} [counterpartFilter]
  * @returns {object|null}
  */
-export function buildColAxisSlice(viz_state, colIndex, maxEntries) {
-  const net = viz_state?.mat?.net_mat;
-  const rowNodes = viz_state?.row_nodes;
-  const colNodes = viz_state?.col_nodes;
-  if (
-    !Array.isArray(net) ||
-    !Array.isArray(rowNodes) ||
-    !Array.isArray(colNodes) ||
-    colIndex == null ||
-    Number.isNaN(Number(colIndex))
-  ) {
-    return null;
-  }
-  const c = Number(colIndex);
-  if (c < 0 || c >= colNodes.length) return null;
-
-  const cap = resolve_entry_cap(maxEntries);
-  const entries = [];
-  for (let r = 0; r < net.length; r++) {
-    const row = net[r];
-    if (!Array.isArray(row) || c >= row.length) continue;
-    const val = Number(row[c]);
-    if (!Number.isFinite(val) || val === 0) continue;
-    const rn = rowNodes[r];
-    if (!rn) continue;
-    push_top_entry(entries, cap, {
-      row: r,
-      col: c,
-      counterpart_name: rn.name,
-      value: val,
-    });
-  }
-  const primaryNode = colNodes[c];
-  return {
-    slice_kind: 'col_axis',
-    matrix_convention: MATRIX_NET_CONVENTION,
-    primary_index: c,
-    primary_name: primaryNode ? primaryNode.name : null,
-    entries: sort_entries_desc(entries),
-  };
+export function buildColAxisSlice(
+  viz_state,
+  colIndex,
+  maxEntries,
+  counterpartFilter
+) {
+  return buildAxisSlice(
+    'col',
+    viz_state,
+    colIndex,
+    maxEntries,
+    counterpartFilter
+  );
 }
 
 /**

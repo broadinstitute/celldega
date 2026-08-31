@@ -283,16 +283,9 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
     data: filter_matrix_data(viz_state),
     tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
     tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
-    updateTriggers: {
-      ...mat_reorder_triggers(viz_state),
-      getFillColor: [
-        crop_sig,
-        fade_sig,
-        viz_state.mat.comp_hover_row,
-        viz_state.mat.comp_hover_col,
-        viz_state.dendro?._highlight_rev || 0,
-      ],
-    },
+    // mat_reorder_triggers' getFillColor already includes the crop/fade
+    // signatures, composition hover state, and highlight revision.
+    updateTriggers: mat_reorder_triggers(viz_state),
   });
 
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({

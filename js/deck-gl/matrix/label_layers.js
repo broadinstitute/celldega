@@ -18,8 +18,12 @@ import {
   get_axis_center_position,
   get_axis_display_count,
   get_axis_label_font_size,
+  is_axis_index_visible,
 } from '../../matrix/crop_filter';
-import { emitMatrixSliceRequest } from '../../matrix/matrix_axis_slice';
+import {
+  buildColAxisSlice,
+  emitMatrixSliceRequest,
+} from '../../matrix/matrix_axis_slice';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
 import {
@@ -181,7 +185,6 @@ const DOUBLE_CLICK_DELAY = 250;
 const ensure_label_click_tracking = (viz_state) => {
   viz_state.labels.click_timeouts ||= { row: null, col: null };
   viz_state.labels.pending_click ||= { row: null, col: null };
-  viz_state.labels.clicks ||= { row: 0, col: 0 };
 };
 
 const clear_pending_label_click = (viz_state, axis) => {
@@ -189,7 +192,6 @@ const clear_pending_label_click = (viz_state, axis) => {
   clearTimeout(viz_state.labels.click_timeouts[axis]);
   viz_state.labels.click_timeouts[axis] = null;
   viz_state.labels.pending_click[axis] = null;
-  viz_state.labels.clicks[axis] = 0;
 };
 
 const resolve_top_gene_count = (viz_state) => {
@@ -197,34 +199,16 @@ const resolve_top_gene_count = (viz_state) => {
   return Number.isFinite(top_n) && top_n > 0 ? Math.floor(top_n) : 15;
 };
 
-const insert_top_gene_entry = (entries, entry, max_entries) => {
-  if (max_entries <= 0) return;
-
-  const insert_index = entries.findIndex(
-    (candidate) => entry.value > candidate.value
-  );
-  entries.splice(insert_index === -1 ? entries.length : insert_index, 0, entry);
-
-  if (entries.length > max_entries) {
-    entries.pop();
-  }
-};
-
+// Top genes for a clicked column, ranked over the *visible* (crop-filtered)
+// rows only, so a row crop never leaks hidden genes into linked widgets.
 const top_gene_names_for_column = (viz_state, col_index) => {
-  const max_entries = resolve_top_gene_count(viz_state);
-  const entries = [];
-  const rows = viz_state.mat?.net_mat || [];
-  const row_nodes = viz_state.row_nodes || [];
-
-  rows.forEach((row, row_index) => {
-    const node = row_nodes[row_index];
-    const value = Number(row?.[col_index]);
-    if (!node || !Number.isFinite(value)) return;
-
-    insert_top_gene_entry(entries, { name: node.name, value }, max_entries);
-  });
-
-  return entries.map((entry) => entry.name);
+  const slice = buildColAxisSlice(
+    viz_state,
+    col_index,
+    resolve_top_gene_count(viz_state),
+    (row_index) => is_axis_index_visible(viz_state, 'row', row_index)
+  );
+  return slice ? slice.entries.map((entry) => entry.counterpart_name) : [];
 };
 
 const custom_label_reorder = (

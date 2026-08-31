@@ -17,7 +17,7 @@ const axis_filter_array = (viz_state, axis) => {
   return Array.isArray(filter) && filter.length > 0 ? filter : null;
 };
 
-const has_axis_filter = (viz_state, axis) =>
+export const has_axis_filter = (viz_state, axis) =>
   Boolean(axis_filter_array(viz_state, axis));
 
 const axis_order_info = (viz_state, axis) => {

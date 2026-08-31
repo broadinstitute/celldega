@@ -9,6 +9,7 @@ import {
   get_axis_indices_in_range,
   get_axis_slot_size,
   get_default_pan,
+  has_axis_filter,
   has_crop_filter,
   normalize_crop_filter,
 } from '../../matrix/crop_filter';
@@ -161,7 +162,32 @@ export const sync_gene_row_crop_selection = (viz_state) => {
   if (String(row_entity).toLowerCase() !== 'gene') return [];
 
   const row_indices = viz_state.crop?.filter?.row;
-  if (!Array.isArray(row_indices) || row_indices.length === 0) return [];
+  if (!Array.isArray(row_indices) || row_indices.length === 0) {
+    // A previously synced gene crop was undone/cleared: propagate the empty
+    // selection so linked widgets (Enrich, spatial views) drop the stale crop
+    // rather than keep highlighting genes that are no longer cropped.
+    if (viz_state.crop?._synced_gene_crop) {
+      viz_state.crop._synced_gene_crop = false;
+      viz_state.click = {
+        type: 'row_crop',
+        value: {
+          selected_names: [],
+          selected_indices: [],
+          is_unselecting: true,
+          entity: viz_state.row_entity?.entity,
+          attr: viz_state.row_entity?.attr,
+          row_entity: viz_state.row_entity?.entity,
+          row_entity_full: viz_state.row_entity,
+        },
+      };
+      if (viz_state.model?.set) {
+        viz_state.model.set('click_info', null);
+        viz_state.model.set('click_info', viz_state.click);
+      }
+      sync_selected_genes(viz_state, []);
+    }
+    return [];
+  }
 
   const genes = Array.from(
     new Set(
@@ -195,12 +221,11 @@ export const sync_gene_row_crop_selection = (viz_state) => {
   }
 
   sync_selected_genes(viz_state, genes);
+  if (viz_state.crop) {
+    viz_state.crop._synced_gene_crop = true;
+  }
   return genes;
 };
-
-const axis_has_crop_filter = (viz_state, axis) =>
-  Array.isArray(viz_state.crop?.filter?.[axis]) &&
-  viz_state.crop.filter[axis].length > 0;
 
 const clone_dendro_crop_source = (source, fallback_indices = null) => {
   if (!source && !fallback_indices) return null;
@@ -362,7 +387,7 @@ const refresh_dendro_sliders = (viz_state) => {
     const slider = viz_state.dendro?.sliders?.[axis];
     if (!slider) return;
 
-    const disabled = axis_has_crop_filter(viz_state, axis);
+    const disabled = has_axis_filter(viz_state, axis);
     slider.disabled = disabled;
     slider.style.opacity = disabled ? '0.35' : '1';
     slider.style.cursor = disabled ? 'not-allowed' : '';
@@ -638,17 +663,8 @@ export const initialize_matrix_crop = (
         return;
       }
 
-      const current_filter = normalize_crop_filter(
-        viz_state,
-        viz_state.crop.filter
-      );
-      const next_filter = normalize_crop_filter(viz_state, raw_filter);
-
-      if (filters_equal(current_filter, next_filter)) {
-        return;
-      }
-
-      viz_state.crop.apply_filter(next_filter, { push_history: true });
+      // apply_filter normalizes and no-ops on an unchanged filter itself.
+      viz_state.crop.apply_filter(raw_filter, { push_history: true });
     },
   };
 };

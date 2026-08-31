@@ -106,7 +106,30 @@ export const set_matrix_row_search = (viz_state, on_select) => {
     return true;
   };
 
-  input.addEventListener('input', () => focus_query());
+  // True while the typed text is a strict prefix of some other row name
+  // (e.g. "ACE" on the way to "ACE2"): focusing now would lurch the view to
+  // the shorter match mid-keystroke. Datalist picks (insertReplacementText)
+  // and Enter always focus.
+  const is_ambiguous_prefix = (query) => {
+    const value = String(query ?? '')
+      .trim()
+      .toLocaleLowerCase();
+    if (!value) return false;
+    return get_matrix_row_search_entries(viz_state).some((entry) => {
+      const candidate = entry.value.toLocaleLowerCase();
+      return candidate !== value && candidate.startsWith(value);
+    });
+  };
+
+  input.addEventListener('input', (event) => {
+    if (
+      event.inputType !== 'insertReplacementText' &&
+      is_ambiguous_prefix(input.value)
+    ) {
+      return;
+    }
+    focus_query();
+  });
   input.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();

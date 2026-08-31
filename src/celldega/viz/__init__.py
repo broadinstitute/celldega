@@ -116,6 +116,11 @@ def spatial_clustergram(
 
         def _forward_gene_to_spatial(gene: str) -> None:
             if gene:
+                if mat.focused_gene == gene:
+                    # Re-focusing the same gene must still notify JS (traitlets
+                    # suppresses no-change sets), so blank first to force a
+                    # change event and re-center the row.
+                    mat.focused_gene = ""
                 mat.focused_gene = gene
                 spatial.trigger_update({"type": "row_label", "value": {"name": gene}})
 
@@ -272,6 +277,10 @@ def clustergram_enrich(
 
     def _focus_gene_in_clustergram(gene: str) -> None:
         if gene:
+            if cgm.focused_gene == gene:
+                # Force a change event so re-clicking the same gene re-centers
+                # its row (traitlets suppresses no-change sets).
+                cgm.focused_gene = ""
             cgm.focused_gene = gene
 
     _link_clustergram_to_enrich(

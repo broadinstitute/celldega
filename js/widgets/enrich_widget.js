@@ -67,6 +67,8 @@ export const render_enrich = async ({ model, el }) => {
 
   container.style.width = `${width}px`;
   container.style.height = `${height}px`;
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
   container.style.overflowX = 'scroll';
   container.style.marginLeft = '5px';
 
@@ -75,7 +77,11 @@ export const render_enrich = async ({ model, el }) => {
   select.style.flex = '1 1 auto';
 
   layout.style.width = `${width}px`;
-  layout.style.height = `${height}px`;
+  // Reserve room at the bottom of the widget for the Enrichr link. Previously
+  // this area consumed the full widget height, which pushed the link below the
+  // visible Enrich pane.
+  layout.style.flex = '1 1 auto';
+  layout.style.minHeight = '0';
 
   barHolder.style.width = `${width}px`;
   barHolder.style.height = '255px';
@@ -100,6 +106,7 @@ export const render_enrich = async ({ model, el }) => {
     '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
   linkHolder.style.display = 'block';
+  linkHolder.style.flex = '0 0 auto';
   linkHolder.style.marginTop = '5px';
   linkHolder.style.color = '#47515b';
   linkHolder.target = '_blank';

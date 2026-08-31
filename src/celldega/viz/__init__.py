@@ -30,6 +30,15 @@ def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
     return default
 
 
+def _pixel_height(value: str | int, fallback: int = 700) -> int:
+    """Return a widget-compatible pixel height from a CSS pixel value."""
+    try:
+        pixels = int(str(value).strip().removesuffix("px"))
+    except ValueError:
+        return fallback
+    return pixels if pixels > 0 else fallback
+
+
 def spatial_clustergram(
     spatial: "Landscape | CellCloud | NeighborhoodCloud | Yearbook",
     mat: Clustergram,
@@ -100,6 +109,7 @@ def spatial_clustergram(
         config = dict(enrich_kwargs or {})
         config.setdefault("gene_list", [])
         config.setdefault("width", 250)
+        config.setdefault("height", _pixel_height(height))
         enrich_widget = Enrich(**config)
 
     if enrich_widget is not None:
@@ -248,7 +258,7 @@ def clustergram_enrich(
     """
     cgm.layout = Layout(width="600px")
 
-    enrich = Enrich(gene_list=[], width=250)
+    enrich = Enrich(gene_list=[], width=250, height=700)
 
     def _focus_gene_in_clustergram(gene: str) -> None:
         if gene:

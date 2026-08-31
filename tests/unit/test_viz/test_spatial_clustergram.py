@@ -71,6 +71,8 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     box = clustergram_enrich(cgm)
     enrich = box.children[1]
 
+    assert enrich.height == 700
+
     enrich.gene_list = ["g0", "g1"]
     cgm.click_info = {"type": "row_label", "value": {"name": "g1"}}
     cgm.selected_genes = ["g1"]
@@ -101,6 +103,16 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     enrich.focused_gene = "g1"
     assert cgm.focused_gene == "g1"
     assert enrich.gene_list == ["g2", "g3"]
+
+
+def test_spatial_clustergram_matches_enrich_height_to_linked_widgets():
+    spatial = Landscape(base_url="https://example.com/data")
+    cgm = _clustergram()
+
+    box = spatial_clustergram(spatial, cgm, height="840px", enrich=True)
+
+    enrich = box.children[2]
+    assert enrich.height == 840
 
 
 def test_spatial_clustergram_yearbook_uses_front_end_query():

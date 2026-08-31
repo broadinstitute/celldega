@@ -720,6 +720,9 @@ class Enrich(anywidget.AnyWidget):
     component = traitlets.Unicode("Enrich").tag(sync=True)
 
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
+    # Short provenance string shown above the Enrichr link (for example,
+    # ``"Clustergram row crop"``). Empty means the gene list was supplied directly.
+    source_label = traitlets.Unicode("").tag(sync=True)
     background_list = traitlets.List(allow_none=True, default_value=None).tag(sync=True)
 
     available_libs = traitlets.List(

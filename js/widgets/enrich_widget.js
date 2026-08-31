@@ -42,6 +42,9 @@ export const render_enrich = async ({ model, el }) => {
   const infoHolder = document.createElement('div');
   const geneInfoHolder = document.createElement('div');
   const paragraphHolder = document.createElement('div');
+  const sourceRow = document.createElement('div');
+  const sourceText = document.createElement('span');
+  const clearButton = document.createElement('button');
   const linkHolder = document.createElement('a');
 
   header_row.style.display = 'flex';
@@ -54,6 +57,9 @@ export const render_enrich = async ({ model, el }) => {
 
   container.appendChild(header_row);
   container.appendChild(layout);
+  sourceRow.appendChild(sourceText);
+  sourceRow.appendChild(clearButton);
+  container.appendChild(sourceRow);
   container.appendChild(linkHolder);
   layout.appendChild(barHolder);
   layout.appendChild(infoHolder);
@@ -84,26 +90,51 @@ export const render_enrich = async ({ model, el }) => {
   layout.style.minHeight = '0';
 
   barHolder.style.width = `${width}px`;
-  barHolder.style.height = '255px';
+  barHolder.style.height = '230px';
   barHolder.style.overflowY = 'auto';
   barHolder.style.border = '1px solid #d3d3d3';
 
   infoHolder.style.width = `${width}px`;
-  infoHolder.style.height = '250px';
+  infoHolder.style.height = '310px';
 
-  paragraphHolder.style.height = '225px';
+  paragraphHolder.style.height = '180px';
   paragraphHolder.style.width = `${width}px`;
   paragraphHolder.style.marginTop = '5px';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
 
-  geneInfoHolder.style.height = '155px';
+  geneInfoHolder.style.height = '120px';
   geneInfoHolder.style.width = `${width}px`;
   geneInfoHolder.style.marginTop = '5px';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
   geneInfoHolder.style.fontFamily =
     '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+  sourceRow.style.display = 'flex';
+  sourceRow.style.alignItems = 'center';
+  sourceRow.style.justifyContent = 'space-between';
+  sourceRow.style.gap = '8px';
+  sourceRow.style.width = `${width}px`;
+  sourceRow.style.marginTop = '4px';
+  sourceRow.style.fontSize = '11px';
+  sourceRow.style.color = '#47515b';
+
+  sourceText.style.overflow = 'hidden';
+  sourceText.style.textOverflow = 'ellipsis';
+  sourceText.style.whiteSpace = 'nowrap';
+
+  clearButton.textContent = 'CLEAR';
+  clearButton.title = 'Clear enrichment results';
+  clearButton.setAttribute('aria-label', 'Clear enrichment results');
+  clearButton.style.flex = '0 0 auto';
+  clearButton.style.padding = '0';
+  clearButton.style.border = '0';
+  clearButton.style.background = 'transparent';
+  clearButton.style.fontSize = '10px';
+  clearButton.style.fontWeight = '700';
+  clearButton.style.color = '#47515b';
+  clearButton.style.cursor = 'pointer';
 
   linkHolder.style.display = 'block';
   linkHolder.style.flex = '0 0 auto';
@@ -114,6 +145,33 @@ export const render_enrich = async ({ model, el }) => {
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
+
+  const updateSourceRow = () => {
+    const genes = model.get('gene_list') || [];
+    const source = model.get('source_label') || 'Manual gene list';
+    const geneCount = `${genes.length} gene${genes.length === 1 ? '' : 's'}`;
+
+    sourceText.textContent = genes.length
+      ? `Source: ${source} · ${geneCount}`
+      : 'Source: No genes selected';
+    clearButton.disabled = !genes.length;
+    clearButton.style.color = genes.length ? '#47515b' : '#b8bec5';
+    clearButton.style.cursor = genes.length ? 'pointer' : 'default';
+  };
+
+  clearButton.addEventListener('click', () => {
+    if (!model.get('gene_list')?.length) return;
+
+    store.gene_of_interest.set('');
+    store.term_genes.set([]);
+    store.selected_term.set('Select Term');
+    model.set('gene_list', []);
+    model.set('source_label', '');
+    model.set('focused_gene', '');
+    model.set('term_genes', []);
+    model.set('selected_term', 'Select Term');
+    model.save_changes();
+  });
 
   const updateSelectOptions = () => {
     select.innerHTML = '';
@@ -164,11 +222,15 @@ export const render_enrich = async ({ model, el }) => {
     { immediate: false }
   );
 
+  let updateRevision = 0;
   const update = async () => {
+    const revision = ++updateRevision;
     const genes = model.get('gene_list') || [];
     const lib = store.selected_lib.get();
     const numTerms = model.get('num_terms') || 10;
     const background = model.get('background_list') || null;
+
+    updateSourceRow();
 
     if (!genes.length) {
       barHolder.textContent = 'No genes provided.';
@@ -200,6 +262,8 @@ export const render_enrich = async ({ model, el }) => {
         data = await fetchEnrichment(userListId, lib);
         cache[cacheKey] = { data, shortId };
       }
+
+      if (revision !== updateRevision) return;
 
       const bar_data = (data[lib] || [])
         .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
@@ -351,6 +415,7 @@ export const render_enrich = async ({ model, el }) => {
         linkHolder.removeAttribute('href');
       }
     } catch (error) {
+      if (revision !== updateRevision) return;
       handleAsyncError(error, { context: 'render_enrich' });
       barHolder.textContent = 'Error loading enrichment data.';
       geneInfoHolder.textContent = '';
@@ -361,6 +426,7 @@ export const render_enrich = async ({ model, el }) => {
 
   // Traitlet listeners
   model.on('change:gene_list', update);
+  model.on('change:source_label', updateSourceRow);
   model.on('change:inst_lib', update);
   model.on('change:num_terms', update);
   model.on('change:background_list', update);

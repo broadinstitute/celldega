@@ -88,6 +88,7 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     cgm.selected_genes = ["g0", "g1"]
 
     assert enrich.gene_list == ["g0", "g1"]
+    assert enrich.source_label == "Clustergram row dendrogram"
 
     # Gene row crops are also meaningful enrichment gene sets.
     cgm.click_info = {
@@ -97,6 +98,7 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     cgm.selected_genes = ["g2", "g3"]
 
     assert enrich.gene_list == ["g2", "g3"]
+    assert enrich.source_label == "Clustergram row crop"
 
     # Clicking a gene in Enrich focuses the matching Clustergram row without
     # changing the enrichment gene list.

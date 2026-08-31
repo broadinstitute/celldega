@@ -177,8 +177,18 @@ def _link_clustergram_to_enrich(
 
     _record_colors()
 
-    def _set_gene_list(genes) -> None:
+    def _set_gene_list(genes, source_label: str = "") -> None:
+        enrich.source_label = source_label if genes else ""
         enrich.gene_list = list(genes) if genes else []
+
+    def _selection_source_label(click_type: str) -> str:
+        labels = {
+            "row_crop": "Clustergram row crop",
+            "col_crop": "Clustergram column crop",
+            "row_dendro": "Clustergram row dendrogram",
+            "col_dendro": "Clustergram column dendrogram",
+        }
+        return labels.get(click_type, "Clustergram selection")
 
     def _on_selected_genes(change) -> None:
         genes = change["new"] or []
@@ -210,7 +220,7 @@ def _link_clustergram_to_enrich(
                 _set_gene_list([])
                 return
 
-        _set_gene_list(genes)
+        _set_gene_list(genes, _selection_source_label(click_type))
 
     def _on_click_info(change) -> None:
         info = change["new"] or {}

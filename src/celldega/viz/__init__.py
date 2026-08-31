@@ -89,12 +89,6 @@ def spatial_clustergram(
     # Link clustergram click_info to the spatial widget's update_trigger
     jslink((mat, "click_info"), (spatial, "update_trigger"))
 
-    # Keep a single gene-search control in linked Landscape/Clustergram
-    # layouts. The Clustergram can also search generic row names, so it is the
-    # more complete owner of this shared workflow.
-    if isinstance(spatial, Landscape):
-        spatial.clustergram_search_owner = True
-
     # Layouts
     mat.layout = Layout(width=width)
     spatial.layout = Layout(width=width, height=height)

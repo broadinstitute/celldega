@@ -1166,19 +1166,6 @@ export const make_ist_ui_container = (
   viz_state.genes.gene_search.style.width = '160px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
-  const sync_clustergram_search_owner = () => {
-    const clustergram_owns_search =
-      viz_state.model?.get('clustergram_search_owner') === true;
-    viz_state.genes.gene_search.style.display = clustergram_owns_search
-      ? 'none'
-      : '';
-  };
-  sync_clustergram_search_owner();
-  viz_state.model?.on(
-    'change:clustergram_search_owner',
-    sync_clustergram_search_owner
-  );
-
   // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
   //   const current = d3.select(event.currentTarget);
   //   const is_active = current.classed('active');

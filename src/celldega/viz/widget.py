@@ -319,10 +319,6 @@ class Landscape(anywidget.AnyWidget):
 
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
-    # Set by ``spatial_clustergram`` so the linked Clustergram owns the
-    # shared gene/row search and Landscape does not render a duplicate input.
-    clustergram_search_owner = traitlets.Bool(False).tag(sync=True)
-
     # AnnData obs columns (cell attributes)
     cell_attr = traitlets.List(
         trait=traitlets.Unicode(),

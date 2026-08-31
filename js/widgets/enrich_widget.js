@@ -88,24 +88,41 @@ export const render_enrich = async ({ model, el }) => {
   // visible Enrich pane.
   layout.style.flex = '1 1 auto';
   layout.style.minHeight = '0';
+  layout.style.display = 'flex';
+  layout.style.flexDirection = 'column';
+  layout.style.gap = '5px';
 
   barHolder.style.width = `${width}px`;
-  barHolder.style.height = '230px';
+  barHolder.style.height = 'auto';
+  barHolder.style.flex = '0 0 45%';
+  barHolder.style.minHeight = '0';
   barHolder.style.overflowY = 'auto';
   barHolder.style.border = '1px solid #d3d3d3';
+  barHolder.style.userSelect = 'none';
+  barHolder.style.webkitUserSelect = 'none';
+  barHolder.style.cursor = 'pointer';
 
   infoHolder.style.width = `${width}px`;
-  infoHolder.style.height = '310px';
+  infoHolder.style.height = 'auto';
+  infoHolder.style.flex = '1 1 0';
+  infoHolder.style.minHeight = '0';
+  infoHolder.style.display = 'flex';
+  infoHolder.style.flexDirection = 'column';
+  infoHolder.style.gap = '5px';
 
-  paragraphHolder.style.height = '180px';
+  paragraphHolder.style.height = 'auto';
+  paragraphHolder.style.flex = '3 1 0';
+  paragraphHolder.style.minHeight = '0';
   paragraphHolder.style.width = `${width}px`;
-  paragraphHolder.style.marginTop = '5px';
+  paragraphHolder.style.marginTop = '0';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
 
-  geneInfoHolder.style.height = '120px';
+  geneInfoHolder.style.height = 'auto';
+  geneInfoHolder.style.flex = '2 1 0';
+  geneInfoHolder.style.minHeight = '0';
   geneInfoHolder.style.width = `${width}px`;
-  geneInfoHolder.style.marginTop = '5px';
+  geneInfoHolder.style.marginTop = '0';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
   geneInfoHolder.style.fontFamily =
@@ -133,7 +150,7 @@ export const render_enrich = async ({ model, el }) => {
   clearButton.style.background = 'transparent';
   clearButton.style.fontSize = '10px';
   clearButton.style.fontWeight = '700';
-  clearButton.style.color = '#47515b';
+  clearButton.style.color = '#2f74ff';
   clearButton.style.cursor = 'pointer';
 
   linkHolder.style.display = 'block';
@@ -155,7 +172,7 @@ export const render_enrich = async ({ model, el }) => {
       ? `Source: ${source} · ${geneCount}`
       : 'Source: No genes selected';
     clearButton.disabled = !genes.length;
-    clearButton.style.color = genes.length ? '#47515b' : '#b8bec5';
+    clearButton.style.color = genes.length ? '#2f74ff' : '#b8bec5';
     clearButton.style.cursor = genes.length ? 'pointer' : 'default';
   };
 
@@ -291,7 +308,10 @@ export const render_enrich = async ({ model, el }) => {
           '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
         )
         .attr('font-size', '14')
-        .attr('text-anchor', 'end');
+        .attr('text-anchor', 'end')
+        .style('cursor', 'pointer')
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none');
 
       const default_value = {
         term_name: 'Select Term',
@@ -306,6 +326,20 @@ export const render_enrich = async ({ model, el }) => {
         .data(bar_data)
         .join('g')
         .attr('transform', (d, i) => `translate(0,${y_new(i)})`)
+        .style('cursor', 'pointer')
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none')
+        .on('pointerenter', function () {
+          const barGroup = this;
+          barGroup._enrichHoverTimer = setTimeout(() => {
+            d3.select(barGroup).select('rect').attr('opacity', 0.45);
+          }, 120);
+        })
+        .on('pointerleave', function () {
+          clearTimeout(this._enrichHoverTimer);
+          this._enrichHoverTimer = null;
+          d3.select(this).select('rect').attr('opacity', 0.25);
+        })
         .on('click', function (_event, d) {
           const isSelected = store.selected_term.get() === d.name;
 
@@ -341,7 +375,14 @@ export const render_enrich = async ({ model, el }) => {
         .attr('y', y_new.bandwidth() / 2)
         .attr('dy', '0.35em')
         .attr('text-anchor', 'start')
+        .style('cursor', 'pointer')
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none')
         .text((d) => d.name);
+
+      // Native SVG tooltip preserves the complete enrichment term when the
+      // visible bar label is clipped by the narrow Enrich panel.
+      bar.append('title').text((d) => d.name);
 
       const new_chart = svg.node();
 
@@ -349,6 +390,7 @@ export const render_enrich = async ({ model, el }) => {
 
       const element = document.createElement('div');
       element.style.userSelect = 'none';
+      element.style.webkitUserSelect = 'none';
       element.value = 'Click on a gene to obtain detailed information';
 
       paragraphElement = element;

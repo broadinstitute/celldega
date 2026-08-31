@@ -40,6 +40,7 @@ import {
 import {
   ini_row_label_layer,
   ini_col_label_layer,
+  refresh_row_label_focus_layer,
   set_col_label_layer_onclick,
   set_col_label_layer_onhover,
   set_row_label_layer_onclick,
@@ -303,6 +304,9 @@ const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
   }
 
   layers_mat.row_label_layer = ini_row_label_layer(viz_state);
+  // Rebuild the bold focus overlay against the new crop geometry (the focused
+  // row simply drops out of the overlay's data while cropped away).
+  refresh_row_label_focus_layer(layers_mat, viz_state);
   layers_mat.col_label_layer = ini_col_label_layer(viz_state);
   layers_mat.row_cat_layer = ini_row_cat_layer(viz_state);
   layers_mat.col_cat_layer = ini_col_cat_layer(viz_state);

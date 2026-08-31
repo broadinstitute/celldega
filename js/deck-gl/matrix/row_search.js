@@ -1,3 +1,6 @@
+import * as d3 from 'd3';
+import { LinearInterpolator } from 'deck.gl';
+
 import { composition_row_label_position } from '../../matrix/composition_data';
 import {
   get_axis_center_position,
@@ -6,6 +9,7 @@ import {
 } from '../../matrix/crop_filter';
 
 import { curate_pan_x, curate_pan_y } from './curate_pan';
+import { refresh_row_label_focus_layer } from './label_layers';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { ini_views } from './views';
@@ -13,6 +17,49 @@ import { update_zoom_data } from './zoom';
 
 const MIN_VISIBLE_ROWS = 20;
 const ACCORDION_ROW_TO_COL_RATIO = 1.2;
+// View-state fly-to duration for focusing a row (search bar or an Enrich gene
+// click). Deliberately quicker than viz_state.animate.duration (the 2.5s
+// reorder animation) — this is navigation, not a data morph.
+export const FOCUS_ZOOM_TRANSITION_MS = 750;
+
+/**
+ * Decorate every view's state with the same zoom/pan transition so the
+ * matrix, label, and dendrogram viewports fly to the focused row in sync.
+ * Static views transition between identical states, which is a no-op.
+ */
+export const with_focus_zoom_transitions = (
+  view_state_map,
+  duration = FOCUS_ZOOM_TRANSITION_MS
+) => {
+  const animated = {};
+  Object.entries(view_state_map).forEach(([view_id, view_state]) => {
+    animated[view_id] = {
+      ...view_state,
+      transitionDuration: duration,
+      transitionInterpolator: new LinearInterpolator({
+        transitionProps: ['target', 'zoom'],
+      }),
+      transitionEasing: d3.easeCubic,
+    };
+  });
+  return animated;
+};
+
+/**
+ * Mark the window in which deck.gl emits per-frame onViewStateChange events
+ * for a transition we initiated. on_view_state_change must ignore those
+ * frames: the zoom bookkeeping was already set to the transition's final
+ * values, and re-deriving state from interpolated frames would both corrupt
+ * it and cancel the animation.
+ */
+const mark_programmatic_view_transition = (viz_state, duration) => {
+  clearTimeout(viz_state.zoom._programmatic_transition_timer);
+  viz_state.zoom._programmatic_view_transition = true;
+  viz_state.zoom._programmatic_transition_timer = setTimeout(() => {
+    viz_state.zoom._programmatic_view_transition = false;
+    viz_state.zoom._programmatic_transition_timer = null;
+  }, duration + 150);
+};
 
 export const get_row_search_zoom = (viz_state, current_zoom) => {
   const row_count = get_axis_display_count(viz_state, 'row');
@@ -87,9 +134,15 @@ export const focus_matrix_row = (
     getSize: get_zoomed_axis_label_font_size(viz_state, 'col', zoom_curated[0]),
   });
 
+  // Bold the focused row's label (one-datum overlay drawn over the base
+  // label), sized like the base labels at the destination zoom.
+  viz_state.labels.focused_row_index = row_index;
+  refresh_row_label_focus_layer(layers_mat, viz_state);
+
   ini_views(viz_state);
+  mark_programmatic_view_transition(viz_state, FOCUS_ZOOM_TRANSITION_MS);
   deck_mat.setProps({
-    viewState: global_view_state,
+    viewState: with_focus_zoom_transitions(global_view_state),
     views: viz_state.views.views_list,
     layers: get_mat_layers_list(layers_mat),
   });

@@ -247,9 +247,19 @@ def _link_clustergram_to_enrich(
         gene = change["new"] or ""
         gene_focus_callback(gene)
 
+    def _on_term_genes(change) -> None:
+        # Mirror the selected enriched term's genes onto the Clustergram so its
+        # row labels can highlight them (blue, matching Enrich's "In term"
+        # paragraph color). Enrich clears term_genes on CLEAR/term-deselect,
+        # which resets the highlight through this same path.
+        cgm.highlighted_genes = list(change["new"] or [])
+
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
     enrich.observe(_on_focused_gene, names="focused_gene")
+    enrich.observe(_on_term_genes, names="term_genes")
+    if enrich.term_genes:
+        cgm.highlighted_genes = list(enrich.term_genes)
 
 
 def clustergram_enrich(

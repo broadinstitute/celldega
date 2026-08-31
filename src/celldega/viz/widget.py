@@ -1289,6 +1289,12 @@ class Clustergram(anywidget.AnyWidget):
     # A gene selected in Enrich. The Clustergram front-end centers its matching
     # row without replacing the current enrichment gene set.
     focused_gene = traitlets.Unicode("").tag(sync=True)
+    # Genes to visually highlight (blue row labels), e.g. the members of an
+    # enriched term selected in a linked Enrich widget. Matched
+    # case-insensitively against row names. Deliberately separate from
+    # ``selected_genes``, which *feeds* enrichment input — reusing it would
+    # loop the linkage.
+    highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
     row_names = traitlets.List(default_value=[]).tag(sync=True)

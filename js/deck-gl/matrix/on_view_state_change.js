@@ -32,6 +32,18 @@ export const on_view_state_change = (
 
   const { zoom, target } = viewState;
 
+  // Per-frame events from a transition we initiated (focus fly-to): the zoom
+  // bookkeeping already holds the transition's final values, so re-deriving
+  // state from interpolated frames would corrupt it and setProps would cancel
+  // the animation. User gestures interrupt the transition and arrive with
+  // inTransition false, so they are still handled normally below.
+  if (
+    viz_state.zoom._programmatic_view_transition &&
+    params.interactionState?.inTransition
+  ) {
+    return;
+  }
+
   // Note: view-state changes deliberately do not touch the dendrogram
   // pending-click state. Scroll-zoom and pan-inertia events keep arriving for
   // hundreds of ms, and cancelling queued clicks here silently swallowed
@@ -194,6 +206,18 @@ export const on_view_state_change = (
         viz_state.zoom.zoom_data.matrix.zoom_y
       ),
     });
+    if (layers_mat.row_label_focus_layer) {
+      // Keep the bold focus overlay sized like the base row labels.
+      layers_mat.row_label_focus_layer = layers_mat.row_label_focus_layer.clone(
+        {
+          getSize: get_zoomed_axis_label_font_size(
+            viz_state,
+            'row',
+            viz_state.zoom.zoom_data.matrix.zoom_y
+          ),
+        }
+      );
+    }
   }
 
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({

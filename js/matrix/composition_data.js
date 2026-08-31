@@ -301,4 +301,13 @@ export const refresh_row_label_visibility = (layers_mat, viz_state) => {
       getPosition: viz_state.labels._row_vis_rev,
     },
   });
+
+  // The bold focus overlay shares the base label's color/position accessors.
+  // Cloning with a fresh copy of its (one-datum) data forces re-evaluation
+  // without importing label_layers (which imports this module).
+  if (layers_mat.row_label_focus_layer) {
+    layers_mat.row_label_focus_layer = layers_mat.row_label_focus_layer.clone({
+      data: [...(layers_mat.row_label_focus_layer.props.data || [])],
+    });
+  }
 };

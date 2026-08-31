@@ -101,6 +101,9 @@ describe('compute_crop_filter', () => {
       const ini_mat_layer = () => make_layer('mat-layer');
       const ini_composition_layer = () => make_layer('composition-layer');
       const ini_row_label_layer = () => make_layer('row-label-layer');
+      const refresh_row_label_focus_layer = (layers_mat) => {
+        layers_mat.row_label_focus_layer = make_layer('row-label-layer-focus');
+      };
       const ini_col_label_layer = () => make_layer('col-label-layer');
       const ini_row_cat_layer = () => make_layer('row-layer');
       const ini_col_cat_layer = () => make_layer('col-layer');

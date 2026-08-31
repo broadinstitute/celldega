@@ -298,6 +298,15 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
     },
   });
 
+  // Attribute rows change the matrix geometry, so re-evaluate the bold focus
+  // overlay's accessors (fresh data reference) and match the base label size.
+  if (layers_mat.row_label_focus_layer) {
+    layers_mat.row_label_focus_layer = layers_mat.row_label_focus_layer.clone({
+      data: [...(layers_mat.row_label_focus_layer.props.data || [])],
+      getSize: get_axis_label_font_size(viz_state, 'row'),
+    });
+  }
+
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     data: filter_label_data(viz_state, 'col'),
     getSize: get_axis_label_font_size(viz_state, 'col'),

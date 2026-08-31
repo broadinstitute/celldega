@@ -49,7 +49,10 @@ import {
 } from '../deck-gl/matrix/dendro_layers';
 import {
   ini_row_label_layer,
+  ini_row_label_focus_layer,
   ini_col_label_layer,
+  refresh_row_label_focus_layer,
+  refresh_row_label_highlight,
   set_row_label_layer_onclick,
   set_col_label_layer_onclick,
   set_row_label_layer_onhover,
@@ -146,6 +149,17 @@ export const matrix_viz = async (
 
   viz_state.labels = {};
   viz_state.labels.clicks = {};
+  // Term genes highlighted via a linked Enrich widget (blue row labels).
+  // Enrich lowercases term genes; keep the set lowercased for matching.
+  viz_state.labels.highlighted_genes = new Set(
+    (model.get('highlighted_genes') || []).map((gene) =>
+      String(gene).toLowerCase()
+    )
+  );
+  viz_state.labels._row_style_rev = 0;
+  // Matrix row index of the focused row (Enrich gene click or row search);
+  // rendered as a bold label overlay.
+  viz_state.labels.focused_row_index = null;
 
   ini_zoom_data(viz_state);
 
@@ -165,6 +179,7 @@ export const matrix_viz = async (
   const layers_mat = {};
   layers_mat.mat_layer = ini_mat_layer(viz_state);
   layers_mat.row_label_layer = ini_row_label_layer(viz_state);
+  layers_mat.row_label_focus_layer = ini_row_label_focus_layer(viz_state);
   layers_mat.col_label_layer = ini_col_label_layer(viz_state);
   layers_mat.row_cat_layer = ini_row_cat_layer(viz_state);
   layers_mat.col_cat_layer = ini_col_cat_layer(viz_state);
@@ -236,6 +251,10 @@ export const matrix_viz = async (
       toggle_dendro_layer_visibility(layers_mat, viz_state, 'row');
       toggle_dendro_layer_visibility(layers_mat, viz_state, 'col');
     }
+
+    // Row-label geometry differs between the square grid and composition's
+    // stacked bars, so rebuild the bold focus overlay for the new mode.
+    refresh_row_label_focus_layer(layers_mat, viz_state);
 
     update_mode_button_visibility(viz_state);
 
@@ -470,7 +489,26 @@ export const matrix_viz = async (
     });
 
     viz_state.model.on('change:focused_gene', () => {
-      viz_state.row_search?.focus(viz_state.model.get('focused_gene') || '');
+      const gene = viz_state.model.get('focused_gene') || '';
+      if (gene) {
+        viz_state.row_search?.focus(gene);
+        return;
+      }
+      // Cleared focus (e.g. Enrich CLEAR): drop the bold label overlay.
+      if (viz_state.labels.focused_row_index != null) {
+        viz_state.labels.focused_row_index = null;
+        refresh_row_label_focus_layer(layers_mat, viz_state);
+        deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
+      }
+    });
+
+    viz_state.model.on('change:highlighted_genes', () => {
+      viz_state.labels.highlighted_genes = new Set(
+        (viz_state.model.get('highlighted_genes') || []).map((gene) =>
+          String(gene).toLowerCase()
+        )
+      );
+      refresh_row_label_highlight(deck_mat, layers_mat, viz_state);
     });
 
     const focused_gene = viz_state.model.get('focused_gene') || '';

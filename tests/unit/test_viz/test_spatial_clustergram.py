@@ -107,6 +107,46 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     assert enrich.gene_list == ["g2", "g3"]
 
 
+def test_clustergram_enrich_mirrors_term_genes_to_highlighted_genes():
+    cgm = _clustergram()
+    box = clustergram_enrich(cgm)
+    enrich = box.children[1]
+
+    assert cgm.highlighted_genes == []
+
+    # Selecting an enriched term (Enrich lowercases its member genes) should
+    # highlight those genes' row labels in the Clustergram.
+    enrich.term_genes = ["g0", "g2"]
+    assert cgm.highlighted_genes == ["g0", "g2"]
+
+    # CLEAR / term deselection resets term_genes and clears the highlight.
+    enrich.term_genes = []
+    assert cgm.highlighted_genes == []
+
+
+def test_clustergram_enrich_refocuses_the_same_gene():
+    cgm = _clustergram()
+    box = clustergram_enrich(cgm)
+    enrich = box.children[1]
+
+    focus_events = []
+    cgm.observe(lambda change: focus_events.append(change["new"]), names="focused_gene")
+
+    enrich.focused_gene = "g1"
+    assert cgm.focused_gene == "g1"
+
+    # Enrich CLEAR blanks its own focused_gene; the Clustergram keeps focus.
+    enrich.focused_gene = ""
+    assert cgm.focused_gene == "g1"
+
+    # Re-clicking the same gene must still notify the front end (traitlets
+    # suppresses no-change sets), so the link blanks then re-sets the trait.
+    focus_events.clear()
+    enrich.focused_gene = "g1"
+    assert cgm.focused_gene == "g1"
+    assert focus_events == ["", "g1"]
+
+
 def test_spatial_clustergram_matches_enrich_height_to_linked_widgets():
     spatial = Landscape(base_url="https://example.com/data")
     cgm = _clustergram()

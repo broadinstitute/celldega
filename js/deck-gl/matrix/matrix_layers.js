@@ -7,6 +7,7 @@ const SNAP_ANNOTATION_LAYER_IDS = new Set([
   'row-layer',
   'col-layer',
   'row-label-layer',
+  'row-label-layer-focus',
   'col-label-layer',
   'row-attr-label-layer',
   'col-attr-label-layer',
@@ -64,6 +65,11 @@ export const get_mat_layers_list = (layers_mat, options = {}) => {
     layers_mat.row_dendro_layer,
     layers_mat.col_dendro_layer,
   ];
+
+  // Bold overlay for the focused row label (drawn above the base labels)
+  if (layers_mat.row_label_focus_layer) {
+    layers_list.push(layers_mat.row_label_focus_layer);
+  }
 
   // Add attribute label layers if they exist
   if (layers_mat.col_attr_label_layer) {

@@ -18,6 +18,7 @@ import {
   get_axis_center_position,
   get_axis_display_count,
   get_axis_label_font_size,
+  get_zoomed_axis_label_font_size,
   is_axis_index_visible,
 } from '../../matrix/crop_filter';
 import {
@@ -77,9 +78,46 @@ const col_label_get_position = (d, index, viz_state) => {
   return position;
 };
 
+// Enrich's "In term" blue (#2f74ff) — row labels for genes in the currently
+// selected enriched term are drawn in this color, mirroring the Enrich
+// paragraph view.
+const HIGHLIGHT_LABEL_COLOR = [47, 116, 255];
+
+// Enrich lowercases term genes before syncing, so membership is matched
+// case-insensitively against the row name.
+const is_row_label_highlighted = (viz_state, d) =>
+  Boolean(
+    viz_state.labels.highlighted_genes?.has(String(d.name || '').toLowerCase())
+  );
+
+// Per-instance so composition mode can hide labels that don't fit their
+// segment (fully transparent, rather than removed from `data`, so
+// reorder/index-keyed picking stays stable). Shared by the base row-label
+// layer and the bold focus overlay so both respect crop fade, composition
+// visibility, and term-gene highlighting.
+const row_label_text_color = (viz_state, d) => {
+  const crop_alpha = Math.round(
+    255 * crop_fade_axis_alpha_factor(viz_state, 'row', d.index)
+  );
+  if (crop_alpha === 0) return [0, 0, 0, 0];
+  if (viz_state.mat.viz_mode === 'composition') {
+    const visible = viz_state.labels.row_visibility;
+    if (visible && visible[d.index] === false) return [0, 0, 0, 0];
+  }
+  return is_row_label_highlighted(viz_state, d)
+    ? [...HIGHLIGHT_LABEL_COLOR, crop_alpha]
+    : [0, 0, 0, crop_alpha];
+};
+
+const row_label_color_triggers = (viz_state) => [
+  crop_filter_signature(viz_state),
+  crop_fade_signature(viz_state),
+  viz_state.labels._row_vis_rev || 0,
+  viz_state.labels._row_style_rev || 0,
+];
+
 export const ini_row_label_layer = (viz_state) => {
   const crop_sig = crop_filter_signature(viz_state);
-  const fade_sig = crop_fade_signature(viz_state);
   const transitions = {
     getPosition: {
       duration: viz_state.animate.duration,
@@ -93,22 +131,7 @@ export const ini_row_label_layer = (viz_state) => {
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
     getSize: get_axis_label_font_size(viz_state, 'row'),
-    // Per-instance so composition mode can hide labels that don't fit their
-    // segment (fully transparent, rather than removed from `data`, so
-    // reorder/index-keyed picking stays stable).
-    getColor: (d) => {
-      const crop_alpha = Math.round(
-        255 * crop_fade_axis_alpha_factor(viz_state, 'row', d.index)
-      );
-      if (crop_alpha === 0) return [0, 0, 0, 0];
-      if (viz_state.mat.viz_mode !== 'composition') {
-        return [0, 0, 0, crop_alpha];
-      }
-      const visible = viz_state.labels.row_visibility;
-      return !visible || visible[d.index] !== false
-        ? [0, 0, 0, crop_alpha]
-        : [0, 0, 0, 0];
-    },
+    getColor: (d) => row_label_text_color(viz_state, d),
     getAngle: 0,
     getTextAnchor: 'end',
     getAlignmentBaseline: 'center',
@@ -117,7 +140,7 @@ export const ini_row_label_layer = (viz_state) => {
     sizeScale: 2,
     updateTriggers: {
       getPosition: crop_sig,
-      getColor: [crop_sig, fade_sig, viz_state.labels._row_vis_rev || 0],
+      getColor: row_label_color_triggers(viz_state),
       getSize: crop_sig,
     },
     pickable: true,
@@ -125,6 +148,80 @@ export const ini_row_label_layer = (viz_state) => {
   });
 
   return row_label_layer;
+};
+
+/**
+ * Bold overlay for the focused row's label (Enrich gene click or row search).
+ * deck.gl TextLayer font weight is layer-level, not per-datum, so the focused
+ * label is drawn as its own one-datum bold layer on top of the base label
+ * (same color/position/size — bold glyphs fully cover the regular ones). The
+ * base datum stays in place and pickable; the overlay is not pickable.
+ *
+ * Rebuilt (fresh one-element `data` array) wherever the base layer's
+ * geometry-affecting props change, so accessors re-evaluate without
+ * trigger bookkeeping.
+ */
+export const ini_row_label_focus_layer = (viz_state) => {
+  const focused_index = viz_state.labels.focused_row_index;
+  const data =
+    focused_index == null
+      ? []
+      : filter_label_data(viz_state, 'row').filter(
+          (d) => d.index === focused_index
+        );
+
+  return new TextLayer({
+    // Contains 'row-label-layer' so layer_filter routes it to the rows
+    // viewport, and listed in SNAP_ANNOTATION_LAYER_IDS for crop snaps.
+    id: 'row-label-layer-focus',
+    data,
+    getPosition: (d, index) => row_label_get_position(d, index, viz_state),
+    getText: (d) => d.display_name || d.name,
+    getSize: get_zoomed_axis_label_font_size(
+      viz_state,
+      'row',
+      viz_state.zoom?.zoom_data?.matrix?.zoom_y ?? 0
+    ),
+    getColor: (d) => row_label_text_color(viz_state, d),
+    getAngle: 0,
+    getTextAnchor: 'end',
+    getAlignmentBaseline: 'center',
+    fontFamily: 'Arial',
+    fontWeight: 'bold',
+    sizeUnits: 'pixels',
+    sizeScale: 2,
+    pickable: false,
+    transitions: {
+      getPosition: {
+        duration: viz_state.animate.duration,
+        easing: d3.easeCubic,
+      },
+    },
+  });
+};
+
+export const refresh_row_label_focus_layer = (layers_mat, viz_state) => {
+  layers_mat.row_label_focus_layer = ini_row_label_focus_layer(viz_state);
+};
+
+/**
+ * Re-trigger row-label colors after the highlighted (term) gene set changes,
+ * and rebuild the bold focus overlay so it picks up the new palette too.
+ */
+export const refresh_row_label_highlight = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  viz_state.labels._row_style_rev = (viz_state.labels._row_style_rev || 0) + 1;
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.row_label_layer),
+      getColor: row_label_color_triggers(viz_state),
+    },
+  });
+  refresh_row_label_focus_layer(layers_mat, viz_state);
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };
 
 export const ini_col_label_layer = (viz_state) => {
@@ -308,6 +405,9 @@ const custom_label_reorder = (
   // segment, and where the row dendrogram's leaves sit.
   refresh_row_label_visibility(layers_mat, viz_state);
   refresh_composition_dendro(layers_mat, viz_state);
+  // Rebuild the bold focus overlay so it animates to the reordered position
+  // alongside the base label.
+  refresh_row_label_focus_layer(layers_mat, viz_state);
 
   deck_mat.setProps({
     layers: get_mat_layers_list(layers_mat),

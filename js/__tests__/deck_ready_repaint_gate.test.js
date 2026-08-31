@@ -72,3 +72,38 @@ describe('deck_check → deck_ready repaint gate', () => {
     expect(emissions).toEqual([false, true]);
   });
 });
+
+describe('image visibility on gene selections', () => {
+  let create_obs_store;
+
+  beforeAll(() => {
+    const fs = require('fs');
+    const path = require('path');
+
+    const source = fs
+      .readFileSync(path.join(__dirname, '../obs_store/obs_store.js'), 'utf8')
+      .replace(/^export const /gm, 'const ');
+    const code = `${source}\nmodule.exports = { create_obs_store };`;
+    const module = { exports: {} };
+    new Function('module', 'exports', code)(module, module.exports);
+    ({ create_obs_store } = module.exports);
+  });
+
+  test('only a single-gene (expression-colored) selection hides the images', () => {
+    const store = create_obs_store();
+    store.setup_image_visibility_manager(() => true);
+
+    // Multi-gene selection (row dendrogram / crop sync) stays in cluster
+    // coloring — the background images must not black out.
+    store.selected_genes.set(['g0', 'g1', 'g2']);
+    expect(store.viz_image_layers.get()).toBe(true);
+
+    // A single gene drives expression coloring: hide images when zoomed out.
+    store.selected_genes.set(['g0']);
+    expect(store.viz_image_layers.get()).toBe(false);
+
+    // Back to a multi-gene set restores the images.
+    store.selected_genes.set(['g0', 'g1']);
+    expect(store.viz_image_layers.get()).toBe(true);
+  });
+});

@@ -127,6 +127,14 @@ describe('term-gene row label highlighting', () => {
     expect(ini_row_label_focus_layer(viz_state).props.data).toEqual([]);
   });
 
+  test('focus overlay never transitions (no flight from the previous focus, no per-character truncation)', () => {
+    const viz_state = make_viz_state();
+    viz_state.labels.focused_row_index = 0;
+
+    const layer = ini_row_label_focus_layer(viz_state);
+    expect(layer.props.transitions).toBeUndefined();
+  });
+
   test('refresh_row_label_highlight bumps the style revision into triggers', () => {
     const viz_state = make_viz_state();
     const layers_mat = {

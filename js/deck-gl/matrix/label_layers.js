@@ -191,12 +191,11 @@ export const ini_row_label_focus_layer = (viz_state) => {
     sizeUnits: 'pixels',
     sizeScale: 2,
     pickable: false,
-    transitions: {
-      getPosition: {
-        duration: viz_state.animate.duration,
-        easing: d3.easeCubic,
-      },
-    },
+    // Deliberately no transitions: TextLayer expands strings into
+    // per-character instances, so transitioning this one-datum layer between
+    // differently-named genes both "flies" the bold label from the previous
+    // focus position and truncates it to the overlapping character count
+    // mid-flight. Snapping keeps the overlay exactly on top of its base label.
   });
 };
 
@@ -405,8 +404,8 @@ const custom_label_reorder = (
   // segment, and where the row dendrogram's leaves sit.
   refresh_row_label_visibility(layers_mat, viz_state);
   refresh_composition_dendro(layers_mat, viz_state);
-  // Rebuild the bold focus overlay so it animates to the reordered position
-  // alongside the base label.
+  // Rebuild the bold focus overlay so it lands at the reordered position
+  // (it snaps there while the base label animates in underneath).
   refresh_row_label_focus_layer(layers_mat, viz_state);
 
   deck_mat.setProps({

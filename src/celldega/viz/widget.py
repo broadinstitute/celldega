@@ -1257,6 +1257,11 @@ class Clustergram(anywidget.AnyWidget):
     width = traitlets.Int(500).tag(sync=True)
     height = traitlets.Int(500).tag(sync=True)
 
+    # Multipliers for the row/column label text. Column labels default a
+    # little smaller so longer category names remain readable when zoomed in.
+    row_label_scale = traitlets.Float(1.0).tag(sync=True)
+    col_label_scale = traitlets.Float(0.8).tag(sync=True)
+
     click_info = traitlets.Dict({}).tag(sync=True)
 
     #: Set by Python (or another front-end) to request ``{req_id, op, ...}``:

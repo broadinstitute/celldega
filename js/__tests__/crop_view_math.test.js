@@ -349,6 +349,12 @@ describe('compute_crop_filter', () => {
     expect(get_zoomed_axis_label_font_size(dense_gene_matrix, 'row', 6)).toBe(
       10
     );
+
+    dense_gene_matrix.viz.label_scale = { rows: 1, cols: 0.8 };
+    dense_gene_matrix.viz.font_size.cols = 0.5;
+    expect(get_zoomed_axis_label_font_size(dense_gene_matrix, 'col', 6)).toBe(
+      8
+    );
   });
 
   test('crop fade helpers hide marks outside the pending filter', () => {

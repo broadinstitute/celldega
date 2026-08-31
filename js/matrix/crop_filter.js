@@ -398,13 +398,17 @@ export const get_default_pan = (viz_state) => [
 
 export const get_axis_label_font_size = (viz_state, axis) => {
   const font_key = axis === 'row' ? 'rows' : 'cols';
+  const label_scale = viz_state.viz.label_scale?.[font_key] ?? 1;
   const original_size = viz_state.viz.font_size[font_key];
   const filtered_size = Math.max(
     viz_state.viz.base_font_size / get_axis_display_count(viz_state, axis),
     get_axis_slot_size(viz_state, axis) * FILTER_FONT_SLOT_FACTOR
   );
 
-  return Math.max(original_size, Math.min(MAX_FILTER_FONT_SIZE, filtered_size));
+  return (
+    label_scale *
+    Math.max(original_size, Math.min(MAX_FILTER_FONT_SIZE, filtered_size))
+  );
 };
 
 export const get_zoomed_axis_label_font_size = (
@@ -413,7 +417,9 @@ export const get_zoomed_axis_label_font_size = (
   zoom_value
 ) => {
   const base_size = get_axis_label_font_size(viz_state, axis);
-  const max_size = Math.max(base_size, MAX_ZOOM_FONT_SIZE);
+  const font_key = axis === 'row' ? 'rows' : 'cols';
+  const label_scale = viz_state.viz.label_scale?.[font_key] ?? 1;
+  const max_size = Math.max(base_size, MAX_ZOOM_FONT_SIZE * label_scale);
   return Math.min(max_size, base_size * Math.pow(2, zoom_value));
 };
 

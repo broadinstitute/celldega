@@ -193,6 +193,14 @@ def test_clustergram_selected_genes_trait() -> None:
     assert widget.selected_genes == ["A", "B"]
 
 
+def test_clustergram_label_scales_are_configurable() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat, row_label_scale=1.1, col_label_scale=0.7)
+
+    assert widget.row_label_scale == 1.1
+    assert widget.col_label_scale == 0.7
+
+
 def test_clustergram_matrix_slice_request_is_nonblocking() -> None:
     widget = Clustergram(matrix=make_simple_matrix())
 

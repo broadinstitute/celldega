@@ -186,14 +186,20 @@ def _link_clustergram_to_enrich(
         enrich.source_label = source_label if genes else ""
         enrich.gene_list = list(genes) if genes else []
 
-    def _selection_source_label(click_type: str) -> str:
-        labels = {
-            "row_crop": "Clustergram row crop",
-            "col_crop": "Clustergram column crop",
-            "row_dendro": "Clustergram row dendrogram",
-            "col_dendro": "Clustergram column dendrogram",
-        }
-        return labels.get(click_type, "Clustergram selection")
+    def _selection_source_label(click_type: str, click_value: dict) -> str:
+        # "Clustergram" is implied — keep the source short: the column the top
+        # genes came from, or the selection gesture (brush vs dendrogram).
+        if click_type == "col_label":
+            name = click_value.get("name")
+            if name:
+                return str(name)
+        if click_type in ("row_crop", "col_crop"):
+            if click_value.get("crop_source") == "dendrogram":
+                return "Dendrogram selection"
+            return "Brush selection"
+        if click_type in ("row_dendro", "col_dendro"):
+            return "Dendrogram selection"
+        return "Selection"
 
     def _on_selected_genes(change) -> None:
         genes = change["new"] or []
@@ -225,7 +231,7 @@ def _link_clustergram_to_enrich(
                 _set_gene_list([])
                 return
 
-        _set_gene_list(genes, _selection_source_label(click_type))
+        _set_gene_list(genes, _selection_source_label(click_type, click_value))
 
     def _on_click_info(change) -> None:
         info = change["new"] or {}

@@ -54,6 +54,26 @@ export const mat_reorder_triggers = (viz_state, extra = []) => {
   };
 };
 
+// Row/col label getColor invalidation keys. Live here (not label_layers.js)
+// so text_buttons.js can rebuild them on button reorders without an import
+// cycle (label_layers imports text_buttons). The opposite axis's order is a
+// key because the reorder-driver highlight (the double-clicked label shown in
+// blue) is only valid while that axis is still custom-sorted by it.
+export const row_label_color_triggers = (viz_state) => [
+  crop_filter_signature(viz_state),
+  crop_fade_signature(viz_state),
+  viz_state.labels?._row_vis_rev || 0,
+  viz_state.labels?._row_style_rev || 0,
+  viz_state.order?.current?.col,
+];
+
+export const col_label_color_triggers = (viz_state) => [
+  crop_filter_signature(viz_state),
+  crop_fade_signature(viz_state),
+  viz_state.labels?._col_style_rev || 0,
+  viz_state.order?.current?.row,
+];
+
 export const get_mat_layers_list = (layers_mat, options = {}) => {
   const { snap_annotations = false } = options;
   const layers_list = [

@@ -51,8 +51,8 @@ import {
   ini_row_label_layer,
   ini_row_label_focus_layer,
   ini_col_label_layer,
-  refresh_row_label_focus_layer,
   refresh_row_label_highlight,
+  refresh_row_label_styles,
   set_row_label_layer_onclick,
   set_col_label_layer_onclick,
   set_row_label_layer_onhover,
@@ -157,9 +157,13 @@ export const matrix_viz = async (
     )
   );
   viz_state.labels._row_style_rev = 0;
+  viz_state.labels._col_style_rev = 0;
   // Matrix row index of the focused row (Enrich gene click or row search);
   // rendered as a bold label overlay.
   viz_state.labels.focused_row_index = null;
+  // The double-clicked label the matrix is custom-sorted by (blue while the
+  // sorted axis's order remains 'custom').
+  viz_state.labels.reorder_driver = null;
 
   ini_zoom_data(viz_state);
 
@@ -252,9 +256,10 @@ export const matrix_viz = async (
       toggle_dendro_layer_visibility(layers_mat, viz_state, 'col');
     }
 
-    // Row-label geometry differs between the square grid and composition's
-    // stacked bars, so rebuild the bold focus overlay for the new mode.
-    refresh_row_label_focus_layer(layers_mat, viz_state);
+    // Row-label geometry and color rules differ between the square grid and
+    // composition's stacked bars: rebuild the bold focus overlay and
+    // re-trigger base label colors for the new mode.
+    refresh_row_label_styles(layers_mat, viz_state);
 
     update_mode_button_visibility(viz_state);
 
@@ -494,10 +499,11 @@ export const matrix_viz = async (
         viz_state.row_search?.focus(gene);
         return;
       }
-      // Cleared focus (e.g. Enrich CLEAR): drop the bold label overlay.
+      // Cleared focus (e.g. Enrich CLEAR): drop the bold overlay and un-hide
+      // the base label underneath it.
       if (viz_state.labels.focused_row_index != null) {
         viz_state.labels.focused_row_index = null;
-        refresh_row_label_focus_layer(layers_mat, viz_state);
+        refresh_row_label_styles(layers_mat, viz_state);
         deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
       }
     });

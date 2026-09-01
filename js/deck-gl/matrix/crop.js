@@ -209,6 +209,9 @@ export const sync_gene_row_crop_selection = (viz_state) => {
     value: {
       selected_names: genes,
       selected_indices: row_indices.slice(),
+      // Lets consumers (e.g. the Enrich source label) distinguish a brush
+      // crop from a dendrogram double-click crop.
+      crop_source: viz_state.crop?.dendro_axes?.row ? 'dendrogram' : 'brush',
       entity: viz_state.row_entity.entity,
       attr: viz_state.row_entity.attr,
       row_entity: viz_state.row_entity.entity,

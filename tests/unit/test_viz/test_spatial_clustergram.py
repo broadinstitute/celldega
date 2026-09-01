@@ -88,9 +88,10 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     cgm.selected_genes = ["g0", "g1"]
 
     assert enrich.gene_list == ["g0", "g1"]
-    assert enrich.source_label == "Clustergram row dendrogram"
+    assert enrich.source_label == "Dendrogram selection"
 
-    # Gene row crops are also meaningful enrichment gene sets.
+    # Gene row crops are also meaningful enrichment gene sets. A brush crop
+    # (no dendro crop_source) reads as a brush selection...
     cgm.click_info = {
         "type": "row_crop",
         "value": {"selected_names": ["g2", "g3"]},
@@ -98,13 +99,30 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     cgm.selected_genes = ["g2", "g3"]
 
     assert enrich.gene_list == ["g2", "g3"]
-    assert enrich.source_label == "Clustergram row crop"
+    assert enrich.source_label == "Brush selection"
+
+    # ...while a dendrogram double-click crop names the gesture.
+    cgm.click_info = {
+        "type": "row_crop",
+        "value": {"selected_names": ["g0", "g2"], "crop_source": "dendrogram"},
+    }
+    cgm.selected_genes = ["g0", "g2"]
+
+    assert enrich.source_label == "Dendrogram selection"
+
+    # Column-label clicks (single or double) send the column's top genes with
+    # the column name as the source ("Clustergram" is implied).
+    cgm.click_info = {"type": "col_label", "value": {"name": "s2", "index": 2}}
+    cgm.selected_genes = ["g1", "g0"]
+
+    assert enrich.gene_list == ["g1", "g0"]
+    assert enrich.source_label == "s2"
 
     # Clicking a gene in Enrich focuses the matching Clustergram row without
     # changing the enrichment gene list.
     enrich.focused_gene = "g1"
     assert cgm.focused_gene == "g1"
-    assert enrich.gene_list == ["g2", "g3"]
+    assert enrich.gene_list == ["g1", "g0"]
 
 
 def test_clustergram_enrich_mirrors_term_genes_to_highlighted_genes():

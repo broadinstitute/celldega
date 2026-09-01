@@ -11,9 +11,11 @@ import {
   toggle_dendro_layer_visibility,
 } from '../deck-gl/matrix/dendro_layers';
 import {
+  col_label_color_triggers,
   get_layer_update_triggers,
   get_mat_layers_list,
   mat_reorder_triggers,
+  row_label_color_triggers,
 } from '../deck-gl/matrix/matrix_layers';
 import { refresh_row_label_visibility } from '../matrix/composition_data';
 import { crop_filter_signature } from '../matrix/crop_filter';
@@ -154,6 +156,22 @@ const reorder_button_callback = (
         },
       });
     }
+
+    // A button reorder replaces any double-click custom order, so re-trigger
+    // both axes' label colors: the blue reorder-driver label (valid only
+    // while the sorted axis is still 'custom') reverts to black.
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.row_label_layer),
+        getColor: row_label_color_triggers(viz_state),
+      },
+    });
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_label_layer),
+        getColor: col_label_color_triggers(viz_state),
+      },
+    });
 
     // Composition mode: row labels are positioned by their actual segment
     // (which moves on either a row or a column reorder) and filtered by fit,

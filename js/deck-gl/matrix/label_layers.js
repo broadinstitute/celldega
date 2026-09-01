@@ -12,7 +12,6 @@ import {
 } from '../../matrix/composition_data';
 import {
   crop_fade_axis_alpha_factor,
-  crop_fade_signature,
   crop_filter_signature,
   filter_label_data,
   get_axis_center_position,
@@ -39,9 +38,11 @@ import {
   toggle_dendro_layer_visibility,
 } from './dendro_layers';
 import {
+  col_label_color_triggers,
   get_layer_update_triggers,
   get_mat_layers_list,
   mat_reorder_triggers,
+  row_label_color_triggers,
 } from './matrix_layers';
 
 const MAX_COL_LABEL_PIXEL_OFFSET = 18;
@@ -90,6 +91,24 @@ const is_row_label_highlighted = (viz_state, d) =>
     viz_state.labels.highlighted_genes?.has(String(d.name || '').toLowerCase())
   );
 
+// The reorder driver is the double-clicked label the matrix is custom-sorted
+// by; it stays blue only while the *other* axis's order is still 'custom'
+// (a reorder button on that axis replaces the custom order and un-blues it).
+const is_reorder_driver_label = (viz_state, axis, d) => {
+  const driver = viz_state.labels.reorder_driver;
+  if (!driver || driver.axis !== axis || driver.index !== d.index) {
+    return false;
+  }
+  const sorted_axis = axis === 'col' ? 'row' : 'col';
+  return viz_state.order?.current?.[sorted_axis] === 'custom';
+};
+
+const set_reorder_driver = (viz_state, axis, name, index) => {
+  viz_state.labels.reorder_driver = { axis, name, index };
+  viz_state.labels._row_style_rev = (viz_state.labels._row_style_rev || 0) + 1;
+  viz_state.labels._col_style_rev = (viz_state.labels._col_style_rev || 0) + 1;
+};
+
 // Per-instance so composition mode can hide labels that don't fit their
 // segment (fully transparent, rather than removed from `data`, so
 // reorder/index-keyed picking stays stable). Shared by the base row-label
@@ -104,17 +123,23 @@ const row_label_text_color = (viz_state, d) => {
     const visible = viz_state.labels.row_visibility;
     if (visible && visible[d.index] === false) return [0, 0, 0, 0];
   }
-  return is_row_label_highlighted(viz_state, d)
+  return is_row_label_highlighted(viz_state, d) ||
+    is_reorder_driver_label(viz_state, 'row', d)
     ? [...HIGHLIGHT_LABEL_COLOR, crop_alpha]
     : [0, 0, 0, crop_alpha];
 };
 
-const row_label_color_triggers = (viz_state) => [
-  crop_filter_signature(viz_state),
-  crop_fade_signature(viz_state),
-  viz_state.labels._row_vis_rev || 0,
-  viz_state.labels._row_style_rev || 0,
-];
+// Column labels: crop fade plus the reorder-driver blue (no term-gene
+// highlighting — columns aren't genes).
+const col_label_text_color = (viz_state, d) => {
+  const crop_alpha = Math.round(
+    255 * crop_fade_axis_alpha_factor(viz_state, 'col', d.index)
+  );
+  if (crop_alpha === 0) return [0, 0, 0, 0];
+  return is_reorder_driver_label(viz_state, 'col', d)
+    ? [...HIGHLIGHT_LABEL_COLOR, crop_alpha]
+    : [0, 0, 0, crop_alpha];
+};
 
 export const ini_row_label_layer = (viz_state) => {
   const crop_sig = crop_filter_signature(viz_state);
@@ -131,7 +156,14 @@ export const ini_row_label_layer = (viz_state) => {
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
     getSize: get_axis_label_font_size(viz_state, 'row'),
-    getColor: (d) => row_label_text_color(viz_state, d),
+    // The focused row's base label is drawn fully transparent: the bold
+    // overlay replaces it (bold glyph widths differ, so drawing both would
+    // ghost). The datum stays in `data` so sibling labels keep their indices
+    // (removing it would index-shift-animate the whole column).
+    getColor: (d) =>
+      d.index === viz_state.labels.focused_row_index
+        ? [0, 0, 0, 0]
+        : row_label_text_color(viz_state, d),
     getAngle: 0,
     getTextAnchor: 'end',
     getAlignmentBaseline: 'center',
@@ -190,17 +222,38 @@ export const ini_row_label_focus_layer = (viz_state) => {
     fontWeight: 'bold',
     sizeUnits: 'pixels',
     sizeScale: 2,
-    pickable: false,
+    // The overlay REPLACES the (transparent) base label, so it takes over its
+    // click/hover behavior via the handlers stashed by the set_* wiring.
+    pickable: true,
+    onClick: (event) => viz_state.labels._row_label_click_handler?.(event),
+    onHover: (info) => viz_state.labels._row_label_hover_handler?.(info),
     // Deliberately no transitions: TextLayer expands strings into
     // per-character instances, so transitioning this one-datum layer between
     // differently-named genes both "flies" the bold label from the previous
     // focus position and truncates it to the overlapping character count
-    // mid-flight. Snapping keeps the overlay exactly on top of its base label.
+    // mid-flight. Snapping keeps the overlay exactly in the base label's slot.
   });
 };
 
 export const refresh_row_label_focus_layer = (layers_mat, viz_state) => {
   layers_mat.row_label_focus_layer = ini_row_label_focus_layer(viz_state);
+};
+
+/**
+ * Re-trigger row-label colors (term-gene highlight, reorder driver, and the
+ * hide-under-bold rule) and rebuild the bold focus overlay. Call after
+ * changing highlighted_genes, the focused row, or the reorder driver; the
+ * caller issues the setProps.
+ */
+export const refresh_row_label_styles = (layers_mat, viz_state) => {
+  viz_state.labels._row_style_rev = (viz_state.labels._row_style_rev || 0) + 1;
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.row_label_layer),
+      getColor: row_label_color_triggers(viz_state),
+    },
+  });
+  refresh_row_label_focus_layer(layers_mat, viz_state);
 };
 
 /**
@@ -212,20 +265,12 @@ export const refresh_row_label_highlight = (
   layers_mat,
   viz_state
 ) => {
-  viz_state.labels._row_style_rev = (viz_state.labels._row_style_rev || 0) + 1;
-  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    updateTriggers: {
-      ...get_layer_update_triggers(layers_mat.row_label_layer),
-      getColor: row_label_color_triggers(viz_state),
-    },
-  });
-  refresh_row_label_focus_layer(layers_mat, viz_state);
+  refresh_row_label_styles(layers_mat, viz_state);
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };
 
 export const ini_col_label_layer = (viz_state) => {
   const crop_sig = crop_filter_signature(viz_state);
-  const fade_sig = crop_fade_signature(viz_state);
   function get_pixel_offset(num_cols) {
     const offset_y = 75 / Math.max(num_cols, 1);
     return [0, Math.min(MAX_COL_LABEL_PIXEL_OFFSET, offset_y)];
@@ -244,12 +289,7 @@ export const ini_col_label_layer = (viz_state) => {
     getPosition: (d, index) => col_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
     getSize: get_axis_label_font_size(viz_state, 'col'),
-    getColor: (d) => [
-      0,
-      0,
-      0,
-      Math.round(255 * crop_fade_axis_alpha_factor(viz_state, 'col', d.index)),
-    ],
+    getColor: (d) => col_label_text_color(viz_state, d),
     getAngle: 45, // Optional: Text angle in degrees
     getTextAnchor: 'start', // middle
     getAlignmentBaseline: 'bottom',
@@ -268,7 +308,7 @@ export const ini_col_label_layer = (viz_state) => {
     updateTriggers: {
       getPosition: crop_sig,
       getPixelOffset: crop_sig,
-      getColor: [crop_sig, fade_sig],
+      getColor: col_label_color_triggers(viz_state),
       getSize: crop_sig,
     },
   });
@@ -320,6 +360,10 @@ const custom_label_reorder = (
 
   // deactivate reordering buttons when setting a custom order
   deselect_reorder_buttons(viz_state, other_axis);
+
+  // Track the double-clicked label driving this custom order: it renders in
+  // the linkage blue until the sorted axis's order changes again.
+  set_reorder_driver(viz_state, axis, name, index);
 
   if (axis === 'col') {
     tmp_arr = viz_state.mat.net_mat.map((inst_row) => inst_row[index]);
@@ -398,6 +442,21 @@ const custom_label_reorder = (
 
     toggle_dendro_layer_visibility(layers_mat, viz_state, 'row');
   }
+
+  // Re-trigger both axes' label colors: the new driver label turns blue and
+  // any previous driver reverts (the style revisions were bumped above).
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.row_label_layer),
+      getColor: row_label_color_triggers(viz_state),
+    },
+  });
+  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.col_label_layer),
+      getColor: col_label_color_triggers(viz_state),
+    },
+  });
 
   // Reordering (in particular a column reorder, which can change which
   // column is leftmost/rightmost) can change which row labels fit their
@@ -516,6 +575,14 @@ const handle_label_click = (
   clear_pending_label_click(viz_state, axis);
 
   if (pending?.index === label.index) {
+    // A column double-click is a "focus on this column" gesture: alongside
+    // reordering the rows by it, run the single-click sync so its top genes
+    // reach a linked Enrich widget (with the column named as the source).
+    // Row double-clicks skip this — the row_label click would recenter
+    // linked spatial views, which is unwanted for a pure reorder.
+    if (axis === 'col') {
+      single_click_callback(label);
+    }
     custom_label_reorder(
       deck_mat,
       layers_mat,
@@ -555,9 +622,13 @@ export const set_row_label_layer_onclick = (
   layers_mat,
   viz_state
 ) => {
+  // Stashed so the bold focus overlay (rebuilt at many sites without access
+  // to deck_mat/layers_mat) can forward its clicks to the same handler — the
+  // base label underneath it is drawn transparent and therefore unpickable.
+  viz_state.labels._row_label_click_handler = (event) =>
+    row_label_layer_onclick(event, deck_mat, layers_mat, viz_state);
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    onClick: (event) =>
-      row_label_layer_onclick(event, deck_mat, layers_mat, viz_state),
+    onClick: viz_state.labels._row_label_click_handler,
   });
 };
 
@@ -612,6 +683,7 @@ export const set_row_label_layer_onhover = (
     );
   };
 
+  viz_state.labels._row_label_hover_handler = on_hover;
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
     onHover: on_hover,
   });

@@ -2,8 +2,10 @@ import * as d3 from 'd3-color';
 
 import { refresh_dendro_for_viz_mode } from '../deck-gl/matrix/dendro_layers';
 import {
+  col_label_color_triggers,
   get_mat_layers_list,
   mat_reorder_triggers,
+  row_label_color_triggers,
 } from '../deck-gl/matrix/matrix_layers';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 import { update_zoom_data } from '../deck-gl/matrix/zoom';
@@ -293,7 +295,7 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
     getSize: get_axis_label_font_size(viz_state, 'row'),
     updateTriggers: {
       getPosition: [viz_state.order.current.row, crop_sig],
-      getColor: [crop_sig, fade_sig, viz_state.labels._row_vis_rev || 0],
+      getColor: row_label_color_triggers(viz_state),
       getSize: crop_sig,
     },
   });
@@ -312,7 +314,7 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
     getSize: get_axis_label_font_size(viz_state, 'col'),
     updateTriggers: {
       getPosition: [viz_state.order.current.col, crop_sig],
-      getColor: [crop_sig, fade_sig],
+      getColor: col_label_color_triggers(viz_state),
       getSize: crop_sig,
     },
   });

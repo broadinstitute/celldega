@@ -9,7 +9,7 @@ import {
 } from '../../matrix/crop_filter';
 
 import { curate_pan_x, curate_pan_y } from './curate_pan';
-import { refresh_row_label_focus_layer } from './label_layers';
+import { refresh_row_label_styles } from './label_layers';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { ini_views } from './views';
@@ -127,17 +127,18 @@ export const focus_matrix_row = (
   viz_state.zoom.zoom_data.total_zoom.x = zoom_curated[0];
   viz_state.zoom.zoom_data.total_zoom.y = zoom_curated[1];
 
+  // Bold the focused row's label: the overlay replaces the (now transparent)
+  // base label, sized like the base labels at the destination zoom. The
+  // styles refresh re-triggers base colors so the previous focus un-hides.
+  viz_state.labels.focused_row_index = row_index;
+  refresh_row_label_styles(layers_mat, viz_state);
+
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
     getSize: get_zoomed_axis_label_font_size(viz_state, 'row', zoom_curated[1]),
   });
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
     getSize: get_zoomed_axis_label_font_size(viz_state, 'col', zoom_curated[0]),
   });
-
-  // Bold the focused row's label (one-datum overlay drawn over the base
-  // label), sized like the base labels at the destination zoom.
-  viz_state.labels.focused_row_index = row_index;
-  refresh_row_label_focus_layer(layers_mat, viz_state);
 
   ini_views(viz_state);
   mark_programmatic_view_transition(viz_state, FOCUS_ZOOM_TRANSITION_MS);

@@ -116,28 +116,31 @@ describe('matrix tooltip positioning', () => {
     expect(result.html).toContain('+3 more (15 total)');
   });
 
-  test('dendrogram tooltip placement avoids top and bottom edges', () => {
+  test('dendrogram tooltips open back over the matrix, off the triangles', () => {
     const { viz_state } = make_viz_state();
 
-    const column_near_top = get_tooltip(viz_state, {
-      object: dendro_object,
-      layer: { id: 'col-dendro-layer' },
-      y: 20,
-    });
-    const row_near_bottom = get_tooltip(viz_state, {
-      object: dendro_object,
-      layer: { id: 'row-dendro-layer' },
-      y: 190,
-    });
-    const row_mid_view = get_tooltip(viz_state, {
-      object: dendro_object,
-      layer: { id: 'row-dendro-layer' },
-      y: 100,
-    });
+    const row_tooltip = (y) =>
+      get_tooltip(viz_state, {
+        object: dendro_object,
+        layer: { id: 'row-dendro-layer' },
+        y,
+      });
+    const column_tooltip = (y) =>
+      get_tooltip(viz_state, {
+        object: dendro_object,
+        layer: { id: 'col-dendro-layer' },
+        y,
+      });
 
-    expect(column_near_top.style.translate).toBe('8px 8px');
-    expect(row_near_bottom.style.translate).toBe('8px calc(-100% - 8px)');
-    expect(row_mid_view.style.translate).toBe('8px 8px');
+    // The row dendrogram is to the right of the matrix: always open leftward,
+    // at any height, so the trapezoids being read stay visible.
+    expect(row_tooltip(100).style.translate).toBe('calc(-100% - 8px) 8px');
+    expect(row_tooltip(190).style.translate).toBe('calc(-100% - 8px) 8px');
+
+    // The column dendrogram is below the matrix: open upward, except where
+    // that would run off the top of the widget.
+    expect(column_tooltip(150).style.translate).toBe('8px calc(-100% - 8px)');
+    expect(column_tooltip(20).style.translate).toBe('8px 8px');
   });
 
   test('non-dendrogram tooltips reset custom offsets', () => {

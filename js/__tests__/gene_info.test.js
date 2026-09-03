@@ -317,20 +317,60 @@ describe('scroll containment', () => {
     expect(element.scrollTop).toBe(40);
   });
 
-  test('scrolls the overflow container when attached to inner content', () => {
+  test('scrolls the holder when the gesture lands on inner content', () => {
     // The Enrich paragraph view's shape: a non-scrolling content div inside a
     // scrolling holder. Cancelling the native scroll without redirecting it
-    // here is what broke that panel's scrolling entirely.
+    // to the holder is what broke that panel's scrolling entirely.
     const api = load_gene_info({});
     const holder = make_scrollable(document.createElement('div'));
     const content = document.createElement('div');
     holder.appendChild(content);
     document.body.appendChild(holder);
 
-    api.contain_scroll(content);
+    api.contain_scroll(holder);
     wheel(content);
 
     expect(holder.scrollTop).toBe(40);
+  });
+
+  test('one root handler scrolls whichever inner panel the pointer is over', () => {
+    // The Enrich widget's shape: several panels under one root. Attaching at
+    // the root must not swallow a panel's own scrolling.
+    const api = load_gene_info({});
+    const root = document.createElement('div');
+    const bars = make_scrollable(document.createElement('div'));
+    const paragraph = make_scrollable(document.createElement('div'));
+    const word = document.createElement('span');
+    paragraph.appendChild(word);
+    root.append(bars, paragraph);
+    document.body.appendChild(root);
+
+    api.contain_scroll(root);
+
+    wheel(bars);
+    expect(bars.scrollTop).toBe(40);
+
+    // Deep inside the paragraph view: resolved from the event target upward.
+    wheel(word);
+    expect(paragraph.scrollTop).toBe(40);
+    expect(bars.scrollTop).toBe(40);
+  });
+
+  test('absorbs the gesture over empty panels with no results', () => {
+    // "No genes provided." state: nothing in the widget can scroll, and the
+    // page must not scroll in its place.
+    const api = load_gene_info({});
+    const root = document.createElement('div');
+    const empty_panel = document.createElement('div');
+    root.appendChild(empty_panel);
+    document.body.appendChild(root);
+
+    api.contain_scroll(root);
+    const { event } = wheel(empty_panel);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(empty_panel.scrollTop).toBe(0);
+    expect(root.scrollTop).toBe(0);
   });
 
   test('never scrolls the page when nothing in the widget overflows', () => {
@@ -343,6 +383,22 @@ describe('scroll containment', () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(element.scrollTop).toBe(0);
+  });
+
+  test('never walks past the attached root to scroll an outer page container', () => {
+    const api = load_gene_info({});
+    // A scrollable page-level wrapper the widget happens to sit inside.
+    const page = make_scrollable(document.createElement('div'));
+    const root = document.createElement('div');
+    const panel = document.createElement('div');
+    root.appendChild(panel);
+    page.appendChild(root);
+    document.body.appendChild(page);
+
+    api.contain_scroll(root);
+    wheel(panel);
+
+    expect(page.scrollTop).toBe(0);
   });
 
   test('converts line-mode deltas (Firefox) to pixels', () => {

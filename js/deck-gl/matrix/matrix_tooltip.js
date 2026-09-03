@@ -50,46 +50,37 @@ const reset_tooltip_position = (viz_state) => {
   }
 };
 
-// Category-bar and attribute-label tooltips open toward the matrix interior
-// rather than outward over a dendrogram strip. The column attribute labels sit
-// directly above the row dendrogram (see views.js: `col_attr_labels` shares its
-// x range with `dendro_rows`), so those always open leftward; the others only
-// flip when the pointer is near the right edge.
+// The column attribute labels sit directly above the row dendrogram (see
+// views.js: `col_attr_labels` shares its x range with `dendro_rows`), so their
+// tooltip opens leftward over the matrix instead of down over the dendrogram.
 const ATTR_TOOLTIP_OFFSET_PX = 8;
-const ATTR_TOOLTIP_RIGHT_BUFFER_PX = 200;
 
-const attr_tooltip_style = (viz_state, params, options = {}) => {
-  const { prefer_left = false } = options;
-  const x = params?.x ?? 0;
-  const root_width = viz_state.root?.clientWidth || 0;
-  const near_right =
-    root_width > 0 && x > root_width - ATTR_TOOLTIP_RIGHT_BUFFER_PX;
-  const open_left = prefer_left || near_right;
-  const offset = `${ATTR_TOOLTIP_OFFSET_PX}px`;
+const attr_tooltip_style = () => ({
+  ...base_tooltip_style(),
+  translate: `calc(-100% - ${ATTR_TOOLTIP_OFFSET_PX}px) ${ATTR_TOOLTIP_OFFSET_PX}px`,
+});
 
-  return {
-    ...base_tooltip_style(),
-    translate: open_left
-      ? `calc(-100% - ${offset}) ${offset}`
-      : `${offset} ${offset}`,
-  };
-};
-
-const dendro_tooltip_style = (viz_state, params, preferred_side) => {
+// Dendrogram tooltips open back over the matrix rather than outward over the
+// dendrogram itself, so the trapezoids the user is reading stay visible. The
+// row dendrogram sits to the right of the matrix (open leftward); the column
+// dendrogram sits below it (open upward), unless that would run off the top.
+const dendro_tooltip_style = (viz_state, params, axis) => {
   const y = params?.y ?? 0;
-  const root_height = viz_state.root?.clientHeight || 0;
   const near_top = y < DENDRO_TOOLTIP_EDGE_BUFFER_PX;
-  const near_bottom =
-    root_height > 0 && y > root_height - DENDRO_TOOLTIP_EDGE_BUFFER_PX;
-  const use_above =
-    preferred_side === 'above' ? !near_top : Boolean(near_bottom);
   const offset = `${DENDRO_TOOLTIP_OFFSET_PX}px`;
 
+  if (axis === 'row') {
+    return {
+      ...base_tooltip_style(),
+      translate: `calc(-100% - ${offset}) ${offset}`,
+    };
+  }
+
   return {
     ...base_tooltip_style(),
-    translate: use_above
-      ? `${offset} calc(-100% - ${offset})`
-      : `${offset} ${offset}`,
+    translate: near_top
+      ? `${offset} ${offset}`
+      : `${offset} calc(-100% - ${offset})`,
   };
 };
 
@@ -143,23 +134,23 @@ export const get_tooltip = (viz_state, params) => {
       const row_attr_name = viz_state.attr.names.row[object.level];
       return {
         html: `${escape_html(row_attr_name)}: ${escape_html(object.name)}`,
-        style: attr_tooltip_style(viz_state, params),
+        style: base_tooltip_style(),
       };
     } else if (layer_id === 'col-layer') {
       const col_attr_name = viz_state.attr.names.col[object.level];
       return {
         html: `${escape_html(col_attr_name)}: ${escape_html(object.name)}`,
-        style: attr_tooltip_style(viz_state, params),
+        style: base_tooltip_style(),
       };
     } else if (layer_id === 'row-dendro-layer') {
       return {
         html: dendro_tooltip_html('Row', object),
-        style: dendro_tooltip_style(viz_state, params, 'below'),
+        style: dendro_tooltip_style(viz_state, params, 'row'),
       };
     } else if (layer_id === 'col-dendro-layer') {
       return {
         html: dendro_tooltip_html('Column', object),
-        style: dendro_tooltip_style(viz_state, params, 'above'),
+        style: dendro_tooltip_style(viz_state, params, 'col'),
       };
     } else if (layer_id.includes('mat-layer')) {
       // Display the default tooltip for other layers
@@ -205,7 +196,7 @@ export const get_tooltip = (viz_state, params) => {
         html: `Row Attribute: ${escape_html(
           object.name
         )}<br><i>Double-click to reorder by this attribute</i>`,
-        style: attr_tooltip_style(viz_state, params),
+        style: base_tooltip_style(),
       };
     } else if (layer_id === 'col-attr-label-layer') {
       return {
@@ -213,7 +204,7 @@ export const get_tooltip = (viz_state, params) => {
           object.name
         )}<br><i>Double-click to reorder by this attribute</i>`,
         // This strip sits directly above the row dendrogram.
-        style: attr_tooltip_style(viz_state, params, { prefer_left: true }),
+        style: attr_tooltip_style(),
       };
     }
   }

@@ -130,6 +130,12 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
 
+  // One handler for the whole widget: the bar graph, paragraph view, gene info
+  // panel, and the gaps between them all keep their wheel gestures to
+  // themselves — including in the empty "no results" state, where none of
+  // those panels has anything to scroll.
+  contain_scroll(container);
+
   // get width/height from traitlets
   const width = (model.get('width') || 350) - 5;
   const height = model.get('height') || 500;
@@ -180,9 +186,6 @@ export const render_enrich = async ({ model, el }) => {
   paragraphHolder.style.marginTop = '0';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
-  // Attached to the holder (the element that actually scrolls) rather than
-  // the paragraph content, which is replaced on every enrichment result.
-  contain_scroll(paragraphHolder);
 
   geneInfoHolder.style.height = 'auto';
   geneInfoHolder.style.flex = '2 1 0';
@@ -190,7 +193,6 @@ export const render_enrich = async ({ model, el }) => {
   geneInfoHolder.style.width = `${width}px`;
   geneInfoHolder.style.marginTop = '0';
   geneInfoHolder.style.overflowY = 'auto';
-  contain_scroll(geneInfoHolder);
   geneInfoHolder.style.border = '1px solid #d3d3d3';
   geneInfoHolder.style.fontFamily =
     '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';

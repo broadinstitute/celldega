@@ -147,15 +147,18 @@ const wheel_delta_px = (event, element) => {
 };
 
 /**
- * The element that actually scrolls for a gesture over `element`: itself if it
- * has overflow, else the nearest ancestor that does. The walk stops before
- * `document.body`, since scrolling the page is exactly what we're preventing.
+ * The element that actually scrolls for a gesture that landed on `start`: the
+ * nearest element from `start` up to (and including) `boundary` that has
+ * vertical overflow. Returns null when nothing inside the boundary can
+ * scroll — scrolling the page is exactly what we're preventing, so the walk
+ * never escapes past `boundary` (or `<body>`).
  */
-const nearest_scrollable = (element) => {
-  let node = element;
+const nearest_scrollable = (start, boundary) => {
+  let node = start;
 
   while (node && node !== document.body && node !== document.documentElement) {
     if (node.scrollHeight > node.clientHeight) return node;
+    if (node === boundary) return null;
     node = node.parentElement;
   }
 
@@ -163,15 +166,19 @@ const nearest_scrollable = (element) => {
 };
 
 /**
- * Keep wheel gestures over `element` entirely inside it: the page never
- * scrolls (not at the ends of the content, and not when the content doesn't
- * overflow at all), and the widget's own zoom/pan handlers never see the
- * event. Because `preventDefault` also cancels the native scroll, the scroll
- * is re-applied manually to whichever element would have scrolled.
+ * Keep wheel gestures inside `element` and its descendants: the page never
+ * scrolls — not at the ends of the content, not when the content doesn't
+ * overflow, and not over empty regions with no results in them — and the
+ * widget's own zoom/pan handlers never see the event. Because `preventDefault`
+ * also cancels the native scroll, it's re-applied manually to whichever
+ * element would have scrolled.
  *
- * Safe to attach to a non-scrolling wrapper: the scroll target is resolved per
- * event, so attaching to inner content still scrolls its overflow container
- * (rather than silently swallowing the gesture).
+ * The scroll target is resolved per event from where the pointer actually is,
+ * so this can be attached once to a widget's root container: inner panels
+ * still scroll normally, while gestures over gaps between them are absorbed
+ * instead of falling through to the notebook page. The search never walks
+ * above `element`, so a scrollable page/notebook ancestor is never moved —
+ * attach it at the outermost element the gesture should be allowed to affect.
  *
  * @param {HTMLElement} element
  */
@@ -187,7 +194,11 @@ export const contain_scroll = (element) => {
       event.preventDefault();
       event.stopPropagation();
 
-      const target = nearest_scrollable(element);
+      const start =
+        event.target instanceof Element && element.contains(event.target)
+          ? event.target
+          : element;
+      const target = nearest_scrollable(start, element);
       if (target) target.scrollTop += wheel_delta_px(event, target);
     },
     { passive: false }

@@ -554,7 +554,19 @@ export const update_dendro_layer_data = (
 };
 
 export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
+  const layer = layers_mat[`${axis}_dendro_layer`];
   const is_visible = viz_state.order.current[axis] === 'clust';
+  const was_visible = layer.props?.visible !== false;
+
+  // Triangles/polygons are only recomputed on events that change matrix
+  // geometry (crop, viz-mode switch, attribute refresh). A dendrogram hidden
+  // across one of those (any custom/rank/other reorder hides it) would come
+  // back with stale leaf positions, so rebuild its data as it reappears.
+  if (is_visible && !was_visible) {
+    calc_dendro_triangles(viz_state, axis);
+    calc_dendro_polygons(viz_state, axis);
+    update_dendro_layer_data(layers_mat, viz_state, axis);
+  }
 
   layers_mat[`${axis}_dendro_layer`] = layers_mat[`${axis}_dendro_layer`].clone(
     {

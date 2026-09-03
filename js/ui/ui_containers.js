@@ -45,6 +45,7 @@ import {
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
+import { is_gene_axis, make_gene_info_box } from './gene_info';
 import { set_gene_search, set_matrix_row_search } from './gene_search';
 import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
@@ -435,10 +436,52 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   action_container.appendChild(mode_container);
   ui_container.appendChild(action_container);
 
+  // Search + gene info stack vertically in one column: ui_container is a flex
+  // row, so appending them as siblings would widen the control panel instead.
+  const search_container = flex_container('matrix_search_container', 'column');
+  search_container.style.flexShrink = '0';
+
   const row_search = set_matrix_row_search(viz_state, (row_index) =>
     viz_state.focus_row?.(row_index)
   );
-  ui_container.appendChild(row_search);
+  search_container.appendChild(row_search);
+  ui_container.appendChild(search_container);
+
+  // Gene name/description panel (same one Landscape shows under its gene
+  // search). Stateful by design: it tracks the *selected* gene only, while
+  // hover information goes to the row-label tooltip.
+  if (is_gene_axis(viz_state, 'row')) {
+    // Height fits the remaining room under the search input inside the
+    // control panel's fixed 100px height.
+    const gene_info_box = make_gene_info_box({
+      marginLeft: '10px',
+      height: '58px',
+    });
+    viz_state.gene_info_box = gene_info_box;
+    search_container.appendChild(gene_info_box.element);
+
+    // Selecting a gene (row-label click, search, or an Enrich link) pins its
+    // description and echoes it into the search box, which doubles as a
+    // state viewer for "which gene am I on" — same as Landscape's gene bar.
+    // Assigning `.value` doesn't fire an `input` event, so this can't
+    // re-trigger the search's focus zoom.
+    viz_state.obs_store?.selected_genes?.subscribe(
+      (selected_genes) => {
+        if (selected_genes?.length === 1) {
+          gene_info_box.show(selected_genes[0]);
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = selected_genes[0];
+          }
+        } else if (!selected_genes?.length) {
+          gene_info_box.clear();
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = '';
+          }
+        }
+      },
+      { immediate: false }
+    );
+  }
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);

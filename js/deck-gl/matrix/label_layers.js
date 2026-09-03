@@ -666,6 +666,10 @@ export const set_row_label_layer_onhover = (
     // the dendro layer's own onHover(null) to fire for this transition.
     if (info?.object) clear_dendro_hover(deck_mat, layers_mat, viz_state);
 
+    // Note: hovering deliberately does NOT touch the gene info panel — the
+    // tooltip carries transient info, the panel only reflects the current
+    // selection (see make_gene_info_box).
+
     if (viz_state.mat.viz_mode !== 'composition') return;
 
     const row = info?.object ? info.object.index : null;

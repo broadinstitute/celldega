@@ -5,15 +5,13 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { sync_nbhd_cloud_opacity_sliders } from '../ui/bar_plot';
 import { refresh_layer } from '../utils/refresh_layer';
 
+import { contain_scroll, is_gene_axis } from './gene_info';
 import { set_gene_search_input } from './gene_search_input';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
 
-const is_gene_row_axis = (viz_state) =>
-  String(
-    viz_state.row_entity?.entity ?? viz_state.row_entity ?? ''
-  ).toLowerCase() === 'gene';
+const is_gene_row_axis = (viz_state) => is_gene_axis(viz_state, 'row');
 
 const get_matrix_row_search_entries = (viz_state) => {
   const entries = [];
@@ -323,16 +321,9 @@ export const set_gene_search = async (
   viz_state.genes.gene_text_box.style.paddingLeft = '2px';
   viz_state.genes.gene_text_box.style.paddingRight = '17px';
 
-  viz_state.genes.gene_text_box.addEventListener('wheel', (event) => {
-    const { scrollTop, scrollHeight, clientHeight } =
-      viz_state.genes.gene_text_box;
-    const atTop = scrollTop === 0;
-    const atBottom = scrollTop + clientHeight === scrollHeight;
-
-    if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
-      event.preventDefault();
-    }
-  });
+  // Keep wheel gestures inside the panel: previously the page still scrolled
+  // once this box hit either end (or when its text didn't overflow at all).
+  contain_scroll(viz_state.genes.gene_text_box);
 
   viz_state.genes.gene_search.appendChild(viz_state.genes.gene_text_box); // Append the new div with text
 

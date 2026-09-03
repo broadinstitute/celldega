@@ -13,9 +13,30 @@ describe('matrix tooltip positioning', () => {
         path.join(__dirname, '../deck-gl/matrix/matrix_tooltip.js'),
         'utf8'
       )
+      .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
       .replace(/^export const /gm, 'const ');
 
-    const code = `${source}\nmodule.exports = { get_tooltip, hide_tooltip };`;
+    // Real implementations from ui/gene_info.js (kept in sync by the
+    // gene-info tests); the tooltip only needs their contract here.
+    const shims = `
+      const escape_html = (value) =>
+        String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      const is_gene_axis = (viz_state, axis = 'row') => {
+        const raw = viz_state?.[axis + '_entity'];
+        const entity = raw?.entity ?? raw;
+        return String(entity ?? '').toLowerCase() === 'gene';
+      };
+      const gene_info_tooltip_html = (gene) =>
+        gene ? '<br><i>Looking up UniProt…</i>' : '';
+      const refresh_gene_tooltip_async = () => {};
+    `;
+
+    const code = `${shims}\n${source}\nmodule.exports = { get_tooltip, hide_tooltip };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
     ({ get_tooltip, hide_tooltip } = module.exports);

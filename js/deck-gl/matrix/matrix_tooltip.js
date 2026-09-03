@@ -1,14 +1,13 @@
+import {
+  escape_html,
+  gene_info_tooltip_html,
+  is_gene_axis,
+  refresh_gene_tooltip_async,
+} from '../../ui/gene_info';
+
 const DENDRO_TOOLTIP_OFFSET_PX = 8;
 const DENDRO_TOOLTIP_EDGE_BUFFER_PX = 72;
 const DENDRO_TOOLTIP_NAME_LIMIT = 12;
-
-const escape_html = (value) =>
-  String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 
 const dendro_names_html = (names) => {
   const list = Array.isArray(names) ? names : [];
@@ -51,6 +50,31 @@ const reset_tooltip_position = (viz_state) => {
   }
 };
 
+// Category-bar and attribute-label tooltips open toward the matrix interior
+// rather than outward over a dendrogram strip. The column attribute labels sit
+// directly above the row dendrogram (see views.js: `col_attr_labels` shares its
+// x range with `dendro_rows`), so those always open leftward; the others only
+// flip when the pointer is near the right edge.
+const ATTR_TOOLTIP_OFFSET_PX = 8;
+const ATTR_TOOLTIP_RIGHT_BUFFER_PX = 200;
+
+const attr_tooltip_style = (viz_state, params, options = {}) => {
+  const { prefer_left = false } = options;
+  const x = params?.x ?? 0;
+  const root_width = viz_state.root?.clientWidth || 0;
+  const near_right =
+    root_width > 0 && x > root_width - ATTR_TOOLTIP_RIGHT_BUFFER_PX;
+  const open_left = prefer_left || near_right;
+  const offset = `${ATTR_TOOLTIP_OFFSET_PX}px`;
+
+  return {
+    ...base_tooltip_style(),
+    translate: open_left
+      ? `calc(-100% - ${offset}) ${offset}`
+      : `${offset} ${offset}`,
+  };
+};
+
 const dendro_tooltip_style = (viz_state, params, preferred_side) => {
   const y = params?.y ?? 0;
   const root_height = viz_state.root?.clientHeight || 0;
@@ -91,9 +115,23 @@ export const get_tooltip = (viz_state, params) => {
 
   if (object) {
     // Check which layer the tooltip is currently over
-    if (layer_id === 'row-label-layer') {
+    // `includes` also matches the bold focus overlay ('row-label-layer-focus'),
+    // which replaces the base label for the focused row.
+    if (layer_id.includes('row-label-layer')) {
+      const row_name = object.name;
+      const build_html = () =>
+        `Row Label: ${escape_html(
+          object.display_name || object.name
+        )}${is_gene_axis(viz_state, 'row') ? gene_info_tooltip_html(row_name) : ''}`;
+
+      // Gene rows carry a UniProt name/description; the first hover renders a
+      // placeholder and this patches it in when the lookup resolves.
+      if (is_gene_axis(viz_state, 'row')) {
+        refresh_gene_tooltip_async(viz_state.root, row_name, build_html);
+      }
+
       return {
-        html: `Row Label: ${escape_html(object.display_name || object.name)}`,
+        html: build_html(),
         style: base_tooltip_style(),
       };
     } else if (layer_id === 'col-label-layer') {
@@ -105,13 +143,13 @@ export const get_tooltip = (viz_state, params) => {
       const row_attr_name = viz_state.attr.names.row[object.level];
       return {
         html: `${escape_html(row_attr_name)}: ${escape_html(object.name)}`,
-        style: base_tooltip_style(),
+        style: attr_tooltip_style(viz_state, params),
       };
     } else if (layer_id === 'col-layer') {
       const col_attr_name = viz_state.attr.names.col[object.level];
       return {
         html: `${escape_html(col_attr_name)}: ${escape_html(object.name)}`,
-        style: base_tooltip_style(),
+        style: attr_tooltip_style(viz_state, params),
       };
     } else if (layer_id === 'row-dendro-layer') {
       return {
@@ -167,14 +205,15 @@ export const get_tooltip = (viz_state, params) => {
         html: `Row Attribute: ${escape_html(
           object.name
         )}<br><i>Double-click to reorder by this attribute</i>`,
-        style: base_tooltip_style(),
+        style: attr_tooltip_style(viz_state, params),
       };
     } else if (layer_id === 'col-attr-label-layer') {
       return {
         html: `Column Attribute: ${escape_html(
           object.name
         )}<br><i>Double-click to reorder by this attribute</i>`,
-        style: base_tooltip_style(),
+        // This strip sits directly above the row dendrogram.
+        style: attr_tooltip_style(viz_state, params, { prefer_left: true }),
       };
     }
   }

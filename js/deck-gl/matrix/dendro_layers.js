@@ -673,6 +673,15 @@ const build_click_value = (viz_state, axis, polygon_props, selected_names) => {
   };
 };
 
+/**
+ * Gap kept between the manual-category editor and the dendrogram it was opened
+ * from: the row editor pulls left of the row dendrogram (which runs down the
+ * matrix's right edge) and the column editor pulls up off the column
+ * dendrogram (along the bottom), so the trapezoids stay readable while the
+ * form is open.
+ */
+const DENDRO_EDITOR_CLEARANCE_PX = 28;
+
 const maybe_open_dendro_editor = (viz_state, axis, selected_names) => {
   if (!viz_state.attr?.editor?.open) {
     return;
@@ -680,31 +689,23 @@ const maybe_open_dendro_editor = (viz_state, axis, selected_names) => {
 
   const editor_width = 240;
   const editor_height = 200;
+  const matrix_left =
+    (viz_state.viz.row_region || 0) + (viz_state.viz.label_buffer || 0);
+  const matrix_top =
+    (viz_state.viz.col_region || 0) + (viz_state.viz.label_buffer || 0);
+  const matrix_right = matrix_left + (viz_state.viz.mat_width || 300);
+  const matrix_bottom = matrix_top + (viz_state.viz.mat_height || 300);
   let position;
 
   if (axis === 'row') {
     position = {
-      x:
-        (viz_state.viz.row_region || 0) +
-        (viz_state.viz.label_buffer || 0) +
-        (viz_state.viz.mat_width || 300) -
-        editor_width -
-        1,
-      y: (viz_state.viz.col_region || 0) + (viz_state.viz.label_buffer || 0),
+      x: matrix_right - editor_width - DENDRO_EDITOR_CLEARANCE_PX,
+      y: matrix_top,
     };
   } else {
     position = {
-      x:
-        (viz_state.viz.row_region || 0) +
-        (viz_state.viz.label_buffer || 0) +
-        (viz_state.viz.mat_width || 300) -
-        editor_width,
-      y:
-        (viz_state.viz.col_region || 0) +
-        (viz_state.viz.label_buffer || 0) +
-        (viz_state.viz.mat_height || 300) -
-        editor_height -
-        1,
+      x: matrix_right - editor_width,
+      y: matrix_bottom - editor_height - DENDRO_EDITOR_CLEARANCE_PX,
     };
   }
 

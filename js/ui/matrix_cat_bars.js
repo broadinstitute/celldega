@@ -1,6 +1,15 @@
 import * as d3 from 'd3';
 
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import {
+  get_layer_update_triggers,
+  get_mat_layers_list,
+} from '../deck-gl/matrix/matrix_layers';
+import {
+  crop_fade_signature,
+  crop_filter_signature,
+  has_crop_filter,
+  is_axis_index_visible,
+} from '../matrix/crop_filter';
 
 /**
  * Create a container for matrix category bar graphs.
@@ -255,7 +264,9 @@ const compute_initial_breakdown = (viz_state, axis) => {
   const cat_key = `cat-${attr_index}`;
   const counts = {};
 
-  nodes.forEach((node) => {
+  nodes.forEach((node, index) => {
+    if (!is_axis_index_visible(viz_state, axis, index)) return;
+
     const value = node[cat_key];
     if (value !== undefined && value !== null) {
       counts[value] = (counts[value] || 0) + 1;
@@ -292,7 +303,11 @@ const compute_filtered_breakdown = (viz_state, axis, selected_names) => {
   if (attr_index < 0) return null;
 
   const selected_set = new Set(selected_names);
-  const selected_nodes = nodes.filter((node) => selected_set.has(node.name));
+  const selected_nodes = nodes.filter(
+    (node, index) =>
+      selected_set.has(node.name) &&
+      is_axis_index_visible(viz_state, axis, index)
+  );
 
   const cat_key = `cat-${attr_index}`;
   const counts = {};
@@ -338,12 +353,26 @@ const update_cat_tile_layers = (viz_state) => {
   // Clone layers with updated triggers to force re-render
   if (layers_mat.row_cat_layer) {
     layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-      updateTriggers: { getFillColor: [viz_state.hovered_cat] },
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.row_cat_layer),
+        getFillColor: [
+          crop_filter_signature(viz_state),
+          crop_fade_signature(viz_state),
+          viz_state.hovered_cat,
+        ],
+      },
     });
   }
   if (layers_mat.col_cat_layer) {
     layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-      updateTriggers: { getFillColor: [viz_state.hovered_cat] },
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_cat_layer),
+        getFillColor: [
+          crop_filter_signature(viz_state),
+          crop_fade_signature(viz_state),
+          viz_state.hovered_cat,
+        ],
+      },
     });
   }
 
@@ -412,7 +441,11 @@ const compute_manual_category_breakdown = (viz_state, axis) => {
 
   // Count occurrences of each category value
   const counts = {};
-  Object.values(assignments).forEach((value) => {
+  const nodes = axis === 'row' ? viz_state.row_nodes : viz_state.col_nodes;
+  nodes.forEach((node, index) => {
+    if (!is_axis_index_visible(viz_state, axis, index)) return;
+
+    const value = assignments[String(node.name)];
     if (value != null && value !== '') {
       const key = String(value);
       counts[key] = (counts[key] || 0) + 1;
@@ -707,12 +740,19 @@ function get_color_dict(viz_state) {
  */
 function update_cat_bars_on_selection(viz_state, selection) {
   const color_dict = get_color_dict(viz_state);
+  const title_suffix = (data) => {
+    if (!has_crop_filter(viz_state)) return '';
+    const total = data.reduce((sum, d) => sum + d.value, 0);
+    return ` (${total})`;
+  };
 
   if (!selection) {
     // Reset to full breakdown
     ['row', 'col'].forEach((axis) => {
       if (viz_state.cat_bars?.[axis]) {
-        const initial = compute_initial_breakdown(viz_state, axis);
+        const initial =
+          compute_initial_breakdown(viz_state, axis) ||
+          compute_manual_category_breakdown(viz_state, axis);
         if (initial && initial.data.length > 0) {
           const { on_hover, on_hover_out } = create_bar_hover_handlers(
             viz_state,
@@ -742,7 +782,7 @@ function update_cat_bars_on_selection(viz_state, selection) {
           const attr_name = get_first_cat_attr_name(viz_state, axis);
           const axis_label = axis === 'row' ? 'Row' : 'Col';
           viz_state.cat_bars[axis].title.textContent =
-            `${axis_label}: ${attr_name}`;
+            `${axis_label}: ${attr_name}${title_suffix(initial.data)}`;
         }
       }
     });
@@ -792,3 +832,10 @@ function update_cat_bars_on_selection(viz_state, selection) {
     }
   }
 }
+
+export const refresh_matrix_cat_bars = (viz_state) => {
+  update_cat_bars_on_selection(
+    viz_state,
+    viz_state.obs_store?.dendro_selection?.get?.() || null
+  );
+};

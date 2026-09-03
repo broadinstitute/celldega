@@ -1,3 +1,9 @@
+import {
+  escape_html,
+  gene_info_tooltip_html,
+  refresh_gene_tooltip_async,
+} from '../../ui/gene_info';
+
 import { get_point_cloud_source_index } from './point_cloud_indices';
 
 /**
@@ -45,7 +51,15 @@ export const make_tooltip = (viz_state, info) => {
       geneId === undefined || geneId < 0
         ? ''
         : viz_state.genes.g_nameMapping_inv?.[geneId] || '';
-    inst_html = `<div>transcript: ${inst_name}</div>`;
+
+    // Same UniProt name/description the Clustergram shows on a gene row; the
+    // first hover renders a placeholder and this patches it in on arrival.
+    const build_trx_html = () =>
+      `<div>transcript: ${escape_html(
+        inst_name
+      )}</div>${gene_info_tooltip_html(inst_name)}`;
+    refresh_gene_tooltip_async(viz_state.root, inst_name, build_trx_html);
+    inst_html = build_trx_html();
   }
   // Handle neighborhood layer tooltips
   else if (info.layer.id.startsWith('nbhd-layer')) {

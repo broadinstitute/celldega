@@ -1,12 +1,26 @@
 import * as d3 from 'd3-color';
 
+import { refresh_dendro_for_viz_mode } from '../deck-gl/matrix/dendro_layers';
 import {
+  col_label_color_triggers,
   get_mat_layers_list,
   mat_reorder_triggers,
+  row_label_color_triggers,
 } from '../deck-gl/matrix/matrix_layers';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
+import { update_zoom_data } from '../deck-gl/matrix/zoom';
 
 import { colorToRgba } from './cat_data';
+import {
+  clear_crop_display_cache,
+  crop_fade_signature,
+  crop_filter_signature,
+  filter_cat_data,
+  filter_label_data,
+  filter_matrix_data,
+  get_axis_label_font_size,
+  get_axis_slot_size,
+} from './crop_filter';
 
 const FALLBACK_COLORS = [
   '#1f77b4',
@@ -222,24 +236,45 @@ export const initialize_attr_state = (viz_state, network) => {
 };
 
 export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
+  const previous_geometry = {
+    mat_width: viz_state.viz.mat_width,
+    mat_height: viz_state.viz.mat_height,
+    row_region: viz_state.viz.row_region,
+    col_region: viz_state.viz.col_region,
+  };
+
   compute_geometry(viz_state);
+  const geometry_changed = Object.entries(previous_geometry).some(
+    ([key, value]) => value !== viz_state.viz[key]
+  );
+  clear_crop_display_cache(viz_state);
 
   const row_data = build_cat_data_for_axis(viz_state, 'row');
   const col_data = build_cat_data_for_axis(viz_state, 'col');
+  const crop_sig = crop_filter_signature(viz_state);
+  const fade_sig = crop_fade_signature(viz_state);
 
   viz_state.cats.row_cat_data = row_data;
   viz_state.cats.col_cat_data = col_data;
 
   layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-    data: row_data,
+    data: filter_cat_data(viz_state, 'row'),
     tile_width: (viz_state.viz.row_cat_width / 2) * 0.9,
-    tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
+    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
+    updateTriggers: {
+      getPosition: crop_sig,
+      getFillColor: [crop_sig, fade_sig, viz_state.hovered_cat],
+    },
   });
 
   layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-    data: col_data,
-    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
+    data: filter_cat_data(viz_state, 'col'),
+    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
     tile_height: viz_state.viz.col_cat_height / 2,
+    updateTriggers: {
+      getPosition: crop_sig,
+      getFillColor: [crop_sig, fade_sig, viz_state.hovered_cat],
+    },
   });
 
   // Geometry (mat_height/col_width) may have changed with attribute count, so
@@ -247,20 +282,49 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   viz_state.mat._comp_cache = null;
 
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
-    tile_height: (viz_state.viz.mat_height / viz_state.mat.num_rows) * 0.5,
-    tile_width: (viz_state.viz.mat_width / viz_state.mat.num_cols) * 0.5,
+    data: filter_matrix_data(viz_state),
+    tile_height: get_axis_slot_size(viz_state, 'row') * 0.5,
+    tile_width: get_axis_slot_size(viz_state, 'col') * 0.5,
+    // mat_reorder_triggers' getFillColor already includes the crop/fade
+    // signatures, composition hover state, and highlight revision.
     updateTriggers: mat_reorder_triggers(viz_state),
   });
 
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-    data: viz_state.labels.row_label_data,
-    updateTriggers: { getPosition: viz_state.order.current.row },
+    data: filter_label_data(viz_state, 'row'),
+    getSize: get_axis_label_font_size(viz_state, 'row'),
+    updateTriggers: {
+      getPosition: [viz_state.order.current.row, crop_sig],
+      getColor: row_label_color_triggers(viz_state),
+      getSize: crop_sig,
+    },
   });
 
+  // Attribute rows change the matrix geometry, so re-evaluate the bold focus
+  // overlay's accessors (fresh data reference) and match the base label size.
+  if (layers_mat.row_label_focus_layer) {
+    layers_mat.row_label_focus_layer = layers_mat.row_label_focus_layer.clone({
+      data: [...(layers_mat.row_label_focus_layer.props.data || [])],
+      getSize: get_axis_label_font_size(viz_state, 'row'),
+    });
+  }
+
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-    data: viz_state.labels.col_label_data,
-    updateTriggers: { getPosition: viz_state.order.current.col },
+    data: filter_label_data(viz_state, 'col'),
+    getSize: get_axis_label_font_size(viz_state, 'col'),
+    updateTriggers: {
+      getPosition: [viz_state.order.current.col, crop_sig],
+      getColor: col_label_color_triggers(viz_state),
+      getSize: crop_sig,
+    },
   });
+
+  // `compute_geometry` can change mat_width, which is the coordinate system
+  // shared by the matrix columns, their labels, and the column dendrogram.
+  // Rebuild both dendrograms after that geometry update. Crop already follows
+  // this order; without it, the first render can retain polygons calculated
+  // with the pre-refresh column width until a crop happens to rebuild them.
+  refresh_dendro_for_viz_mode(layers_mat, viz_state);
 
   ini_views(viz_state);
   const view_state = ini_view_state(viz_state);
@@ -273,6 +337,18 @@ export const refresh_attribute_layers = (deck_mat, layers_mat, viz_state) => {
   if (!viz_state.attr.did_initialize) {
     props.initialViewState = view_state;
     viz_state.attr.did_initialize = true;
+  } else if (geometry_changed) {
+    // A manual attribute can arrive after the first render and shrink the
+    // matrix viewport. Reset the linked views and zoom bookkeeping together,
+    // just as crop reset does, so the initial dendrogram spacing immediately
+    // reflects the reduced matrix area instead of waiting for a scroll event.
+    const zoom = [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y];
+    const pan = view_state.matrix.target;
+
+    update_zoom_data(viz_state, 'matrix', zoom, pan);
+    viz_state.zoom.zoom_data.total_zoom.x = zoom[0];
+    viz_state.zoom.zoom_data.total_zoom.y = zoom[1];
+    props.viewState = view_state;
   }
 
   deck_mat.setProps(props);

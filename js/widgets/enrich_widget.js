@@ -3,6 +3,11 @@ import * as d3 from 'd3';
 import { postGeneList, fetchEnrichment } from '../external_apis/enrichr_api';
 import { create_enrich_store } from '../obs_store/enrich_store';
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import {
+  contain_scroll,
+  escape_html,
+  make_gene_hover_tooltip,
+} from '../ui/gene_info';
 import { make_logo_button } from '../ui/logo';
 import {
   updateParagraphColors,
@@ -40,8 +45,69 @@ export const render_enrich = async ({ model, el }) => {
   const layout = document.createElement('div');
   const barHolder = document.createElement('div');
   const infoHolder = document.createElement('div');
+  // Transient hover info for genes in the paragraph view (the info panel
+  // below stays stateful, changing only on click).
+  const gene_hover_tooltip = make_gene_hover_tooltip();
+
+  // Latest enrichment results, so a hovered gene can report which of the
+  // shown terms it appears in.
+  let current_terms = [];
+
+  const format_p_value = (value) => {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    return number < 0.001 ? number.toExponential(2) : number.toFixed(4);
+  };
+
+  /** Stats block for an enrichment term (hovering its bar). */
+  const term_stats_html = (term) => {
+    const lines = [
+      `<span style="color: #7fb0ff;">${escape_html(term.name)}</span>`,
+    ];
+
+    if (Number.isFinite(Number(term.score))) {
+      lines.push(`Combined score: ${Number(term.score).toFixed(1)}`);
+    }
+    const p_value = format_p_value(term.p_value);
+    if (p_value) lines.push(`p-value: ${p_value}`);
+    const adjusted_p = format_p_value(term.adjusted_p);
+    if (adjusted_p) lines.push(`Adjusted p: ${adjusted_p}`);
+    if (Number.isFinite(Number(term.odds_ratio))) {
+      lines.push(`Odds ratio: ${Number(term.odds_ratio).toFixed(2)}`);
+    }
+    if (Array.isArray(term.genes)) {
+      const count = term.genes.length;
+      lines.push(`Overlap: ${count} gene${count === 1 ? '' : 's'}`);
+    }
+
+    return lines.join('<br>');
+  };
+
+  /** Where a hovered gene sits in the current enrichment results. */
+  const gene_enrichment_html = (gene) => {
+    if (!current_terms.length) return '';
+
+    const target = String(gene).toUpperCase();
+    const hits = current_terms.filter((term) =>
+      (term.genes || []).some((name) => String(name).toUpperCase() === target)
+    );
+
+    if (!hits.length) {
+      return `<br><i>Not in the ${current_terms.length} shown terms</i>`;
+    }
+
+    // current_terms is sorted by combined score, so hits[0] is the strongest.
+    const best = hits[0];
+    return `<br>In ${hits.length} of ${current_terms.length} shown terms<br>Top: ${escape_html(
+      best.name
+    )} (score ${Number(best.score).toFixed(1)})`;
+  };
+
   const geneInfoHolder = document.createElement('div');
   const paragraphHolder = document.createElement('div');
+  const sourceRow = document.createElement('div');
+  const sourceText = document.createElement('span');
+  const clearButton = document.createElement('button');
   const linkHolder = document.createElement('a');
 
   header_row.style.display = 'flex';
@@ -54,6 +120,9 @@ export const render_enrich = async ({ model, el }) => {
 
   container.appendChild(header_row);
   container.appendChild(layout);
+  sourceRow.appendChild(sourceText);
+  sourceRow.appendChild(clearButton);
+  container.appendChild(sourceRow);
   container.appendChild(linkHolder);
   layout.appendChild(barHolder);
   layout.appendChild(infoHolder);
@@ -61,12 +130,20 @@ export const render_enrich = async ({ model, el }) => {
   infoHolder.appendChild(geneInfoHolder);
   el.appendChild(container);
 
+  // One handler for the whole widget: the bar graph, paragraph view, gene info
+  // panel, and the gaps between them all keep their wheel gestures to
+  // themselves — including in the empty "no results" state, where none of
+  // those panels has anything to scroll.
+  contain_scroll(container);
+
   // get width/height from traitlets
   const width = (model.get('width') || 350) - 5;
   const height = model.get('height') || 500;
 
   container.style.width = `${width}px`;
   container.style.height = `${height}px`;
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
   container.style.overflowX = 'scroll';
   container.style.marginLeft = '5px';
 
@@ -75,31 +152,78 @@ export const render_enrich = async ({ model, el }) => {
   select.style.flex = '1 1 auto';
 
   layout.style.width = `${width}px`;
-  layout.style.height = `${height}px`;
+  // Reserve room at the bottom of the widget for the Enrichr link. Previously
+  // this area consumed the full widget height, which pushed the link below the
+  // visible Enrich pane.
+  layout.style.flex = '1 1 auto';
+  layout.style.minHeight = '0';
+  layout.style.display = 'flex';
+  layout.style.flexDirection = 'column';
+  layout.style.gap = '5px';
 
   barHolder.style.width = `${width}px`;
-  barHolder.style.height = '255px';
+  barHolder.style.height = 'auto';
+  barHolder.style.flex = '0 0 45%';
+  barHolder.style.minHeight = '0';
   barHolder.style.overflowY = 'auto';
   barHolder.style.border = '1px solid #d3d3d3';
+  barHolder.style.userSelect = 'none';
+  barHolder.style.webkitUserSelect = 'none';
+  barHolder.style.cursor = 'pointer';
 
   infoHolder.style.width = `${width}px`;
-  infoHolder.style.height = '250px';
+  infoHolder.style.height = 'auto';
+  infoHolder.style.flex = '1 1 0';
+  infoHolder.style.minHeight = '0';
+  infoHolder.style.display = 'flex';
+  infoHolder.style.flexDirection = 'column';
+  infoHolder.style.gap = '5px';
 
-  paragraphHolder.style.height = '225px';
+  paragraphHolder.style.height = 'auto';
+  paragraphHolder.style.flex = '3 1 0';
+  paragraphHolder.style.minHeight = '0';
   paragraphHolder.style.width = `${width}px`;
-  paragraphHolder.style.marginTop = '5px';
+  paragraphHolder.style.marginTop = '0';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
 
-  geneInfoHolder.style.height = '155px';
+  geneInfoHolder.style.height = 'auto';
+  geneInfoHolder.style.flex = '2 1 0';
+  geneInfoHolder.style.minHeight = '0';
   geneInfoHolder.style.width = `${width}px`;
-  geneInfoHolder.style.marginTop = '5px';
+  geneInfoHolder.style.marginTop = '0';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
   geneInfoHolder.style.fontFamily =
     '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
+  sourceRow.style.display = 'flex';
+  sourceRow.style.alignItems = 'center';
+  sourceRow.style.justifyContent = 'space-between';
+  sourceRow.style.gap = '8px';
+  sourceRow.style.width = `${width}px`;
+  sourceRow.style.marginTop = '4px';
+  sourceRow.style.fontSize = '11px';
+  sourceRow.style.color = '#47515b';
+
+  sourceText.style.overflow = 'hidden';
+  sourceText.style.textOverflow = 'ellipsis';
+  sourceText.style.whiteSpace = 'nowrap';
+
+  clearButton.textContent = 'CLEAR';
+  clearButton.title = 'Clear enrichment results';
+  clearButton.setAttribute('aria-label', 'Clear enrichment results');
+  clearButton.style.flex = '0 0 auto';
+  clearButton.style.padding = '0';
+  clearButton.style.border = '0';
+  clearButton.style.background = 'transparent';
+  clearButton.style.fontSize = '10px';
+  clearButton.style.fontWeight = '700';
+  clearButton.style.color = '#2f74ff';
+  clearButton.style.cursor = 'pointer';
+
   linkHolder.style.display = 'block';
+  linkHolder.style.flex = '0 0 auto';
   linkHolder.style.marginTop = '5px';
   linkHolder.style.color = '#47515b';
   linkHolder.target = '_blank';
@@ -107,6 +231,33 @@ export const render_enrich = async ({ model, el }) => {
 
   paragraphHolder.textContent = 'Paragraph view';
   geneInfoHolder.textContent = 'Gene info';
+
+  const updateSourceRow = () => {
+    const genes = model.get('gene_list') || [];
+    const source = model.get('source_label') || 'Manual gene list';
+    const geneCount = `${genes.length} gene${genes.length === 1 ? '' : 's'}`;
+
+    sourceText.textContent = genes.length
+      ? `Source: ${source} · ${geneCount}`
+      : 'Source: No genes selected';
+    clearButton.disabled = !genes.length;
+    clearButton.style.color = genes.length ? '#2f74ff' : '#b8bec5';
+    clearButton.style.cursor = genes.length ? 'pointer' : 'default';
+  };
+
+  clearButton.addEventListener('click', () => {
+    if (!model.get('gene_list')?.length) return;
+
+    store.gene_of_interest.set('');
+    store.term_genes.set([]);
+    store.selected_term.set('Select Term');
+    model.set('gene_list', []);
+    model.set('source_label', '');
+    model.set('focused_gene', '');
+    model.set('term_genes', []);
+    model.set('selected_term', 'Select Term');
+    model.save_changes();
+  });
 
   const updateSelectOptions = () => {
     select.innerHTML = '';
@@ -157,13 +308,18 @@ export const render_enrich = async ({ model, el }) => {
     { immediate: false }
   );
 
+  let updateRevision = 0;
   const update = async () => {
+    const revision = ++updateRevision;
     const genes = model.get('gene_list') || [];
     const lib = store.selected_lib.get();
     const numTerms = model.get('num_terms') || 10;
     const background = model.get('background_list') || null;
 
+    updateSourceRow();
+
     if (!genes.length) {
+      current_terms = [];
       barHolder.textContent = 'No genes provided.';
       paragraphHolder.textContent = 'Paragraph view';
       geneInfoHolder.textContent = '';
@@ -194,10 +350,24 @@ export const render_enrich = async ({ model, el }) => {
         cache[cacheKey] = { data, shortId };
       }
 
+      if (revision !== updateRevision) return;
+
+      // Enrichr row layout: [rank, term, p-value, odds ratio, combined score,
+      // overlapping genes, adjusted p-value, ...]. The stats beyond score and
+      // genes drive the hover tooltips.
       const bar_data = (data[lib] || [])
-        .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
+        .map((d) => ({
+          name: d[1],
+          p_value: d[2],
+          odds_ratio: d[3],
+          score: d[4],
+          genes: d[5],
+          adjusted_p: d[6],
+        }))
         .sort((a, b) => b.score - a.score)
         .slice(0, numTerms);
+
+      current_terms = bar_data;
 
       const bar_data_values = bar_data.map((x) => x.score);
 
@@ -220,7 +390,10 @@ export const render_enrich = async ({ model, el }) => {
           '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
         )
         .attr('font-size', '14')
-        .attr('text-anchor', 'end');
+        .attr('text-anchor', 'end')
+        .style('cursor', 'pointer')
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none');
 
       const default_value = {
         term_name: 'Select Term',
@@ -235,6 +408,25 @@ export const render_enrich = async ({ model, el }) => {
         .data(bar_data)
         .join('g')
         .attr('transform', (d, i) => `translate(0,${y_new(i)})`)
+        .style('cursor', 'pointer')
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none')
+        .on('pointerenter', function (event, d) {
+          const barGroup = this;
+          barGroup._enrichHoverTimer = setTimeout(() => {
+            d3.select(barGroup).select('rect').attr('opacity', 0.45);
+          }, 120);
+          // Full term name plus its enrichment stats (the visible bar label
+          // is usually clipped by the narrow panel).
+          gene_hover_tooltip.show_html(term_stats_html(d), event);
+        })
+        .on('pointermove', (event) => gene_hover_tooltip.move(event))
+        .on('pointerleave', function () {
+          clearTimeout(this._enrichHoverTimer);
+          this._enrichHoverTimer = null;
+          d3.select(this).select('rect').attr('opacity', 0.25);
+          gene_hover_tooltip.hide();
+        })
         .on('click', function (_event, d) {
           const isSelected = store.selected_term.get() === d.name;
 
@@ -270,7 +462,13 @@ export const render_enrich = async ({ model, el }) => {
         .attr('y', y_new.bandwidth() / 2)
         .attr('dy', '0.35em')
         .attr('text-anchor', 'start')
+        .style('cursor', 'pointer')
+        .style('user-select', 'none')
+        .style('-webkit-user-select', 'none')
         .text((d) => d.name);
+
+      // (The complete term name now comes from the hover tooltip above, which
+      // also carries the enrichment stats; a native <title> would double up.)
 
       const new_chart = svg.node();
 
@@ -278,6 +476,7 @@ export const render_enrich = async ({ model, el }) => {
 
       const element = document.createElement('div');
       element.style.userSelect = 'none';
+      element.style.webkitUserSelect = 'none';
       element.value = 'Click on a gene to obtain detailed information';
 
       paragraphElement = element;
@@ -294,6 +493,15 @@ export const render_enrich = async ({ model, el }) => {
           '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
         )
         .style('color', () => 'black')
+        // Hovering a gene shows its UniProt name/description in a tooltip
+        // (same lookup and shared cache the Clustergram/Landscape tooltips
+        // use), leaving the clicked gene's info panel untouched.
+        .on('mouseenter', (event, d) => {
+          const gene = d.replace(', ', '');
+          gene_hover_tooltip.show(gene, event, gene_enrichment_html(gene));
+        })
+        .on('mousemove', (event) => gene_hover_tooltip.move(event))
+        .on('mouseleave', () => gene_hover_tooltip.hide())
         .on('click', function (_event, d) {
           const gene = d.replace(', ', '');
           const current = store.gene_of_interest.get();
@@ -344,6 +552,7 @@ export const render_enrich = async ({ model, el }) => {
         linkHolder.removeAttribute('href');
       }
     } catch (error) {
+      if (revision !== updateRevision) return;
       handleAsyncError(error, { context: 'render_enrich' });
       barHolder.textContent = 'Error loading enrichment data.';
       geneInfoHolder.textContent = '';
@@ -354,6 +563,7 @@ export const render_enrich = async ({ model, el }) => {
 
   // Traitlet listeners
   model.on('change:gene_list', update);
+  model.on('change:source_label', updateSourceRow);
   model.on('change:inst_lib', update);
   model.on('change:num_terms', update);
   model.on('change:background_list', update);

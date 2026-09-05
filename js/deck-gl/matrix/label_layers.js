@@ -330,9 +330,41 @@ const clear_pending_label_click = (viz_state, axis) => {
   viz_state.labels.pending_click[axis] = null;
 };
 
+// Enrichment needs at least a handful of genes to say anything, so very narrow
+// views fall back to this rather than to a percentage of almost nothing.
+const MIN_TOP_GENES = 5;
+const DEFAULT_TOP_GENE_PERCENT = 10;
+const DEFAULT_TOP_GENE_CAP = 50;
+
+/**
+ * How many of a column's top genes to send to enrichment.
+ *
+ * Scaled to the *visible* row count rather than fixed: under a rank view a flat
+ * "top 50" can be the entire view (50 of 45 rows), which enriches a gene set
+ * against itself and says nothing. `top_n_genes` stays the upper bound, so a
+ * full matrix still behaves exactly as before.
+ *
+ * @param {object} viz_state - Visualization state.
+ * @returns {number} Gene count, clamped to the visible rows.
+ */
 const resolve_top_gene_count = (viz_state) => {
-  const top_n = Number(viz_state.top_n_genes || 15);
-  return Number.isFinite(top_n) && top_n > 0 ? Math.floor(top_n) : 15;
+  const visible = get_axis_display_count(viz_state, 'row');
+
+  const cap = Number(viz_state.top_n_genes);
+  const max_genes =
+    Number.isFinite(cap) && cap > 0 ? Math.floor(cap) : DEFAULT_TOP_GENE_CAP;
+
+  const percent = Number(viz_state.top_gene_percent);
+  const share =
+    Number.isFinite(percent) && percent > 0
+      ? percent
+      : DEFAULT_TOP_GENE_PERCENT;
+
+  const scaled = Math.round((visible * share) / 100);
+  return Math.min(
+    visible,
+    Math.max(MIN_TOP_GENES, Math.min(max_genes, scaled))
+  );
 };
 
 // Top genes for a clicked column, ranked over the *visible* (crop-filtered)

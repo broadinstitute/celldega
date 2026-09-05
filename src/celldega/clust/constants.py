@@ -312,10 +312,17 @@ DEFAULT_VIZ: dict[str, Any] = {
     "links": [],
 }
 
-# Row counts kept by each precomputed dimensionality view (see
-# `Matrix.clust(views=...)`). Levels at or above the matrix's row count are
-# dropped, and the unfiltered matrix is always available as the "all" stop.
+# Levels for metric-ranked views (`var`/`sum`/`mean`), measured in total rows
+# kept — those rankings are global, with no groups to divide by. Levels at or
+# above the matrix's row count are dropped, and the unfiltered matrix is always
+# available as the "all" stop.
 DEFAULT_VIEW_LEVELS: tuple[int, ...] = (5, 10, 25, 50, 100, 250, 500)
+
+# Levels for `rank_genes_groups` views, measured in top markers **per cluster**:
+# level 10 means each cluster's top 10 markers, unioned. Deliberately a
+# different scale from DEFAULT_VIEW_LEVELS — it saves dividing a row budget by
+# the cluster count, and matches how marker dot plots are usually described.
+DEFAULT_MARKER_VIEW_LEVELS: tuple[int, ...] = (1, 2, 3, 5, 10, 25)
 
 # Fewer than this many rows can't produce a usable dendrogram, so such levels
 # are skipped rather than exported with an empty linkage.

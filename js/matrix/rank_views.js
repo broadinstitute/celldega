@@ -37,6 +37,9 @@ export const ini_rank_views = (viz_state, network) => {
     .map((view) => ({
       level: Number(view?.level),
       view_type: String(view?.view_type || 'rank'),
+      // "per_cluster" (top N markers from each cluster) or "rows" (top N rows
+      // overall) -- only affects how the slider labels the stop.
+      level_unit: view?.level_unit === 'per_cluster' ? 'per_cluster' : 'rows',
       row_indices: to_index_array(view?.row_indices),
       row_clust: to_index_array(view?.row_clust),
       col_clust: to_index_array(view?.col_clust),
@@ -60,6 +63,8 @@ export const ini_rank_views = (viz_state, network) => {
   viz_state.rank_view = {
     views,
     view_type: views[0]?.view_type || null,
+    level_unit: views[0]?.level_unit || 'rows',
+    by_level: new Map(views.map((view) => [view.level, view])),
     // The "all" stop: the clustering the widget loaded with. Captured up front
     // because applying a view overwrites these in place.
     base: {

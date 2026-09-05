@@ -542,6 +542,11 @@ export const matrix_viz = async (
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
     });
 
+    viz_state.model.on('change:top_gene_percent', () => {
+      viz_state.top_gene_percent =
+        viz_state.model.get('top_gene_percent') || 10;
+    });
+
     // Python-driven RANK view switch. `apply_rank_view` no-ops when the
     // resolved level is already active, so the value it echoes back into
     // `rank_dim` (after snapping) can't loop back around.

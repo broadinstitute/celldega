@@ -17,6 +17,7 @@ import { set_composition_normalized } from '../deck-gl/matrix/composition_layer'
 import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
@@ -32,6 +33,7 @@ import {
   calc_dendro_polygons,
   alt_slice_linkage,
 } from '../matrix/dendro';
+import { get_rank_view_stops, has_rank_views } from '../matrix/rank_views';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -51,7 +53,10 @@ import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
+  make_slider,
   toggle_slider,
+  set_slider_value,
+  ini_discrete_slider_params,
   ini_slider,
   ini_slider_params,
 } from './sliders';
@@ -248,6 +253,99 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     ctrl_container.appendChild(inst_container);
   });
+
+  // -------------------------------------------------------------------------
+  // Rank: reduced-dimensionality views, sitting directly under the row reorder
+  // buttons. Each stop is a filter level precomputed and independently
+  // re-biclustered by `Matrix.clust(views=...)`, with the last stop being the
+  // full matrix -- the slider loads a level, it never computes one. The whole
+  // row is omitted for matrices exported without views.
+  // -------------------------------------------------------------------------
+  if (has_rank_views(viz_state)) {
+    const rank_container = flex_container('rank_container', 'row');
+    rank_container.style.alignItems = 'center';
+    rank_container.style.marginTop = '10px';
+
+    d3.select(rank_container)
+      .append('div')
+      .text('Rank:')
+      .style('flex', `0 0 ${axis_label_width}px`)
+      .style('white-space', 'nowrap')
+      .style('font-size', '9px')
+      .style('font-weight', 'bold')
+      .style('color', 'black')
+      .style('user-select', 'none')
+      .style(
+        'font-family',
+        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+      );
+
+    const stops = get_rank_view_stops(viz_state);
+    const total_rows = viz_state.mat.num_rows;
+    const view_type = viz_state.rank_view?.view_type || 'rank';
+
+    const readout = d3
+      .select(rank_container)
+      .append('div')
+      .style('margin-left', '6px')
+      .style('font-size', '9px')
+      .style('white-space', 'nowrap')
+      .style('color', '#47515b')
+      .style('user-select', 'none')
+      .style(
+        'font-family',
+        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+      );
+
+    const describe_stop = (stop) =>
+      stop == null ? `all (${total_rows})` : `top ${stop}`;
+
+    const update_readout = (stop) => {
+      readout
+        .text(describe_stop(stop))
+        .attr(
+          'title',
+          stop == null
+            ? `All ${total_rows} rows`
+            : `Top ${stop} of ${total_rows} rows by ${view_type}`
+        );
+    };
+
+    const rank_slider = make_slider();
+    viz_state.rank_view.slider = rank_slider;
+
+    const ini_index = Math.max(
+      0,
+      stops.indexOf(viz_state.rank_view.current ?? null)
+    );
+
+    ini_discrete_slider_params(rank_slider, {
+      min: 0,
+      max: stops.length - 1,
+      step: 1,
+      value: ini_index,
+      callback: (event) => {
+        const stop = stops[Number(event.target.value)] ?? null;
+        update_readout(stop);
+        apply_rank_view(deck_mat, layers_mat, viz_state, stop);
+      },
+    });
+
+    update_readout(stops[ini_index] ?? null);
+
+    // Lets a Python-driven `rank_dim` change move the control, which otherwise
+    // only ever moves through direct user input.
+    viz_state.rank_view.sync_control = (stop) => {
+      const index = stops.indexOf(stop ?? null);
+      if (index < 0) return;
+
+      set_slider_value(rank_slider, index);
+      update_readout(stop ?? null);
+    };
+
+    rank_container.insertBefore(rank_slider, readout.node());
+    ctrl_container.appendChild(rank_container);
+  }
 
   viz_state.dendro.sliders = {};
 

@@ -14,8 +14,12 @@ import {
 } from '../../matrix/rank_views';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
-import { refresh_filtered_layers, reset_view_to_filter } from './crop';
-import { get_mat_layers_list } from './matrix_layers';
+import {
+  clear_crop_for_filter_change,
+  refresh_filtered_layers,
+  reset_view_to_filter,
+  sync_gene_row_crop_selection,
+} from './crop';
 
 /**
  * Mark both axes as clust-ordered in the reorder buttons. A rank view *is* a
@@ -59,6 +63,11 @@ export const apply_rank_view = (deck_mat, layers_mat, viz_state, level) => {
   const target = resolve_rank_view_level(viz_state, level);
   if (!set_rank_view_state(viz_state, target)) return false;
 
+  // A crop selects matrix row indices, which point at unrelated rows once the
+  // level changes — so it resets rather than carrying over. Cropping *within* a
+  // view still works; the two filters intersect until the next level switch.
+  clear_crop_for_filter_change(deck_mat, layers_mat, viz_state);
+
   // Geometry changes wholesale here, so mint a fresh body layer rather than
   // letting deck.gl try to tween between two unrelated row sets.
   viz_state.mat._body_layer_rev = (viz_state.mat._body_layer_rev || 0) + 1;
@@ -66,6 +75,16 @@ export const apply_rank_view = (deck_mat, layers_mat, viz_state, level) => {
   refresh_rank_view_dendro(viz_state);
   reset_order_to_clust(viz_state);
   refresh_filtered_layers(deck_mat, layers_mat, viz_state);
+
+  // Let linked widgets (Enrich, Landscape) drop the gene set the cleared crop
+  // had pushed to them.
+  sync_gene_row_crop_selection(viz_state);
+
+  // `snap_annotations` is what actually renders here, and it must stay the last
+  // setProps: it clones the labels and attribute bars with transitions off so
+  // they jump straight to the new layout. Tweening them would be a lie anyway --
+  // the matrix cells underneath swap outright rather than animating, since each
+  // level is its own independent bi-clustering.
   reset_view_to_filter(deck_mat, layers_mat, viz_state, {
     snap_annotations: true,
   });
@@ -77,6 +96,5 @@ export const apply_rank_view = (deck_mat, layers_mat, viz_state, level) => {
     viz_state.model.save_changes();
   }
 
-  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
   return true;
 };

@@ -72,6 +72,7 @@ describe('rank views', () => {
   const makeView = (overrides = {}) => ({
     level: 3,
     view_type: 'rank_genes_groups',
+    level_unit: 'per_cluster',
     row_indices: [1, 3, 5],
     row_clust: [0, 2, 0, 1, 0, 3],
     col_clust: [2, 1, 3],
@@ -139,8 +140,25 @@ describe('rank views', () => {
       3, 10,
     ]);
     expect(viz_state.rank_view.view_type).toBe('rank_genes_groups');
+    // Drives whether the slider reads a level as "per cluster" or "total rows".
+    expect(viz_state.rank_view.level_unit).toBe('per_cluster');
+    expect(viz_state.rank_view.by_level.get(3).n_rows).toBe(3);
     // "all" is always the last stop.
     expect(get_rank_view_stops(viz_state)).toEqual([3, 10, null]);
+  });
+
+  test('metric views report their level as a total row count', () => {
+    const viz_state = makeVizState([
+      makeView({ view_type: 'var', level_unit: 'rows' }),
+    ]);
+
+    expect(viz_state.rank_view.level_unit).toBe('rows');
+    expect(viz_state.rank_view.view_type).toBe('var');
+  });
+
+  test('an unknown level unit falls back to total rows', () => {
+    const viz_state = makeVizState([makeView({ level_unit: undefined })]);
+    expect(viz_state.rank_view.level_unit).toBe('rows');
   });
 
   test('drops views whose geometry does not match the matrix', () => {
@@ -224,6 +242,28 @@ describe('rank views', () => {
     expect(filter_matrix_data(viz_state)).toEqual([
       { row: 1, col: 1 },
       { row: 3, col: 2 },
+    ]);
+  });
+
+  test('clearing the crop leaves the view standing', () => {
+    // What a level switch does: crop row indices point at unrelated rows once
+    // the row set changes, so `apply_rank_view` drops the crop and the new
+    // view alone decides what renders.
+    const viz_state = makeVizState([makeView()]);
+    set_rank_view_state(viz_state, 3);
+    viz_state.crop.filter = { row: [1, 2, 3], col: null };
+    expect(get_axis_display_count(viz_state, 'row')).toBe(2);
+
+    viz_state.crop.filter = { row: null, col: null };
+    viz_state._combined_filter_cache = {};
+    viz_state.crop._display_cache = {};
+
+    expect(has_axis_crop_filter(viz_state, 'row')).toBe(false);
+    expect(has_axis_filter(viz_state, 'row')).toBe(true);
+    // Display order, driven by this view's own row_clust ([_, 2, _, 1, _, 3]),
+    // not matrix index order.
+    expect(get_axis_display_state(viz_state, 'row').visible_indices).toEqual([
+      5, 1, 3,
     ]);
   });
 

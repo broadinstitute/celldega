@@ -148,3 +148,37 @@ def test_concat_sets_prefixes_ids_and_unions_cells():
     # self-overlap on the combined collection is square over all sets
     rel = combined.calc_overlap()
     assert rel.shape == (combined.obs.shape[0], combined.obs.shape[0])
+
+
+def test_calc_signature_attaches_rank_genes_groups():
+    """DE computed alongside the signature is what a marker view reads."""
+    pytest.importorskip("scanpy")
+
+    adata = _adata(n=200, g=20)
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    clust.calc_signature(
+        adata, modality_name="expression", normalization=None, rank_genes_groups=True
+    )
+
+    payload = clust.mod["expression"].uns["rank_genes_groups"]
+    assert set(payload) >= {"group", "names", "rank"}
+    assert set(payload["group"]) == set(adata.obs["leiden"].astype(str))
+
+    # A Matrix built from the modality picks it up with no extra wiring, which
+    # is the whole point of attaching it here rather than after the fact.
+    from celldega.clust import Matrix
+
+    mat = Matrix(collection=clust, color_by="expression")
+    assert mat.marker_ranks is not None
+
+    mat.clust(views="rank_genes_groups", levels=[1, 2])
+    assert [view["level_unit"] for view in mat.views] == ["per_cluster"] * len(mat.views)
+    assert mat.views
+
+
+def test_calc_signature_rank_genes_groups_needs_a_set_col():
+    adata = _adata()
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    clust.set_col = None
+    with pytest.raises(ValueError, match="needs a set_col"):
+        clust.calc_signature(adata, modality_name="expression", rank_genes_groups=True)

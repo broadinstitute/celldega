@@ -268,7 +268,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
     d3.select(rank_container)
       .append('div')
-      .text('Rank:')
+      .text('Dim:')
       .style('flex', `0 0 ${axis_label_width}px`)
       .style('white-space', 'nowrap')
       .style('font-size', '9px')
@@ -283,6 +283,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const stops = get_rank_view_stops(viz_state);
     const total_rows = viz_state.mat.num_rows;
     const view_type = viz_state.rank_view?.view_type || 'rank';
+    const per_cluster = viz_state.rank_view?.level_unit === 'per_cluster';
+    const by_level = viz_state.rank_view?.by_level;
 
     const readout = d3
       .select(rank_container)
@@ -297,18 +299,36 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
         '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
       );
 
-    const describe_stop = (stop) =>
-      stop == null ? `all (${total_rows})` : `top ${stop}`;
+    // The ranking is named in the readout because it changes what a level
+    // *means*: RANK counts markers per cluster (10 = each cluster's top 10),
+    // while SUM/VAR/MEAN cap total rows outright. The resulting row count is a
+    // derived number for RANK, so it goes in the tooltip.
+    const RANKING_LABELS = {
+      rank_genes_groups: 'RANK',
+      var: 'VAR',
+      sum: 'SUM',
+      mean: 'MEAN',
+    };
+    const ranking_label = RANKING_LABELS[view_type] || view_type.toUpperCase();
+
+    const describe_stop = (stop) => {
+      if (stop == null) return `${ranking_label} all`;
+      return per_cluster
+        ? `${ranking_label} ${stop}/clust`
+        : `${ranking_label} ${stop}`;
+    };
+
+    const describe_title = (stop) => {
+      if (stop == null) return `All ${total_rows} rows`;
+      if (per_cluster) {
+        const rows = by_level?.get(stop)?.n_rows;
+        return `Top ${stop} markers per cluster (rank_genes_groups) — ${rows} of ${total_rows} rows`;
+      }
+      return `Top ${stop} of ${total_rows} rows by ${view_type}`;
+    };
 
     const update_readout = (stop) => {
-      readout
-        .text(describe_stop(stop))
-        .attr(
-          'title',
-          stop == null
-            ? `All ${total_rows} rows`
-            : `Top ${stop} of ${total_rows} rows by ${view_type}`
-        );
+      readout.text(describe_stop(stop)).attr('title', describe_title(stop));
     };
 
     const rank_slider = make_slider();

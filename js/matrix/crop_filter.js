@@ -12,13 +12,57 @@ const MAX_ZOOM_FONT_SIZE = 10;
 const FILTER_FONT_SLOT_FACTOR = 0.45;
 const CROP_FADE_ALPHA = 0;
 
-const axis_filter_array = (viz_state, axis) => {
-  const filter = viz_state.crop?.filter?.[axis];
+const stored_filter_array = (source, axis) => {
+  const filter = source?.[axis];
   return Array.isArray(filter) && filter.length > 0 ? filter : null;
+};
+
+// Crop (brush / dendrogram double-click) and the rank view (RANK slider) are
+// two independent filter layers over the same axis; what renders is their
+// intersection. They stay separate so UNDO drops only the crop and leaves the
+// active view standing, and so the crop controls can gate on crop state alone.
+const crop_axis_filter_array = (viz_state, axis) =>
+  stored_filter_array(viz_state.crop?.filter, axis);
+
+const view_axis_filter_array = (viz_state, axis) =>
+  stored_filter_array(viz_state.rank_view?.filter, axis);
+
+const axis_filter_array = (viz_state, axis) => {
+  const crop_filter = crop_axis_filter_array(viz_state, axis);
+  const view_filter = view_axis_filter_array(viz_state, axis);
+
+  if (!crop_filter) return view_filter;
+  if (!view_filter) return crop_filter;
+
+  // Every consumer below caches on array *identity*, so the intersection has to
+  // be memoized -- rebuilding it per call would invalidate all of them on
+  // every frame.
+  const cache = (viz_state._combined_filter_cache ||= {});
+  const cached = cache[axis];
+  if (cached?.crop_ref === crop_filter && cached?.view_ref === view_filter) {
+    return cached.combined;
+  }
+
+  const view_set = new Set(view_filter);
+  const intersection = crop_filter.filter((index) => view_set.has(index));
+  // An empty intersection would render a blank matrix with no way back; fall
+  // back to the view alone, which is the outer of the two filters.
+  const combined = intersection.length > 0 ? intersection : view_filter;
+
+  cache[axis] = {
+    crop_ref: crop_filter,
+    view_ref: view_filter,
+    combined,
+  };
+  return combined;
 };
 
 export const has_axis_filter = (viz_state, axis) =>
   Boolean(axis_filter_array(viz_state, axis));
+
+/** Whether a *crop* (not a rank view) is narrowing this axis. */
+export const has_axis_crop_filter = (viz_state, axis) =>
+  Boolean(crop_axis_filter_array(viz_state, axis));
 
 const axis_order_info = (viz_state, axis) => {
   const order_name = viz_state.order.current[axis];
@@ -107,7 +151,8 @@ export const crop_filter_signature = (viz_state) => {
 
 export const has_crop_filter = (viz_state) =>
   Boolean(
-    axis_filter_array(viz_state, 'row') || axis_filter_array(viz_state, 'col')
+    crop_axis_filter_array(viz_state, 'row') ||
+      crop_axis_filter_array(viz_state, 'col')
   );
 
 export const clone_crop_filter = (filter) => ({
@@ -448,6 +493,7 @@ export const crop_fade_axis_alpha_factor = (viz_state, axis, index) => {
 };
 
 export const clear_crop_display_cache = (viz_state) => {
+  viz_state._combined_filter_cache = {};
   if (viz_state.crop) {
     viz_state.crop._display_cache = {};
     viz_state.crop._filtered_matrix_cache = null;

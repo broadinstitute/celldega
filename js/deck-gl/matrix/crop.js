@@ -9,7 +9,7 @@ import {
   get_axis_indices_in_range,
   get_axis_slot_size,
   get_default_pan,
-  has_axis_filter,
+  has_axis_crop_filter,
   has_crop_filter,
   normalize_crop_filter,
 } from '../../matrix/crop_filter';
@@ -289,7 +289,7 @@ const clear_crop_interaction_state = (deck_mat, layers_mat, viz_state) => {
   clear_dendro_focus(deck_mat, layers_mat, viz_state, { render: false });
 };
 
-const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
+export const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
   clear_crop_display_cache(viz_state);
 
   viz_state.mat._comp_cache = null;
@@ -358,7 +358,7 @@ const enable_crop_annotation_snap = (viz_state) => {
   }, CROP_SNAP_RENDER_WINDOW_MS);
 };
 
-const reset_view_to_filter = (
+export const reset_view_to_filter = (
   deck_mat,
   layers_mat,
   viz_state,
@@ -394,7 +394,9 @@ const refresh_dendro_sliders = (viz_state) => {
     const slider = viz_state.dendro?.sliders?.[axis];
     if (!slider) return;
 
-    const disabled = has_axis_filter(viz_state, axis);
+    // Crop-specific: a crop pins the dendrogram slice it was taken from, but a
+    // rank view swaps in its own linkage and the slider stays usable on it.
+    const disabled = has_axis_crop_filter(viz_state, axis);
     slider.disabled = disabled;
     slider.style.opacity = disabled ? '0.35' : '1';
     slider.style.cursor = disabled ? 'not-allowed' : '';

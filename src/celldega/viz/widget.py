@@ -1297,6 +1297,13 @@ class Clustergram(anywidget.AnyWidget):
     highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
     top_n_genes = traitlets.Int(50).tag(sync=True)
 
+    #: Active dimensionality view: the number of rows kept by the RANK slider.
+    #: ``0`` (default) means the full matrix. Set to one of the levels
+    #: precomputed by ``Matrix.clust(views=...)`` to open already reduced; the
+    #: front end snaps to the nearest available level and writes the applied
+    #: value back. Has no effect when the matrix carries no views.
+    rank_dim = traitlets.Int(0).tag(sync=True)
+
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
 

@@ -9,7 +9,7 @@ import {
   get_axis_indices_in_range,
   get_axis_slot_size,
   get_default_pan,
-  has_axis_filter,
+  has_axis_crop_filter,
   has_crop_filter,
   normalize_crop_filter,
 } from '../../matrix/crop_filter';
@@ -289,7 +289,7 @@ const clear_crop_interaction_state = (deck_mat, layers_mat, viz_state) => {
   clear_dendro_focus(deck_mat, layers_mat, viz_state, { render: false });
 };
 
-const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
+export const refresh_filtered_layers = (deck_mat, layers_mat, viz_state) => {
   clear_crop_display_cache(viz_state);
 
   viz_state.mat._comp_cache = null;
@@ -358,7 +358,7 @@ const enable_crop_annotation_snap = (viz_state) => {
   }, CROP_SNAP_RENDER_WINDOW_MS);
 };
 
-const reset_view_to_filter = (
+export const reset_view_to_filter = (
   deck_mat,
   layers_mat,
   viz_state,
@@ -394,7 +394,9 @@ const refresh_dendro_sliders = (viz_state) => {
     const slider = viz_state.dendro?.sliders?.[axis];
     if (!slider) return;
 
-    const disabled = has_axis_filter(viz_state, axis);
+    // Crop-specific: a crop pins the dendrogram slice it was taken from, but a
+    // rank view swaps in its own linkage and the slider stays usable on it.
+    const disabled = has_axis_crop_filter(viz_state, axis);
     slider.disabled = disabled;
     slider.style.opacity = disabled ? '0.35' : '1';
     slider.style.cursor = disabled ? 'not-allowed' : '';
@@ -455,6 +457,40 @@ const clear_all_crops = (deck_mat, layers_mat, viz_state) => {
   });
 
   return !filters_equal(current_filter, empty_crop_filter());
+};
+
+/**
+ * Drop any active crop because the row set underneath it is being replaced
+ * (a rank-view switch). Crop indices are matrix row indices, so a crop taken
+ * against one level points at unrelated rows in the next; intersecting it into
+ * the new view would silently keep a meaningless selection.
+ *
+ * Only resets state — the caller is expected to be mid-refresh and will render
+ * once for both changes.
+ *
+ * @param {object} deck_mat - deck.gl instance.
+ * @param {object} layers_mat - Layer registry.
+ * @param {object} viz_state - Visualization state.
+ * @returns {boolean} Whether a crop was actually cleared.
+ */
+export const clear_crop_for_filter_change = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  if (!viz_state.crop) return false;
+
+  const had_crop = has_crop_filter(viz_state);
+
+  clear_crop_fade(viz_state);
+  viz_state.crop.history = [];
+  viz_state.crop.filter = empty_crop_filter();
+  viz_state.crop.dendro_axes = empty_dendro_crop_axes();
+  viz_state.crop.set_mode(false);
+  clear_crop_display_cache(viz_state);
+  clear_crop_interaction_state(deck_mat, layers_mat, viz_state);
+
+  return had_crop;
 };
 
 export const compute_crop_filter = (viz_state, start_coord, end_coord) => {

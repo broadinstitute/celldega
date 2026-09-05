@@ -9,20 +9,45 @@ import {
   is_axis_index_visible,
 } from './crop_filter';
 
-export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
+/**
+ * Slice an axis's linkage at a distance threshold and stamp the resulting group
+ * id onto each node as `group_links` (what the dendrogram trapezoids are built
+ * from).
+ *
+ * @param {object} viz_state - Visualization state.
+ * @param {string} axis - "row" or "col".
+ * @param {number} dist_thresh - Linkage distance to cut at.
+ * @param {Array<number>} [leaf_map] - Maps a scipy leaf id to a node index.
+ *   Needed when `viz_state.linkage[axis]` came from a rank view: that linkage
+ *   was computed over the view's *submatrix*, so its leaf ids are positions
+ *   within the view rather than node indices. Defaults to whatever view is
+ *   currently applied, so callers that don't know about views (dendrogram init,
+ *   the Dendro slider) stay correct automatically; the full-matrix linkage maps
+ *   leaf ids to node indices one-to-one.
+ */
+export const alt_slice_linkage = (viz_state, axis, dist_thresh, leaf_map) => {
   let clust_a;
   let clust_b;
+
+  const inst_nodes = viz_state[`${axis}_nodes`];
+  const active_map =
+    leaf_map === undefined ? viz_state.rank_view?.leaf_map?.[axis] : leaf_map;
+  const leaves = Array.isArray(active_map)
+    ? active_map
+    : inst_nodes.map((_, index) => index);
 
   const group_dict = {};
 
   // initialize group_links and dictionary
-  viz_state[`${axis}_nodes`].forEach((x, i) => {
-    group_dict[i] = [i];
-    x.group_links = i;
+  leaves.forEach((node_index, leaf_id) => {
+    group_dict[leaf_id] = [node_index];
+    if (inst_nodes[node_index]) {
+      inst_nodes[node_index].group_links = leaf_id;
+    }
   });
 
   // the max individual cluster id
-  const max_clust_id = viz_state[`${axis}_nodes`].length;
+  const max_clust_id = leaves.length;
 
   const min_dist = 0;
 
@@ -39,8 +64,8 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
       // make new array, concat lower level cluster, delete lower level clusters
       group_dict[new_clust_id] = [];
       group_dict[new_clust_id] = group_dict[new_clust_id].concat(
-        group_dict[clust_a],
-        group_dict[clust_b]
+        group_dict[clust_a] || [],
+        group_dict[clust_b] || []
       );
 
       delete group_dict[clust_a];
@@ -50,15 +75,17 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
   // Make flat dictionary
   const flat_group_dict = {};
-  Object.entries(group_dict).forEach(([inst_cluster, nodes]) => {
-    nodes.forEach((x) => {
+  Object.entries(group_dict).forEach(([inst_cluster, node_indices]) => {
+    node_indices.forEach((x) => {
       flat_group_dict[x] = inst_cluster;
     });
   });
 
   // state is being saved to the nodes under the key group_links
-  viz_state[`${axis}_nodes`].forEach((x, i) => {
-    x.group_links = flat_group_dict[i];
+  leaves.forEach((node_index) => {
+    if (inst_nodes[node_index]) {
+      inst_nodes[node_index].group_links = flat_group_dict[node_index];
+    }
   });
 };
 

@@ -18,8 +18,11 @@ from .constants import (
     _COLOR_PALETTE,
     CACHE_HIERARCHY,
     CONFIG,
+    DEFAULT_MARKER_VIEW_LEVELS,
+    DEFAULT_VIEW_LEVELS,
     DEFAULT_VIZ,
     ERRORS,
+    MIN_VIEW_ROWS,
     Axis,
     AxisEntity,
     AxisInput,
@@ -35,6 +38,7 @@ from .constants import (
 )
 from .utils import (
     add_mixed_attributes_to_node_info,
+    compute_marker_ranks,
     compute_metric,
     create_node_info_base,
     fast_cosine_distance,
@@ -149,6 +153,88 @@ def quick_hash_data(data: pd.DataFrame | AnnData, max_rows=100, max_cols=100) ->
         return f"cgm_{hashlib.md5(sig_bytes).hexdigest()[:12]}"
     except Exception:
         return f"cgm_{id(data)}"
+
+
+#: Columns of the tidy marker-rank frame, in the order scanpy's own
+#: ``rank_genes_groups_df`` emits them (plus the explicit within-group rank).
+_MARKER_RANK_COLUMNS = (
+    "group",
+    "names",
+    "scores",
+    "logfoldchanges",
+    "pvals",
+    "pvals_adj",
+    "rank",
+)
+
+
+def marker_ranks_to_uns(markers: pd.DataFrame) -> dict[str, list]:
+    """Serialize a tidy marker-rank frame for ``AnnData.uns``.
+
+    Stored column-wise as plain lists so it survives an h5ad round trip, unlike
+    a DataFrame.
+    """
+    return {column: markers[column].tolist() for column in markers.columns}
+
+
+def marker_ranks_from_uns(payload: Any) -> pd.DataFrame | None:
+    """Recover a tidy marker-rank frame from an ``uns`` payload.
+
+    Accepts what :func:`marker_ranks_to_uns` wrote, and also scanpy's own
+    in-place ``uns["rank_genes_groups"]`` structure (per-group columns in a
+    structured array), so an AnnData that already had ``sc.tl.rank_genes_groups``
+    run on it works without any celldega-specific preparation.
+
+    Returns ``None`` for anything it doesn't recognize, so callers can probe
+    ``uns`` keys without guarding each shape themselves.
+    """
+    if isinstance(payload, pd.DataFrame):
+        return payload if "names" in payload.columns else None
+    if not isinstance(payload, dict):
+        return None
+
+    # celldega's tidy form: already long, one row per (group, feature).
+    if "group" in payload and "names" in payload:
+        try:
+            frame = pd.DataFrame({key: list(value) for key, value in payload.items()})
+        except (TypeError, ValueError):
+            return None
+        return frame if "names" in frame.columns else None
+
+    # scanpy's native form: `names`/`scores`/... are structured arrays whose
+    # fields are the groups. Melt them into the same tidy shape.
+    names = payload.get("names")
+    fields = getattr(getattr(names, "dtype", None), "names", None)
+    if not fields:
+        return None
+
+    frames = []
+    for group in fields:
+        columns = {"group": str(group), "names": list(np.asarray(names[group]))}
+        for source, target in (
+            ("scores", "scores"),
+            ("logfoldchanges", "logfoldchanges"),
+            ("pvals", "pvals"),
+            ("pvals_adj", "pvals_adj"),
+        ):
+            values = payload.get(source)
+            if values is not None and group in (
+                getattr(getattr(values, "dtype", None), "names", None) or ()
+            ):
+                columns[target] = list(np.asarray(values[group]))
+        group_frame = pd.DataFrame(columns)
+        group_frame["rank"] = range(len(group_frame))
+        frames.append(group_frame)
+
+    if not frames:
+        return None
+    return pd.concat(frames, ignore_index=True)
+
+
+def _serialize_linkage(linkage_matrix: np.ndarray) -> list[list[float]]:
+    """Compact JSON-ready linkage. Views ride along inside the viz metadata, so
+    trim float noise rather than shipping full repr precision per merge."""
+    return [[round(float(value), 6) for value in row] for row in linkage_matrix]
 
 
 class Matrix:
@@ -300,6 +386,16 @@ class Matrix:
         # e.g. the fraction of cells in a cluster expressing each gene. See
         # :meth:`set_dot_matrix`.
         self.dot_mat: pd.DataFrame | None = None
+
+        # Differential-expression results stashed by `downsample_to(rank_genes=True)`,
+        # as a tidy frame with group/names/scores/logfoldchanges/pvals/pvals_adj.
+        # Consumed by `clust(views="rank_genes_groups")`.
+        self.marker_ranks: pd.DataFrame | None = None
+
+        # Precomputed dimensionality views (see `clust(views=...)`). Each entry
+        # is one re-biclustered filter level; exported in the viz metadata and
+        # driven by the Clustergram's RANK slider.
+        self.views: list[dict[str, Any]] = []
 
         self.col_attr = col_attr or list(self.meta_col.columns)
         self.row_attr = row_attr or list(self.meta_row.columns)
@@ -520,6 +616,16 @@ class Matrix:
             row_attr,
         )
 
+        # Differential expression carried on the AnnData -- written by
+        # `SetCollection.calc_signature(rank_genes_groups=True)`, or by scanpy
+        # itself -- makes `clust(views="rank_genes_groups")` work with no
+        # further setup. `load_df` above reset state, so this has to follow it.
+        for key in ("rank_genes_groups", "marker_ranks"):
+            markers = marker_ranks_from_uns(adata.uns.get(key))
+            if markers is not None:
+                self.marker_ranks = markers
+                break
+
         # Note: row_entity and col_entity are already set in __init__ based on user input
         # Don't overwrite them here - user may have specified entities for non-gene-expression data
 
@@ -664,6 +770,8 @@ class Matrix:
         dist_type: DistanceType = "cosine",
         linkage_type: LinkageType = "average",
         force: bool = False,
+        views: str | list[str] | None = None,
+        levels: list[int] | None = None,
     ) -> None:
         """
         Perform hierarchical clustering.
@@ -672,6 +780,40 @@ class Matrix:
             dist_type: Distance metric ('cosine', 'euclidean', 'correlation')
             linkage_type: Linkage method ('average', 'complete', 'ward')
             force: Override size limits for large matrices
+            views: Precompute reduced-dimensionality views, each independently
+                re-biclustered, and drive them from the Clustergram's RANK slider.
+                One of (or a list of):
+
+                - ``"rank_genes_groups"``: each cluster's top markers, unioned.
+                  Needs differential expression — from
+                  ``downsample_to(..., rank_genes_groups=True)``,
+                  ``SetCollection.calc_signature(..., rank_genes_groups=True)``,
+                  or :meth:`set_marker_ranks`.
+                - ``"var"`` / ``"sum"`` / ``"mean"``: rows ranked by a per-row
+                  metric on the matrix itself — no differential expression needed,
+                  which is the right fit for bulk or otherwise ungrouped matrices.
+            levels: Slider stops to precompute. **The unit depends on the view**:
+
+                - ``"rank_genes_groups"``: top markers **per cluster**, so level 10
+                  means each cluster's 10 best markers unioned (deduplicated, so
+                  the row count is at most ``n_clusters * 10``). Defaults to
+                  :data:`~celldega.clust.constants.DEFAULT_MARKER_VIEW_LEVELS`.
+                  Counting per cluster rather than in total means you don't have to
+                  divide a row budget by however many clusters you happen to have.
+                - metric views: total rows kept, since those rankings are global
+                  with no groups to divide by. Defaults to
+                  :data:`~celldega.clust.constants.DEFAULT_VIEW_LEVELS`.
+
+                Levels that resolve to the whole matrix, to fewer than
+                :data:`~celldega.clust.constants.MIN_VIEW_ROWS` rows, or to rows a
+                finer level already covered are dropped. The full matrix is always
+                available as the slider's "all" stop.
+
+        Examples:
+            >>> mat.clust()                                          # no views
+            >>> mat.clust(views="rank_genes_groups")                 # top K per cluster
+            >>> mat.clust(views="rank_genes_groups", levels=[3, 5])  # 3 and 5 per cluster
+            >>> mat.clust(views="var", levels=[10, 50, 200])         # 10/50/200 rows
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
@@ -683,6 +825,12 @@ class Matrix:
 
         self.make_viz()
         self._clustered = True
+
+        self.views = self._build_views(views, levels, dist_type, linkage_type) if views else []
+        # `viz` is what `export_viz_parquet` serializes into the metadata blob, and
+        # both the widget and DegaFiles readers spread that straight onto the
+        # front-end network object — so views need no dedicated transport.
+        self.viz["views"] = self.views
 
     def _cluster_axis_cached(self, axis: AxisType, dist_type: str, linkage_type: str) -> None:
         """Cached clustering computation."""
@@ -722,6 +870,145 @@ class Matrix:
         except Exception as e:
             warnings.warn(f"Clustering failed for {axis}: {e}", UserWarning, stacklevel=2)
             self.viz["linkage"][axis] = []
+
+    @staticmethod
+    def _subset_axis_linkage(
+        data: np.ndarray, dist_type: str, linkage_type: str
+    ) -> tuple[np.ndarray | None, list[int] | None]:
+        """Linkage + dendrogram leaf order for one axis of a view's submatrix."""
+        if data.shape[0] < 2:
+            return None, None
+
+        try:
+            if dist_type == Distance.COSINE.value and data.shape[1] > 1000:
+                distances = fast_cosine_distance(data)
+            else:
+                distances = pdist(data, metric=dist_type)
+                np.maximum(distances, 0.0, out=distances)
+
+            linkage_matrix = linkage(distances, method=linkage_type)
+            leaves = dendrogram(linkage_matrix, no_plot=True)["leaves"]
+        except Exception:
+            return None, None
+
+        return linkage_matrix, leaves
+
+    def _cluster_subset(
+        self,
+        row_indices: list[int],
+        dist_type: str,
+        linkage_type: str,
+    ) -> dict[str, Any] | None:
+        """Re-bicluster a row subset, expressed in the full matrix's index space.
+
+        ``row_indices`` must be ascending, so submatrix row ``j`` corresponds to
+        full-matrix row ``row_indices[j]`` — the front end relies on exactly that
+        mapping to translate this view's scipy leaf ids back to matrix rows.
+
+        Order arrays are sized to the *full* matrix and pre-offset by 1 to match
+        the front end's order convention, so they can be swapped straight into
+        its state. Rows outside the view get 0; they're filtered out anyway.
+        """
+        sub_values = self.data.iloc[row_indices].values
+
+        row_linkage, row_leaves = self._subset_axis_linkage(sub_values, dist_type, linkage_type)
+        col_linkage, col_leaves = self._subset_axis_linkage(sub_values.T, dist_type, linkage_type)
+        if row_linkage is None or col_linkage is None:
+            return None
+
+        n_rows, n_cols = self.data.shape
+
+        row_position = {leaf: position for position, leaf in enumerate(row_leaves)}
+        row_clust = [0] * n_rows
+        for local_index, raw_index in enumerate(row_indices):
+            row_clust[raw_index] = row_position.get(local_index, local_index) + 1
+
+        col_position = {leaf: position for position, leaf in enumerate(col_leaves)}
+        col_clust = [col_position.get(index, index) + 1 for index in range(n_cols)]
+
+        return {
+            "row_indices": list(row_indices),
+            "row_clust": row_clust,
+            "col_clust": col_clust,
+            "row_linkage": _serialize_linkage(row_linkage),
+            "col_linkage": _serialize_linkage(col_linkage),
+        }
+
+    def _build_views(
+        self,
+        views: str | list[str],
+        levels: list[int] | None,
+        dist_type: str,
+        linkage_type: str,
+    ) -> list[dict[str, Any]]:
+        """Precompute one independently re-biclustered view per requested level."""
+        view_types = [views] if isinstance(views, str) else list(views)
+        if len(view_types) != 1:
+            raise ValueError(
+                "clust(views=...) takes a single view type; the Clustergram's RANK "
+                f"slider drives one ranking at a time (got {view_types!r})."
+            )
+        view_type = view_types[0]
+        self._validate_view_type(view_type)
+
+        is_marker_view = view_type == "rank_genes_groups"
+        level_unit = "per_cluster" if is_marker_view else "rows"
+
+        n_rows = self.data.shape[0]
+        requested = list(levels) if levels is not None else self._default_levels_for(view_type)
+        usable_levels = sorted({int(level) for level in requested if int(level) >= 1})
+
+        position = {name: index for index, name in enumerate(self.data.index.astype(str))}
+
+        built: list[dict[str, Any]] = []
+        seen_row_sets: set[tuple[int, ...]] = set()
+
+        for level in usable_levels:
+            row_indices = tuple(
+                sorted(
+                    position[name]
+                    for name in self._row_names_for_level(view_type, level)
+                    if name in position
+                )
+            )
+
+            # Too small to cluster, or already the whole matrix — which is the
+            # slider's "all" stop and needs no precomputing.
+            if len(row_indices) < MIN_VIEW_ROWS or len(row_indices) >= n_rows:
+                continue
+
+            # Levels can collapse onto the same rows — asking for 25 markers per
+            # cluster when each cluster only has 12, say. Keep the finest level
+            # that produced them instead of exporting duplicate slider stops.
+            if row_indices in seen_row_sets:
+                continue
+            seen_row_sets.add(row_indices)
+
+            view = self._cluster_subset(list(row_indices), dist_type, linkage_type)
+            if view is None:
+                warnings.warn(
+                    f"Clustering failed for the '{view_type}' view at level {level}; skipping.",
+                    UserWarning,
+                    stacklevel=3,
+                )
+                continue
+
+            view["view_type"] = view_type
+            view["level"] = level
+            view["level_unit"] = level_unit
+            view["n_rows"] = len(row_indices)
+            built.append(view)
+
+        if not built:
+            unit = "markers per cluster" if is_marker_view else "rows"
+            warnings.warn(
+                f"No requested view level ({unit}) yields a usable subset of this "
+                f"{n_rows}-row matrix; skipping views.",
+                UserWarning,
+                stacklevel=3,
+            )
+
+        return built
 
     def make_viz(self) -> None:
         """Generate visualization data structure."""
@@ -816,6 +1103,8 @@ class Matrix:
         category: str = "leiden",
         axis: AxisInput = "col",
         propagate_metadata: bool | list[str] = False,
+        rank_genes_groups: bool = False,
+        rank_genes_groups_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """
         Downsample data by aggregating categories using scanpy.get.aggregate.
@@ -828,6 +1117,14 @@ class Matrix:
                 - False: Skip metadata propagation (fast, default)
                 - True: Propagate all metadata columns (slow for large datasets)
                 - list[str]: Propagate only specified columns
+            rank_genes_groups: Run :func:`scanpy.tl.rank_genes_groups` on the
+                *pre-aggregation* (cell-level) data, grouped by `category`, and stash
+                the tidy results on :attr:`marker_ranks`. This has to happen here
+                because aggregation discards the per-cell matrix the test needs.
+                Requires ``axis="col"`` (cells aggregated into groups, genes left on
+                the rows).
+            rank_genes_groups_kwargs: Extra keyword arguments forwarded to
+                ``scanpy.tl.rank_genes_groups`` (e.g. ``{"method": "wilcoxon"}``).
 
         Requires:
             scanpy for aggregation functionality
@@ -835,6 +1132,11 @@ class Matrix:
         Note:
             Uses scanpy.get.aggregate under the hood for fast mean aggregation.
             See: https://scanpy.readthedocs.io/en/stable/generated/scanpy.get.aggregate.html
+
+        Examples:
+            >>> mat = Matrix(adata)
+            >>> mat.downsample_to("leiden", rank_genes_groups=True)
+            >>> mat.clust(views="rank_genes_groups")
         """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
@@ -845,6 +1147,16 @@ class Matrix:
             raise ImportError(ERRORS["missing_scanpy"]) from None
 
         axis_enum = Axis.normalize(axis)
+
+        # Checked before the category lookup below so misusing `rank_genes_groups`
+        # on the row axis reports the real problem instead of a confusing
+        # missing-category error against the wrong metadata frame.
+        if rank_genes_groups and axis_enum != Axis.COL:
+            raise ValueError(
+                "rank_genes_groups=True requires axis='col' (cells aggregated into "
+                f"groups, genes left on the rows); got axis={axis_enum.value!r}"
+            )
+
         meta_df = self.meta_col if axis_enum == Axis.COL else self.meta_row
         if category not in meta_df.columns:
             raise ValueError(ERRORS["missing_category"].format(category, list(meta_df.columns)))
@@ -854,6 +1166,11 @@ class Matrix:
             if axis_enum == Axis.COL
             else AnnData(X=self.data.T, obs=self.meta_row, var=self.meta_col)
         )
+
+        # Differential expression has to run against the cell-level matrix, which
+        # `sc.get.aggregate` below collapses away — so capture it first.
+        if rank_genes_groups:
+            self.marker_ranks = compute_marker_ranks(adata, category, rank_genes_groups_kwargs)
 
         # Use scanpy's fast aggregate function
         adata_agg = sc.get.aggregate(adata, by=category, func="mean")
@@ -932,6 +1249,122 @@ class Matrix:
             self.col_entity = new_entity
         else:
             self.row_entity = new_entity
+
+    def set_marker_ranks(
+        self,
+        adata: AnnData,
+        groupby: str,
+        **rank_genes_groups_kwargs: Any,
+    ) -> Matrix:
+        """Attach differential expression results for marker-driven views.
+
+        A fallback for matrices that were aggregated by hand and so carry no
+        marker ranking of their own. The two normal construction paths already
+        cover themselves:
+        :meth:`downsample_to` with ``rank_genes_groups=True``, and
+        ``SetCollection.calc_signature(..., rank_genes_groups=True)`` (whose
+        results ride along in the signature's ``uns`` and are picked up
+        automatically). Reach for this only outside those.
+
+        Genes missing from the matrix are ignored when the ranking is built, so
+        `adata` may cover more genes than the matrix displays.
+
+        Args:
+            adata: Cell-level AnnData carrying `groupby` in ``obs``.
+            groupby: Column in ``adata.obs`` defining the groups to compare.
+            **rank_genes_groups_kwargs: Forwarded to
+                ``scanpy.tl.rank_genes_groups`` (e.g. ``method="wilcoxon"``).
+
+        Returns:
+            ``self``, for chaining.
+        """
+        if groupby not in adata.obs.columns:
+            raise ValueError(
+                f"'{groupby}' not found in adata.obs; available: {list(adata.obs.columns)}"
+            )
+
+        self.marker_ranks = compute_marker_ranks(adata, groupby, rank_genes_groups_kwargs or None)
+        return self
+
+    def _marker_groups(self) -> dict[str, list[str]]:
+        """Each group's markers, best first, restricted to rows in the matrix."""
+        available = set(self.data.index.astype(str))
+
+        per_group: dict[str, list[str]] = {}
+        for group, frame in self.marker_ranks.groupby("group", observed=True, sort=True):
+            genes = [
+                str(name)
+                for name in frame.sort_values("rank")["names"].tolist()
+                if str(name) in available
+            ]
+            if genes:
+                per_group[str(group)] = genes
+
+        return per_group
+
+    def _marker_row_names(self, per_cluster: int) -> list[str]:
+        """Union of each group's top `per_cluster` markers.
+
+        Collected round-robin (every group's best, then every group's
+        second-best, ...) and de-duplicated, so a gene that is a top marker for
+        two clusters appears once and successive levels nest: raising the level
+        only ever adds rows.
+        """
+        per_group = self._marker_groups()
+
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for index in range(per_cluster):
+            for genes in per_group.values():
+                if index >= len(genes):
+                    continue
+                gene = genes[index]
+                if gene not in seen:
+                    seen.add(gene)
+                    ordered.append(gene)
+
+        return ordered
+
+    def _metric_row_names(self, by: FilterType, n_rows: int) -> list[str]:
+        """Top `n_rows` row names by a per-row metric ('sum'/'mean'/'var')."""
+        metric = compute_metric(self.data, by, axis=1)
+        ranked = pd.Series(metric, index=self.data.index).sort_values(ascending=False)
+        return [str(name) for name in ranked.index[:n_rows]]
+
+    def _require_marker_ranks(self) -> None:
+        if self.marker_ranks is None or self.marker_ranks.empty:
+            raise ValueError(
+                "views='rank_genes_groups' needs differential expression results. "
+                "Use downsample_to(..., rank_genes_groups=True), or "
+                "SetCollection.calc_signature(..., rank_genes_groups=True), or "
+                "Matrix.set_marker_ranks(adata, groupby=...) -- or pick a view "
+                "that needs no groups, e.g. views='var' / views='sum'."
+            )
+
+    def _validate_view_type(self, view_type: str) -> None:
+        if view_type == "rank_genes_groups":
+            self._require_marker_ranks()
+            return
+        if view_type not in {"var", "sum", "mean"}:
+            raise ValueError(
+                f"unknown view type {view_type!r}; expected one of "
+                "'rank_genes_groups', 'var', 'sum', 'mean'"
+            )
+
+    def _row_names_for_level(self, view_type: str, level: int) -> list[str]:
+        """Rows kept at one view level.
+
+        `level` means top markers **per cluster** for ``rank_genes_groups`` and
+        total rows for the metric rankings -- see `clust`'s `levels` argument.
+        """
+        if view_type == "rank_genes_groups":
+            return self._marker_row_names(level)
+        return self._metric_row_names(view_type, level)
+
+    def _default_levels_for(self, view_type: str) -> list[int]:
+        return list(
+            DEFAULT_MARKER_VIEW_LEVELS if view_type == "rank_genes_groups" else DEFAULT_VIEW_LEVELS
+        )
 
     def to_df(self) -> pd.DataFrame:
         """Return DataFrame copy of data."""

@@ -4,6 +4,8 @@ Local server module for handling HTTP requests with CORS support.
 
 from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 import ipaddress
+from pathlib import Path
+import re
 import socket
 from socketserver import ThreadingMixIn
 import threading as thr
@@ -11,6 +13,10 @@ from typing import ClassVar
 from urllib.parse import unquote, urlparse
 
 import requests
+
+
+#: Single byte range, e.g. "bytes=0-7" or the suffix form "bytes=-8".
+_RANGE_RE = re.compile(r"^bytes=(\d*)-(\d*)$")
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -40,6 +46,61 @@ class CORSHTTPRequestHandler(SimpleHTTPRequestHandler):
         """Handle OPTIONS requests for CORS preflight."""
         self.send_response(200)
         self.end_headers()
+
+    def do_GET(self) -> None:
+        """Serve a GET request, honouring a single byte range.
+
+        ``SimpleHTTPRequestHandler`` ignores ``Range`` and answers 200 with the whole
+        file. That silently defeats row-group reads: parquet-wasm asks for a footer and a
+        few row groups but receives the entire parquet each time, and because
+        ``RowGroupTileReader._checkRangeSupport`` short-circuits for localhost nothing
+        reports the problem. Local testing then measures whole-file downloads.
+        """
+        header = self.headers.get("Range")
+        if not header:
+            super().do_GET()
+            return
+
+        match = _RANGE_RE.match(header.strip())
+        path = Path(self.translate_path(self.path))
+        if not match or not path.is_file():
+            super().do_GET()
+            return
+
+        size = path.stat().st_size
+        start_s, end_s = match.groups()
+        if start_s == "":
+            # Suffix form 'bytes=-N': the last N bytes, which is how a parquet reader
+            # locates the footer length.
+            length = int(end_s or 0)
+            start, end = max(0, size - length), size - 1
+        else:
+            start = int(start_s)
+            end = int(end_s) if end_s else size - 1
+        end = min(end, size - 1)
+
+        if start > end or start >= size:
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{size}")
+            self.end_headers()
+            return
+
+        self.send_response(206)
+        self.send_header("Content-Type", self.guess_type(str(path)))
+        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        self.end_headers()
+
+        remaining = end - start + 1
+        with path.open("rb") as f:
+            f.seek(start)
+            while remaining > 0:
+                chunk = f.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
 
     def log_message(self, format_str: str, *args) -> None:
         """Override log_message to prevent logging to the console."""

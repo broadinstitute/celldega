@@ -54,66 +54,35 @@ const spatialDataConfig = () => ({
   ...degaFilesConfig(),
   position_column: 'display_xy',
   feature_column: 'feature_code',
-  columns: ['display_xy', 'feature_code'],
 });
 
-describe('RowGroupTileReader column projection', () => {
-  test('DegaFiles config requests no projection', () => {
-    const reader = new RowGroupTileReader(
-      'http://x',
-      TILE_GRID,
-      degaFilesConfig()
-    );
-    expect(reader.columns).toBeNull();
-    expect(reader._readOptions([0, 1])).toEqual({ rowGroups: [0, 1] });
+describe('read options', () => {
+  // parquet-wasm's column projection corrupts the IPC stream it emits (0.7.1 and 0.7.2,
+  // apache-arrow 15 and 18, scalar and nested columns, even an empty array), so no
+  // `columns` argument is ever passed. A SpatialData profile keeps its render columns in
+  // a separate file instead, so reading all of that file is already the projection.
+  test('never requests a column projection', () => {
+    for (const cfg of [degaFilesConfig(), spatialDataConfig()]) {
+      const reader = new RowGroupTileReader('http://x', TILE_GRID, cfg);
+      expect(reader._readOptions([0, 1])).toEqual({ rowGroups: [0, 1] });
+      expect(reader._readOptions([0, 1])).not.toHaveProperty('columns');
+    }
   });
 
-  test('SpatialData config forwards columns to ParquetFile.read', () => {
-    const reader = new RowGroupTileReader(
-      'http://x',
-      TILE_GRID,
-      spatialDataConfig()
-    );
-    expect(reader.columns).toEqual(['display_xy', 'feature_code']);
-    expect(reader._readOptions([5])).toEqual({
-      rowGroups: [5],
-      columns: ['display_xy', 'feature_code'],
-    });
-  });
-
-  test('an empty columns array is treated as no projection', () => {
+  test('a stray columns key in the manifest is ignored', () => {
     const reader = new RowGroupTileReader('http://x', TILE_GRID, {
-      ...degaFilesConfig(),
-      columns: [],
+      ...spatialDataConfig(),
+      columns: ['display_xy'],
     });
-    expect(reader.columns).toBeNull();
+    expect(reader._readOptions([5])).toEqual({ rowGroups: [5] });
   });
 
   test('legacy single-file string config still works', () => {
     const reader = new RowGroupTileReader('http://x', TILE_GRID, 'trx.parquet');
-    expect(reader.columns).toBeNull();
     expect(reader.url).toBe('http://x/trx.parquet');
   });
 
-  test('projection is part of the read cache identity', () => {
-    const plain = new RowGroupTileReader(
-      'http://x',
-      TILE_GRID,
-      degaFilesConfig()
-    );
-    const projected = new RowGroupTileReader(
-      'http://x',
-      TILE_GRID,
-      spatialDataConfig()
-    );
-    const key = (r) =>
-      `table:${r.columns ? r.columns.join('+') : 'all'}:${[1, 2].join(',')}`;
-    expect(key(plain)).not.toEqual(key(projected));
-  });
-
   test('relative directories resolve into a SpatialData store', () => {
-    // The manifest lives in the profile directory and points back into the store,
-    // so Celldega needs no knowledge of the zarr layout.
     const reader = new RowGroupTileReader(
       'http://x/store.zarr/visualization/prof',
       TILE_GRID,
@@ -124,7 +93,6 @@ describe('RowGroupTileReader column projection', () => {
     );
     expect(reader.chunkedMode).toBe(true);
     const url = `${reader.baseUrl}/${reader.directory}/${reader.files[0]}`;
-    // Resolved the way fetch() would, so the '../..' segments are collapsed.
     const { URL: NodeURL } = require('url');
     expect(new NodeURL(url).pathname).toBe(
       '/store.zarr/points/transcripts/points.parquet/chunk_0.parquet'

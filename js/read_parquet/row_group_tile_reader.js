@@ -42,17 +42,6 @@ export class RowGroupTileReader {
     this.requestCache = new Map();
     this.maxCachedReads = 4;
 
-    // Optional column projection. DegaFiles do not set this and keep reading every
-    // column, which is the existing behaviour. A SpatialData profile names just the
-    // render columns, so canonical coordinates, transcript ids, cell ids and QC columns
-    // are never decoded or transferred during ordinary rendering.
-    this.columns =
-      typeof fileConfig === 'object' &&
-      Array.isArray(fileConfig?.columns) &&
-      fileConfig.columns.length > 0
-        ? fileConfig.columns
-        : null;
-
     // Determine mode: chunked or single file
     if (typeof fileConfig === 'string') {
       // Legacy single file mode
@@ -107,12 +96,22 @@ export class RowGroupTileReader {
   }
 
   /**
-   * Build the parquet-wasm read options, adding a column projection when configured.
+   * Build the parquet-wasm read options.
+   *
+   * Deliberately no column projection: passing `columns` to ParquetFile.read corrupts
+   * the IPC stream parquet-wasm emits, so tableFromIPC then throws. Reproduced on
+   * parquet-wasm 0.7.1 and 0.7.2 with apache-arrow 15 and 18, for scalar and nested
+   * columns alike, and even with an empty `columns` array.
+   *
+   * Projection is unnecessary anyway: a SpatialData profile puts its render columns in
+   * their own file, so reading every column of that file already transfers only what is
+   * needed.
+   *
    * @param {Array<number>} rowGroups - Row group indices local to the file being read
-   * @returns {{rowGroups: Array<number>, columns?: Array<string>}}
+   * @returns {{rowGroups: Array<number>}}
    */
   _readOptions(rowGroups) {
-    return this.columns ? { rowGroups, columns: this.columns } : { rowGroups };
+    return { rowGroups };
   }
 
   async _readRowGroups(uniqueIndices, options = {}) {
@@ -342,11 +341,7 @@ export class RowGroupTileReader {
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
     const returnTablesArray = options.returnTablesArray === true;
-    // The projection is part of the cache identity: the same row groups read with
-    // different columns are different results.
-    const cacheKey = `${returnTablesArray ? 'tables' : 'table'}:${
-      this.columns ? this.columns.join('+') : 'all'
-    }:${uniqueIndices.join(',')}`;
+    const cacheKey = `${returnTablesArray ? 'tables' : 'table'}:${uniqueIndices.join(',')}`;
     const cachedRead = this._getCachedRead(cacheKey);
     if (cachedRead) {
       return cachedRead;

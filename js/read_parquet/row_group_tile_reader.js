@@ -17,6 +17,8 @@ import * as arrow from 'apache-arrow';
 
 import { concatenate_arrow_tables } from '../vector_tile/concatenate_functions';
 
+import { normalizeBaseUrl } from './normalize_base_url';
+
 import { getPq } from './pqInitializer';
 
 /**
@@ -30,6 +32,9 @@ export class RowGroupTileReader {
    * @param {Object|string} fileConfig - Either a URL string (single file) or chunk config object
    */
   constructor(baseUrl, tileGrid, fileConfig) {
+    // Tolerate a trailing slash: it would otherwise create an empty path segment that
+    // absorbs one ".." from a relative directory, silently mis-resolving store paths.
+    baseUrl = normalizeBaseUrl(baseUrl);
     this.baseUrl = baseUrl;
     this.numTilesX = tileGrid?.num_tiles_x || 0;
     this.numTilesY = tileGrid?.num_tiles_y || 0;

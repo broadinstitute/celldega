@@ -20,6 +20,13 @@ beforeAll(() => {
   const fs = require('fs');
   const path = require('path');
 
+  const helper = fs
+    .readFileSync(
+      path.join(__dirname, '../read_parquet/normalize_base_url.js'),
+      'utf8'
+    )
+    .replace(/^export default [\s\S]*?;$/gm, '')
+    .replace(/^export /gm, '');
   const source = fs
     .readFileSync(
       path.join(__dirname, '../read_parquet/row_group_tile_reader.js'),
@@ -28,7 +35,7 @@ beforeAll(() => {
     .replace(/^import[\s\S]*?;$/gm, '')
     .replace(/^export default [\s\S]*?;$/gm, '')
     .replace(/^export /gm, '');
-  const code = `${source}\nmodule.exports = { RowGroupTileReader };`;
+  const code = `${helper}\n${source}\nmodule.exports = { RowGroupTileReader };`;
   const module = { exports: {} };
   new Function('module', 'exports', code)(module, module.exports);
   ({ RowGroupTileReader } = module.exports);
@@ -167,5 +174,50 @@ describe('row group index formula', () => {
     expect(reader.isValidTile(3, 2)).toBe(true);
     expect(reader.isValidTile(4, 0)).toBe(false);
     expect(reader.isValidTile(0, -1)).toBe(false);
+  });
+});
+
+describe('base URL normalization', () => {
+  // A base_url ending in '/' produces '//' when joined, which is an empty path segment.
+  // That is harmless for a plain directory but silently eats one '..' from a relative
+  // one, so a SpatialData store resolved to the wrong place and every tile 404'd.
+  const RELATIVE = {
+    directory: '../../points/transcripts/points.parquet',
+    files: ['chunk_00.parquet', 'chunk_01.parquet'],
+    max_row_groups_per_file: 400,
+    total_row_groups: 800,
+  };
+  const resolve = (base) => {
+    const r = new RowGroupTileReader(
+      base,
+      { num_tiles_x: 20, num_tiles_y: 40 },
+      RELATIVE
+    );
+    const { URL: NodeURL } = require('url');
+    return new NodeURL(`${r.baseUrl}/${r.directory}/${r.files[0]}`).pathname;
+  };
+
+  const EXPECTED = '/p.zarr/points/transcripts/points.parquet/chunk_00.parquet';
+
+  test('resolves correctly without a trailing slash', () => {
+    expect(resolve('http://h/p.zarr/visualization/grid')).toBe(EXPECTED);
+  });
+
+  test('resolves correctly with a trailing slash', () => {
+    expect(resolve('http://h/p.zarr/visualization/grid/')).toBe(EXPECTED);
+  });
+
+  test('resolves correctly with several trailing slashes', () => {
+    expect(resolve('http://h/p.zarr/visualization/grid///')).toBe(EXPECTED);
+  });
+
+  test('a plain directory is unaffected either way', () => {
+    const plain = { ...RELATIVE, directory: 'transcripts' };
+    const url = (base) =>
+      new (require('url').URL)(
+        `${new RowGroupTileReader(base, { num_tiles_x: 2, num_tiles_y: 2 }, plain).baseUrl}/transcripts/x.parquet`
+      ).pathname;
+    expect(url('http://h/dega/')).toBe('/dega/transcripts/x.parquet');
+    expect(url('http://h/dega')).toBe('/dega/transcripts/x.parquet');
   });
 });

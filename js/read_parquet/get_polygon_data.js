@@ -38,9 +38,13 @@ const ARROW_FIXED_SIZE_LIST = 16;
 /**
  * Extract deck.gl binary polygon data from an Arrow table.
  *
- * The expected layout is list<list<fixed_size_list<n, 2>>>: polygon -> rings ->
- * interleaved vertices, so the flat coordinate buffer becomes getPolygon and the list
- * offsets become startIndices.
+ * The expected layout is polygon -> rings -> interleaved vertex pairs, so the flat
+ * coordinate buffer becomes getPolygon and the list offsets become startIndices.
+ *
+ * The vertex level may be either a List or a FixedSizeList. Parquet has no fixed-size
+ * list type, so a writer's `fixed_size_list<n, 2>` is stored as a plain List and only
+ * readers that honour the embedded ARROW:schema hint reconstruct the fixed-size type --
+ * parquet-wasm does not. Both forms are interleaved and equally usable here.
  *
  * @param {Object} arrowTable - Arrow table holding the geometry column
  * @param {string} [geometryColumnName] - Column to read. Defaults to the DegaFiles
@@ -74,16 +78,18 @@ export const get_polygon_data = (arrowTable, geometryColumnName) => {
   const ringChild = geometryColumn.getChildAt(0);
   const vertexChild = ringChild?.getChildAt(0);
 
-  // The vertex level must be a FixedSizeList of interleaved pairs. GeoArrow also permits
+  // Reject only the layout that would be read *incorrectly*: GeoArrow permits
   // struct<x, y> coordinates (which is what geopandas emits), and there getChildAt(0)
-  // would return the x child alone -- silently rendering wrong polygons instead of
-  // failing. Refuse that layout rather than draw nonsense.
+  // returns the x child alone, silently rendering wrong polygons instead of failing.
+  // List and FixedSizeList are both interleaved and both fine.
+  const vertexTypeId = vertexChild?.data[0]?.type?.typeId;
   if (
     !vertexChild ||
-    vertexChild.data[0]?.type?.typeId !== ARROW_FIXED_SIZE_LIST
+    (vertexTypeId !== ARROW_LIST && vertexTypeId !== ARROW_FIXED_SIZE_LIST)
   ) {
     // console.warn(
-    //   '[get_polygon_data] geometry is not interleaved fixed-size-list coordinates'
+    //   `[get_polygon_data] unsupported vertex layout (typeId ${vertexTypeId});` +
+    //     ` expected interleaved coordinates, not struct<x, y>`
     // );
     return null;
   }

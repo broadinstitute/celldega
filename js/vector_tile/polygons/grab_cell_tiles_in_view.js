@@ -33,20 +33,27 @@ async function grab_cell_tiles_row_groups(tiles_in_view, viz_state) {
  * @param {Object} viz_state - Visualization state
  * @returns {Array} - Array of cell names
  */
+/**
+ * Column holding the cell identifier in DegaFiles. A SpatialData profile declares its
+ * own (cell_code) in the manifest.
+ */
+const DEFAULT_CELL_ID_COLUMN = 'name';
+
 function extractCellNames(tables, viz_state) {
   // Normalize to array
   const tableArray = Array.isArray(tables) ? tables : [tables];
+  const idColumn = viz_state?.cell_id_column || DEFAULT_CELL_ID_COLUMN;
 
   if (!viz_state.vector_name_integer) {
     // When viz_state.vector_name_integer is false, use the direct extraction.
     return tableArray.flatMap((table) => {
-      const name_child = table.getChild('name');
+      const name_child = table.getChild(idColumn);
       return name_child ? Array.from(name_child.toArray()) : [];
     });
   } else {
     // When viz_state.vector_name_integer is true, map the integers to their string values.
     return tableArray.flatMap((table) => {
-      const name_child = table.getChild('name');
+      const name_child = table.getChild(idColumn);
       if (!name_child) return [];
       const intNames = Array.from(name_child.toArray());
       return intNames.map((num) => viz_state.cats.nameMapping_inv[num]);
@@ -75,7 +82,10 @@ export const grab_cell_tiles_in_view = async (
     viz_state.cats.polygon_cell_names = extractCellNames(cell_table, viz_state);
 
     // Get polygon data directly from the combined table
-    const polygon_data = get_polygon_data(cell_table);
+    const polygon_data = get_polygon_data(
+      cell_table,
+      viz_state.cell_geometry_column
+    );
     const polygonPathsConcat = extractPolygonPaths(polygon_data);
 
     return polygonPathsConcat;

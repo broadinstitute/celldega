@@ -37,6 +37,17 @@ export class RowGroupTileReader {
     this.requestCache = new Map();
     this.maxCachedReads = 4;
 
+    // Optional column projection. DegaFiles do not set this and keep reading every
+    // column, which is the existing behaviour. A SpatialData profile names just the
+    // render columns, so canonical coordinates, transcript ids, cell ids and QC columns
+    // are never decoded or transferred during ordinary rendering.
+    this.columns =
+      typeof fileConfig === 'object' &&
+      Array.isArray(fileConfig?.columns) &&
+      fileConfig.columns.length > 0
+        ? fileConfig.columns
+        : null;
+
     // Determine mode: chunked or single file
     if (typeof fileConfig === 'string') {
       // Legacy single file mode
@@ -90,13 +101,22 @@ export class RowGroupTileReader {
     return readPromise;
   }
 
+  /**
+   * Build the parquet-wasm read options, adding a column projection when configured.
+   * @param {Array<number>} rowGroups - Row group indices local to the file being read
+   * @returns {{rowGroups: Array<number>, columns?: Array<string>}}
+   */
+  _readOptions(rowGroups) {
+    return this.columns ? { rowGroups, columns: this.columns } : { rowGroups };
+  }
+
   async _readRowGroups(uniqueIndices, options = {}) {
     const returnTablesArray = options.returnTablesArray === true;
 
     if (!this.chunkedMode) {
-      const wasmTable = await this.parquetFile.read({
-        rowGroups: uniqueIndices,
-      });
+      const wasmTable = await this.parquetFile.read(
+        this._readOptions(uniqueIndices)
+      );
       const arrowIPC = wasmTable.intoIPCStream();
       const table = arrow.tableFromIPC(arrowIPC);
       return returnTablesArray ? [table] : table;
@@ -114,7 +134,7 @@ export class RowGroupTileReader {
     const tables = await Promise.all(
       [...byFile.entries()].map(async ([fileIndex, localIndices]) => {
         const pqFile = await this._getParquetFile(fileIndex);
-        const wasmTable = await pqFile.read({ rowGroups: localIndices });
+        const wasmTable = await pqFile.read(this._readOptions(localIndices));
         const arrowIPC = wasmTable.intoIPCStream();
         return arrow.tableFromIPC(arrowIPC);
       })
@@ -317,7 +337,11 @@ export class RowGroupTileReader {
     // Remove duplicates and sort
     const uniqueIndices = [...new Set(rowGroupIndices)].sort((a, b) => a - b);
     const returnTablesArray = options.returnTablesArray === true;
-    const cacheKey = `${returnTablesArray ? 'tables' : 'table'}:${uniqueIndices.join(',')}`;
+    // The projection is part of the cache identity: the same row groups read with
+    // different columns are different results.
+    const cacheKey = `${returnTablesArray ? 'tables' : 'table'}:${
+      this.columns ? this.columns.join('+') : 'all'
+    }:${uniqueIndices.join(',')}`;
     const cachedRead = this._getCachedRead(cacheKey);
     if (cachedRead) {
       return cachedRead;

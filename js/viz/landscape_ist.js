@@ -155,6 +155,15 @@ async function initializeRowGroupReaders(viz_state, base_url) {
   viz_state.row_group_readers = {};
   viz_state.tile_grid = tileGrid;
 
+  // Column names are declared per dataset. DegaFiles omit them and keep their existing
+  // defaults (geometry / name); a SpatialData profile names its render columns instead.
+  // Leaving these undefined is what preserves DegaFiles behaviour.
+  viz_state.trx_position_column = rowGroupFiles.transcripts?.position_column;
+  viz_state.trx_feature_column = rowGroupFiles.transcripts?.feature_column;
+  viz_state.cell_geometry_column =
+    rowGroupFiles.cell_segmentation?.geometry_column;
+  viz_state.cell_id_column = rowGroupFiles.cell_segmentation?.cell_id_column;
+
   // Initialize transcript row group reader with grid dimensions
   if (rowGroupFiles.transcripts) {
     // Support both chunked (object with files array) and legacy (string path) formats

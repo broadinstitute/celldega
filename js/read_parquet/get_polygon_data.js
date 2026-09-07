@@ -31,13 +31,35 @@ function getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk) {
   };
 }
 
-export const get_polygon_data = (arrowTable) => {
+// apache-arrow Type ids used below.
+const ARROW_LIST = 12;
+const ARROW_FIXED_SIZE_LIST = 16;
+
+/**
+ * Extract deck.gl binary polygon data from an Arrow table.
+ *
+ * The expected layout is polygon -> rings -> interleaved vertex pairs, so the flat
+ * coordinate buffer becomes getPolygon and the list offsets become startIndices.
+ *
+ * The vertex level may be either a List or a FixedSizeList. Parquet has no fixed-size
+ * list type, so a writer's `fixed_size_list<n, 2>` is stored as a plain List and only
+ * readers that honour the embedded ARROW:schema hint reconstruct the fixed-size type --
+ * parquet-wasm does not. Both forms are interleaved and equally usable here.
+ *
+ * @param {Object} arrowTable - Arrow table holding the geometry column
+ * @param {string} [geometryColumnName] - Column to read. Defaults to the DegaFiles
+ *   names (GEOMETRY / geometry); a SpatialData profile passes display_geometry.
+ * @returns {Object|null} - Polygon data, or null if the column is missing or not in the
+ *   expected binary layout
+ */
+export const get_polygon_data = (arrowTable, geometryColumnName) => {
   // Get geometry column by name (more robust than index)
   // Try common column names for geometry data
-  const geometryColumn =
-    arrowTable.getChild('GEOMETRY') ||
-    arrowTable.getChild('geometry') ||
-    arrowTable.getChildAt(0);
+  const geometryColumn = geometryColumnName
+    ? arrowTable.getChild(geometryColumnName)
+    : arrowTable.getChild('GEOMETRY') ||
+      arrowTable.getChild('geometry') ||
+      arrowTable.getChildAt(0);
 
   if (!geometryColumn) {
     // console.warn('[get_polygon_data] No geometry column found');
@@ -45,7 +67,7 @@ export const get_polygon_data = (arrowTable) => {
   }
 
   // Check if this is the expected nested list type (typeId 12 = List)
-  if (geometryColumn.data[0].type.typeId !== 12) {
+  if (geometryColumn.data[0].type.typeId !== ARROW_LIST) {
     return null;
   }
 
@@ -54,7 +76,25 @@ export const get_polygon_data = (arrowTable) => {
 
   // Get child columns for ring and coordinate data
   const ringChild = geometryColumn.getChildAt(0);
-  const coordChild = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0);
+  const vertexChild = ringChild?.getChildAt(0);
+
+  // Reject only the layout that would be read *incorrectly*: GeoArrow permits
+  // struct<x, y> coordinates (which is what geopandas emits), and there getChildAt(0)
+  // returns the x child alone, silently rendering wrong polygons instead of failing.
+  // List and FixedSizeList are both interleaved and both fine.
+  const vertexTypeId = vertexChild?.data[0]?.type?.typeId;
+  if (
+    !vertexChild ||
+    (vertexTypeId !== ARROW_LIST && vertexTypeId !== ARROW_FIXED_SIZE_LIST)
+  ) {
+    // console.warn(
+    //   `[get_polygon_data] unsupported vertex layout (typeId ${vertexTypeId});` +
+    //     ` expected interleaved coordinates, not struct<x, y>`
+    // );
+    return null;
+  }
+
+  const coordChild = vertexChild.getChildAt(0);
 
   // For single chunk (original behavior), use direct extraction
   if (numChunks === 1) {

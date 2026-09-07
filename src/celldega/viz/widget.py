@@ -6,6 +6,7 @@ from contextlib import suppress
 from copy import deepcopy
 import importlib.metadata
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -58,6 +59,17 @@ def _resolve_widget_esm() -> "Path | str":
         version = candidate if re.fullmatch(r"\d+\.\d+\.\d+", candidate) else ""
     if not version:
         return _LOCAL_ESM
+
+    # Say so. An editable install of a released version still serves the published
+    # bundle, so edits under js/ have no effect however often you rebuild or restart --
+    # with nothing in the console to explain why. Cheap to log, expensive to discover.
+    if _LOCAL_ESM.resolve().exists():
+        logging.getLogger(__name__).info(
+            "celldega front-end loading from CDN (celldega@%s), not the local bundle at %s. "
+            "Set CELLDEGA_LOCAL_ESM=1 before importing celldega to use local js/ changes.",
+            version,
+            _LOCAL_ESM.resolve(),
+        )
     return f"export {{ default }} from '{_ESM_CDN.format(version=version)}';"
 
 

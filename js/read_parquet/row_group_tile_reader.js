@@ -17,6 +17,8 @@ import * as arrow from 'apache-arrow';
 
 import { concatenate_arrow_tables } from '../vector_tile/concatenate_functions';
 
+import { normalizeBaseUrl } from './normalize_base_url';
+
 import { getPq } from './pqInitializer';
 
 /**
@@ -30,6 +32,9 @@ export class RowGroupTileReader {
    * @param {Object|string} fileConfig - Either a URL string (single file) or chunk config object
    */
   constructor(baseUrl, tileGrid, fileConfig) {
+    // Tolerate a trailing slash: it would otherwise create an empty path segment that
+    // absorbs one ".." from a relative directory, silently mis-resolving store paths.
+    baseUrl = normalizeBaseUrl(baseUrl);
     this.baseUrl = baseUrl;
     this.numTilesX = tileGrid?.num_tiles_x || 0;
     this.numTilesY = tileGrid?.num_tiles_y || 0;
@@ -90,13 +95,32 @@ export class RowGroupTileReader {
     return readPromise;
   }
 
+  /**
+   * Build the parquet-wasm read options.
+   *
+   * Deliberately no column projection: passing `columns` to ParquetFile.read corrupts
+   * the IPC stream parquet-wasm emits, so tableFromIPC then throws. Reproduced on
+   * parquet-wasm 0.7.1 and 0.7.2 with apache-arrow 15 and 18, for scalar and nested
+   * columns alike, and even with an empty `columns` array.
+   *
+   * Projection is unnecessary anyway: a SpatialData profile puts its render columns in
+   * their own file, so reading every column of that file already transfers only what is
+   * needed.
+   *
+   * @param {Array<number>} rowGroups - Row group indices local to the file being read
+   * @returns {{rowGroups: Array<number>}}
+   */
+  _readOptions(rowGroups) {
+    return { rowGroups };
+  }
+
   async _readRowGroups(uniqueIndices, options = {}) {
     const returnTablesArray = options.returnTablesArray === true;
 
     if (!this.chunkedMode) {
-      const wasmTable = await this.parquetFile.read({
-        rowGroups: uniqueIndices,
-      });
+      const wasmTable = await this.parquetFile.read(
+        this._readOptions(uniqueIndices)
+      );
       const arrowIPC = wasmTable.intoIPCStream();
       const table = arrow.tableFromIPC(arrowIPC);
       return returnTablesArray ? [table] : table;
@@ -114,7 +138,7 @@ export class RowGroupTileReader {
     const tables = await Promise.all(
       [...byFile.entries()].map(async ([fileIndex, localIndices]) => {
         const pqFile = await this._getParquetFile(fileIndex);
-        const wasmTable = await pqFile.read({ rowGroups: localIndices });
+        const wasmTable = await pqFile.read(this._readOptions(localIndices));
         const arrowIPC = wasmTable.intoIPCStream();
         return arrow.tableFromIPC(arrowIPC);
       })

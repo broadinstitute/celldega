@@ -8,6 +8,8 @@
 
 import * as arrow from 'apache-arrow';
 
+import { normalizeBaseUrl } from './normalize_base_url';
+
 import { getPq } from './pqInitializer';
 
 /**
@@ -20,6 +22,9 @@ export class CBGRowGroupReader {
    * @param {string|Object} cbgConfig - Either a URL string (legacy) or chunk config object
    */
   constructor(baseUrl, cbgConfig) {
+    // Tolerate a trailing slash: it would otherwise create an empty path segment that
+    // absorbs one ".." from a relative directory, silently mis-resolving store paths.
+    baseUrl = normalizeBaseUrl(baseUrl);
     this.baseUrl = baseUrl;
     this.initialized = false;
     this.useStreaming = true;

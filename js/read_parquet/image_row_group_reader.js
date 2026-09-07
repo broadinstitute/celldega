@@ -11,6 +11,8 @@
 
 import * as arrow from 'apache-arrow';
 
+import { normalizeBaseUrl } from './normalize_base_url';
+
 import { getPq } from './pqInitializer';
 
 /**
@@ -24,6 +26,9 @@ export class ImageRowGroupReader {
    * @param {Object} zoomInfo - Zoom level info from landscape_parameters (can be in imageConfig)
    */
   constructor(baseUrl, imageConfig, zoomInfo = null) {
+    // Tolerate a trailing slash: it would otherwise create an empty path segment that
+    // absorbs one ".." from a relative directory, silently mis-resolving store paths.
+    baseUrl = normalizeBaseUrl(baseUrl);
     this.baseUrl = baseUrl;
     this.initialized = false;
     this.useStreaming = true;

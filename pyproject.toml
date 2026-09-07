@@ -14,8 +14,11 @@ dependencies = [
     "anndata>=0.12,<0.13",
     # spatialdata>=0.7.2 dropped the xarray_schema dep whose pkg_resources import
     # broke installs under setuptools>=82 (github.com/broadinstitute/celldega/issues/292).
-    # Capped <0.8 because 0.8 requires Python>=3.12 and we still support 3.11.
-    "spatialdata>=0.7.2,<0.8",
+    # TEMPORARY (feat/spatialdata-regular-grid-reader): the <0.8 cap is relaxed so this
+    # branch can develop against an editable spatialdata main (v0.8.0+). The cap exists
+    # because 0.8 requires Python>=3.12 while celldega still supports 3.11, so this must
+    # NOT be merged to main until celldega drops 3.11. Revert before opening the upstream PR.
+    "spatialdata>=0.7.2",
     "spatialdata-io>=0.7.1,<0.8",
     "ome-zarr>=0.12.2",
     "mudata",

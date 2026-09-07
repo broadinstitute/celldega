@@ -3,6 +3,23 @@ import { fetch_all_tables_new } from '../../read_parquet/fetch_all_tables';
 import { createEmptyTrxCompact } from '../../utils/compact_data';
 
 /**
+ * Column names used by DegaFiles. A SpatialData store declares its own in the manifest
+ * (display_xy / feature_code); anything that does not declare them keeps these.
+ */
+const DEFAULT_POSITION_COLUMN = 'geometry';
+const DEFAULT_FEATURE_COLUMN = 'name';
+
+/**
+ * Resolve the transcript column names for the dataset currently loaded.
+ * @param {Object} viz_state - Visualization state
+ * @returns {{position: string, feature: string}}
+ */
+const trx_columns = (viz_state) => ({
+  position: viz_state?.trx_position_column || DEFAULT_POSITION_COLUMN,
+  feature: viz_state?.trx_feature_column || DEFAULT_FEATURE_COLUMN,
+});
+
+/**
  * Fetch transcript tiles from row group reader
  * @param {Array} tiles_in_view - Array of tiles with tileX and tileY
  * @param {Object} viz_state - Visualization state containing row_group_readers
@@ -25,6 +42,8 @@ async function grab_trx_tiles_row_groups(tiles_in_view, viz_state) {
 }
 
 const materializeTranscriptBuffers = (tables, viz_state) => {
+  const { position: positionColumn, feature: featureColumn } =
+    trx_columns(viz_state);
   const tableArray = (Array.isArray(tables) ? tables : [tables]).filter(
     Boolean
   );
@@ -47,7 +66,7 @@ const materializeTranscriptBuffers = (tables, viz_state) => {
   for (const table of tableArray) {
     totalRows += table.numRows;
 
-    const geometryColumn = table.getChild('geometry')?.getChildAt(0);
+    const geometryColumn = table.getChild(positionColumn)?.getChildAt(0);
     const chunks = geometryColumn?.data || [];
     for (const chunk of chunks) {
       totalCoordinates += chunk.values.length;
@@ -83,15 +102,18 @@ const materializeTranscriptBuffers = (tables, viz_state) => {
   };
 
   for (const table of tableArray) {
-    const geometryColumn = table.getChild('geometry')?.getChildAt(0);
+    const geometryColumn = table.getChild(positionColumn)?.getChildAt(0);
     const chunks = geometryColumn?.data || [];
 
     for (const chunk of chunks) {
+      // chunk.values is the flat, already-interleaved Arrow child buffer
+      // ([x0,y0,x1,y1,...]), whether it holds float32 (DegaFiles) or uint32
+      // (SpatialData display_xy). No x/y zipping happens here.
       positions.set(chunk.values, coordinateOffset);
       coordinateOffset += chunk.values.length;
     }
 
-    const nameColumn = table.getChild('name');
+    const nameColumn = table.getChild(featureColumn);
     const nameValues = nameColumn ? nameColumn.toArray() : [];
 
     if (viz_state.vector_name_integer) {

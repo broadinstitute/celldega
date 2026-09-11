@@ -35,12 +35,14 @@
     "@luma.gl/engine": "^9.0.12",
     "@luma.gl/shadertools": "^9.0.12",
     "@luma.gl/webgl": "^9.0.12",
+    "@vivjs/loaders": "^0.22.1",
     "apache-arrow": "15.0.2",
     "aws4fetch": "^1.0.20",
     "d3": "^7.9.0",
     "deck.gl": "^9.0.12",
     "math.gl": "2.3.3",
-    "parquet-wasm": "^0.7.1"
+    "parquet-wasm": "npm:@cornhundred/parquet-wasm@0.7.2-celldega.0",
+    "zarrita": "^0.7.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

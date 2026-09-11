@@ -62,6 +62,7 @@ import {
   areBarDataEqual,
   createEmptyCellCompact,
   createEmptyTrxCompact,
+  forEachTrxCoordinate,
 } from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
@@ -620,10 +621,7 @@ export const yearbook = async (
     const activeGeneIds = viz_state.yearbook.activeGeneIds;
     activeGeneIds.length = 0;
 
-    for (let i = 0; i < trxCompact.geneIds.length; i++) {
-      const positions = trxCompact.positions;
-      const x = positions[i * trxCompact.size];
-      const y = positions[i * trxCompact.size + 1];
+    forEachTrxCoordinate(trxCompact, (x, y, i) => {
       const inPortrait = centers.some((center) => {
         return (
           x >= center.x - half_view_size &&
@@ -633,19 +631,19 @@ export const yearbook = async (
         );
       });
       if (!inPortrait) {
-        continue;
+        return;
       }
 
       const geneId = trxCompact.geneIds[i];
       if (geneId < 0) {
-        continue;
+        return;
       }
 
       if (geneCounts[geneId] === 0) {
         activeGeneIds.push(geneId);
       }
       geneCounts[geneId] += 1;
-    }
+    });
 
     activeGeneIds.sort((a, b) => geneCounts[b] - geneCounts[a]);
     const new_bar_data = activeGeneIds.slice(0, 100).map((geneId) => ({

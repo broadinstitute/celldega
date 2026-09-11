@@ -17,7 +17,9 @@ import * as arrow from 'apache-arrow';
 
 import { concatenate_arrow_tables } from '../vector_tile/concatenate_functions';
 
+import { normalizeBaseUrl } from './normalize_base_url';
 import { getPq } from './pqInitializer';
+import { probeColumnProjection } from './projection_probe';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access
@@ -30,18 +32,35 @@ export class RowGroupTileReader {
    * @param {Object|string} fileConfig - Either a URL string (single file) or chunk config object
    */
   constructor(baseUrl, tileGrid, fileConfig) {
+    // Tolerate a trailing slash: it would otherwise create an empty path segment that
+    // absorbs one ".." from a relative directory, silently mis-resolving store paths.
+    baseUrl = normalizeBaseUrl(baseUrl);
     this.baseUrl = baseUrl;
     this.numTilesX = tileGrid?.num_tiles_x || 0;
     this.numTilesY = tileGrid?.num_tiles_y || 0;
     this.initialized = false;
     this.requestCache = new Map();
     this.maxCachedReads = 4;
+    // Columns to request, when the caller knows which it needs. Undefined means read
+    // everything, which is the behaviour for any file whose layout is not declared.
+    this.columns =
+      Array.isArray(fileConfig?.columns) && fileConfig.columns.length
+        ? fileConfig.columns
+        : null;
+    this.projectionBroken = false;
 
     // Determine mode: chunked or single file
     if (typeof fileConfig === 'string') {
       // Legacy single file mode
       this.chunkedMode = false;
       this.url = `${baseUrl}/${fileConfig}`;
+      this.parquetFile = null;
+    } else if (typeof fileConfig === 'object' && fileConfig.path) {
+      // Canonical Shapes are a single Parquet file when the grid fits in one
+      // chunk. The root manifest records that form as `path`, matching the
+      // profile validator and avoiding a fictitious directory/files pair.
+      this.chunkedMode = false;
+      this.url = `${baseUrl}/${fileConfig.path}`;
       this.parquetFile = null;
     } else if (typeof fileConfig === 'object' && fileConfig.files) {
       // Check if we can use single-file mode (only 1 chunk file)
@@ -90,13 +109,103 @@ export class RowGroupTileReader {
     return readPromise;
   }
 
+  /**
+   * Build the parquet-wasm read options.
+   *
+   * Column projection was previously removed: upstream 0.7.x paired correctly projected
+   * batches with the *unprojected* schema, so the IPC buffer was malformed and
+   * tableFromIPC threw (kylebarron/parquet-wasm#810). The experimental fork carries the
+   * fix from PR #811, so `columns` is requested again when the caller declares which
+   * columns it needs.
+   *
+   * `projectionBroken` latches on the first failure and every later read goes back to
+   * asking for everything. A viewer that renders slightly more bytes is better than one
+   * that renders nothing, and the fallback is what makes it safe to try this against an
+   * unreleased dependency.
+   *
+   * @param {Array<number>} rowGroups - Row group indices local to the file being read
+   * @returns {{rowGroups: Array<number>, columns?: Array<string>}}
+   */
+  _readOptions(rowGroups) {
+    if (!this.columns || this.projectionBroken) {
+      return { rowGroups };
+    }
+    return { rowGroups, columns: this.columns };
+  }
+
+  /**
+   * Read with projection, falling back to a full read once if projection fails.
+   *
+   * @param {object} parquetFile
+   * @param {Array<number>} rowGroups
+   */
+  async _readWithFallback(parquetFile, rowGroups) {
+    const options = this._readOptions(rowGroups);
+    if (!options.columns) {
+      return parquetFile.read(options);
+    }
+    try {
+      return await parquetFile.read(options);
+    } catch (error) {
+      this.projectionBroken = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[RowGroupTileReader] column projection failed (${error.name}: ${error.message}); ` +
+          'falling back to full-column reads for the rest of this session'
+      );
+      return parquetFile.read({ rowGroups });
+    }
+  }
+
+  /**
+   * Report once, in the console, whether projection works here.
+   *
+   * Picks the *largest* row group, not the first non-empty one. The profile writes an
+   * empty row group per empty tile and the first occupied tile often holds a handful of
+   * rows, where the byte comparison rounds to nothing and says less than it appears to.
+   */
+  async _probeProjection(parquetFile) {
+    if (!this.columns) return;
+    try {
+      const metadata = parquetFile.metadata();
+      let rowGroup = -1;
+      let mostRows = 0;
+      for (let i = 0; i < metadata.numRowGroups(); i += 1) {
+        const rows = metadata.rowGroup(i).numRows();
+        if (rows > mostRows) {
+          mostRows = rows;
+          rowGroup = i;
+        }
+      }
+      if (rowGroup < 0) return;
+
+      const report = await probeColumnProjection({
+        parquetFile,
+        rowGroup,
+        columns: this.columns,
+        label: this.directory || this.url,
+        toArrow: (wasmTable) => arrow.tableFromIPC(wasmTable.intoIPCStream()),
+      });
+      if (report && report.ok === false) this.projectionBroken = true;
+    } catch (error) {
+      // A probe must not stop the viewer from loading, but it must not fail quietly
+      // either -- a silent probe looks identical to a passing one.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[RowGroupTileReader] projection probe could not run on ` +
+          `${this.directory || this.url}: ${error.name}: ${error.message}`
+      );
+    }
+  }
+
   async _readRowGroups(uniqueIndices, options = {}) {
     const returnTablesArray = options.returnTablesArray === true;
 
     if (!this.chunkedMode) {
-      const wasmTable = await this.parquetFile.read({
-        rowGroups: uniqueIndices,
-      });
+      const wasmTable = await this._readWithFallback(
+        this.parquetFile,
+        uniqueIndices
+      );
       const arrowIPC = wasmTable.intoIPCStream();
       const table = arrow.tableFromIPC(arrowIPC);
       return returnTablesArray ? [table] : table;
@@ -114,7 +223,7 @@ export class RowGroupTileReader {
     const tables = await Promise.all(
       [...byFile.entries()].map(async ([fileIndex, localIndices]) => {
         const pqFile = await this._getParquetFile(fileIndex);
-        const wasmTable = await pqFile.read({ rowGroups: localIndices });
+        const wasmTable = await this._readWithFallback(pqFile, localIndices);
         const arrowIPC = wasmTable.intoIPCStream();
         return arrow.tableFromIPC(arrowIPC);
       })
@@ -252,6 +361,7 @@ export class RowGroupTileReader {
       // );
       this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
       // Metadata available via this.parquetFile.metadata() if needed
+      await this._probeProjection(this.parquetFile);
     } else {
       // Chunked mode - check range support on first file
       const firstFileUrl = `${this.baseUrl}/${this.directory}/${this.files[0]}`;
@@ -268,6 +378,13 @@ export class RowGroupTileReader {
       //   `[RowGroupTileReader] Chunked mode enabled: ${this.files.length} files, ` +
       //     `${this.totalRowGroups} total row groups, max ${this.maxRowGroupsPerFile} per file`
       // );
+
+      // Chunked is the common case -- 7,535 tiles at 400 per file is 19 files -- so
+      // probing only the single-file branch meant never probing at all.
+      if (this.columns) {
+        const first = await this._getParquetFile(0);
+        await this._probeProjection(first);
+      }
     }
 
     this.initialized = true;

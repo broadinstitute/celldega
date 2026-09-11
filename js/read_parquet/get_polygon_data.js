@@ -7,10 +7,14 @@ import { concatenate_polygon_data } from '../vector_tile/concatenate_functions';
  * @param {Object} coordChunk - The coordinate level chunk data
  * @returns {Object|null} - Polygon data object with length, startIndices, and attributes
  */
-function getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk) {
+function getPolygonDataFromChunk(
+  polygonChunk,
+  ringChunk,
+  coordChunk,
+  yCoordChunk = null
+) {
   const polygonOffsets = polygonChunk.valueOffsets;
   const ringOffsets = ringChunk.valueOffsets;
-  const flatCoordinateArray = coordChunk.values;
 
   // Number of polygons is offsets length - 1
   const numPolygons = polygonOffsets.length - 1;
@@ -22,22 +26,50 @@ function getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk) {
     resolvedIndices[i] = ringOffsets[ringIdx];
   }
 
+  const attributes = yCoordChunk
+    ? {
+        getPolygonX: { value: coordChunk.values, size: 1 },
+        getPolygonY: { value: yCoordChunk.values, size: 1 },
+      }
+    : { getPolygon: { value: coordChunk.values, size: 2 } };
+
   return {
     length: numPolygons,
     startIndices: resolvedIndices,
-    attributes: {
-      getPolygon: { value: flatCoordinateArray, size: 2 },
-    },
+    attributes,
   };
 }
 
-export const get_polygon_data = (arrowTable) => {
+// apache-arrow Type ids used below.
+const ARROW_LIST = 12;
+const ARROW_STRUCT = 13;
+const ARROW_FIXED_SIZE_LIST = 16;
+
+/**
+ * Extract deck.gl binary polygon data from an Arrow table.
+ *
+ * The expected layout is polygon -> rings -> interleaved vertex pairs, so the flat
+ * coordinate buffer becomes getPolygon and the list offsets become startIndices.
+ *
+ * The vertex level may be either a List or a FixedSizeList. Parquet has no fixed-size
+ * list type, so a writer's `fixed_size_list<n, 2>` is stored as a plain List and only
+ * readers that honour the embedded ARROW:schema hint reconstruct the fixed-size type --
+ * parquet-wasm does not. Both forms are interleaved and equally usable here.
+ *
+ * @param {Object} arrowTable - Arrow table holding the geometry column
+ * @param {string} [geometryColumnName] - Column to read. Defaults to the DegaFiles
+ *   names (GEOMETRY / geometry); a SpatialData profile passes display_geometry.
+ * @returns {Object|null} - Polygon data, or null if the column is missing or not in the
+ *   expected binary layout
+ */
+export const get_polygon_data = (arrowTable, geometryColumnName) => {
   // Get geometry column by name (more robust than index)
   // Try common column names for geometry data
-  const geometryColumn =
-    arrowTable.getChild('GEOMETRY') ||
-    arrowTable.getChild('geometry') ||
-    arrowTable.getChildAt(0);
+  const geometryColumn = geometryColumnName
+    ? arrowTable.getChild(geometryColumnName)
+    : arrowTable.getChild('GEOMETRY') ||
+      arrowTable.getChild('geometry') ||
+      arrowTable.getChildAt(0);
 
   if (!geometryColumn) {
     // console.warn('[get_polygon_data] No geometry column found');
@@ -45,7 +77,7 @@ export const get_polygon_data = (arrowTable) => {
   }
 
   // Check if this is the expected nested list type (typeId 12 = List)
-  if (geometryColumn.data[0].type.typeId !== 12) {
+  if (geometryColumn.data[0].type.typeId !== ARROW_LIST) {
     return null;
   }
 
@@ -54,14 +86,37 @@ export const get_polygon_data = (arrowTable) => {
 
   // Get child columns for ring and coordinate data
   const ringChild = geometryColumn.getChildAt(0);
-  const coordChild = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0);
+  const vertexChild = ringChild?.getChildAt(0);
+
+  // GeoArrow permits struct<x, y> coordinates, which geopandas emits for canonical
+  // Shapes. Keep those child buffers separate; the path conversion already walks every
+  // vertex, so it can pair x and y without an additional interleaving allocation.
+  const vertexTypeId = vertexChild?.data[0]?.type?.typeId;
+  if (
+    !vertexChild ||
+    ![ARROW_LIST, ARROW_STRUCT, ARROW_FIXED_SIZE_LIST].includes(vertexTypeId)
+  ) {
+    // console.warn(
+    //   `[get_polygon_data] unsupported vertex layout (typeId ${vertexTypeId});` +
+    //     ` expected interleaved coordinates, not struct<x, y>`
+    // );
+    return null;
+  }
+
+  const coordChild = vertexChild.getChildAt(0);
+  const yCoordChild =
+    vertexTypeId === ARROW_STRUCT ? vertexChild.getChildAt(1) : null;
+  if (!coordChild || (vertexTypeId === ARROW_STRUCT && !yCoordChild)) {
+    return null;
+  }
 
   // For single chunk (original behavior), use direct extraction
   if (numChunks === 1) {
     return getPolygonDataFromChunk(
       dataChunks[0],
       ringChild.data[0],
-      coordChild.data[0]
+      coordChild.data[0],
+      yCoordChild?.data[0]
     );
   }
 
@@ -82,7 +137,8 @@ export const get_polygon_data = (arrowTable) => {
     const chunkData = getPolygonDataFromChunk(
       polygonChunk,
       ringChunk,
-      coordChunk
+      coordChunk,
+      yCoordChild?.data[chunkIdx]
     );
     if (chunkData && chunkData.length > 0) {
       chunkPolygonData.push(chunkData);

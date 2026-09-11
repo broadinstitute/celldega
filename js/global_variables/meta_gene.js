@@ -9,7 +9,11 @@ export const set_meta_gene = async (
   genes,
   base_url,
   seg_version = 'default',
-  aws
+  aws,
+  // When reading natively from a SpatialData store, gene names and statistics come from
+  // `var` and `X` rather than meta_gene.parquet. The table is shaped identically, so
+  // everything below this point is unchanged.
+  spatialdata = null
 ) => {
   let meta_gene_url;
 
@@ -19,11 +23,9 @@ export const set_meta_gene = async (
     meta_gene_url = `${base_url}/meta_gene_${seg_version}.parquet`;
   }
 
-  const meta_gene_table = await get_arrow_table(
-    meta_gene_url,
-    options.fetch,
-    aws
-  );
+  const meta_gene_table = spatialdata
+    ? await spatialdata.metaGeneTable()
+    : await get_arrow_table(meta_gene_url, options.fetch, aws);
 
   // meta_gene_table is [] (not a real Arrow table) when the dataset has no
   // meta_gene.parquet (e.g. a gene-less point-cloud dataset) — get_arrow_table

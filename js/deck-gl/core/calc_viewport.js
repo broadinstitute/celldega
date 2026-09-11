@@ -3,6 +3,7 @@ import {
   areBarDataEqual,
   createEmptyCellCompact,
   createEmptyTrxCompact,
+  forEachTrxCoordinate,
   makeVisibleTileKey,
 } from '../../utils/compact_data';
 import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
@@ -85,57 +86,24 @@ const computeViewportGeneBars = (viz_state, viewportCache) => {
   const { activeGeneIds } = viewportCache;
   activeGeneIds.length = 0;
 
-  const stride = trxCompact.size || 2;
-
-  if (!viz_state.rotation?.hasRotation) {
-    for (let i = 0; i < trxCompact.geneIds.length; i++) {
-      const { positions } = trxCompact;
-      const x = positions[i * stride];
-      const y = positions[i * stride + 1];
-      if (
-        x < viz_state.bounds.min_x ||
-        x > viz_state.bounds.max_x ||
-        y < viz_state.bounds.min_y ||
-        y > viz_state.bounds.max_y
-      ) {
-        continue;
-      }
-
-      const geneId = trxCompact.geneIds[i];
-      if (geneId < 0) {
-        continue;
-      }
-
-      if (geneCounts[geneId] === 0) {
-        activeGeneIds.push(geneId);
-      }
-      geneCounts[geneId] += 1;
+  forEachTrxCoordinate(trxCompact, (x, y, i) => {
+    const [viewX, viewY] = viz_state.rotation?.hasRotation
+      ? rotate_point(x, y, viz_state.rotation)
+      : [x, y];
+    if (
+      viewX < viz_state.bounds.min_x ||
+      viewX > viz_state.bounds.max_x ||
+      viewY < viz_state.bounds.min_y ||
+      viewY > viz_state.bounds.max_y
+    ) {
+      return;
     }
-  } else {
-    for (let i = 0; i < trxCompact.geneIds.length; i++) {
-      const x = trxCompact.positions[i * stride];
-      const y = trxCompact.positions[i * stride + 1];
-      const [rotX, rotY] = rotate_point(x, y, viz_state.rotation);
-      if (
-        rotX < viz_state.bounds.min_x ||
-        rotX > viz_state.bounds.max_x ||
-        rotY < viz_state.bounds.min_y ||
-        rotY > viz_state.bounds.max_y
-      ) {
-        continue;
-      }
 
-      const geneId = trxCompact.geneIds[i];
-      if (geneId < 0) {
-        continue;
-      }
-
-      if (geneCounts[geneId] === 0) {
-        activeGeneIds.push(geneId);
-      }
-      geneCounts[geneId] += 1;
-    }
-  }
+    const geneId = trxCompact.geneIds[i];
+    if (geneId < 0) return;
+    if (geneCounts[geneId] === 0) activeGeneIds.push(geneId);
+    geneCounts[geneId] += 1;
+  });
 
   activeGeneIds.sort((a, b) => geneCounts[b] - geneCounts[a]);
 
@@ -225,7 +193,19 @@ export const calc_viewport = async (
   viz_state
 ) => {
   const wasCloseUp = viz_state.close_up;
-  const { tile_size } = viz_state.img.landscape_parameters;
+  // const { tile_size } = viz_state.img.landscape_parameters;
+  const landscapeParameters = viz_state.img.landscape_parameters;
+  const tile_size =
+    landscapeParameters.tile_size ??
+    landscapeParameters.tile_grid?.tile_size;
+
+  if (!Number.isFinite(tile_size) || tile_size <= 0) {
+    throw new Error(
+      `[calc_viewport] Missing or invalid tile size: ` +
+        `tile_size=${landscapeParameters.tile_size}, ` +
+        `tile_grid.tile_size=${landscapeParameters.tile_grid?.tile_size}`
+    );
+  }
   const isPointCloud = is_orbit_technology(
     viz_state.img?.landscape_parameters?.technology
   );
@@ -305,6 +285,15 @@ export const calc_viewport = async (
     };
   })();
 
+  console.log('[Celldega viewport tile debug]', {
+    top_level_tile_size:
+      viz_state.img.landscape_parameters.tile_size,
+    nested_tile_size:
+      viz_state.img.landscape_parameters.tile_grid?.tile_size,
+    tile_size,
+    tile_bounds,
+  });
+
   const tiles_in_view = visibleTiles(
     tile_bounds.min_x,
     tile_bounds.max_x,
@@ -312,6 +301,12 @@ export const calc_viewport = async (
     tile_bounds.max_y,
     tile_size
   );
+
+  console.log('[Celldega viewport tile debug]', {
+    tile_count: tiles_in_view.length,
+    first_tile: tiles_in_view[0],
+  });
+
   const visibleTileKey = makeVisibleTileKey(tiles_in_view);
 
   if (tiles_in_view.length < viz_state.max_tiles_to_view) {

@@ -8,8 +8,11 @@ import {
 } from 'parquet-wasm/esm/parquet_wasm.js';
 import wasmBinary from 'parquet-wasm/esm/parquet_wasm_bg.wasm';
 
-// Version from package.json
-const PARQUET_WASM_VERSION = '0.7.1';
+import { buildInfo } from '../utils/build_info';
+
+// Reported by the build stamp rather than hardcoded: an npm alias can install a fork
+// under the `parquet-wasm` name, so a literal here goes stale silently.
+const PARQUET_WASM_VERSION = buildInfo.parquetWasm ?? 'unknown';
 
 let initialized = false;
 

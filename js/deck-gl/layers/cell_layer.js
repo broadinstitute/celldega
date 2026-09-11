@@ -686,7 +686,8 @@ const ini_neighborhood_cloud_inert_cell_layer = async (base_url, viz_state) => {
     viz_state.genes,
     base_url,
     viz_state.seg.version,
-    viz_state.aws
+    viz_state.aws,
+    viz_state.spatialdata?.adapter ?? null
   );
 
   // Slice *centroids* cluster tightly near the tissue's middle (they're each
@@ -822,11 +823,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     cell_url = `${base_url}/cell_metadata_${cell_meta_version}.parquet`;
   }
 
-  const cell_arrow_table = await get_arrow_table(
-    cell_url,
-    options.fetch,
-    viz_state.aws
-  );
+  // Reading natively from a SpatialData store: names come from obs, centroids from
+  // obsm["spatial"] mapped into display pixels. The table is shaped like
+  // cell_metadata.parquet, so the accessors below are untouched.
+  const spatialdata = viz_state.spatialdata?.adapter ?? null;
+  const cell_arrow_table = spatialdata
+    ? await spatialdata.cellMetadataTable()
+    : await get_arrow_table(cell_url, options.fetch, viz_state.aws);
 
   set_cell_names_array(viz_state.cats, cell_arrow_table);
 
@@ -836,7 +839,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     viz_state.genes,
     base_url,
     viz_state.seg.version,
-    viz_state.aws
+    viz_state.aws,
+    spatialdata
   );
 
   if (pointCloud && viz_state.vector_name_integer) {
@@ -864,11 +868,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     });
   } else {
     const cluster_url = `${base_url}/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? `_${viz_state.seg.version}` : ''}/cluster.parquet`;
-    const cluster_arrow_table = await get_arrow_table(
-      cluster_url,
-      options.fetch,
-      viz_state.aws
-    );
+    const cluster_arrow_table = spatialdata
+      ? await spatialdata.clusterTable()
+      : await get_arrow_table(cluster_url, options.fetch, viz_state.aws);
     set_cell_cats(viz_state.cats, cluster_arrow_table, 'cluster');
   }
 

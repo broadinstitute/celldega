@@ -6,6 +6,11 @@ import { update_selected_genes } from '../../global_variables/selected_genes';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 
+import {
+  displayTransformUniform,
+  SeparatedTranscriptLayer,
+} from './separated_scatterplot_layer';
+
 const getTranscriptGeneName = (genes, index) => {
   const geneId = genes.trx_gene_ids?.[index];
   if (geneId === undefined || geneId < 0) {
@@ -59,8 +64,12 @@ const trx_layer_callback = async (
 
 export const ini_trx_layer = (viz_state) => {
   const { genes } = viz_state;
+  const LayerClass =
+    viz_state.trx_position_encoding === 'separate_columns'
+      ? SeparatedTranscriptLayer
+      : ScatterplotLayer;
 
-  const trx_layer = new ScatterplotLayer({
+  const trx_layer = new LayerClass({
     id: 'trx-layer',
     data: genes.trx_data,
     pickable: true,
@@ -76,6 +85,7 @@ export const ini_trx_layer = (viz_state) => {
 
       return [...inst_color, inst_opacity];
     },
+    displayTransform: displayTransformUniform(viz_state.trx_display_transform),
     ...getModelMatrixProps(viz_state.rotation),
   });
 

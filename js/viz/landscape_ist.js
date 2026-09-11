@@ -93,10 +93,15 @@ import {
 //   getVersion as getParquetWasmVersion,
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { SpatialDataAdapter } from '../spatialdata/adapter';
+import { SpatialDataImageSource } from '../spatialdata/image_source';
+import { spatialDataOptionsFromManifest } from '../spatialdata/manifest_options';
+import { SpatialDataStore } from '../spatialdata/spatialdata_store';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import { announceBuild } from '../utils/build_info';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -130,6 +135,106 @@ import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist
  * @param {string} base_url - Base URL for the landscape files
  * @returns {Promise<void>}
  */
+/**
+ * Wire up native SpatialData reading for the components the manifest opts in to.
+ *
+ * Each component is independent: a store can serve its metadata natively while still using
+ * the WebP pyramid, or vice versa. Anything not opted in keeps reading the derived files.
+ *
+ * @param {Object} viz_state
+ * @param {string} base_url - the profile directory, which the store URL resolves against
+ * @param {Object} landscapeParams - parsed landscape_parameters.json
+ */
+async function initializeSpatialDataNative(
+  viz_state,
+  base_url,
+  landscapeParams
+) {
+  const options_ = spatialDataOptionsFromManifest(landscapeParams, base_url);
+  if (!options_) {
+    announceBuild('reading DegaFiles / profile Parquets');
+    return;
+  }
+
+  announceBuild(
+    `reading [${[...options_.native].join(', ')}] natively from ${options_.storeUrl}`
+  );
+
+  viz_state.spatialdata = { options: options_ };
+
+  if (options_.native.has('metadata') || options_.native.has('cbg')) {
+    const adapter = new SpatialDataAdapter(options_.storeUrl, {
+      table: options_.table,
+      clusterColumn: options_.clusterColumn,
+      centroidKey: options_.centroidKey,
+      featureCatalog: options_.featureCatalog,
+      // Centroids live in the element's own units (microns for Xenium) while everything
+      // else is in display pixels; without this cells land at 1/4.7 scale.
+      transformElement: options_.transformElement,
+      coordinateSystem: options_.coordinateSystem,
+    });
+    viz_state.spatialdata.adapter = adapter;
+
+    // The adapter duck-types CBGRowGroupReader.readGene, so the expression path is
+    // unchanged. Overwrites the Parquet reader deliberately when both are available.
+    if (options_.native.has('cbg')) {
+      viz_state.row_group_readers.cbg = adapter;
+    }
+  }
+
+  if (options_.native.has('images')) {
+    // The manifest need not name the image element: SpatialData's consolidated metadata
+    // lists the store's nodes, so the reader can find it. Naming one in the manifest
+    // still wins, for a store with several.
+    const element =
+      options_.imageElement ??
+      (await viz_state.spatialdata.adapter?.store.imageElements())?.[0] ??
+      (await new SpatialDataStore(options_.storeUrl).imageElements())[0];
+
+    if (!element) return;
+
+    const source = await SpatialDataImageSource.open(
+      options_.storeUrl,
+      element
+    );
+    viz_state.spatialdata.images = source;
+    viz_state.spatialdata_images = source;
+
+    // A store whose images are read natively has no WebP pyramid, so the manifest carries
+    // no image_info, image_dimensions or max_pyramid_zoom. Everything they held is in the
+    // OME-Zarr, so it is derived here rather than duplicated into the manifest by the
+    // writer. This has to happen before get_landscape_image_info and set_dimensions run.
+    const params = viz_state.img?.landscape_parameters;
+    if (params) {
+      const channels = source.channels();
+      const indexByName = new Map(channels.map((c) => [c.name, c.index]));
+
+      // A manifest that does list channels keeps its names and colours; only the channel
+      // index comes from the store.
+      params.image_info =
+        Array.isArray(params.image_info) && params.image_info.length > 0
+          ? params.image_info.map((info, position) => ({
+              ...info,
+              index: indexByName.get(info.name) ?? position,
+            }))
+          : channels.map(({ name, button_name, color, index }) => ({
+              name,
+              button_name,
+              color,
+              index,
+            }));
+
+      const { width, height } = source.dimensions;
+      params.image_dimensions ??= {
+        width,
+        height,
+        tile_size: source.tileSize,
+      };
+      params.max_pyramid_zoom ??= source.maxPyramidZoom;
+    }
+  }
+}
+
 async function initializeRowGroupReaders(viz_state, base_url) {
   const landscapeParams = viz_state.img.landscape_parameters;
 
@@ -155,13 +260,45 @@ async function initializeRowGroupReaders(viz_state, base_url) {
   viz_state.row_group_readers = {};
   viz_state.tile_grid = tileGrid;
 
+  // Column names are declared per dataset. DegaFiles omit them and keep their existing
+  // defaults (geometry / name); a SpatialData profile names its render columns instead.
+  // Leaving these undefined is what preserves DegaFiles behaviour.
+  viz_state.trx_position_column = rowGroupFiles.transcripts?.position_column;
+  viz_state.trx_position_columns = rowGroupFiles.transcripts?.position_columns;
+  viz_state.trx_position_encoding =
+    rowGroupFiles.transcripts?.position_encoding;
+  viz_state.trx_feature_column = rowGroupFiles.transcripts?.feature_column;
+  viz_state.trx_feature_encoding = rowGroupFiles.transcripts?.feature_encoding;
+  viz_state.trx_display_transform =
+    rowGroupFiles.transcripts?.display_transform;
+  viz_state.cell_geometry_column =
+    rowGroupFiles.cell_segmentation?.geometry_column;
+  viz_state.cell_geometry_encoding =
+    rowGroupFiles.cell_segmentation?.geometry_encoding;
+  viz_state.cell_id_column = rowGroupFiles.cell_segmentation?.cell_id_column;
+  viz_state.cell_display_transform =
+    rowGroupFiles.cell_segmentation?.display_transform;
+
+  // Ask for only the columns each layer actually renders. parquet-wasm projection was
+  // broken upstream (kylebarron/parquet-wasm#810) and is being tested here against an
+  // experimental fork; the reader falls back to full reads if it misbehaves, so declaring
+  // columns is safe even if the fix regresses.
+  const declaredColumns = (entry, names) => {
+    const columns = names.filter(Boolean);
+    return columns.length ? { ...entry, columns } : entry;
+  };
+
   // Initialize transcript row group reader with grid dimensions
   if (rowGroupFiles.transcripts) {
     // Support both chunked (object with files array) and legacy (string path) formats
     viz_state.row_group_readers.trx = new RowGroupTileReader(
       base_url,
       tileGrid,
-      rowGroupFiles.transcripts
+      declaredColumns(rowGroupFiles.transcripts, [
+        viz_state.trx_position_column,
+        ...(viz_state.trx_position_columns || []),
+        viz_state.trx_feature_column,
+      ])
     );
     await viz_state.row_group_readers.trx.initialize();
   }
@@ -172,7 +309,10 @@ async function initializeRowGroupReaders(viz_state, base_url) {
     viz_state.row_group_readers.cell = new RowGroupTileReader(
       base_url,
       tileGrid,
-      rowGroupFiles.cell_segmentation
+      declaredColumns(rowGroupFiles.cell_segmentation, [
+        viz_state.cell_geometry_column,
+        viz_state.cell_id_column,
+      ])
     );
     await viz_state.row_group_readers.cell.initialize();
   }
@@ -185,6 +325,11 @@ async function initializeRowGroupReaders(viz_state, base_url) {
     );
     await viz_state.row_group_readers.cbg.initialize();
   }
+
+  // Read what the store already holds, instead of the derived files, for whichever
+  // components the manifest opts in to. A manifest with no `spatialdata` block gets
+  // nothing here and behaves exactly as before, which is what keeps DegaFiles working.
+  await initializeSpatialDataNative(viz_state, base_url, landscapeParams);
 
   // Initialize image row group readers for each channel
   if (rowGroupFiles.images) {
@@ -568,7 +713,8 @@ export const landscape_ist = async (
     viz_state.genes,
     base_url,
     viz_state.seg.version,
-    viz_state.aws
+    viz_state.aws,
+    viz_state.spatialdata?.adapter ?? null
   );
 
   await set_cluster_metadata(viz_state);

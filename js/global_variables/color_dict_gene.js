@@ -11,7 +11,8 @@ export const set_color_dict_gene = async (
   genes,
   base_url,
   seg_version,
-  aws
+  aws,
+  spatialdata = null
 ) => {
   let meta_gene_url;
 
@@ -21,11 +22,9 @@ export const set_color_dict_gene = async (
     meta_gene_url = `${base_url}/meta_gene_${seg_version}.parquet`;
   }
 
-  const tmp_meta_gene = await get_arrow_table(
-    meta_gene_url,
-    options.fetch,
-    aws
-  );
+  const tmp_meta_gene = spatialdata
+    ? await spatialdata.metaGeneTable()
+    : await get_arrow_table(meta_gene_url, options.fetch, aws);
 
   // tmp_meta_gene is [] (not a real Arrow table) when the dataset has no
   // meta_gene.parquet (e.g. a gene-less point-cloud dataset) — fall through

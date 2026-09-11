@@ -55,9 +55,16 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   const useRowGroups = viz_state.use_row_groups;
   const imageReader = viz_state.row_group_readers?.images?.[info.name];
 
+  // Reading 16-bit OME-Zarr straight from the SpatialData store. The tiles arrive as
+  // ImageBitmaps, so the sublayer renderer, the channel colour and the intensity slider
+  // all behave exactly as they do for WebP.
+  const zarrImages = viz_state.spatialdata_images;
+
   // Choose the appropriate getTileData function
   let getTileData;
-  if (useRowGroups && imageReader) {
+  if (zarrImages) {
+    getTileData = zarrImages.makeGetTileData(info.index ?? 0);
+  } else if (useRowGroups && imageReader) {
     getTileData = create_get_tile_data_from_parquet(
       imageReader,
       max_pyramid_zoom,
@@ -76,7 +83,9 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
 
   const image_layer = new TileLayer({
     id: layerId,
-    tileSize: viz_state.dimensions.tileSize,
+    // OME-Zarr tiles are sized by the store's chunking, which is typically much larger
+    // than the WebP tiles (4096 vs 512 for Xenium as written by spatialdata-io).
+    tileSize: zarrImages ? zarrImages.tileSize : viz_state.dimensions.tileSize,
     refinementStrategy: 'no-overlap',
     minZoom: -7,
     maxZoom: 0,

@@ -69,11 +69,12 @@ export const set_cluster_metadata = async (viz_state) => {
       meta_cell_url = `${viz_state.global_base_url}/cell_clusters_${viz_state.seg.version}/meta_cluster.parquet`;
     }
 
-    const meta_cell_arrow_table = await get_arrow_table(
-      meta_cell_url,
-      options.fetch,
-      viz_state.aws
-    );
+    // Native SpatialData: the palette comes from uns["<column>_colors"] and the counts
+    // from the obs column itself, shaped like meta_cluster.parquet.
+    const spatialdata = viz_state.spatialdata?.adapter ?? null;
+    const meta_cell_arrow_table = spatialdata
+      ? await spatialdata.metaClusterTable()
+      : await get_arrow_table(meta_cell_url, options.fetch, viz_state.aws);
 
     let cluster_names = getRowKeyArray(meta_cell_arrow_table, [
       'cluster',

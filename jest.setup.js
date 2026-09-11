@@ -1,6 +1,12 @@
 // Jest setup file - CommonJS format
 require('@testing-library/jest-dom');
 
+// jsdom omits TextEncoder/TextDecoder, which apache-arrow touches at import time. Browsers
+// have had both for years, so this is filling a jsdom gap rather than mocking anything.
+const { TextDecoder, TextEncoder } = require('util');
+if (typeof global.TextDecoder === 'undefined') global.TextDecoder = TextDecoder;
+if (typeof global.TextEncoder === 'undefined') global.TextEncoder = TextEncoder;
+
 // Mock browser APIs that your code might use
 global.console = {
   ...console,

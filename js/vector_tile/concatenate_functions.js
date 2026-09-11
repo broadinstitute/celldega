@@ -4,16 +4,26 @@ export const concatenate_polygon_data = (dataObjects) => {
     (data) => data !== undefined && data !== null
   );
 
+  const separated = Boolean(
+    dataObjects[0]?.attributes?.getPolygonX &&
+      dataObjects[0]?.attributes?.getPolygonY
+  );
+
   // Initialize concatenated data structure
   const concatenatedData = {
     length: 0,
     startIndices: new Int32Array(),
-    attributes: {
-      getPolygon: {
-        value: new Float64Array(),
-        size: 2, // Assuming 'size' remains constant
-      },
-    },
+    attributes: separated
+      ? {
+          getPolygonX: { value: new Float64Array(), size: 1 },
+          getPolygonY: { value: new Float64Array(), size: 1 },
+        }
+      : {
+          getPolygon: {
+            value: new Float64Array(),
+            size: 2,
+          },
+        },
   };
 
   // Iterate over each data object to combine them
@@ -21,7 +31,9 @@ export const concatenate_polygon_data = (dataObjects) => {
     concatenatedData.length += data.length;
 
     // Handle startIndices
-    const lastValue = concatenatedData.attributes.getPolygon.value.length / 2;
+    const lastValue = separated
+      ? concatenatedData.attributes.getPolygonX.value.length
+      : concatenatedData.attributes.getPolygon.value.length / 2;
     let adjustedStartIndices = data.startIndices;
 
     if (index > 0) {
@@ -37,10 +49,21 @@ export const concatenate_polygon_data = (dataObjects) => {
       ...concatenatedData.startIndices,
       ...adjustedStartIndices.slice(index > 0 ? 1 : 0),
     ]);
-    concatenatedData.attributes.getPolygon.value = new Float64Array([
-      ...concatenatedData.attributes.getPolygon.value,
-      ...data.attributes.getPolygon.value,
-    ]);
+    if (separated) {
+      concatenatedData.attributes.getPolygonX.value = new Float64Array([
+        ...concatenatedData.attributes.getPolygonX.value,
+        ...data.attributes.getPolygonX.value,
+      ]);
+      concatenatedData.attributes.getPolygonY.value = new Float64Array([
+        ...concatenatedData.attributes.getPolygonY.value,
+        ...data.attributes.getPolygonY.value,
+      ]);
+    } else {
+      concatenatedData.attributes.getPolygon.value = new Float64Array([
+        ...concatenatedData.attributes.getPolygon.value,
+        ...data.attributes.getPolygon.value,
+      ]);
+    }
   });
 
   return concatenatedData;

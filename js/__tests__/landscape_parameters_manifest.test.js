@@ -97,6 +97,50 @@ describe('set_landscape_parameters manifest name + fallback', () => {
     expect(img.landscape_parameters.technology).toBe('Xenium');
   });
 
+  test('reads a canonical profile from the SpatialData root attributes', async () => {
+    const calls = [];
+    global.fetch = async (url) => {
+      calls.push(url);
+      if (url.endsWith('/zarr.json')) {
+        return mkResponse(true, {
+          attributes: {
+            spatial_tiling: {
+              profile: 'grid_files_v1',
+              source: { technology: 'Xenium' },
+            },
+          },
+        });
+      }
+      return mkResponse(false, {});
+    };
+
+    const img = {};
+    await set_landscape_parameters(img, 'http://x/store.zarr', null);
+
+    expect(calls).toEqual([
+      'http://x/store.zarr/landscape_parameters.json',
+      'http://x/store.zarr/zarr.json',
+    ]);
+    expect(img.landscape_parameters.profile).toBe('grid_files_v1');
+    expect(img.landscape_parameters.technology).toBe('Xenium');
+    expect(img.landscape_parameters.use_row_groups).toBe(true);
+    expect(img.landscape_parameters.use_int_index).toBe(true);
+  });
+
+  test('prefers an explicit manifest file over root attributes', async () => {
+    const calls = [];
+    global.fetch = async (url) => {
+      calls.push(url);
+      return mkResponse(true, { technology: 'point-cloud' });
+    };
+
+    const img = {};
+    await set_landscape_parameters(img, 'http://x/data', null);
+
+    expect(calls).toEqual(['http://x/data/landscape_parameters.json']);
+    expect(img.landscape_parameters.technology).toBe('point-cloud');
+  });
+
   test('throws (naming the requested manifest) when neither is present', async () => {
     global.fetch = async () => mkResponse(false, {});
 

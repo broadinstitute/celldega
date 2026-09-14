@@ -108,6 +108,7 @@ import {
   ini_rank_views,
   resolve_rank_view_level,
   set_rank_view_state,
+  sync_rank_view_model,
 } from '../matrix/rank_views';
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
@@ -183,10 +184,12 @@ export const matrix_viz = async (
   // `rank_dim` builds every layer against the view's geometry from the first
   // frame rather than snapping to it afterwards.
   ini_rank_views(viz_state, network);
-  set_rank_view_state(
+  const initial_rank_level = resolve_rank_view_level(
     viz_state,
-    resolve_rank_view_level(viz_state, model.get('rank_dim'))
+    model.get('rank_dim')
   );
+  set_rank_view_state(viz_state, initial_rank_level);
+  sync_rank_view_model(viz_state, initial_rank_level);
 
   viz_state.cats = {};
   viz_state.cats.row_cat_data = [];
@@ -547,17 +550,15 @@ export const matrix_viz = async (
         viz_state.model.get('top_gene_percent') || 10;
     });
 
-    // Python-driven RANK view switch. `apply_rank_view` no-ops when the
-    // resolved level is already active, so the value it echoes back into
-    // `rank_dim` (after snapping) can't loop back around.
+    // Python-driven RANK view switch. `apply_rank_view` always echoes the
+    // resolved stop and syncs the control; unchanged geometry remains a no-op.
     viz_state.model.on('change:rank_dim', () => {
-      const target = resolve_rank_view_level(
+      apply_rank_view(
+        deck_mat,
+        layers_mat,
         viz_state,
         viz_state.model.get('rank_dim')
       );
-      if (apply_rank_view(deck_mat, layers_mat, viz_state, target)) {
-        viz_state.rank_view?.sync_control?.(target);
-      }
     });
 
     // Live body-mode switch. Crossing the composition boundary rebuilds the

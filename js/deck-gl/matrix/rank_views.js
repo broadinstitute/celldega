@@ -11,6 +11,7 @@ import {
   refresh_rank_view_dendro,
   resolve_rank_view_level,
   set_rank_view_state,
+  sync_rank_view_model,
 } from '../../matrix/rank_views';
 import { deselect_reorder_buttons } from '../../ui/text_buttons';
 
@@ -61,7 +62,13 @@ const reset_order_to_clust = (viz_state) => {
  */
 export const apply_rank_view = (deck_mat, layers_mat, viz_state, level) => {
   const target = resolve_rank_view_level(viz_state, level);
-  if (!set_rank_view_state(viz_state, target)) return false;
+  const changed = set_rank_view_state(viz_state, target);
+
+  // Snapping is observable state even when the geometry is already at this
+  // stop. Echo it before the early return so Python and the slider converge.
+  sync_rank_view_model(viz_state, target);
+  viz_state.rank_view?.sync_control?.(target);
+  if (!changed) return false;
 
   // A crop selects matrix row indices, which point at unrelated rows once the
   // level changes — so it resets rather than carrying over. Cropping *within* a
@@ -90,11 +97,6 @@ export const apply_rank_view = (deck_mat, layers_mat, viz_state, level) => {
   });
 
   viz_state.crop?.refresh_controls?.();
-
-  if (viz_state.model?.set) {
-    viz_state.model.set('rank_dim', target == null ? 0 : target);
-    viz_state.model.save_changes();
-  }
 
   return true;
 };

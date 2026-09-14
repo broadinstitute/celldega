@@ -152,23 +152,40 @@ def compute_marker_ranks(
     kwargs = dict(rank_genes_groups_kwargs or {})
     kwargs.setdefault("method", "wilcoxon")
 
-    # A minimal shell rather than `adata.copy()`: it references X instead of
-    # duplicating it, and leaves behind layers/obsm/varm/obsp, none of which
-    # differential expression reads — a real saving on the several-hundred-
-    # thousand-cell objects this runs against. It also absorbs scanpy's `uns`
-    # side effects and keeps the categorical coercion off the caller's object.
-    # `rank_genes_groups` only reads X, so sharing it is safe.
+    # A lightweight shell rather than `adata.copy()`: it references the arrays
+    # differential expression may read without copying the rest of a large
+    # AnnData object. Preserve var metadata for mask_var, the requested layer,
+    # and raw so forwarded Scanpy options keep their normal meaning. The shell
+    # absorbs Scanpy's uns side effects and keeps categorical coercion off the
+    # caller's object.
+    selected_layer = kwargs.get("layer")
+    layers = (
+        {selected_layer: adata.layers[selected_layer]}
+        if selected_layer is not None
+        else None
+    )
+    raw = (
+        {"X": adata.raw.X, "var": adata.raw.var.copy()}
+        if adata.raw is not None
+        else None
+    )
     working = AnnData(
         X=adata.X,
         obs=pd.DataFrame(
             {groupby: pd.Categorical(adata.obs[groupby].astype(str))},
             index=adata.obs_names.astype(str),
         ),
-        var=pd.DataFrame(index=adata.var_names.astype(str)),
+        var=adata.var.copy(),
+        layers=layers,
+        raw=raw,
     )
     sc.tl.rank_genes_groups(working, groupby=groupby, **kwargs)
 
-    markers = sc.get.rank_genes_groups_df(working, group=None)
+    markers = sc.get.rank_genes_groups_df(
+        working,
+        group=None,
+        key=kwargs.get("key_added") or "rank_genes_groups",
+    )
     markers["group"] = markers["group"].astype(str)
     # scanpy emits each group already sorted best-first; make that explicit so
     # the ordering survives any downstream sort, merge, or serialization.

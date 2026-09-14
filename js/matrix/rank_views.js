@@ -121,6 +121,27 @@ export const resolve_rank_view_level = (viz_state, requested) => {
 };
 
 /**
+ * Echo a resolved rank-view level to the widget model. This keeps Python and
+ * linked controls on an available slider stop even when applying that stop is
+ * otherwise a state no-op (including the initial render).
+ *
+ * @param {object} viz_state - Visualization state.
+ * @param {number|null} level - Resolved level, or null for the full matrix.
+ * @returns {boolean} Whether the model value changed.
+ */
+export const sync_rank_view_model = (viz_state, level) => {
+  const { model } = viz_state;
+  if (!model?.set) return false;
+
+  const value = level == null ? 0 : Number(level);
+  if (Number(model.get?.('rank_dim')) === value) return false;
+
+  model.set('rank_dim', value);
+  model.save_changes?.();
+  return true;
+};
+
+/**
  * Swap the matrix into a rank view's ordering/linkage, or back to the full
  * matrix when `level` is null. Pure state mutation -- no layer work -- so it can
  * run before layers exist and have the first render already come up reduced.

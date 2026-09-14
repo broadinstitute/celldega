@@ -176,6 +176,59 @@ def test_calc_signature_attaches_rank_genes_groups():
     assert mat.views
 
 
+def test_calc_signature_ranks_the_layer_it_aggregates(monkeypatch):
+    adata = _adata()
+    adata.layers["counts"] = adata.X + 10
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    captured = {}
+
+    def capture_marker_ranks(_adata, groupby, kwargs):
+        captured["groupby"] = groupby
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(
+        "celldega.set.collection.compute_marker_ranks", capture_marker_ranks
+    )
+
+    clust.calc_signature(
+        adata,
+        modality_name="counts_signature",
+        layer="counts",
+        normalization=None,
+        rank_genes_groups=True,
+    )
+
+    assert captured["groupby"] == "leiden"
+    assert captured["kwargs"] == {"layer": "counts", "use_raw": False}
+
+
+def test_calc_signature_rejects_a_different_marker_layer():
+    adata = _adata()
+    adata.layers["counts"] = adata.X + 10
+    adata.layers["normalized"] = adata.X
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+
+    with pytest.raises(ValueError, match="must match the signature layer"):
+        clust.calc_signature(
+            adata,
+            modality_name="counts_signature",
+            layer="counts",
+            normalization=None,
+            rank_genes_groups=True,
+            rank_genes_groups_kwargs={"layer": "normalized"},
+        )
+
+    with pytest.raises(ValueError, match=r"use_raw.*cannot be True"):
+        clust.calc_signature(
+            adata,
+            modality_name="counts_signature",
+            layer="counts",
+            normalization=None,
+            rank_genes_groups=True,
+            rank_genes_groups_kwargs={"use_raw": True},
+        )
+
+
 def test_calc_signature_rank_genes_groups_needs_a_set_col():
     adata = _adata()
     clust = SetCollection(adata, set_col="leiden", name="leiden")

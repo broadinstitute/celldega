@@ -4,6 +4,7 @@ describe('rank views', () => {
   let ini_rank_views;
   let resolve_rank_view_level;
   let set_rank_view_state;
+  let sync_rank_view_model;
   let get_rank_view_stops;
   let has_rank_views;
   let alt_slice_linkage;
@@ -39,6 +40,7 @@ describe('rank views', () => {
         ini_rank_views,
         resolve_rank_view_level,
         set_rank_view_state,
+        sync_rank_view_model,
         get_rank_view_stops,
         has_rank_views,
         alt_slice_linkage,
@@ -54,6 +56,7 @@ describe('rank views', () => {
       ini_rank_views,
       resolve_rank_view_level,
       set_rank_view_state,
+      sync_rank_view_model,
       get_rank_view_stops,
       has_rank_views,
       alt_slice_linkage,
@@ -186,6 +189,26 @@ describe('rank views', () => {
     expect(resolve_rank_view_level(viz_state, 0)).toBeNull();
     expect(resolve_rank_view_level(viz_state, 50)).toBeNull();
     expect(resolve_rank_view_level(viz_state, undefined)).toBeNull();
+  });
+
+  test('echoes a snapped level to the model even when geometry is unchanged', () => {
+    const viz_state = makeVizState([makeView()]);
+    const values = { rank_dim: 4 };
+    viz_state.model = {
+      get: jest.fn((name) => values[name]),
+      set: jest.fn((name, value) => {
+        values[name] = value;
+      }),
+      save_changes: jest.fn(),
+    };
+
+    set_rank_view_state(viz_state, 3);
+    expect(sync_rank_view_model(viz_state, 3)).toBe(true);
+    expect(values.rank_dim).toBe(3);
+    expect(viz_state.model.save_changes).toHaveBeenCalledTimes(1);
+
+    expect(sync_rank_view_model(viz_state, 3)).toBe(false);
+    expect(viz_state.model.save_changes).toHaveBeenCalledTimes(1);
   });
 
   test('applying a view swaps filter, orders and linkage, and restores them', () => {

@@ -1,11 +1,15 @@
 """Tests for reduced-dimensionality views built by Matrix.clust(views=...)."""
 
+import sys
+from types import SimpleNamespace
+
 from anndata import AnnData
 import numpy as np
 import pandas as pd
 import pytest
 
 from celldega.clust import Matrix
+from celldega.clust.utils import compute_marker_ranks
 
 
 N_GROUPS = 4
@@ -71,6 +75,67 @@ def _expected_top_markers(mat, per_cluster):
 
 def _view_genes(mat, view):
     return {str(mat.data.index[index]) for index in view["row_indices"]}
+
+
+def test_compute_marker_ranks_preserves_scanpy_expression_sources(monkeypatch):
+    """The lightweight working AnnData must retain forwarded Scanpy inputs."""
+    adata = AnnData(
+        X=np.zeros((4, 2)),
+        obs=pd.DataFrame(
+            {"leiden": ["a", "a", "b", "b"]},
+            index=[f"cell{i}" for i in range(4)],
+        ),
+        var=pd.DataFrame(
+            {"marker_mask": [True, False]},
+            index=["g0", "g1"],
+        ),
+        layers={"counts": np.array([[5, 0], [4, 0], [0, 7], [0, 8]])},
+    )
+    adata.raw = adata
+    captured = {}
+
+    def rank_genes_groups(working, *, groupby, **kwargs):
+        captured["working"] = working
+        captured["groupby"] = groupby
+        captured["kwargs"] = kwargs
+
+    def rank_genes_groups_df(_working, *, group, key):
+        captured["result_key"] = key
+        return pd.DataFrame(
+            {
+                "group": ["a", "b"],
+                "names": ["g0", "g1"],
+                "scores": [1.0, 0.5],
+                "logfoldchanges": [2.0, 1.0],
+                "pvals": [0.01, 0.02],
+                "pvals_adj": [0.02, 0.04],
+            }
+        )
+
+    fake_scanpy = SimpleNamespace(
+        tl=SimpleNamespace(rank_genes_groups=rank_genes_groups),
+        get=SimpleNamespace(rank_genes_groups_df=rank_genes_groups_df),
+    )
+    monkeypatch.setitem(sys.modules, "scanpy", fake_scanpy)
+
+    markers = compute_marker_ranks(
+        adata,
+        "leiden",
+        {
+            "layer": "counts",
+            "use_raw": False,
+            "mask_var": "marker_mask",
+            "key_added": "custom_markers",
+        },
+    )
+
+    working = captured["working"]
+    assert np.array_equal(working.layers["counts"], adata.layers["counts"])
+    assert working.raw is not None
+    assert working.var["marker_mask"].tolist() == [True, False]
+    assert captured["kwargs"]["layer"] == "counts"
+    assert captured["result_key"] == "custom_markers"
+    assert markers["rank"].tolist() == [0, 0]
 
 
 # ---------------------------------------------------------------------------

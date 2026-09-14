@@ -341,6 +341,8 @@ class SetCollection(CelldegaCollection):
                 faster (if less robust) alternative.
             rank_genes_groups_kwargs: Extra keyword arguments forwarded to
                 ``scanpy.tl.rank_genes_groups`` (e.g. ``{"method": "t-test"}``).
+                When ``layer`` is set, marker ranking uses that same layer and
+                disables ``use_raw``.
 
         Returns:
             ``None`` — the modality is attached to ``self.mod``.
@@ -412,10 +414,27 @@ class SetCollection(CelldegaCollection):
         # aggregates, and attached to the modality so a Matrix built from it needs
         # no separate wiring step.
         if rank_genes_groups:
+            marker_kwargs = dict(rank_genes_groups_kwargs or {})
+            if layer is not None:
+                marker_layer = marker_kwargs.get("layer", layer)
+                if marker_layer != layer:
+                    raise ValueError(
+                        "rank_genes_groups_kwargs['layer'] must match the signature "
+                        f"layer '{layer}', got '{marker_layer}'"
+                    )
+                if marker_kwargs.get("use_raw") is True:
+                    raise ValueError(
+                        "rank_genes_groups_kwargs['use_raw'] cannot be True when "
+                        "the signature uses a layer"
+                    )
+                marker_kwargs["layer"] = layer
+                # Scanpy does not permit layer and use_raw together. Ranking the
+                # same layer used for aggregation keeps both results comparable.
+                marker_kwargs["use_raw"] = False
             markers = compute_marker_ranks(
                 adata[adata_cells.get_indexer(common), :],
                 self.set_col,
-                rank_genes_groups_kwargs,
+                marker_kwargs or None,
             )
             if markers is not None:
                 signature.uns["rank_genes_groups"] = marker_ranks_to_uns(markers)

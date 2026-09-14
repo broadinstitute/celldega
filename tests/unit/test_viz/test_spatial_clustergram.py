@@ -135,10 +135,16 @@ def test_clustergram_enrich_mirrors_term_genes_to_highlighted_genes():
     # Selecting an enriched term (Enrich lowercases its member genes) should
     # highlight those genes' row labels in the Clustergram.
     enrich.term_genes = ["g0", "g2"]
+    enrich.selected_term = "Example term"
     assert cgm.highlighted_genes == ["g0", "g2"]
 
-    # CLEAR / term deselection resets term_genes and clears the highlight.
-    enrich.term_genes = []
+    # A new Clustergram selection invalidates the term from the old query and
+    # clears its row-label highlight immediately on the Python side.
+    cgm.click_info = {"type": "col_label", "value": {"name": "s2", "index": 2}}
+    cgm.selected_genes = ["g1"]
+
+    assert enrich.term_genes == []
+    assert enrich.selected_term == "Select Term"
     assert cgm.highlighted_genes == []
 
 

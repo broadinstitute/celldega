@@ -72,7 +72,7 @@ export const ini_trx_layer = (viz_state) => {
         genes.selected_gene_ids.size === 0 ||
         genes.selected_gene_ids.has(geneId)
           ? 255
-          : 5;
+          : 0;
 
       return [...inst_color, inst_opacity];
     },

@@ -90,9 +90,10 @@ describe('update_ist_landscape_from_cgm routes neighborhood-cloud clicks to its 
       svg_bar_cluster: fakeRects(),
     },
     obs_store: {
-      selected_cells: { set: () => {} },
+      selected_cells: { get: () => [], set: () => {} },
       selected_genes: { set: () => {} },
       viz_nbhd_layer: { set: () => {} },
+      deck_check: { get: () => ({}), set: () => {} },
     },
     buttons: { buttons: { nbhd: { style: () => {} } } },
   });

@@ -140,7 +140,7 @@ const render_landscape_h_e = async ({ model, el }) => {
   const height = model.get('height');
   const creds = model.get('creds');
 
-  landscape_h_e(
+  return landscape_h_e(
     model,
     el,
     base_url,
@@ -257,6 +257,27 @@ const render_matrix_new = async ({ model, el }) => {
 // Main render function - no export keyword
 async function render({ model, el }) {
   let cleanup = null;
+  let finalized = false;
+
+  const finalize = () => {
+    if (finalized) return;
+    finalized = true;
+
+    try {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      } else if (cleanup?.finalize) {
+        cleanup.finalize();
+      }
+    } catch (error) {
+      handleValidationWarning('Error finalizing widget', {
+        data: { error: error.message, model: model?.id || 'unknown' },
+      });
+    } finally {
+      cleanup = null;
+    }
+  };
+
   try {
     const componentType = model.get('component');
 
@@ -299,23 +320,24 @@ async function render({ model, el }) {
         return;
     }
 
-    model.on('msg:custom', (msg) => {
-      if (msg.event === 'finalize' && cleanup) {
-        try {
-          if (typeof cleanup === 'function') {
-            cleanup();
-          } else if (cleanup.finalize) {
-            cleanup.finalize();
-          }
-        } catch (e) {
-          handleValidationWarning('Error finalizing deck', {
-            data: { error: e.message, model: model?.id || 'unknown' },
-          });
-        }
-        cleanup = null;
-      }
-    });
+    const on_finalize_message = (msg) => {
+      if (msg.event === 'finalize') finalize();
+    };
+    model.on('msg:custom', on_finalize_message);
+
+    // anywidget invokes the function returned by render whenever this view is
+    // removed or rerendered. Keep the explicit custom-message path above for
+    // Python's widget.close(), but route both paths through the same idempotent
+    // finalizer.
+    let disposed = false;
+    return () => {
+      if (disposed) return;
+      disposed = true;
+      model.off?.('msg:custom', on_finalize_message);
+      finalize();
+    };
   } catch (error) {
+    finalize();
     const errorResult = handleAsyncError(error, {
       context: 'render function',
       logUnexpected: true,
@@ -326,6 +348,7 @@ async function render({ model, el }) {
 
     // Create error display in the element
     el.innerHTML = `<div style="color: red; padding: 10px;">Error: ${errorResult.message}</div>`;
+    return undefined;
   }
 }
 

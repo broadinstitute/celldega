@@ -29,7 +29,6 @@ import io
 from typing import Any
 
 from anndata import AnnData
-import anywidget
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -37,6 +36,7 @@ import pyarrow.parquet as pq
 import traitlets
 
 from celldega.align._slices import _ordered_slices
+from celldega.viz._widget_lifecycle import CelldegaWidget
 from celldega.viz.widget import _WIDGET_ESM, _hsv_to_hex
 
 
@@ -181,7 +181,7 @@ def _slice_centroids(
     return df.reset_index()
 
 
-class Landmark(anywidget.AnyWidget):
+class Landmark(CelldegaWidget):
     """A widget for interactively marking corresponding landmark points across
     dataset slices, for procrustes/thin-plate-spline alignment.
 
@@ -646,9 +646,3 @@ class Landmark(anywidget.AnyWidget):
             raise ValueError("no landmarks marked yet — MARK and SAVE at least one pair first")
         kwargs.setdefault("slice_attr", self._slice_attr)
         return calc_alignment_transform(self.landmarks, **kwargs)
-
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()

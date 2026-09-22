@@ -111,13 +111,19 @@ export const create_obs_store = () => {
     };
 
     // Subscribe to all relevant state changes
-    store.selected_cats.subscribe(update_viz_image_layers, {
-      immediate: false,
-    });
-    store.selected_genes.subscribe(update_viz_image_layers, {
-      immediate: false,
-    });
-    store.close_up.subscribe(update_viz_image_layers, { immediate: false });
+    const unsubscribe = [
+      store.selected_cats.subscribe(update_viz_image_layers, {
+        immediate: false,
+      }),
+      store.selected_genes.subscribe(update_viz_image_layers, {
+        immediate: false,
+      }),
+      store.close_up.subscribe(update_viz_image_layers, { immediate: false }),
+    ];
+
+    update_viz_image_layers.dispose = () => {
+      unsubscribe.splice(0).forEach((stop) => stop());
+    };
 
     // Return the function so it can be called manually if needed
     return update_viz_image_layers;

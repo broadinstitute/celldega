@@ -1,8 +1,8 @@
 import pytest
 
+from celldega.viz._widget_lifecycle import CelldegaWidget, _widget_registry
 from celldega.viz.cloud import CellCloud, NeighborhoodCloud
 from celldega.viz.landmark_widget import Landmark
-from celldega.viz._widget_lifecycle import CelldegaWidget, _widget_registry
 from celldega.viz.widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 

@@ -340,6 +340,18 @@ export class RowGroupTileReader {
   isStreaming() {
     return this.initialized;
   }
+
+  /** Release cached Arrow data and the persistent parquet-wasm reader. */
+  dispose() {
+    this.requestCache.clear();
+    try {
+      this.parquetFile?.free?.();
+    } catch {
+      // A concurrent read may already have consumed/released the handle.
+    }
+    this.parquetFile = null;
+    this.initialized = false;
+  }
 }
 
 /**

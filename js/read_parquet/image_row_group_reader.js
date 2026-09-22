@@ -378,6 +378,18 @@ export class ImageRowGroupReader {
     this.blobCache.clear();
   }
 
+  /** Revoke cached Blob URLs and release the persistent parquet-wasm reader. */
+  dispose() {
+    this.clearCache();
+    try {
+      this.parquetFile?.free?.();
+    } catch {
+      // A concurrent read may already have consumed/released the handle.
+    }
+    this.parquetFile = null;
+    this.initialized = false;
+  }
+
   /**
    * Get cache size
    * @returns {number}

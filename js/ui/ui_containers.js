@@ -14,9 +14,7 @@ import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
 import { set_composition_normalized } from '../deck-gl/matrix/composition_layer';
-import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
@@ -27,12 +25,6 @@ import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
-import { has_axis_filter } from '../matrix/crop_filter';
-import {
-  calc_dendro_triangles,
-  calc_dendro_polygons,
-  alt_slice_linkage,
-} from '../matrix/dendro';
 import { get_rank_view_stops, has_rank_views } from '../matrix/rank_views';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -47,6 +39,7 @@ import {
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
+import { update_dendro_from_slider } from './dendro_slider';
 import { is_gene_axis, make_gene_info_box } from './gene_info';
 import { set_gene_search, set_matrix_row_search } from './gene_search';
 import { make_logo_button } from './logo';
@@ -369,32 +362,6 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
 
   viz_state.dendro.sliders = {};
 
-  const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
-    if (has_axis_filter(_viz_state, axis)) {
-      event.target.value = _viz_state.dendro.sliders[`${axis}_percent`] ?? 50;
-      return;
-    }
-
-    _viz_state.dendro.sliders[`${axis}_percent`] = event.target.value;
-
-    // Update the dendrogram layer
-    _viz_state.dendro.sliders[`${axis}_value`] =
-      (_viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
-
-    alt_slice_linkage(
-      _viz_state,
-      axis,
-      _viz_state.dendro.sliders[`${axis}_value`]
-    );
-    calc_dendro_triangles(_viz_state, axis);
-    calc_dendro_polygons(_viz_state, axis);
-    update_dendro_layer_data(layers_mat, _viz_state, axis);
-
-    _deck_mat.setProps({
-      layers: get_mat_layers_list(layers_mat),
-    });
-  };
-
   axes.forEach((axis) => {
     const slider = document.createElement('input');
     viz_state.dendro.sliders[axis] = slider;
@@ -403,7 +370,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
 
     ini_slider_params(slider, ini_dendro_value, (event) =>
-      dendro_slider_callback(deck_mat, viz_state, axis, event)
+      update_dendro_from_slider(deck_mat, layers_mat, viz_state, axis, event)
     );
   });
 

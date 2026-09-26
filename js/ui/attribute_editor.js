@@ -208,6 +208,10 @@ export const initialize_attribute_editor = (
   viz_state.attr.editor = {
     open,
     close,
+    destroy: () => {
+      close();
+      container.remove();
+    },
   };
 
   value_input.addEventListener('input', () => {

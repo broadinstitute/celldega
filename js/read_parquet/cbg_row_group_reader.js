@@ -9,17 +9,19 @@
 import * as arrow from 'apache-arrow';
 
 import { getPq } from './pqInitializer';
+import { ParquetReaderLifecycle } from './reader_lifecycle';
 
 /**
  * CBGRowGroupReader class for efficient gene-based expression data access
  */
-export class CBGRowGroupReader {
+export class CBGRowGroupReader extends ParquetReaderLifecycle {
   /**
    * Create a new CBGRowGroupReader
    * @param {string} baseUrl - Base URL for landscape files
    * @param {string|Object} cbgConfig - Either a URL string (legacy) or chunk config object
    */
   constructor(baseUrl, cbgConfig) {
+    super();
     this.baseUrl = baseUrl;
     this.initialized = false;
     this.useStreaming = true;
@@ -92,9 +94,13 @@ export class CBGRowGroupReader {
       return null;
     }
 
-    const parquetFile = await pq.ParquetFile.fromUrl(probeUrl);
-    const wasmTable = await parquetFile.read({ rowGroups: [0] });
-    const arrowIPC = wasmTable.intoIPCStream();
+    const parquetFile = await this._openParquetFile(pq, probeUrl);
+    const arrowIPC = await this._readParquetIPC(
+      parquetFile,
+      { rowGroups: [0] },
+      true
+    );
+    if (!arrowIPC || this.disposed) return null;
     const arrowTable = arrow.tableFromIPC(arrowIPC);
     const schemaMetadata = arrowTable.schema.metadata;
 
@@ -218,7 +224,7 @@ export class CBGRowGroupReader {
     const pq = await getPq();
 
     // console.log(`[CBGRowGroupReader] Loading chunk file: ${fileName}`);
-    const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
+    const parquetFile = await this._openParquetFile(pq, fileUrl);
 
     return parquetFile;
   }
@@ -227,18 +233,16 @@ export class CBGRowGroupReader {
    * Initialize the reader
    * @returns {Promise<void>}
    */
-  async initialize() {
-    if (this.initialized) {
-      return;
-    }
-
+  async _initialize() {
     const pq = await getPq();
 
     if (!this.chunkedMode) {
       const legacyExists = await this._resourceExists(this.url);
+      if (this.disposed) return;
       if (!legacyExists) {
         const discovered =
           await this._discoverChunkedCbgFromDefaultDirectory(pq);
+        if (this.disposed) return;
         if (discovered) {
           this.chunkedMode = true;
           this.directory = discovered.directory;
@@ -280,11 +284,14 @@ export class CBGRowGroupReader {
       // console.log(
       //   `[CBGRowGroupReader] Range requests supported, creating streaming ParquetFile...`
       // );
-      this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+      const parquetFile = await this._openParquetFile(pq, this.url);
+      if (this.disposed) return;
+      this.parquetFile = parquetFile;
       this.useStreaming = true;
 
       const metadata = this.parquetFile.metadata();
       const numRowGroups = metadata.numRowGroups();
+      metadata.free();
       // console.log(
       //   `[CBGRowGroupReader] Streaming mode enabled, ${numRowGroups} row groups available`
       // );
@@ -312,8 +319,6 @@ export class CBGRowGroupReader {
       //     `${this.geneList.length} genes`
       // );
     }
-
-    this.initialized = true;
   }
 
   /**
@@ -321,7 +326,7 @@ export class CBGRowGroupReader {
    * @returns {Promise<void>}
    */
   async _ensureGeneIndex() {
-    if (this.geneToRowGroup !== null) {
+    if (this.disposed || this.geneToRowGroup !== null) {
       return; // Already loaded
     }
 
@@ -330,8 +335,10 @@ export class CBGRowGroupReader {
     // Try to read metadata from row group 0
     try {
       // console.log(`[CBGRowGroupReader] Reading row group 0 for schema metadata...`);
-      const wasmTable = await this.parquetFile.read({ rowGroups: [0] });
-      const arrowIPC = wasmTable.intoIPCStream();
+      const arrowIPC = await this._readParquetIPC(this.parquetFile, {
+        rowGroups: [0],
+      });
+      if (!arrowIPC || this.disposed) return;
       const arrowTable = arrow.tableFromIPC(arrowIPC);
 
       // Check if schema has gene_to_row_group metadata
@@ -353,7 +360,10 @@ export class CBGRowGroupReader {
 
     // Fallback: build index by reading each row group (slow for large files)
     // console.log(`[CBGRowGroupReader] Building gene index manually (this may be slow)...`);
-    this.geneToRowGroup = await this._buildGeneIndex(this.numRowGroups);
+    if (this.disposed) return;
+    const geneIndex = await this._buildGeneIndex(this.numRowGroups);
+    if (this.disposed) return;
+    this.geneToRowGroup = geneIndex;
     this.geneList = Object.keys(this.geneToRowGroup);
     // console.log(`[CBGRowGroupReader] Built gene index: ${this.geneList.length} genes`);
   }
@@ -371,8 +381,10 @@ export class CBGRowGroupReader {
     for (let i = 0; i < numRowGroups; i++) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        const table = await this.parquetFile.read({ rowGroups: [i] });
-        const arrowIPC = table.intoIPCStream();
+        const arrowIPC = await this._readParquetIPC(this.parquetFile, {
+          rowGroups: [i],
+        });
+        if (!arrowIPC || this.disposed) return null;
         const arrowTable = arrow.tableFromIPC(arrowIPC);
 
         const geneCol = arrowTable.getChild('gene');
@@ -401,7 +413,7 @@ export class CBGRowGroupReader {
    */
   async hasGene(geneName) {
     await this._ensureGeneIndex();
-    return geneName in this.geneToRowGroup;
+    return !this.disposed && geneName in this.geneToRowGroup;
   }
 
   /**
@@ -411,7 +423,7 @@ export class CBGRowGroupReader {
    */
   async getGeneRowGroupIndex(geneName) {
     await this._ensureGeneIndex();
-    return this.geneToRowGroup[geneName] ?? null;
+    return this.geneToRowGroup?.[geneName] ?? null;
   }
 
   /**
@@ -423,8 +435,10 @@ export class CBGRowGroupReader {
     if (!this.initialized) {
       await this.initialize();
     }
+    if (this.disposed) return null;
 
     await this._ensureGeneIndex();
+    if (this.disposed) return null;
 
     const globalRowGroupIndex = this.geneToRowGroup[geneName];
     if (globalRowGroupIndex === undefined) {
@@ -435,18 +449,22 @@ export class CBGRowGroupReader {
     try {
       if (!this.chunkedMode) {
         // Single file mode
-        const wasmTable = await this.parquetFile.read({
+        const arrowIPC = await this._readParquetIPC(this.parquetFile, {
           rowGroups: [globalRowGroupIndex],
         });
-        const arrowIPC = wasmTable.intoIPCStream();
+        if (!arrowIPC || this.disposed) return null;
         return arrow.tableFromIPC(arrowIPC);
       } else {
         // Chunked mode - find the right file
         const { fileIndex, localIndex } =
           this.computeChunkLocation(globalRowGroupIndex);
         const pqFile = await this._getParquetFile(fileIndex);
-        const wasmTable = await pqFile.read({ rowGroups: [localIndex] });
-        const arrowIPC = wasmTable.intoIPCStream();
+        const arrowIPC = await this._readParquetIPC(
+          pqFile,
+          { rowGroups: [localIndex] },
+          true
+        );
+        if (!arrowIPC || this.disposed) return null;
         return arrow.tableFromIPC(arrowIPC);
       }
     } catch {
@@ -461,7 +479,7 @@ export class CBGRowGroupReader {
    */
   async getNumGenes() {
     await this._ensureGeneIndex();
-    return this.geneList.length;
+    return this.geneList?.length || 0;
   }
 
   /**
@@ -470,17 +488,12 @@ export class CBGRowGroupReader {
    */
   async getGeneNames() {
     await this._ensureGeneIndex();
-    return [...this.geneList];
+    return [...(this.geneList || [])];
   }
 
   /** Release the persistent parquet-wasm reader and large lookup tables. */
   dispose() {
-    try {
-      this.parquetFile?.free?.();
-    } catch {
-      // A concurrent read may already have consumed/released the handle.
-    }
-    this.parquetFile = null;
+    super.dispose();
     this.geneToRowGroup = null;
     this.geneList = null;
     this.initialized = false;

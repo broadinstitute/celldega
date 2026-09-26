@@ -12,11 +12,12 @@
 import * as arrow from 'apache-arrow';
 
 import { getPq } from './pqInitializer';
+import { ParquetReaderLifecycle } from './reader_lifecycle';
 
 /**
  * ImageRowGroupReader class for efficient image tile access via parquet
  */
-export class ImageRowGroupReader {
+export class ImageRowGroupReader extends ParquetReaderLifecycle {
   /**
    * Create a new ImageRowGroupReader
    * @param {string} baseUrl - Base URL for the dataset
@@ -24,6 +25,7 @@ export class ImageRowGroupReader {
    * @param {Object} zoomInfo - Zoom level info from landscape_parameters (can be in imageConfig)
    */
   constructor(baseUrl, imageConfig, zoomInfo = null) {
+    super();
     this.baseUrl = baseUrl;
     this.initialized = false;
     this.useStreaming = true;
@@ -145,18 +147,14 @@ export class ImageRowGroupReader {
   async _getParquetFile(fileIndex) {
     const fileUrl = this._getFileUrl(fileIndex);
     const pq = await getPq();
-    return pq.ParquetFile.fromUrl(fileUrl);
+    return this._openParquetFile(pq, fileUrl);
   }
 
   /**
    * Initialize the reader
    * @returns {Promise<void>}
    */
-  async initialize() {
-    if (this.initialized) {
-      return;
-    }
-
+  async _initialize() {
     const pq = await getPq();
 
     // Require Range request support - no full file fallback for row groups
@@ -181,6 +179,7 @@ export class ImageRowGroupReader {
       !this.zoomInfo || Object.keys(this.zoomInfo).length === 0;
     if (zoomInfoEmpty) {
       const fromParquet = await this._loadZoomInfoFromParquetMetadata(pq);
+      if (this.disposed) return;
       if (fromParquet && Object.keys(fromParquet).length > 0) {
         this.zoomInfo = fromParquet;
         // eslint-disable-next-line no-console
@@ -203,10 +202,13 @@ export class ImageRowGroupReader {
       console.log(
         `[ImageRowGroupReader] Range requests supported, creating streaming ParquetFile...`
       );
-      this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+      const parquetFile = await this._openParquetFile(pq, this.url);
+      if (this.disposed) return;
+      this.parquetFile = parquetFile;
 
       const metadata = this.parquetFile.metadata();
       const numRowGroups = metadata.numRowGroups();
+      metadata.free();
       // eslint-disable-next-line no-console
       console.log(
         `[ImageRowGroupReader] Streaming mode enabled, ${numRowGroups} tiles available`
@@ -217,7 +219,6 @@ export class ImageRowGroupReader {
     console.log(
       `[ImageRowGroupReader] zoomInfo available: ${this.zoomInfo && Object.keys(this.zoomInfo).length ? Object.keys(this.zoomInfo).join(', ') : 'none'}`
     );
-    this.initialized = true;
   }
 
   /**
@@ -232,9 +233,14 @@ export class ImageRowGroupReader {
       if (!url) {
         return null;
       }
-      const parquetFile = await pq.ParquetFile.fromUrl(url);
-      const wasmTable = await parquetFile.read({ rowGroups: [0] });
-      const arrowTable = arrow.tableFromIPC(wasmTable.intoIPCStream());
+      const parquetFile = await this._openParquetFile(pq, url);
+      const ipc = await this._readParquetIPC(
+        parquetFile,
+        { rowGroups: [0] },
+        true
+      );
+      if (!ipc || this.disposed) return null;
+      const arrowTable = arrow.tableFromIPC(ipc);
       const md = arrowTable.schema.metadata;
       if (!md || !md.has('zoom_info')) {
         return null;
@@ -299,6 +305,7 @@ export class ImageRowGroupReader {
     if (!this.initialized) {
       await this.initialize();
     }
+    if (this.disposed) return null;
 
     // Check cache first
     const cacheKey = `${zoom}_${tileX}_${tileY}`;
@@ -312,7 +319,7 @@ export class ImageRowGroupReader {
     }
 
     try {
-      let wasmTable;
+      let arrowIPC;
 
       if (this.chunkedMode) {
         // Chunked mode: find the right file and read from it
@@ -328,15 +335,19 @@ export class ImageRowGroupReader {
         }
 
         const pqFile = await this._getParquetFile(fileIndex);
-        wasmTable = await pqFile.read({ rowGroups: [localIndex] });
+        arrowIPC = await this._readParquetIPC(
+          pqFile,
+          { rowGroups: [localIndex] },
+          true
+        );
       } else {
         // Single file mode
-        wasmTable = await this.parquetFile.read({
+        arrowIPC = await this._readParquetIPC(this.parquetFile, {
           rowGroups: [rowGroupIndex],
         });
       }
 
-      const arrowIPC = wasmTable.intoIPCStream();
+      if (!arrowIPC || this.disposed) return null;
       const table = arrow.tableFromIPC(arrowIPC);
 
       // Get the image data column
@@ -350,6 +361,10 @@ export class ImageRowGroupReader {
         return null;
       }
 
+      // Concurrent requests for this tile may have filled the cache while
+      // this read was in flight. Reuse that URL instead of leaking it.
+      if (this.blobCache.has(cacheKey)) return this.blobCache.get(cacheKey);
+
       // Create Blob and URL
       const blob = new Blob([imageBytes], { type: mimeType });
       const blobUrl = URL.createObjectURL(blob);
@@ -359,6 +374,7 @@ export class ImageRowGroupReader {
 
       return blobUrl;
     } catch (error) {
+      if (this.disposed) return null;
       // eslint-disable-next-line no-console
       console.warn(
         `[ImageRowGroupReader] Error reading tile z${zoom} ${tileX}_${tileY}:`,
@@ -381,12 +397,7 @@ export class ImageRowGroupReader {
   /** Revoke cached Blob URLs and release the persistent parquet-wasm reader. */
   dispose() {
     this.clearCache();
-    try {
-      this.parquetFile?.free?.();
-    } catch {
-      // A concurrent read may already have consumed/released the handle.
-    }
-    this.parquetFile = null;
+    super.dispose();
     this.initialized = false;
   }
 
@@ -403,7 +414,7 @@ export class ImageRowGroupReader {
    * @returns {boolean}
    */
   isStreaming() {
-    return this.useStreaming && this.parquetFile !== null;
+    return this.initialized && !this.disposed && this.useStreaming;
   }
 }
 
@@ -428,7 +439,7 @@ export function createGetTileDataFromParquet(reader, maxPyramidZoom) {
     // Load the image from the blob URL
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.onload = () => resolve(img);
+      img.onload = () => resolve(reader.disposed ? null : img);
       img.onerror = reject;
       img.src = blobUrl;
     });

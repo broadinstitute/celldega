@@ -18,11 +18,12 @@ import * as arrow from 'apache-arrow';
 import { concatenate_arrow_tables } from '../vector_tile/concatenate_functions';
 
 import { getPq } from './pqInitializer';
+import { ParquetReaderLifecycle } from './reader_lifecycle';
 
 /**
  * RowGroupTileReader class for efficient streaming tile-based data access
  */
-export class RowGroupTileReader {
+export class RowGroupTileReader extends ParquetReaderLifecycle {
   /**
    * Create a new RowGroupTileReader
    * @param {string} baseUrl - Base URL for the landscape files
@@ -30,6 +31,7 @@ export class RowGroupTileReader {
    * @param {Object|string} fileConfig - Either a URL string (single file) or chunk config object
    */
   constructor(baseUrl, tileGrid, fileConfig) {
+    super();
     this.baseUrl = baseUrl;
     this.numTilesX = tileGrid?.num_tiles_x || 0;
     this.numTilesY = tileGrid?.num_tiles_y || 0;
@@ -94,10 +96,10 @@ export class RowGroupTileReader {
     const returnTablesArray = options.returnTablesArray === true;
 
     if (!this.chunkedMode) {
-      const wasmTable = await this.parquetFile.read({
+      const arrowIPC = await this._readParquetIPC(this.parquetFile, {
         rowGroups: uniqueIndices,
       });
-      const arrowIPC = wasmTable.intoIPCStream();
+      if (!arrowIPC || this.disposed) return null;
       const table = arrow.tableFromIPC(arrowIPC);
       return returnTablesArray ? [table] : table;
     }
@@ -114,13 +116,17 @@ export class RowGroupTileReader {
     const tables = await Promise.all(
       [...byFile.entries()].map(async ([fileIndex, localIndices]) => {
         const pqFile = await this._getParquetFile(fileIndex);
-        const wasmTable = await pqFile.read({ rowGroups: localIndices });
-        const arrowIPC = wasmTable.intoIPCStream();
+        const arrowIPC = await this._readParquetIPC(
+          pqFile,
+          { rowGroups: localIndices },
+          true
+        );
+        if (!arrowIPC || this.disposed) return null;
         return arrow.tableFromIPC(arrowIPC);
       })
     );
 
-    if (tables.length === 0) {
+    if (this.disposed || tables.length === 0) {
       return null;
     }
 
@@ -221,7 +227,7 @@ export class RowGroupTileReader {
     const pq = await getPq();
 
     // console.log(`[RowGroupTileReader] Loading chunk file: ${fileName}`);
-    const parquetFile = await pq.ParquetFile.fromUrl(fileUrl);
+    const parquetFile = await this._openParquetFile(pq, fileUrl);
 
     return parquetFile;
   }
@@ -229,11 +235,7 @@ export class RowGroupTileReader {
   /**
    * Initialize the reader (for single file mode or first access)
    */
-  async initialize() {
-    if (this.initialized) {
-      return;
-    }
-
+  async _initialize() {
     const pq = await getPq();
 
     if (!this.chunkedMode) {
@@ -250,7 +252,9 @@ export class RowGroupTileReader {
       // console.log(
       //   `[RowGroupTileReader] Range requests supported, creating streaming ParquetFile...`
       // );
-      this.parquetFile = await pq.ParquetFile.fromUrl(this.url);
+      const parquetFile = await this._openParquetFile(pq, this.url);
+      if (this.disposed) return;
+      this.parquetFile = parquetFile;
       // Metadata available via this.parquetFile.metadata() if needed
     } else {
       // Chunked mode - check range support on first file
@@ -269,8 +273,6 @@ export class RowGroupTileReader {
       //     `${this.totalRowGroups} total row groups, max ${this.maxRowGroupsPerFile} per file`
       // );
     }
-
-    this.initialized = true;
   }
 
   /**
@@ -297,6 +299,7 @@ export class RowGroupTileReader {
     if (!this.initialized) {
       await this.initialize();
     }
+    if (this.disposed) return null;
 
     // Compute row group indices using formula
     const rowGroupIndices = [];
@@ -344,12 +347,7 @@ export class RowGroupTileReader {
   /** Release cached Arrow data and the persistent parquet-wasm reader. */
   dispose() {
     this.requestCache.clear();
-    try {
-      this.parquetFile?.free?.();
-    } catch {
-      // A concurrent read may already have consumed/released the handle.
-    }
-    this.parquetFile = null;
+    super.dispose();
     this.initialized = false;
   }
 }

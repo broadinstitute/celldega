@@ -26,7 +26,7 @@ import traitlets
 _clustergram_registry = {}  # maps names to widget instances
 _enrich_registry = {}  # maps names to widget instances
 
-_LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
+_LOCAL_ESM = (Path(__file__).parent / "../static" / "celldega.js").resolve()
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
 
 

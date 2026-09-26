@@ -569,6 +569,9 @@ def _reduce_image_size(image_path, scale_image=0.5, path_dega_files=""):
     Returns:
         str: Path to the resized image file.
     """
+    if pyvips is None:
+        # pyvips isn't required overall, but it's required if calling this function.
+        raise NotImplementedError("The pyvips package is required for this operation and was not imported successfully.")
     image = pyvips.Image.new_from_file(image_path, access="sequential")
     resized_image = image.resize(scale_image)
 

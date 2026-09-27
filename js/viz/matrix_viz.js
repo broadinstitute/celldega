@@ -348,6 +348,7 @@ export const matrix_viz = async (
   deck_mat.setProps({
     onViewStateChange: (params) =>
       on_view_state_change(params, deck_mat, layers_mat, viz_state),
+    onAfterRender: () => viz_state.dendro.tree_overlay?.sync_viewport(),
     onDragStart: (info) => viz_state.crop.on_drag_start(info),
     onDrag: (info) => viz_state.crop.on_drag(info),
     onDragEnd: (info) => viz_state.crop.on_drag_end(info),
@@ -373,7 +374,7 @@ export const matrix_viz = async (
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
 
-  initialize_dendro_tree_overlay(viz_state);
+  initialize_dendro_tree_overlay(viz_state, deck_mat);
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
   initialize_attribute_labels(deck_mat, layers_mat, viz_state);

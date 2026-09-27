@@ -1,4 +1,11 @@
-import { has_axis_crop_filter } from '../matrix/crop_filter';
+import {
+  get_composition_layout,
+  rightmost_composition_col,
+} from '../matrix/composition_data';
+import {
+  get_axis_center_position,
+  has_axis_crop_filter,
+} from '../matrix/crop_filter';
 import {
   build_dendro_tree,
   dendro_tree_point,
@@ -18,8 +25,8 @@ const SLICE_KEYS = new Set([
   'PageDown',
 ]);
 
-/** Temporary, full-tree overview. Canvas avoids thousands of SVG DOM nodes. */
-export const initialize_dendro_tree_overlay = (viz_state) => {
+/** Temporary tree preview. Canvas avoids thousands of SVG DOM nodes. */
+export const initialize_dendro_tree_overlay = (viz_state, deck_mat) => {
   const overlay = document.createElement('div');
   overlay.className = 'dendro-tree-overlay';
   overlay.setAttribute('aria-hidden', 'true');
@@ -60,7 +67,10 @@ export const initialize_dendro_tree_overlay = (viz_state) => {
   let fade_timer = null;
   let destroyed = false;
   let cached = null;
+  let painted_viewport = null;
   const cleanups = [];
+  const matrix_viewport = () =>
+    deck_mat.getViewports().find((viewport) => viewport.id === 'matrix');
 
   const listen = (target, event, callback, options) => {
     target.addEventListener(event, callback, options);
@@ -119,6 +129,14 @@ export const initialize_dendro_tree_overlay = (viz_state) => {
       return;
     }
     const { tree } = cached;
+    // Use the rendered camera, including intermediate focus-transition frames,
+    // rather than zoom_data, which already stores the transition's destination.
+    const viewport = matrix_viewport();
+    if (!viewport) {
+      hide(true);
+      return;
+    }
+    painted_viewport = viewport;
     const groups = get_dendro_tree_groups(tree, nodes);
     const width = viz_state.viz.mat_width;
     const height = viz_state.viz.mat_height;
@@ -148,7 +166,8 @@ export const initialize_dendro_tree_overlay = (viz_state) => {
     }
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    // Inset branches just enough that strokes at the zero/maximum cut remain visible.
+    // Keep the distance axis and water fitted to the screen. Only leaf positions
+    // follow the matrix camera, so zooming never moves the cut out of reach.
     const point = (leaf, distance) => {
       const [x, y] = dendro_tree_point(
         axis,
@@ -159,6 +178,35 @@ export const initialize_dendro_tree_overlay = (viz_state) => {
         height - 8
       );
       return [x + 4, y + 4];
+    };
+    const dimension = axis === 'row' ? 1 : 0;
+    const origin = viewport.project([0, 0])[dimension];
+    const scale = viewport.project([1, 1])[dimension] - origin;
+    const composition_rows =
+      axis === 'row' && viz_state.mat.viz_mode === 'composition';
+    const composition_layout = composition_rows
+      ? get_composition_layout(viz_state)
+      : null;
+    const rightmost_col = composition_rows
+      ? rightmost_composition_col(viz_state)
+      : null;
+    const positions = new Array(tree.nodes.length);
+    tree.nodes.forEach((node) => {
+      if (node.id < tree.leaf_count) {
+        const world_position = composition_rows
+          ? composition_layout[`${node.raw_index}_${rightmost_col}`].position[1]
+          : get_axis_center_position(viz_state, axis, node.raw_index);
+        // Orthographic projection is affine: two projections suffice for every
+        // leaf. Include the matrix's row-slot offset and current RANK mapping.
+        positions[node.id] = origin + scale * world_position;
+      } else {
+        positions[node.id] = (positions[node.left] + positions[node.right]) / 2;
+      }
+    });
+    const branch_point = (node, distance) => {
+      const position = point(0, distance);
+      position[dimension] = positions[node.id];
+      return position;
     };
     const path = (points, close = false) => {
       ctx.moveTo(...points[0]);
@@ -171,10 +219,10 @@ export const initialize_dendro_tree_overlay = (viz_state) => {
       const left = tree.nodes[node.left];
       const right = tree.nodes[node.right];
       path([
-        point(left.center, left.distance),
-        point(left.center, node.distance),
-        point(right.center, node.distance),
-        point(right.center, right.distance),
+        branch_point(left, left.distance),
+        branch_point(left, node.distance),
+        branch_point(right, node.distance),
+        branch_point(right, right.distance),
       ]);
     });
     ctx.strokeStyle = 'rgba(48, 65, 84, 0.8)';
@@ -276,11 +324,21 @@ export const initialize_dendro_tree_overlay = (viz_state) => {
     refresh: () => {
       if (active_axis) show(active_axis);
     },
+    sync_viewport: () => {
+      // Rendering a frame must not reopen the preview or prolong its fade timer.
+      if (
+        active_axis &&
+        frame === null &&
+        painted_viewport !== matrix_viewport()
+      )
+        frame = requestAnimationFrame(paint);
+    },
     destroy: () => {
       if (destroyed) return;
       hide(true);
       destroyed = true;
       cached = null;
+      painted_viewport = null;
       cleanups.splice(0).forEach((cleanup) => cleanup());
       overlay.remove();
     },

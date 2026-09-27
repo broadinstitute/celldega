@@ -113,6 +113,7 @@ import {
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
+import { initialize_dendro_tree_overlay } from '../ui/dendro_tree_overlay';
 import {
   make_matrix_ui_container,
   update_mode_button_visibility,
@@ -371,6 +372,8 @@ export const matrix_viz = async (
 
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
+
+  initialize_dendro_tree_overlay(viz_state);
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
   initialize_attribute_labels(deck_mat, layers_mat, viz_state);
@@ -740,6 +743,7 @@ export const matrix_viz = async (
       if (finalized) return;
       finalized = true;
       viz_state.finalized = true;
+      viz_state.dendro.tree_overlay?.destroy();
       model_listeners.splice(0).forEach(([event, listener]) => {
         model.off?.(event, listener);
       });

@@ -7,6 +7,7 @@ import {
 } from '../../matrix/crop_filter';
 
 export const ini_views = (viz_state) => {
+  viz_state.dendro?.tree_overlay?.hide(true);
   let switch_ratio;
   const drag_pan_enabled = !viz_state.crop?.active;
   const row_count = get_axis_display_count(viz_state, 'row');

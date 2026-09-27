@@ -10,8 +10,6 @@ import threading as thr
 from typing import ClassVar
 from urllib.parse import unquote, urlparse
 from pathlib import Path
-from typing import Optional
-
 import requests
 
 
@@ -329,7 +327,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         """Override log_message to prevent logging to the console."""
 
 
-def get_local_server(file_server_root: Optional[str|Path] = None) -> int:
+def get_local_server(file_server_root: str|Path|None = None) -> int:
     """
     Start a local HTTP server with CORS support and return the port number.
 

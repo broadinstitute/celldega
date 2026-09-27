@@ -37,6 +37,7 @@ nav:
       - CellCloud: visualizations/cell-cloud.md
       - NeighborhoodCloud: visualizations/neighborhood-cloud.md
       - Clustergram: visualizations/clustergram.md
+      - Scatterplot: visualizations/scatterplot.md
       - Composition: visualizations/composition.md
       - Enrich: visualizations/enrich.md
   - Python API:

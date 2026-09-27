@@ -27,11 +27,13 @@ describe('anywidget render lifecycle', () => {
       'render_matrix_new',
       'render_enrich',
       'render_landmark',
+      'render_scatterplot',
       'handleValidationWarning',
       'handleAsyncError',
       `${render_source}; return render;`
     );
     render = factory(
+      renderer,
       renderer,
       renderer,
       renderer,
@@ -71,6 +73,17 @@ describe('anywidget render lifecycle', () => {
     listeners.get('msg:custom')({ event: 'finalize' });
     dispose();
 
+    expect(visualization_cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  test('Scatterplot is dispatched through the shared lifecycle', async () => {
+    model.get.mockImplementation((name) =>
+      name === 'component' ? 'Scatterplot' : null
+    );
+    const dispose = await render({ model, el: document.createElement('div') });
+    expect(typeof dispose).toBe('function');
+    listeners.get('msg:custom')({ event: 'finalize' });
+    dispose();
     expect(visualization_cleanup).toHaveBeenCalledTimes(1);
   });
 });

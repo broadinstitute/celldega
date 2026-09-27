@@ -3,6 +3,7 @@ import pytest
 from celldega.viz._widget_lifecycle import CelldegaWidget, _widget_registry
 from celldega.viz.cloud import CellCloud, NeighborhoodCloud
 from celldega.viz.landmark_widget import Landmark
+from celldega.viz.scatterplot_widget import Scatterplot
 from celldega.viz.widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
@@ -61,6 +62,7 @@ def test_name_and_registry_key_must_agree():
         Composition,
         Enrich,
         Landmark,
+        Scatterplot,
     ],
 )
 def test_all_public_widgets_share_lifecycle_base(widget_type):

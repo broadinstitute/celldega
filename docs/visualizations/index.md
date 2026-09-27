@@ -28,6 +28,8 @@ datasets.
 
 Render a dataset's values directly, independent of spatial position.
 
+- **[Scatterplot](scatterplot.md)** — cells in UMAP, spatial, or gene-by-gene
+  coordinates, with animated scaling and linked selections.
 - **[Clustergram](clustergram.md)** — a hierarchically clustered heatmap
   (dendrograms, reorderable rows/columns) over a matrix (e.g. genes by cells
   or genes by clusters).

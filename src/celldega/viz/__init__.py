@@ -9,6 +9,7 @@ from ipywidgets import HBox, Layout, VBox, jslink
 from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
+from .scatterplot_widget import Scatterplot
 from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
@@ -485,6 +486,7 @@ __all__ = [
     "Landmark",
     "Landscape",
     "NeighborhoodCloud",
+    "Scatterplot",
     "Yearbook",
     "clustergram_enrich",
     "get_local_server",

@@ -27,9 +27,11 @@ For comparing category composition (e.g. cell-type proportions) across
 groups instead of a general heatmap, see [Composition](composition.md), a
 `Clustergram` variant purpose-built for that comparison.
 
-The tree overview fits the entire active tree, even when the matrix is zoomed,
-and follows the current RANK view. It appears in clustering order; an axis crop
-keeps its dendrogram slice pinned until the crop is undone.
+The tree preview follows the matrix's zoom and pan: row branches stay aligned
+vertically and column branches horizontally, including in the current RANK
+view. The blue cut rectangle stays fitted to the visible matrix. The preview
+appears in clustering order; an axis crop keeps its dendrogram slice pinned
+until the crop is undone.
 
 ## Usage
 

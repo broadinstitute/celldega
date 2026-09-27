@@ -36,6 +36,7 @@ export const update_dendro_from_slider = (
   calc_dendro_triangles(viz_state, axis);
   calc_dendro_polygons(viz_state, axis);
   update_dendro_layer_data(layers_mat, viz_state, axis);
+  viz_state.dendro.tree_overlay?.refresh();
 
   deck_mat.setProps({
     layers: get_mat_layers_list(layers_mat),

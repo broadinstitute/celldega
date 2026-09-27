@@ -556,6 +556,7 @@ export const update_dendro_layer_data = (
 export const toggle_dendro_layer_visibility = (layers_mat, viz_state, axis) => {
   const layer = layers_mat[`${axis}_dendro_layer`];
   const is_visible = viz_state.order.current[axis] === 'clust';
+  if (!is_visible) viz_state.dendro.tree_overlay?.hide(true);
   const was_visible = layer.props?.visible !== false;
 
   // Triangles/polygons are only recomputed on events that change matrix

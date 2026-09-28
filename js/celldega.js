@@ -18,7 +18,7 @@ import { landscape_ist } from './viz/landscape_ist';
 import { matrix_viz } from './viz/matrix_viz';
 import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
-import { render_scatterplot } from './widgets/scatterplot_widget';
+import { render_scatter } from './widgets/scatterplot_widget';
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -314,8 +314,8 @@ async function render({ model, el }) {
       case 'Landmark':
         cleanup = await render_landmark({ model, el });
         break;
-      case 'Scatterplot':
-        cleanup = await render_scatterplot({ model, el });
+      case 'Scatter':
+        cleanup = await render_scatter({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
@@ -431,7 +431,7 @@ export default {
   render_yearbook,
   render_matrix_new,
   render_enrich,
-  render_scatterplot,
+  render_scatter,
   buildRowAxisSlice,
   buildColAxisSlice,
   buildCellSlice,

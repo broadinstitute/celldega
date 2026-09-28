@@ -26,7 +26,7 @@ export const create_obs_store = () => {
     cat: Observable('cluster'),
     selected_cats: Observable([]),
     selected_cells: Observable([]),
-    // Per-widget Scatterplot render state; never shared between instances.
+    // Per-widget Scatter render state; never shared between instances.
     scatterplot_state: Observable({}),
     new_cell_bar_data: Observable([]),
     new_gene_bar_data: Observable([]),

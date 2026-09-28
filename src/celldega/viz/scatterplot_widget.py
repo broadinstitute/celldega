@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from contextlib import suppress
 import io
+import re
 from typing import Any
 
 from anndata import AnnData
+from matplotlib import colormaps
 from matplotlib.colors import to_hex
 import numpy as np
 import pandas as pd
@@ -19,27 +21,30 @@ from ._widget_lifecycle import CelldegaWidget
 from .widget import _WIDGET_ESM, _hsv_to_hex
 
 
-__all__ = ["Scatterplot"]
+__all__ = ["Scatter"]
 
 _CONFIG_TRAITS = ("view", "x", "y", "layer", "color_by")
 _DEFAULT_COLOR = "#4f80ff"
 _EMBEDDINGS = {"umap": "X_umap", "spatial": "spatial"}
 
 
-class Scatterplot(CelldegaWidget):
+class Scatter(CelldegaWidget):
     """Plot cells from an AnnData in UMAP, spatial, or gene-expression space.
 
     ``view`` defaults to UMAP, then spatial, then genes, according to available
     data. ``x`` and ``y`` name genes; ``layer=None`` uses ``adata.X``. Only the
     active expression columns are read, including for sparse and backed data.
-    ``color_by`` optionally names an observation column for categorical colors.
+    ``color_by`` optionally names an observation column. Real numeric columns
+    use a continuous Viridis scale; categorical, text, and boolean columns use
+    category colors. Missing/nonfinite numeric values are gray.
 
     Gene/view changes require a live Python kernel. Linear/log1p transitions
     happen in the browser; log1p requires nonnegative coordinates. Changing to
     a negative-valued axis resets that axis to linear. Selection always uses
     observation names and survives changing axes. Selecting cells does not
-    change AnnData: only :meth:`annotate_selection` writes to ``adata.obs``,
-    in memory, and callers explicitly save their data if persistence is wanted.
+    change AnnData: :meth:`annotate_selection` and the browser's explicit label
+    action write to ``adata.obs`` in memory. Labeling also requires a live
+    kernel, and callers explicitly save their data if persistence is wanted.
 
     As with other Celldega widgets, ``name=`` replaces and closes an earlier
     widget with the same name. Call ``close()`` when a widget is no longer used
@@ -47,7 +52,7 @@ class Scatterplot(CelldegaWidget):
     """
 
     _esm = _WIDGET_ESM
-    component = traitlets.Unicode("Scatterplot").tag(sync=True)
+    component = traitlets.Unicode("Scatter").tag(sync=True)
     width = traitlets.Int(0, min=0).tag(sync=True)
     height = traitlets.Int(600, min=1).tag(sync=True)
     point_size = traitlets.Float(3.0, min=0.1).tag(sync=True)
@@ -68,8 +73,11 @@ class Scatterplot(CelldegaWidget):
     points_parquet = traitlets.Bytes(b"").tag(sync=True)
     plot_meta = traitlets.Dict(default_value={}).tag(sync=True)
     selected_cells = traitlets.List(traitlets.Unicode(), default_value=[]).tag(sync=True)
+    selected_categories = traitlets.List(traitlets.Unicode(), default_value=[]).tag(sync=True)
     click_info = traitlets.Dict(default_value={}).tag(sync=True)
     update_trigger = traitlets.Dict(default_value={}).tag(sync=True)
+    annotation_request = traitlets.Dict(default_value={}).tag(sync=True)
+    annotation_result = traitlets.Dict(default_value={}).tag(sync=True)
     raster_request = traitlets.Int(0).tag(sync=True)
     raster_png = traitlets.Unicode("").tag(sync=True)
     raster_view_state = traitlets.Dict(default_value={}).tag(sync=True)
@@ -90,6 +98,8 @@ class Scatterplot(CelldegaWidget):
         self._updating = False
         self._pending_payload = None
         self._revision = 0
+        self._annotation_results = {}
+        self._syncing_categories = False
         if not isinstance(adata, AnnData):
             raise TypeError("adata must be an AnnData object")
         if not adata.obs_names.is_unique or not adata.var_names.is_unique:
@@ -130,6 +140,8 @@ class Scatterplot(CelldegaWidget):
         )
         self._ready = True
         self._publish_payload(payload)
+        if self.selected_categories:
+            self._on_selected_categories({"new": self.selected_categories})
 
     def _configuration(self) -> dict[str, str]:
         return {name: getattr(self, name) for name in _CONFIG_TRAITS}
@@ -182,28 +194,93 @@ class Scatterplot(CelldegaWidget):
             raise ValueError("scatterplot coordinates must be finite and match adata observations")
         return xy, *labels
 
-    def _colors(self, color_by: str) -> tuple[list[str], list[str]]:
-        if not color_by:
-            return [_DEFAULT_COLOR] * self.adata.n_obs, self.adata.obs_names.tolist()
-        series = self.adata.obs[color_by]
-        labels = series.astype(object).where(series.notna(), "N.A.").map(str)
-        categories = (
-            list(map(str, series.cat.categories))
-            if isinstance(series.dtype, pd.CategoricalDtype)
-            else sorted(labels.unique())
-        )
+    @staticmethod
+    def _category_labels(series: pd.Series) -> list[str]:
+        if isinstance(series.dtype, pd.CategoricalDtype):
+            return list(map(str, series.cat.categories))
+        return sorted(series.dropna().map(str).unique())
+
+    def _category_palette(self, series: pd.Series, saved_colors) -> dict[str, str]:
+        categories = self._category_labels(series)
         palette = {
             label: _hsv_to_hex(i / max(len(categories), 1)) for i, label in enumerate(categories)
         }
-        saved_colors = self.adata.uns.get(f"{color_by}_colors", [])
         for label, color in zip(categories, saved_colors, strict=False):
             with suppress(TypeError, ValueError):
                 palette[label] = to_hex(color)
-        return labels.map(palette).fillna("#9ca3af").tolist(), labels.tolist()
+        return palette
 
-    def _prepare_payload(self, config: dict[str, str]) -> tuple[bytes, dict]:
+    @staticmethod
+    def _is_numeric_color(series: pd.Series) -> bool:
+        return (
+            pd.api.types.is_numeric_dtype(series.dtype)
+            and not pd.api.types.is_bool_dtype(series.dtype)
+            and not pd.api.types.is_complex_dtype(series.dtype)
+        )
+
+    def _observation_labels(self, series: pd.Series) -> tuple[pd.Series, str]:
+        missing_label = "N.A."
+        categories = set(self._category_labels(series))
+        while missing_label in categories:
+            missing_label += " (missing)"
+        return series.astype(object).where(series.notna(), missing_label).map(str), missing_label
+
+    def _colors(
+        self, color_by: str, *, series: pd.Series | None = None, saved_colors=None
+    ) -> tuple[list[str], list[str], dict]:
+        meta = {
+            "color_by": color_by,
+            "color_type": "uniform",
+            "color_min": None,
+            "color_max": None,
+            "color_categories": [],
+            "color_scale": [],
+        }
+        if not color_by:
+            return [_DEFAULT_COLOR] * self.adata.n_obs, self.adata.obs_names.tolist(), meta
+        if series is None:
+            series = self.adata.obs[color_by]
+        if self._is_numeric_color(series):
+            labels = series.astype(object).where(series.notna(), "N.A.").map(str)
+            values = series.to_numpy(dtype=float, na_value=np.nan)
+            finite = np.isfinite(values)
+            colors = np.full(len(values), "#9ca3af", dtype="<U7")
+            meta["color_type"] = "numeric"
+            cmap = colormaps["viridis"]
+            meta["color_scale"] = [to_hex(cmap(value)) for value in (0.0, 0.25, 0.5, 0.75, 1.0)]
+            if finite.any():
+                low, high = float(values[finite].min()), float(values[finite].max())
+                meta.update(color_min=low, color_max=high)
+                if low == high:
+                    normalized = np.full(finite.sum(), 0.5)
+                else:
+                    # Divide first to avoid overflow for extreme finite values.
+                    scale = max(abs(low), abs(high), 1)
+                    normalized = (values[finite] / scale - low / scale) / (
+                        high / scale - low / scale
+                    )
+                palette = np.array([to_hex(cmap(i / 255)) for i in range(256)])
+                colors[finite] = palette[np.rint(normalized * 255).astype(int).clip(0, 255)]
+            return colors.tolist(), labels.tolist(), meta
+        labels, missing_label = self._observation_labels(series)
+        if saved_colors is None:
+            saved_colors = self.adata.uns.get(f"{color_by}_colors", [])
+        palette = self._category_palette(series, saved_colors)
+        if series.isna().any():
+            palette[missing_label] = "#9ca3af"
+        meta.update(
+            color_type="categorical",
+            color_categories=[{"name": name, "color": color} for name, color in palette.items()],
+        )
+        return labels.map(palette).fillna("#9ca3af").tolist(), labels.tolist(), meta
+
+    def _prepare_payload(
+        self, config: dict[str, str], *, color_series: pd.Series | None = None, color_palette=None
+    ) -> tuple[bytes, dict]:
         xy, x_label, y_label = self._coordinates(config)
-        colors, labels = self._colors(config["color_by"])
+        colors, labels, color_meta = self._colors(
+            config["color_by"], series=color_series, saved_colors=color_palette
+        )
         table = pa.table(
             {
                 "cell_id": pa.array(self.adata.obs_names, type=pa.string()),
@@ -216,6 +293,7 @@ class Scatterplot(CelldegaWidget):
         buffer = io.BytesIO()
         pq.write_table(table, buffer, compression="zstd")
         return buffer.getvalue(), {
+            **color_meta,
             "view": config["view"],
             "x_label": x_label,
             "y_label": y_label,
@@ -228,6 +306,8 @@ class Scatterplot(CelldegaWidget):
         data, meta = payload
         self._revision += 1
         with self.hold_sync():
+            if self.plot_meta and self.plot_meta.get("color_by") != meta["color_by"]:
+                self._clear_category_selection()
             self.plot_meta = {**meta, "revision": self._revision}
             for axis in ("x", "y"):
                 if not meta[f"{axis}_nonnegative"]:
@@ -278,6 +358,58 @@ class Scatterplot(CelldegaWidget):
             raise ValueError(f"unknown cell IDs: {sorted(unknown)[:5]}")
         return list(dict.fromkeys(ids))
 
+    @traitlets.validate("selected_categories")
+    def _validate_categories(self, proposal):
+        categories = list(dict.fromkeys(proposal["value"]))
+        if not categories:
+            return categories
+        if not self.color_by or self._is_numeric_color(self.adata.obs[self.color_by]):
+            raise ValueError("category selection requires a categorical color_by column")
+        series = self.adata.obs[self.color_by]
+        _, missing_label = self._observation_labels(series)
+        valid = set(self._category_labels(series))
+        if series.isna().any():
+            valid.add(missing_label)
+        unknown = set(categories) - valid
+        if unknown:
+            raise ValueError(f"unknown categories: {sorted(unknown)[:5]}")
+        return categories
+
+    def _category_cell_ids(self, categories: list[str]) -> list[str]:
+        if not categories or not self.color_by:
+            return []
+        labels, _ = self._observation_labels(self.adata.obs[self.color_by])
+        return self.adata.obs_names[labels.isin(categories)].tolist()
+
+    def _clear_category_selection(self) -> None:
+        self._syncing_categories = True
+        try:
+            self.selected_categories = []
+        finally:
+            self._syncing_categories = False
+
+    @traitlets.observe("selected_categories")
+    def _on_selected_categories(self, change):
+        if not self._ready or self._closed or self._syncing_categories:
+            return
+        self._syncing_categories = True
+        try:
+            self.selected_cells = self._category_cell_ids(change["new"])
+        finally:
+            self._syncing_categories = False
+
+    @traitlets.observe("selected_cells")
+    def _on_selected_cells(self, _change):
+        if (
+            not self._ready
+            or self._closed
+            or self._syncing_categories
+            or not self.selected_categories
+        ):
+            return
+        if set(self.selected_cells) != set(self._category_cell_ids(self.selected_categories)):
+            self._clear_category_selection()
+
     @traitlets.observe("update_trigger")
     def _on_update_trigger(self, change):
         if not self._ready or self._closed:
@@ -296,7 +428,7 @@ class Scatterplot(CelldegaWidget):
         ):
             self.set_axes(y=value)
 
-    def _set_configuration(self, **changes) -> Scatterplot:
+    def _set_configuration(self, **changes) -> Scatter:
         config = {**self._configuration(), **changes}
         self._validate_configuration(config)
         payload = self._prepare_payload(config)
@@ -310,13 +442,13 @@ class Scatterplot(CelldegaWidget):
             self._updating = False
         return self
 
-    def set_view(self, view: str) -> Scatterplot:
+    def set_view(self, view: str) -> Scatter:
         """Choose ``'genes'``, ``'umap'``, or ``'spatial'`` and keep selected IDs."""
         return self._set_configuration(view=view)
 
     def set_axes(
         self, x: str | None = None, y: str | None = None, *, layer: str | None = None
-    ) -> Scatterplot:
+    ) -> Scatter:
         """Atomically choose gene axes and enter gene view.
 
         Omitted axes/layer retain their current value; pass ``layer=''`` to
@@ -334,7 +466,7 @@ class Scatterplot(CelldegaWidget):
 
     def set_scale(
         self, scale: str | None = None, *, x: str | None = None, y: str | None = None
-    ) -> Scatterplot:
+    ) -> Scatter:
         """Set both scales with ``scale`` or individual axes with ``x``/``y``."""
         scales = {"x": x if x is not None else scale, "y": y if y is not None else scale}
         for axis, value in scales.items():
@@ -349,16 +481,30 @@ class Scatterplot(CelldegaWidget):
                     setattr(self, f"{axis}_scale", value)
         return self
 
-    def select_cells(self, cell_ids: Sequence[str]) -> Scatterplot:
+    def select_cells(self, cell_ids: Sequence[str]) -> Scatter:
         """Replace the selection with observation IDs (an empty list clears it)."""
         if isinstance(cell_ids, str):
             raise TypeError("cell_ids must be a sequence of observation IDs, not a string")
         self.selected_cells = list(cell_ids)
         return self
 
-    def highlight_cells(self, cell_ids: Sequence[str]) -> Scatterplot:
+    def highlight_cells(self, cell_ids: Sequence[str]) -> Scatter:
         """Alias for :meth:`select_cells`, shared with Landscape."""
         return self.select_cells(cell_ids)
+
+    def select_categories(self, categories: Sequence[str], *, additive: bool = False) -> Scatter:
+        """Select the union of categories in ``color_by`` using their display names.
+
+        ``additive=True`` adds to the current categories. Passing an empty list
+        clears category/cell selection. Explicit cell selections and changing
+        the color column clear category selection while retaining selected IDs.
+        """
+        if isinstance(categories, str):
+            raise TypeError("categories must be a sequence of names, not a string")
+        self.selected_categories = (self.selected_categories if additive else []) + list(categories)
+        if not self.selected_categories:
+            self.selected_cells = []
+        return self
 
     def get_selection(self, *, as_adata: bool = False):
         """Return selected IDs, or an independent AnnData copy with ``as_adata=True``."""
@@ -366,19 +512,92 @@ class Scatterplot(CelldegaWidget):
             return self.adata[self.selected_cells].to_memory(copy=True)
         return list(self.selected_cells)
 
-    def annotate_selection(self, column: str, value: Any) -> int:
+    @traitlets.observe("annotation_request")
+    def _on_annotation_request(self, change):
+        if not self._ready or self._closed:
+            return
+        request = change["new"]
+        if not request:
+            return
+        request_id = request.get("request_id")
+        response_id = request_id if isinstance(request_id, str) else ""
+        if response_id and response_id in self._annotation_results:
+            self.annotation_result = dict(self._annotation_results[response_id])
+            return
+        try:
+            if not isinstance(request_id, str) or not request_id.strip():
+                raise ValueError("request_id must be a nonempty string")
+            value = request.get("value")
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("annotation value must be a nonempty string")
+            cell_ids = request.get("cell_ids")
+            if not isinstance(cell_ids, list) or not cell_ids:
+                raise ValueError("cell_ids must be a nonempty list of observation IDs")
+            count = self._annotate_cells(
+                cell_ids,
+                request.get("column"),
+                value,
+                color=request.get("color"),
+                activate=True,
+            )
+            result = {
+                "request_id": request_id,
+                "ok": True,
+                "count": count,
+                "column": request["column"],
+                "value": value,
+            }
+        except Exception as exc:  # Invalid browser requests must not escape the comm callback.
+            result = {"request_id": response_id, "ok": False, "error": str(exc)}
+        if response_id:
+            self._annotation_results[response_id] = dict(result)
+        self.annotation_result = result
+
+    def annotate_selection(self, column: str, value: Any, *, color: str | None = None) -> int:
         """Write a scalar annotation to selected rows of ``adata.obs`` in memory.
 
         Creates missing columns with unselected rows left missing, and adds new
         categorical values without changing existing annotations. Returns the
         number of selected cells. An empty selection performs no write.
+
+        With ``color='#rrggbb'``, the column becomes categorical and the label's
+        color is stored in ``adata.uns[f'{column}_colors']`` in category order.
+        Browser annotation requests use a captured list of IDs, so subsequent
+        selection changes cannot redirect an annotation awaiting confirmation.
         """
-        if not isinstance(column, str) or not column:
+        return self._annotate_cells(self.get_selection(), column, value, color=color)
+
+    def _annotate_cells(
+        self,
+        cell_ids: list[str],
+        column: str,
+        value: Any,
+        *,
+        color: str | None = None,
+        activate: bool = False,
+    ) -> int:
+        if not isinstance(column, str) or not column.strip():
             raise ValueError("column must be a nonempty string")
         if not pd.api.types.is_scalar(value):
             raise TypeError("annotation value must be a scalar")
-        if not self.selected_cells:
+        if not all(isinstance(cell_id, str) for cell_id in cell_ids):
+            raise ValueError("cell_ids must contain only string observation IDs")
+        if len(set(cell_ids)) != len(cell_ids):
+            raise ValueError("cell_ids must be unique")
+        unknown = set(cell_ids) - self._cell_ids
+        if unknown:
+            raise ValueError(f"unknown cell IDs: {sorted(unknown)[:5]}")
+        if color is not None:
+            if not isinstance(color, str) or not re.fullmatch(
+                r"#(?:[\da-fA-F]{3}|[\da-fA-F]{6})", color
+            ):
+                raise ValueError("color must be a hex color such as '#4f80ff'")
+            if pd.isna(value):
+                raise ValueError("a color requires a nonmissing annotation value")
+            color = to_hex(color)
+        if not cell_ids:
             return 0
+        old_series = self.adata.obs.get(column)
         if column in self.adata.obs:
             series = self.adata.obs[column].copy()
             if isinstance(series.dtype, pd.CategoricalDtype):
@@ -389,15 +608,55 @@ class Scatterplot(CelldegaWidget):
         else:
             series = pd.Series(pd.NA, index=self.adata.obs_names, dtype=object)
         try:
-            series.loc[self.selected_cells] = value
+            series.loc[cell_ids] = value
         except (TypeError, ValueError):
             series = series.astype(object)
-            series.loc[self.selected_cells] = value
+            series.loc[cell_ids] = value
+
+        palette_key = f"{column}_colors"
+        palette = None
+        if color is not None or palette_key in self.adata.uns:
+            # An explicit categorical order keeps the AnnData palette aligned
+            # after new labels are introduced or a fresh widget is constructed.
+            series = series.astype("category")
+            previous_palette = (
+                self._category_palette(old_series, self.adata.uns.get(palette_key, []))
+                if old_series is not None
+                else {}
+            )
+            updated_palette = self._category_palette(series, [])
+            updated_palette.update(previous_palette)
+            if color is not None:
+                updated_palette[str(value)] = color
+            palette = [updated_palette[label] for label in self._category_labels(series)]
+
+        config = self._configuration()
+        if activate:
+            config["color_by"] = column
+        # Build the entire outgoing plot before mutating AnnData, including
+        # coordinate validation, so a rejected request leaves annotations intact.
+        payload = (
+            self._prepare_payload(config, color_series=series, color_palette=palette)
+            if config["color_by"] == column
+            else None
+        )
         self.adata.obs[column] = series
-        self.obs_columns = [name for name in self.adata.obs.columns if isinstance(name, str)]
-        if self.color_by == column:
-            self._publish_payload(self._prepare_payload(self._configuration()))
-        return len(self.selected_cells)
+        if palette is not None:
+            self.adata.uns[palette_key] = palette
+        self._updating = True
+        try:
+            with self.hold_sync():
+                self._clear_category_selection()
+                self.obs_columns = [
+                    name for name in self.adata.obs.columns if isinstance(name, str)
+                ]
+                if activate:
+                    self.color_by = column
+                if payload is not None:
+                    self._publish_payload(payload)
+        finally:
+            self._updating = False
+        return len(cell_ids)
 
     def get_view_state(self) -> dict:
         """Return a compact JSON-ready plot/selection snapshot.
@@ -409,6 +668,7 @@ class Scatterplot(CelldegaWidget):
             "x_scale": self.x_scale,
             "y_scale": self.y_scale,
             "selected_cells": self.get_selection(),
+            "selected_categories": list(self.selected_categories),
             "n_cells": self.adata.n_obs,
             "revision": self.plot_meta["revision"],
         }
@@ -427,6 +687,7 @@ class Scatterplot(CelldegaWidget):
                 "set_axes",
                 "set_scale",
                 "select_cells",
+                "select_categories",
                 "highlight_cells",
                 "get_selection",
                 "annotate_selection",
@@ -434,8 +695,9 @@ class Scatterplot(CelldegaWidget):
                 "request_raster",
                 "close",
             ],
-            "live_kernel_required": "Switching gene axes and coordinate views",
-            "annotation_behavior": "annotate_selection explicitly writes adata.obs in memory",
+            "live_kernel_required": "Switching gene axes and coordinate views; writing cell labels",
+            "annotation_behavior": "annotate_selection and explicit browser label requests write adata.obs in memory",
+            "annotation_request_fields": ["request_id", "column", "value", "cell_ids", "color"],
         }
 
     def request_raster(self) -> int:

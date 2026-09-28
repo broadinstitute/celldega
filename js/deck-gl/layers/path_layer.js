@@ -1,6 +1,7 @@
 import { PathLayer } from 'deck.gl';
 
-import { update_selected_cats, update_cat } from '../../global_variables/cat';
+import { select_category, update_cat } from '../../global_variables/cat';
+import { numeric_attribute_color } from '../../global_variables/cell_attributes';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
@@ -10,6 +11,10 @@ import { is_cluster_color_mode } from './cell_color';
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
   const inst_cat = cats.dict_cell_cats[inst_cell_id];
+
+  if (is_cluster_color_mode(cats) && cats.attribute_numeric) {
+    return [...numeric_attribute_color(inst_cat, cats.numeric_domain), 255];
+  }
 
   let inst_color;
 
@@ -84,7 +89,7 @@ const path_layer_onclick = async (
   });
 
   update_cat(viz_state.cats, 'cluster');
-  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  select_category(viz_state.cats, inst_cat, viz_state.obs_store, Boolean(_d?.srcEvent?.shiftKey));
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 

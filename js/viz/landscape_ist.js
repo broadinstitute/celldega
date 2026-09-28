@@ -60,6 +60,7 @@ import {
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
+import { apply_cell_attribute } from '../global_variables/cell_attributes';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { options, set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
@@ -94,6 +95,7 @@ import {
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
+import { make_cell_attribute_control } from '../ui/cell_attribute_control';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
@@ -1050,6 +1052,40 @@ export const landscape_ist = async (
     layers_obj,
     viz_state
   );
+
+  const apply_attribute_choice = (attribute) => {
+    if (!apply_cell_attribute(viz_state, attribute)) return;
+    update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+    viz_state.obs_store.selected_cats.set([]);
+    viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
+    refresh_cell_layer();
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+      updateTriggers: { getColor: attribute },
+    });
+    refresh_layer(viz_state, layers_obj, 'path_layer');
+    attribute_control?.update();
+  };
+  const attribute_control = make_cell_attribute_control(viz_state, (attribute) => {
+    apply_attribute_choice(attribute);
+    if (viz_state.model?.set) {
+      viz_state.model.set('color_by', attribute);
+      viz_state.model.save_changes();
+    }
+  });
+  if (attribute_control) {
+    const bars = viz_state.containers.bar_cluster;
+    bars.parentElement.insertBefore(attribute_control.root, bars);
+    apply_attribute_choice(viz_state.model?.get?.('color_by') || viz_state.cats.inst_cell_attr);
+    const on_color_by = () => {
+      const attribute = viz_state.model.get('color_by') || viz_state.model.get('cluster_attr');
+      if (attribute !== viz_state.cats.inst_cell_attr) apply_attribute_choice(attribute);
+    };
+    viz_state.model?.on?.('change:color_by', on_color_by);
+    cleanup_callbacks.push(() => {
+      viz_state.model?.off?.('change:color_by', on_color_by);
+      attribute_control.dispose();
+    });
+  }
 
   // UI and Viz Container
   el.appendChild(ui_container);

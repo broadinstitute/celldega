@@ -4,8 +4,8 @@ import { ScatterplotLayer, PointCloudLayer } from 'deck.gl';
 import {
   set_cell_cats,
   set_dict_cell_cats,
-  update_selected_cats,
   update_cat,
+  select_category,
 } from '../../global_variables/cat';
 import {
   set_cell_names_array,
@@ -650,6 +650,7 @@ const cell_layer_onclick = async (
   }
 
   const inst_cat = viz_state.cats.cell_cats[sourceIndex];
+  if (viz_state.cats.attribute_numeric) return;
 
   update_cat(viz_state.cats, 'cluster');
 
@@ -659,7 +660,7 @@ const cell_layer_onclick = async (
     path_layer: false,
     trx_layer: false,
   });
-  update_selected_cats(viz_state.cats, [inst_cat], viz_state.obs_store);
+  select_category(viz_state.cats, inst_cat, viz_state.obs_store, Boolean(_d?.srcEvent?.shiftKey));
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 

@@ -15,6 +15,7 @@ Comprehensive tutorials that walk through complete workflows:
 
 Focused examples demonstrating specific features:
 
+- [Scatter, Clustergram, and Landscape — Pancreas](brief_notebooks/Scatter_Pancreas_Linked.ipynb) - Linked gene axes, polygon gates, and cell labels with Xenium pancreas AnnData
 - [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
 - [Atera Viz](brief_notebooks/Atera_viz.ipynb) - Linked Landscape and Clustergram visualization of a Xenium breast cancer dataset
 - [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view

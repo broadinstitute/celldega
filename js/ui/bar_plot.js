@@ -11,7 +11,7 @@ import {
   toggle_nbhd_cloud_cluster_selection,
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
-import { update_cat, update_selected_cats } from '../global_variables/cat';
+import { update_cat, update_selected_cats, select_category } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { toggle_slider } from '../ui/sliders';
@@ -91,7 +91,7 @@ export const bar_callback_cat = (
   });
 
   update_cat(_viz_state.cats, 'cluster');
-  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
+  select_category(_viz_state.cats, d.name, _viz_state.obs_store, Boolean(_event?.shiftKey));
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 
   // toggle gene bars based on reset_cat

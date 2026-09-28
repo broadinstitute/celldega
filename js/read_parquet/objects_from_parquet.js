@@ -33,7 +33,9 @@ export const objects_from_parquet = async (
       ? keyColumn.values.map((value) => String(value))
       : getRowKeyArray(table, keyCandidates);
   const valueFields = fields.filter((f) => f !== keyColumn.name);
-  const valueCols = valueFields.map((f) => table.getChild(f).toArray());
+  // Vector iteration consults Arrow's validity bitmap; numeric toArray() would
+  // turn null entries into zero and incorrectly color missing annotations.
+  const valueCols = valueFields.map((f) => Array.from(table.getChild(f)));
 
   const result = {};
   for (let i = 0; i < table.numRows; i++) {

@@ -1,3 +1,5 @@
+import { numeric_attribute_color } from '../../global_variables/cell_attributes';
+
 export const CELL_COLOR_SIZE = 4;
 
 export const is_cluster_color_mode = (cats) =>
@@ -70,6 +72,7 @@ export const isCellVisible = (context, index) => {
 
   const instCat = cats.cell_cats?.[index];
   if (isClusterMode) {
+    if (cats.attribute_numeric) return true;
     return (
       Array.isArray(colorDict[String(instCat)]) &&
       (selectedCats.length === 0 || isSelectedCat(selectedCats, instCat))
@@ -104,6 +107,11 @@ export const writeCellColor = (context, index, colors, offset) => {
 
   if (isClusterMode) {
     const instCat = cats.cell_cats?.[index];
+    if (cats.attribute_numeric) {
+      const color = numeric_attribute_color(instCat, cats.numeric_domain);
+      setColor(colors, offset, color[0], color[1], color[2], 255);
+      return;
+    }
     const instColor = colorDict[String(instCat)];
     if (Array.isArray(instColor)) {
       setColor(colors, offset, instColor[0], instColor[1], instColor[2], 255);

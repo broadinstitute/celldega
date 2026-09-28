@@ -1,4 +1,9 @@
 import {
+  DrawPolygonMode,
+  EditableGeoJsonLayer,
+  ViewMode,
+} from '@deck.gl-community/editable-layers';
+import {
   COORDINATE_SYSTEM,
   Deck,
   OrthographicView,
@@ -8,10 +13,20 @@ import {
 import { create_obs_store } from '../obs_store/obs_store';
 import { arrayBufferToArrowTable } from '../read_parquet/arrayBufferToArrowTable';
 import { getTableColumnArray } from '../read_parquet/table_accessors';
+import { create_scatter_category_panel } from '../scatterplot/category_panel';
 import {
   cellsInPolygon,
   prepareScatterplot,
 } from '../scatterplot/scatterplot_data';
+import {
+  create_button_row,
+  create_color_input,
+  create_dialog_container,
+  create_dialog_header,
+  create_labeled_input,
+  create_text_input,
+  position_dialog,
+} from '../ui/editor_common';
 
 const svgNamespace = 'http://www.w3.org/2000/svg';
 
@@ -41,7 +56,7 @@ const formatTick = (value) => {
 };
 
 /** A standalone, instance-scoped cell scatterplot with observable render state. */
-export const render_scatterplot = ({ model, el }) => {
+export const render_scatter = ({ model, el }) => {
   const store = create_obs_store();
   const listeners = [];
   const subscriptions = [];
@@ -77,15 +92,21 @@ export const render_scatterplot = ({ model, el }) => {
     background: '#fff',
     border: '1px solid #d3d3d3',
     boxSizing: 'border-box',
+    position: 'relative',
   });
-  root.className = 'celldega-scatterplot';
+  root.className = 'celldega-scatter';
+  root.tabIndex = -1;
   const toolbar = makeElement('div', {
     display: 'flex',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: '6px',
-    alignItems: 'end',
+    alignItems: 'start',
     padding: '5px',
     borderBottom: '1px solid #d3d3d3',
+    height: '110px',
+    flexShrink: '0',
+    overflowX: 'auto',
+    boxSizing: 'border-box',
   });
   const frame = makeElement('div', {
     flex: '1 1 auto',
@@ -213,27 +234,98 @@ export const render_scatterplot = ({ model, el }) => {
     ]);
   });
   const gateButton = makeElement('button', {}, 'GATE');
+  const sketchButton = makeElement('button', {}, 'SKTCH');
+  const labelButton = makeElement('button', {}, 'LABEL');
   const clearButton = makeElement('button', {}, 'CLEAR');
   const resetButton = makeElement('button', {}, 'RESET');
-  [gateButton, clearButton, resetButton].forEach((button) => {
-    Object.assign(button.style, {
-      height: '24px',
-      border: 'none',
-      padding: '1px 2px',
-      background: 'none',
-      color: 'blue',
-      fontSize: '11px',
-      fontWeight: '700',
-      fontFamily: 'inherit',
-      userSelect: 'none',
-      cursor: 'pointer',
-    });
-    button.type = 'button';
-    toolbar.appendChild(button);
-  });
+  [gateButton, sketchButton, labelButton, clearButton, resetButton].forEach(
+    (button) => {
+      Object.assign(button.style, {
+        height: '24px',
+        border: 'none',
+        padding: '1px 2px',
+        background: 'none',
+        color: 'blue',
+        fontSize: '11px',
+        fontWeight: '700',
+        fontFamily: 'inherit',
+        userSelect: 'none',
+        cursor: 'pointer',
+      });
+      button.type = 'button';
+      toolbar.appendChild(button);
+    }
+  );
   gateButton.title =
     'Drag a rectangle to select cells; hold Shift to add cells';
   clearButton.title = 'Clear cell selection';
+  sketchButton.title =
+    'Click polygon vertices; click the first point to finish. Escape cancels.';
+  labelButton.title = 'Add an annotation to the selected cells';
+  const categoryPanel = create_scatter_category_panel({
+    onSelect: selectCategory,
+  });
+  const controlColumn = (items) => {
+    const column = makeElement('div', {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
+      flexShrink: '0',
+    });
+    items.forEach((item) => column.appendChild(item));
+    return column;
+  };
+  const actions = controlColumn([
+    gateButton,
+    sketchButton,
+    labelButton,
+    clearButton,
+    resetButton,
+  ]);
+  actions.style.gap = '0';
+  [gateButton, sketchButton, labelButton, clearButton, resetButton].forEach(
+    (button) => {
+      button.style.height = '18px';
+      button.style.textAlign = 'left';
+    }
+  );
+  toolbar.replaceChildren(
+    controlColumn([controls.view.parentElement, controls.layer.parentElement]),
+    controlColumn([controls.x.parentElement, controls.x_scale.parentElement]),
+    controlColumn([controls.y.parentElement, controls.y_scale.parentElement]),
+    controlColumn([controls.color_by.parentElement, categoryPanel.element]),
+    actions
+  );
+
+  const labelDialog = create_dialog_container();
+  labelDialog.setAttribute('role', 'dialog');
+  labelDialog.setAttribute('aria-label', 'Label cells');
+  const { header, close_button: closeLabelButton } =
+    create_dialog_header('Label cells');
+  const labelSummary = makeElement('div', {
+    marginBottom: '8px',
+    color: '#47515b',
+  });
+  const columnInput = create_text_input('Observation column');
+  const valueInput = create_text_input('Cell label');
+  const colorInput = create_color_input('#3b82f6');
+  columnInput.setAttribute('aria-label', 'Annotation column');
+  valueInput.setAttribute('aria-label', 'Annotation value');
+  colorInput.setAttribute('aria-label', 'Annotation color');
+  const {
+    button_row: labelActions,
+    apply_button: applyLabelButton,
+    cancel_button: cancelLabelButton,
+  } = create_button_row();
+  labelDialog.append(
+    header,
+    labelSummary,
+    create_labeled_input('Column', columnInput),
+    create_labeled_input('Label', valueInput),
+    create_labeled_input('Color', colorInput),
+    labelActions
+  );
+  root.appendChild(labelDialog);
 
   store.scatterplot_state.set({
     rows: [],
@@ -243,12 +335,109 @@ export const render_scatterplot = ({ model, el }) => {
     size: { width: 500, height: 400 },
     viewState: { target: [0, 0, 0], zoom: 7 },
     gateMode: false,
+    sketchMode: false,
+    sketch: { type: 'FeatureCollection', features: [] },
+    labelDraft: null,
+    annotationMessage: '',
+    pendingAnnotation: null,
     drag: null,
     loading: false,
     error: '',
     animating: false,
   });
   store.selected_cells.set(model.get('selected_cells') || []);
+  store.selected_cats.set(model.get('selected_categories') || []);
+
+  function selectCategory(name, additive) {
+    const selected = store.selected_cats.get();
+    const categories = additive
+      ? selected.includes(name)
+        ? selected.filter((value) => value !== name)
+        : [...selected, name]
+      : selected.length === 1 && selected[0] === name
+        ? []
+        : [name];
+    store.selected_cats.set(categories);
+    model.set('selected_categories', categories);
+    const selectedSet = new Set(categories);
+    // Category links include all cells, including those outside the current view.
+    selectCells(
+      getState()
+        .rows.filter((row) => selectedSet.has(String(row.label ?? 'N.A.')))
+        .map((row) => row.cell_id)
+    );
+  }
+
+  function clearSketch() {
+    return {
+      sketchMode: false,
+      sketch: { type: 'FeatureCollection', features: [] },
+      drag: null,
+    };
+  }
+
+  function onSketchEdit({ updatedData, editType }) {
+    const state = getState();
+    if (disposed || !state.sketchMode || state.loading || state.animating)
+      return;
+    if (editType !== 'addFeature') return;
+    const feature = updatedData.features[updatedData.features.length - 1];
+    if (feature?.geometry?.type !== 'Polygon') return;
+    const polygon = feature.geometry.coordinates[0];
+    setState({ sketch: updatedData, sketchMode: false });
+    selectCells(cellsInPolygon(state.prepared.points, polygon));
+  }
+
+  function openLabelDialog() {
+    if (getState().pendingAnnotation || !store.selected_cells.get().length)
+      return;
+    const draft = {
+      cell_ids: [...store.selected_cells.get()],
+      column: 'manual_gate',
+      value: '',
+      color: '#3b82f6',
+    };
+    columnInput.value = draft.column;
+    valueInput.value = draft.value;
+    colorInput.value = draft.color;
+    setState({
+      labelDraft: draft,
+      annotationMessage: '',
+      sketchMode: false,
+      gateMode: false,
+    });
+    position_dialog(labelDialog, root.getBoundingClientRect());
+    valueInput.focus();
+  }
+
+  function closeLabelDialog() {
+    setState({ labelDraft: null });
+    labelButton.focus();
+  }
+
+  function submitLabel() {
+    const { labelDraft, pendingAnnotation } = getState();
+    if (!labelDraft || pendingAnnotation) return;
+    const column = labelDraft.column.trim();
+    const value = labelDraft.value.trim();
+    if (!column || !value) return;
+    const request_id =
+      globalThis.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setState({
+      pendingAnnotation: request_id,
+      labelDraft: null,
+      annotationMessage: 'Saving labels…',
+    });
+    model.set('annotation_request', {
+      request_id,
+      column,
+      value,
+      color: labelDraft.color,
+      cell_ids: labelDraft.cell_ids,
+    });
+    model.save_changes();
+  }
 
   function fitView() {
     const { size } = getState();
@@ -264,6 +453,7 @@ export const render_scatterplot = ({ model, el }) => {
     const selected = [
       ...new Set(additive ? [...store.selected_cells.get(), ...ids] : ids),
     ];
+    clearMismatchedCategories(selected);
     store.selected_cells.set(selected);
     model.set('selected_cells', selected);
     model.set('click_info', {
@@ -271,6 +461,21 @@ export const render_scatterplot = ({ model, el }) => {
       value: { cell_ids: selected },
     });
     model.save_changes();
+  }
+
+  function clearMismatchedCategories(ids) {
+    const categories = store.selected_cats.get();
+    if (!categories.length || getState().loading) return;
+    const categorySet = new Set(categories);
+    const expected = new Set(
+      getState()
+        .rows.filter((row) => categorySet.has(String(row.label ?? 'N.A.')))
+        .map((row) => row.cell_id)
+    );
+    if (expected.size === ids.length && ids.every((id) => expected.has(id)))
+      return;
+    store.selected_cats.set([]);
+    model.set('selected_categories', []);
   }
 
   function drawAxes() {
@@ -355,11 +560,28 @@ export const render_scatterplot = ({ model, el }) => {
     const state = getState();
     const selected = new Set(store.selected_cells.get());
     const selectionCount = selected.size;
+    categoryPanel.update({
+      points: state.prepared.points,
+      viewState: state.viewState,
+      size: state.size,
+      meta: { ...state.meta, color_by: state.settings.color_by },
+      selectedCategories: store.selected_cats.get(),
+      loading: state.loading || state.animating,
+    });
     gateOverlay.style.display =
       state.gateMode && !state.animating && !state.loading ? 'block' : 'none';
     gateButton.setAttribute('aria-pressed', String(state.gateMode));
     gateButton.disabled =
       state.loading || state.animating || !state.prepared.points.length;
+    sketchButton.disabled = gateButton.disabled;
+    sketchButton.setAttribute('aria-pressed', String(state.sketchMode));
+    sketchButton.style.color = sketchButton.disabled
+      ? 'gray'
+      : state.sketchMode
+        ? 'blue'
+        : 'gray';
+    labelButton.disabled = !selectionCount || Boolean(state.pendingAnnotation);
+    labelButton.style.color = labelButton.disabled ? 'gray' : 'blue';
     clearButton.disabled = !selectionCount;
     gateButton.style.color = gateButton.disabled
       ? 'gray'
@@ -372,15 +594,23 @@ export const render_scatterplot = ({ model, el }) => {
       : '';
     const modeStatus = state.animating
       ? ' · Animating…'
-      : state.gateMode
-        ? ' · Drag to gate; Shift adds cells'
-        : ' · Scroll to zoom; drag to pan; Shift-click adds cells';
+      : state.sketchMode
+        ? ' · Click vertices, then the first point to finish; Escape cancels'
+        : state.gateMode
+          ? ' · Drag to gate; Shift adds cells'
+          : ' · Scroll to zoom; drag to pan; Shift-click adds cells';
     footer.textContent =
       state.error ||
       state.renderError ||
       (state.loading
         ? 'Loading coordinates…'
-        : `${state.prepared.points.length.toLocaleString()} cells · ${selectionCount.toLocaleString()} selected${omittedStatus}${modeStatus}`);
+        : `${state.prepared.points.length.toLocaleString()} cells · ${selectionCount.toLocaleString()} selected${omittedStatus}${modeStatus}${state.annotationMessage ? ` · ${state.annotationMessage}` : ''}`);
+    labelDialog.style.display = state.labelDraft ? 'block' : 'none';
+    if (state.labelDraft) {
+      labelSummary.textContent = `Label ${state.labelDraft.cell_ids.length.toLocaleString()} cells`;
+      applyLabelButton.disabled =
+        !state.labelDraft.column.trim() || !state.labelDraft.value.trim();
+    }
     if (state.drag) {
       const { start, end } = state.drag;
       Object.assign(gateRect.style, {
@@ -401,16 +631,18 @@ export const render_scatterplot = ({ model, el }) => {
       height: state.size.height,
       viewState: state.viewState,
       controller: {
-        dragPan: !state.gateMode,
-        scrollZoom: true,
-        doubleClickZoom: true,
+        dragPan: !state.gateMode && !state.sketchMode,
+        scrollZoom: !state.sketchMode,
+        doubleClickZoom: !state.sketchMode,
+        touchZoom: !state.sketchMode,
+        keyboard: !state.sketchMode,
       },
       layers: [
         new ScatterplotLayer({
           id: 'scatterplot-cells',
           data: state.prepared.points,
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          pickable: !state.loading && !state.animating,
+          pickable: !state.loading && !state.animating && !state.sketchMode,
           getPosition: (point) => point.position,
           getRadius: Number(model.get('point_size') ?? 3),
           radiusUnits: 'pixels',
@@ -431,6 +663,26 @@ export const render_scatterplot = ({ model, el }) => {
           transitions: { getPosition: duration },
           parameters: { depthWriteEnabled: false },
         }),
+        (state.sketchMode || state.sketch.features.length > 0) &&
+          new EditableGeoJsonLayer({
+            id: 'scatter-sketch',
+            data: state.sketch,
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            selectedFeatureIndexes: [],
+            mode: state.sketchMode ? DrawPolygonMode : ViewMode,
+            modeConfig: { preventOverlappingLines: true },
+            pickable: state.sketchMode,
+            filled: true,
+            getFillColor: [47, 116, 255, 25],
+            getLineColor: [47, 116, 255, 220],
+            getLineWidth: 1,
+            lineWidthUnits: 'pixels',
+            lineWidthMinPixels: 1,
+            editHandlePointRadiusUnits: 'pixels',
+            getEditHandlePointRadius: 4,
+            getEditHandlePointColor: [47, 116, 255, 255],
+            onEdit: onSketchEdit,
+          }),
       ],
     });
   }
@@ -452,7 +704,7 @@ export const render_scatterplot = ({ model, el }) => {
         (point, index) => point.id === state.prepared.points[index].id
       ) &&
       duration > 0;
-    setState({ prepared, animating, drag: null });
+    setState({ prepared, animating, ...clearSketch() });
     if (animating)
       animationTimer = setTimeout(
         () => setState({ animating: false }),
@@ -475,7 +727,25 @@ export const render_scatterplot = ({ model, el }) => {
       control.disabled = settings.view !== 'genes';
     });
     controls.layer.disabled = settings.view !== 'genes';
-    setState({ settings });
+    const colorChange =
+      previous.color_by !== undefined &&
+      previous.color_by !== settings.color_by;
+    if (colorChange) {
+      store.selected_cats.set([]);
+      if ((model.get('selected_categories') || []).length)
+        model.set('selected_categories', []);
+    }
+    const coordinateChange = ['view', 'x', 'y', 'layer'].some(
+      (key) => previous[key] !== undefined && previous[key] !== settings[key]
+    );
+    const scaleChange =
+      previous.x_scale !== settings.x_scale ||
+      previous.y_scale !== settings.y_scale;
+    setState({
+      settings,
+      ...(coordinateChange || colorChange ? { loading: true } : {}),
+      ...(coordinateChange || scaleChange ? clearSketch() : {}),
+    });
     if (
       previous.x_scale !== settings.x_scale ||
       previous.y_scale !== settings.y_scale
@@ -596,9 +866,48 @@ export const render_scatterplot = ({ model, el }) => {
     });
   });
   on(gateButton, 'click', () =>
-    setState({ gateMode: !getState().gateMode, drag: null })
+    setState({ gateMode: !getState().gateMode, ...clearSketch() })
   );
-  on(clearButton, 'click', () => selectCells([]));
+  on(sketchButton, 'click', () => {
+    const enabled = !getState().sketchMode;
+    setState({ ...clearSketch(), sketchMode: enabled, gateMode: false });
+    root.focus({ preventScroll: true });
+  });
+  on(labelButton, 'click', openLabelDialog);
+  on(closeLabelButton, 'click', closeLabelDialog);
+  on(cancelLabelButton, 'click', closeLabelDialog);
+  on(applyLabelButton, 'click', submitLabel);
+  [
+    [columnInput, 'column'],
+    [valueInput, 'value'],
+    [colorInput, 'color'],
+  ].forEach(([input, key]) => {
+    on(input, 'input', () => {
+      if (getState().labelDraft)
+        setState({
+          labelDraft: { ...getState().labelDraft, [key]: input.value },
+        });
+    });
+    input.style.boxSizing = 'border-box';
+  });
+  on(root, 'keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (
+      !getState().sketchMode &&
+      !getState().gateMode &&
+      !getState().labelDraft
+    )
+      return;
+    event.preventDefault();
+    event.stopPropagation();
+    setState({ ...clearSketch(), gateMode: false, labelDraft: null });
+  });
+  on(clearButton, 'click', () => {
+    setState(clearSketch());
+    store.selected_cats.set([]);
+    model.set('selected_categories', []);
+    selectCells([]);
+  });
   on(resetButton, 'click', fitView);
   const localPoint = (event) => {
     const rect = gateOverlay.getBoundingClientRect();
@@ -647,9 +956,28 @@ export const render_scatterplot = ({ model, el }) => {
   // Metadata revisions also change when two selected genes have identical
   // coordinate bytes, so each revision must refresh labels and invalidate parses.
   watch('plot_meta', loadPoints);
-  watch('selected_cells', () =>
-    store.selected_cells.set(model.get('selected_cells') || [])
+  watch('selected_cells', () => {
+    const selected = model.get('selected_cells') || [];
+    clearMismatchedCategories(selected);
+    store.selected_cells.set(selected);
+  });
+  watch('selected_categories', () =>
+    store.selected_cats.set(model.get('selected_categories') || [])
   );
+  watch('annotation_result', () => {
+    const result = model.get('annotation_result') || {};
+    if (
+      !getState().pendingAnnotation ||
+      result.request_id !== getState().pendingAnnotation
+    )
+      return;
+    setState({
+      pendingAnnotation: null,
+      annotationMessage: result.ok
+        ? `Labeled ${result.count} cells: ${result.column} = ${result.value}`
+        : `Unable to label cells: ${result.error || 'Unknown error'}`,
+    });
+  });
   ['width', 'height'].forEach((key) => watch(key, resize));
   ['point_size', 'animation_duration'].forEach((key) => watch(key, draw));
   watch('raster_request', () => {
@@ -671,12 +999,14 @@ export const render_scatterplot = ({ model, el }) => {
       onClick: (info, event) => {
         if (
           !info.object ||
+          typeof info.object.id !== 'string' ||
           getState().gateMode ||
+          getState().sketchMode ||
           getState().animating ||
           getState().loading
         )
           return;
-        const id = info.object.id;
+        const { id } = info.object;
         if (event?.srcEvent?.shiftKey) {
           const current = store.selected_cells.get();
           selectCells(
@@ -687,16 +1017,26 @@ export const render_scatterplot = ({ model, el }) => {
         } else selectCells([id]);
       },
       onHover: ({ object, x, y }) => {
+        const isCell =
+          typeof object?.rawX === 'number' && typeof object?.rawY === 'number';
         tooltip.style.display =
-          object && !getState().gateMode ? 'block' : 'none';
-        if (!object) return;
-        const meta = getState().meta;
+          isCell && !getState().gateMode && !getState().sketchMode
+            ? 'block'
+            : 'none';
+        if (!isCell) return;
+        const { meta } = getState();
         tooltip.textContent = `${object.id}${object.label ? ` · ${object.label}` : ''}\n${meta.x_label || 'X'}: ${formatTick(object.rawX)}\n${meta.y_label || 'Y'}: ${formatTick(object.rawY)}`;
         tooltip.style.left = `${Math.min(x + 76, Math.max(0, getState().size.width - 130))}px`;
         tooltip.style.top = `${y + 24}px`;
       },
       onAfterRender: () => {
-        if (!rasterPending || disposed) return;
+        if (
+          !rasterPending ||
+          disposed ||
+          getState().loading ||
+          getState().animating
+        )
+          return;
         rasterPending = false;
         try {
           model.set('raster_png', canvas.toDataURL('image/png').split(',')[1]);
@@ -704,6 +1044,7 @@ export const render_scatterplot = ({ model, el }) => {
             ...getState().viewState,
             ...getState().settings,
             ...getState().meta,
+            raster_request: model.get('raster_request'),
           });
           model.save_changes();
         } catch (error) {
@@ -724,6 +1065,7 @@ export const render_scatterplot = ({ model, el }) => {
   subscriptions.push(
     store.selected_cells.subscribe(draw, { immediate: false })
   );
+  subscriptions.push(store.selected_cats.subscribe(draw, { immediate: false }));
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(plot);
@@ -741,6 +1083,7 @@ export const render_scatterplot = ({ model, el }) => {
       listeners.forEach(([event, handler]) => model.off(event, handler));
       subscriptions.forEach((unsubscribe) => unsubscribe());
       domListeners.forEach((remove) => remove());
+      categoryPanel.finalize();
       deck?.finalize();
       deck = null;
       root.remove();

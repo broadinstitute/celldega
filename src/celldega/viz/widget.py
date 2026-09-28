@@ -324,6 +324,12 @@ class Landscape(CelldegaWidget):
     # obs column driving the cluster color legend/meta_cluster_parquet key field
     cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
 
+    # Active observation attribute; empty uses cluster_attr. Types/palettes
+    # preserve numeric missing values and categorical dtypes in the browser.
+    color_by = traitlets.Unicode("").tag(sync=True)
+    cell_attribute_types = traitlets.Dict(default_value={}).tag(sync=True)
+    cell_attribute_colors = traitlets.Dict(default_value={}).tag(sync=True)
+
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
     # Named alignment variant for point-cloud technology. When set, cell
@@ -366,6 +372,8 @@ class Landscape(CelldegaWidget):
         cluster_attr = kwargs.pop("cluster_attr", "leiden")
         if cluster_attr not in cell_attr:
             cell_attr.append(cluster_attr)
+        if kwargs.get("color_by") and kwargs["color_by"] not in cell_attr:
+            cell_attr.append(kwargs["color_by"])
 
         nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
 
@@ -600,6 +608,26 @@ class Landscape(CelldegaWidget):
             parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
         if pq_centroids is not None:
             parquet_traits["centroids_parquet"] = traitlets.Bytes(pq_centroids).tag(sync=True)
+
+        if meta_cell_df is not None:
+            attribute_types = {}
+            attribute_colors = {}
+            for attribute in meta_cell_df.columns:
+                if attribute == "color":
+                    continue
+                series = meta_cell_df[attribute]
+                numeric = pd.api.types.is_numeric_dtype(series.dtype) and not pd.api.types.is_bool_dtype(series.dtype)
+                attribute_types[str(attribute)] = "numeric" if numeric else "categorical"
+                if numeric:
+                    continue
+                categories = series.cat.categories if isinstance(series.dtype, pd.CategoricalDtype) else sorted(series.dropna().unique(), key=str)
+                stored = adata.uns.get(f"{attribute}_colors", []) if adata is not None else []
+                attribute_colors[str(attribute)] = {
+                    str(category): str(stored[index]) if index < len(stored) else _hsv_to_hex(index / max(len(categories), 1))
+                    for index, category in enumerate(categories)
+                }
+            kwargs.setdefault("cell_attribute_types", attribute_types)
+            kwargs.setdefault("cell_attribute_colors", attribute_colors)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)

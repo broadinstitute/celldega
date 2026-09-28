@@ -70,6 +70,7 @@ import {
 } from '../deck-gl/matrix/matrix_layers';
 import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip';
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change';
+import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { focus_matrix_row } from '../deck-gl/matrix/row_search';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 import { ini_zoom_data } from '../deck-gl/matrix/zoom';
@@ -103,6 +104,12 @@ import {
   buildRowAxisSlice,
   buildRowColPairSlice,
 } from '../matrix/matrix_axis_slice';
+import {
+  ini_rank_views,
+  resolve_rank_view_level,
+  set_rank_view_state,
+  sync_rank_view_model,
+} from '../matrix/rank_views';
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
@@ -171,6 +178,18 @@ export const matrix_viz = async (
 
   set_row_label_data(network, viz_state);
   set_col_label_data(network, viz_state);
+
+  // Rank views need `mat.orders` and `linkage` in place (it captures them as the
+  // "all" stop), and has to run before `ini_dendro` so that opening at a reduced
+  // `rank_dim` builds every layer against the view's geometry from the first
+  // frame rather than snapping to it afterwards.
+  ini_rank_views(viz_state, network);
+  const initial_rank_level = resolve_rank_view_level(
+    viz_state,
+    model.get('rank_dim')
+  );
+  set_rank_view_state(viz_state, initial_rank_level);
+  sync_rank_view_model(viz_state, initial_rank_level);
 
   viz_state.cats = {};
   viz_state.cats.row_cat_data = [];
@@ -524,6 +543,22 @@ export const matrix_viz = async (
 
     viz_state.model.on('change:top_n_genes', () => {
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
+    });
+
+    viz_state.model.on('change:top_gene_percent', () => {
+      viz_state.top_gene_percent =
+        viz_state.model.get('top_gene_percent') || 10;
+    });
+
+    // Python-driven RANK view switch. `apply_rank_view` always echoes the
+    // resolved stop and syncs the control; unchanged geometry remains a no-op.
+    viz_state.model.on('change:rank_dim', () => {
+      apply_rank_view(
+        deck_mat,
+        layers_mat,
+        viz_state,
+        viz_state.model.get('rank_dim')
+      );
     });
 
     // Live body-mode switch. Crossing the composition boundary rebuilds the

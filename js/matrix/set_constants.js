@@ -296,9 +296,16 @@ export const set_mat_constants = (
   viz_state.click.type = null;
   viz_state.click.value = null;
 
+  // Upper bound and percentage-of-visible-rows share for the column-click gene
+  // set sent to enrichment (see resolve_top_gene_count in label_layers.js).
   viz_state.top_n_genes =
     (model && typeof model.get === 'function' && model.get('top_n_genes')) ||
     50;
+  viz_state.top_gene_percent =
+    (model &&
+      typeof model.get === 'function' &&
+      model.get('top_gene_percent')) ||
+    10;
 
   return viz_state;
 };

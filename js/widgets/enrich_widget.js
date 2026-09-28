@@ -16,6 +16,7 @@ import {
 
 export const render_enrich = async ({ model, el }) => {
   const store = create_enrich_store();
+  const subscriptions = [];
   store.available_libs.set(model.get('available_libs') || []);
   store.selected_lib.set(model.get('inst_lib') || 'CellMarker_2024');
 
@@ -245,19 +246,31 @@ export const render_enrich = async ({ model, el }) => {
     clearButton.style.cursor = genes.length ? 'pointer' : 'default';
   };
 
-  clearButton.addEventListener('click', () => {
-    if (!model.get('gene_list')?.length) return;
-
-    store.gene_of_interest.set('');
+  const clearTermSelection = () => {
     store.term_genes.set([]);
     store.selected_term.set('Select Term');
-    model.set('gene_list', []);
-    model.set('source_label', '');
-    model.set('focused_gene', '');
+
+    const currentGenes = model.get('term_genes') || [];
+    const currentTerm = model.get('selected_term') || 'Select Term';
+    if (!currentGenes.length && currentTerm === 'Select Term') return false;
+
     model.set('term_genes', []);
     model.set('selected_term', 'Select Term');
     model.save_changes();
-  });
+    return true;
+  };
+
+  const onClearClick = () => {
+    if (!model.get('gene_list')?.length) return;
+
+    store.gene_of_interest.set('');
+    clearTermSelection();
+    model.set('gene_list', []);
+    model.set('source_label', '');
+    model.set('focused_gene', '');
+    model.save_changes();
+  };
+  clearButton.addEventListener('click', onClearClick);
 
   const updateSelectOptions = () => {
     select.innerHTML = '';
@@ -270,42 +283,46 @@ export const render_enrich = async ({ model, el }) => {
     select.value = store.selected_lib.get();
   };
 
-  store.available_libs.subscribe(updateSelectOptions);
-  store.selected_lib.subscribe(
-    () => {
-      select.value = store.selected_lib.get();
-    },
-    { immediate: false }
+  subscriptions.push(store.available_libs.subscribe(updateSelectOptions));
+  subscriptions.push(
+    store.selected_lib.subscribe(
+      () => {
+        select.value = store.selected_lib.get();
+      },
+      { immediate: false }
+    )
   );
 
-  select.addEventListener('change', (e) => {
+  const onSelectChange = (e) => {
     store.selected_lib.set(e.target.value);
     model.set('inst_lib', e.target.value);
     model.save_changes();
-  });
+  };
+  select.addEventListener('change', onSelectChange);
 
-  model.on('change:available_libs', () => {
+  const onAvailableLibsChange = () => {
     store.available_libs.set(model.get('available_libs') || []);
-  });
-  model.on('change:inst_lib', () => {
-    store.selected_lib.set(model.get('inst_lib'));
-  });
+  };
 
-  store.term_genes.subscribe(
-    (tg) => {
-      if (paragraphElement) {
-        updateParagraphColors(paragraphElement, tg);
-      }
-    },
-    { immediate: false }
+  subscriptions.push(
+    store.term_genes.subscribe(
+      (tg) => {
+        if (paragraphElement) {
+          updateParagraphColors(paragraphElement, tg);
+        }
+      },
+      { immediate: false }
+    )
   );
 
-  store.gene_of_interest.subscribe(
-    (gene) => {
-      updateGeneInfo(gene, geneInfoHolder);
-      highlightGeneSelection(gene);
-    },
-    { immediate: false }
+  subscriptions.push(
+    store.gene_of_interest.subscribe(
+      (gene) => {
+        updateGeneInfo(gene, geneInfoHolder);
+        highlightGeneSelection(gene);
+      },
+      { immediate: false }
+    )
   );
 
   let updateRevision = 0;
@@ -319,6 +336,7 @@ export const render_enrich = async ({ model, el }) => {
     updateSourceRow();
 
     if (!genes.length) {
+      clearTermSelection();
       current_terms = [];
       barHolder.textContent = 'No genes provided.';
       paragraphHolder.textContent = 'Paragraph view';
@@ -345,6 +363,7 @@ export const render_enrich = async ({ model, el }) => {
           genes,
           background
         );
+        if (revision !== updateRevision) return;
         shortId = sId;
         data = await fetchEnrichment(userListId, lib);
         cache[cacheKey] = { data, shortId };
@@ -562,32 +581,70 @@ export const render_enrich = async ({ model, el }) => {
   };
 
   // Traitlet listeners
-  model.on('change:gene_list', update);
-  model.on('change:source_label', updateSourceRow);
-  model.on('change:inst_lib', update);
-  model.on('change:num_terms', update);
-  model.on('change:background_list', update);
-
-  model.on('change:focused_gene', () => {
+  const onInstLibChange = () => {
+    store.selected_lib.set(model.get('inst_lib'));
+    clearTermSelection();
+    update();
+  };
+  const onGeneListChange = () => {
+    clearTermSelection();
+    update();
+  };
+  const onNumTermsChange = () => {
+    clearTermSelection();
+    update();
+  };
+  const onBackgroundListChange = () => {
+    clearTermSelection();
+    update();
+  };
+  const onFocusedGeneChange = () => {
     const gene = model.get('focused_gene') || '';
     if (store.gene_of_interest.get() !== gene) {
       store.gene_of_interest.set(gene);
     }
     highlightGeneSelection(gene);
-  });
-
-  model.on('change:term_genes', () => {
+  };
+  const onTermGenesChange = () => {
     const incoming = model.get('term_genes') || [];
     store.term_genes.set(incoming);
     if (paragraphElement) {
       updateParagraphColors(paragraphElement, incoming);
     }
-  });
-
-  model.on('change:selected_term', () => {
+  };
+  const onSelectedTermChange = () => {
     const nextTerm = model.get('selected_term') || 'Select Term';
     store.selected_term.set(nextTerm);
-  });
+  };
 
-  await update();
+  const traitListeners = [
+    ['change:available_libs', onAvailableLibsChange],
+    ['change:gene_list', onGeneListChange],
+    ['change:source_label', updateSourceRow],
+    ['change:inst_lib', onInstLibChange],
+    ['change:num_terms', onNumTermsChange],
+    ['change:background_list', onBackgroundListChange],
+    ['change:focused_gene', onFocusedGeneChange],
+    ['change:term_genes', onTermGenesChange],
+    ['change:selected_term', onSelectedTermChange],
+  ];
+
+  traitListeners.forEach(([event, listener]) => model.on(event, listener));
+
+  // Start the first request without delaying registration of the cleanup
+  // callback. A widget finalized during a slow Enrichr request can then cancel
+  // the remaining work and release its listeners immediately.
+  update();
+
+  return () => {
+    // Invalidate any request already in flight before detaching the widget.
+    updateRevision += 1;
+    gene_hover_tooltip.hide();
+    gene_hover_tooltip.destroy();
+    subscriptions.forEach((unsubscribe) => unsubscribe?.());
+    traitListeners.forEach(([event, listener]) => model.off?.(event, listener));
+    clearButton.removeEventListener('click', onClearClick);
+    select.removeEventListener('change', onSelectChange);
+    container.remove();
+  };
 };

@@ -183,8 +183,12 @@ def _link_clustergram_to_enrich(
     _record_colors()
 
     def _set_gene_list(genes, source_label: str = "") -> None:
-        enrich.source_label = source_label if genes else ""
-        enrich.gene_list = list(genes) if genes else []
+        next_genes = list(genes) if genes else []
+        if next_genes != list(enrich.gene_list):
+            enrich.term_genes = []
+            enrich.selected_term = "Select Term"
+        enrich.source_label = source_label if next_genes else ""
+        enrich.gene_list = next_genes
 
     def _selection_source_label(click_type: str, click_value: dict) -> str:
         # "Clustergram" is implied — keep the source short: the column the top

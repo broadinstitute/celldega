@@ -1295,7 +1295,22 @@ class Clustergram(anywidget.AnyWidget):
     # ``selected_genes``, which *feeds* enrichment input — reusing it would
     # loop the linkage.
     highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
+    #: Upper bound on the gene set a column click sends to enrichment.
     top_n_genes = traitlets.Int(50).tag(sync=True)
+
+    #: Share of the *visible* rows a column click sends to enrichment, as a
+    #: percentage, capped by :attr:`top_n_genes`. Percentage rather than a flat
+    #: count because under a reduced :attr:`rank_dim` view a fixed "top 50"
+    #: can be the entire view, which enriches a gene set against itself. A
+    #: floor of 5 genes applies so very narrow views still say something.
+    top_gene_percent = traitlets.Float(10.0).tag(sync=True)
+
+    #: Active dimensionality view: the number of rows kept by the RANK slider.
+    #: ``0`` (default) means the full matrix. Set to one of the levels
+    #: precomputed by ``Matrix.clust(views=...)`` to open already reduced; the
+    #: front end snaps to the nearest available level and writes the applied
+    #: value back. Has no effect when the matrix carries no views.
+    rank_dim = traitlets.Int(0).tag(sync=True)
 
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)

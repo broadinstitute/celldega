@@ -166,16 +166,8 @@ def compute_marker_ranks(
     # absorbs Scanpy's uns side effects and keeps categorical coercion off the
     # caller's object.
     selected_layer = kwargs.get("layer")
-    layers = (
-        {selected_layer: adata.layers[selected_layer]}
-        if selected_layer is not None
-        else None
-    )
-    raw = (
-        {"X": adata.raw.X, "var": adata.raw.var.copy()}
-        if adata.raw is not None
-        else None
-    )
+    layers = {selected_layer: adata.layers[selected_layer]} if selected_layer is not None else None
+    raw = {"X": adata.raw.X, "var": adata.raw.var.copy()} if adata.raw is not None else None
     working = AnnData(
         X=adata.X,
         obs=pd.DataFrame(

@@ -245,6 +245,34 @@ export const landscape_ist = async (
   }
 
   const viz_state = {};
+  const cleanup_callbacks = [];
+  const pending_timeouts = new Set();
+  const pending_animation_frames = new Set();
+  let finalized = false;
+
+  const subscribe = (observable, callback, subscribe_options) => {
+    const unsubscribe = observable.subscribe(callback, subscribe_options);
+    cleanup_callbacks.push(unsubscribe);
+    return unsubscribe;
+  };
+
+  const schedule_timeout = (callback, delay) => {
+    const timeout_id = setTimeout(() => {
+      pending_timeouts.delete(timeout_id);
+      if (!finalized) callback();
+    }, delay);
+    pending_timeouts.add(timeout_id);
+    return timeout_id;
+  };
+
+  const schedule_animation_frame = (callback) => {
+    const frame_id = requestAnimationFrame(() => {
+      pending_animation_frames.delete(frame_id);
+      if (!finalized) callback();
+    });
+    pending_animation_frames.add(frame_id);
+    return frame_id;
+  };
 
   // DegaFiles manifest to fetch. Defaults to landscape_parameters.json (every
   // 2D technology); CellCloud/NeighborhoodCloud set it to their own filename.
@@ -540,7 +568,8 @@ export const landscape_ist = async (
   }
 
   if (viz_state.scale_bar) {
-    viz_state.obs_store.scale_bar_view_state.subscribe(
+    subscribe(
+      viz_state.obs_store.scale_bar_view_state,
       (viewState) => {
         if (viewState && viz_state.scale_bar?.update) {
           viz_state.scale_bar.update(viewState);
@@ -816,7 +845,8 @@ export const landscape_ist = async (
     edit_layer: true,
   });
 
-  viz_state.obs_store.selected_nbhds.subscribe(
+  subscribe(
+    viz_state.obs_store.selected_nbhds,
     (selected_nbhds) => {
       const selected_nbhds_name = selected_nbhds.join('-');
 
@@ -827,7 +857,8 @@ export const landscape_ist = async (
     { immediate: false }
   );
 
-  viz_state.obs_store.viz_nbhd_layer.subscribe(
+  subscribe(
+    viz_state.obs_store.viz_nbhd_layer,
     (visible) => {
       if (visible) {
         // set cell layer to not visible
@@ -882,7 +913,7 @@ export const landscape_ist = async (
     set_nbhd_cloud_shapes_layer_onclick(layers_obj, viz_state);
   }
 
-  viz_state.obs_store.deck_ready.subscribe((ready) => {
+  subscribe(viz_state.obs_store.deck_ready, (ready) => {
     if (ready) {
       const list = get_layers_list(
         viz_state.layers_obj,
@@ -893,7 +924,8 @@ export const landscape_ist = async (
     }
   });
 
-  viz_state.obs_store.viz_edit_layer.subscribe(
+  subscribe(
+    viz_state.obs_store.viz_edit_layer,
     (visible) => {
       update_edit_visitility(layers_obj, visible);
       if (visible) {
@@ -940,7 +972,7 @@ export const landscape_ist = async (
     { immediate: false }
   );
 
-  viz_state.obs_store.selected_cats.subscribe((selected_cats) => {
+  subscribe(viz_state.obs_store.selected_cats, (selected_cats) => {
     const selected_cats_name = selected_cats.join('-');
 
     refresh_cell_layer();
@@ -954,13 +986,13 @@ export const landscape_ist = async (
     });
   });
 
-  viz_state.obs_store.selected_cells.subscribe((selected_cells) => {
+  subscribe(viz_state.obs_store.selected_cells, (selected_cells) => {
     viz_state.highlighted_cells = new Set(selected_cells ?? []);
     viz_state.selection_token += 1;
     refresh_cell_layer();
   });
 
-  viz_state.obs_store.selected_genes.subscribe((selected_genes) => {
+  subscribe(viz_state.obs_store.selected_genes, (selected_genes) => {
     const selected_genes_name = selected_genes.join('-');
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-${selected_genes_name}`,
@@ -996,15 +1028,22 @@ export const landscape_ist = async (
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
   if (viz_state.model?.on) {
-    viz_state.model.on('change:update_trigger', () =>
-      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state)
-    );
-    viz_state.model.on('change:cell_clusters', () =>
-      update_cell_clusters(deck_ist, layers_obj, viz_state)
-    );
-    viz_state.model.on('change:selected_cells', () => {
+    const on_update_trigger = () =>
+      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+    const on_cell_clusters = () =>
+      update_cell_clusters(deck_ist, layers_obj, viz_state);
+    const on_selected_cells = () => {
       const cells = viz_state.model.get('selected_cells') || [];
       viz_state.obs_store.selected_cells.set(cells);
+    };
+
+    viz_state.model.on('change:update_trigger', on_update_trigger);
+    viz_state.model.on('change:cell_clusters', on_cell_clusters);
+    viz_state.model.on('change:selected_cells', on_selected_cells);
+    cleanup_callbacks.push(() => {
+      viz_state.model.off?.('change:update_trigger', on_update_trigger);
+      viz_state.model.off?.('change:cell_clusters', on_cell_clusters);
+      viz_state.model.off?.('change:selected_cells', on_selected_cells);
     });
   }
 
@@ -1039,7 +1078,8 @@ export const landscape_ist = async (
   const currentTechnology = viz_state.img.landscape_parameters.technology;
   const isChromium =
     currentTechnology === 'Chromium' || is_orbit_technology(currentTechnology);
-  viz_state.obs_store.landscape_view.subscribe(
+  subscribe(
+    viz_state.obs_store.landscape_view,
     (view) => {
       const isUmap = view === 'umap';
       viz_state.obs_store.umap_state.set(isUmap);
@@ -1102,7 +1142,7 @@ export const landscape_ist = async (
           trx_layer: true,
         });
 
-        setTimeout(() => {
+        schedule_timeout(() => {
           viz_state.obs_store.viz_background_layer.set(true);
           viz_state.obs_store.viz_image_layers.set(true);
         }, 3000);
@@ -1118,13 +1158,13 @@ export const landscape_ist = async (
   // near-instant, then reveal once it has settled. Done a frame after init so the
   // position buffer has been uploaded.
   if (viz_state.umap?.has_umap) {
-    requestAnimationFrame(() => {
+    schedule_animation_frame(() => {
       prime_cell_layer_transitions(layers_obj, viz_state);
       // Re-render through the canonical deck_check path (same as every other
       // layer refresh) rather than a raw setProps, so the image-layer visibility
       // managed on that path is preserved.
       refresh_layer(viz_state, layers_obj, 'cell_layer');
-      setTimeout(() => {
+      schedule_timeout(() => {
         reveal_cell_layer_after_prime(layers_obj, viz_state);
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }, 40);
@@ -1182,12 +1222,15 @@ export const landscape_ist = async (
         viz_state.row_group_readers?.cbg
       );
 
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
+      // deck_ready (the only general repaint signal) fires setProps only on a
+      // false→true transition of the all-layers-ready AND, so a true-only
+      // deck_check write is a no-op in steady state and the freshly fetched
+      // expression colors would never repaint (embedding apps like
+      // celldega-app hit this; the widget linkage has its own toggling path
+      // in update_ist_landscape_from_cgm). refresh_layer toggles false→true
+      // to force the transition, exactly like the widget gene path.
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      refresh_layer(viz_state, layers_obj, 'trx_layer');
 
       // Notify listeners
       callbacks.on_gene_select.forEach((cb) => cb(inst_gene));
@@ -1255,7 +1298,36 @@ export const landscape_ist = async (
     },
     update_layers: () => {},
     finalize: () => {
+      if (finalized) return;
+      finalized = true;
+
+      pending_timeouts.forEach((timeout_id) => clearTimeout(timeout_id));
+      pending_timeouts.clear();
+      pending_animation_frames.forEach((frame_id) =>
+        cancelAnimationFrame(frame_id)
+      );
+      pending_animation_frames.clear();
+
+      cleanup_callbacks.splice(0).forEach((cleanup) => cleanup?.());
+      viz_state.update_viz_image_layers?.dispose?.();
+
+      viz_state.cache?.cell?.clear?.();
+      viz_state.cache?.trx?.clear?.();
+
+      const readers = viz_state.row_group_readers || {};
+      [readers.cell, readers.trx, readers.cbg].forEach((reader) =>
+        reader?.dispose?.()
+      );
+      Object.values(readers.images || {}).forEach((reader) =>
+        reader?.dispose?.()
+      );
+
+      callbacks.on_gene_select.length = 0;
+      callbacks.on_cluster_select.length = 0;
+      callbacks.on_clusters_select.length = 0;
       deck_ist.finalize();
+      ui_container.remove();
+      root.remove();
     },
   };
 

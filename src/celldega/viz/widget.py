@@ -1,30 +1,28 @@
 """Widget module for interactive visualization components."""
 
+import asyncio
 from collections.abc import Sequence
 import colorsys
-from contextlib import suppress
 from copy import deepcopy
 import importlib.metadata
 import json
 import os
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Literal
 import urllib.error
 from urllib.parse import urlparse
 import uuid
 import warnings
 
-import anywidget
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.affinity import affine_transform
 import traitlets
 
+from ._widget_lifecycle import CelldegaWidget
 
-_clustergram_registry = {}  # maps names to widget instances
-_enrich_registry = {}  # maps names to widget instances
 
 _LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
@@ -219,7 +217,7 @@ def _coerce_nbhd_for_landscape(
     return gdf, meta_nbhd
 
 
-class Landscape(anywidget.AnyWidget):
+class Landscape(CelldegaWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget
     currently supports segmented spatial transcriptomics data (Xenium, MERSCOPE,
@@ -317,7 +315,6 @@ class Landscape(anywidget.AnyWidget):
 
     update_trigger = traitlets.Dict().tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
-
     # AnnData obs columns (cell attributes)
     cell_attr = traitlets.List(
         trait=traitlets.Unicode(),
@@ -677,12 +674,6 @@ class Landscape(anywidget.AnyWidget):
 
         self.nbhd = gdf
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
-
 
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
@@ -701,7 +692,7 @@ class ManualAttributeTrait(traitlets.Unicode):
         return super().validate(obj, str(value).strip())
 
 
-class Enrich(anywidget.AnyWidget):
+class Enrich(CelldegaWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
 
@@ -719,6 +710,9 @@ class Enrich(anywidget.AnyWidget):
     component = traitlets.Unicode("Enrich").tag(sync=True)
 
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
+    # Short provenance string shown above the Enrichr link (for example,
+    # ``"Clustergram row crop"``). Empty means the gene list was supplied directly.
+    source_label = traitlets.Unicode("").tag(sync=True)
     background_list = traitlets.List(allow_none=True, default_value=None).tag(sync=True)
 
     available_libs = traitlets.List(
@@ -747,20 +741,11 @@ class Enrich(anywidget.AnyWidget):
     focused_gene = traitlets.Unicode("").tag(sync=True)
 
     def __init__(self, **kwargs):
-        name = kwargs.pop("name", "default")
-        old_widget = _enrich_registry.get(name)
-        if old_widget:
-            with suppress(Exception):
-                old_widget.close()
-
-        kwargs["name"] = name
-        super().__init__(**kwargs)
-        _enrich_registry[name] = self
-
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
+        name = kwargs.pop("name", None)
+        registry_key = kwargs.pop("registry_key", None)
+        if name is None and registry_key is None:
+            registry_key = "default"
+        super().__init__(name=name, registry_key=registry_key, **kwargs)
 
 
 def _colors_from_adata(
@@ -913,7 +898,7 @@ def _composition_matrix_inputs(
     }
 
 
-class Yearbook(anywidget.AnyWidget):
+class Yearbook(CelldegaWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
 
@@ -1208,14 +1193,8 @@ class Yearbook(anywidget.AnyWidget):
         """Navigate to a specific page."""
         self.current_page = max(0, min(page, self.total_pages - 1))
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
 
-
-class Clustergram(anywidget.AnyWidget):
+class Clustergram(CelldegaWidget):
     """
     Minimal version of the Clustergram widget.
 
@@ -1223,9 +1202,29 @@ class Clustergram(anywidget.AnyWidget):
       manual_cat_config, etc.
     - Manual categories are treated as a simple JSON string.
     - All the old DataFrame-based manual_cat plumbing is removed.
+
+    Matrix slices (browser is source of truth for ``net_mat``)
+        On row/column label and matrix-cell clicks, the front-end first updates
+        ``click_info`` (interaction only), then emits :attr:`matrix_slice_request` so
+        the handler fills :attr:`matrix_slice_result` with axis or cell data
+        (``slice_kind``, ``entries``, ``matrix_convention``, etc.). Link another
+        widget's trait with ``jslink((cgm, "matrix_slice_result"), ...)`` to consume
+        slices without a Python round-trip.
+
+        Use :meth:`request_matrix_slice` to dispatch a non-blocking request, or
+        ``await`` :meth:`request_matrix_slice_async` when you need the response in
+        Python (both require a **live kernel**).
+
+        **jslink:** Only traits sync between models. For linked custom widgets, mirror
+        ``matrix_slice_result``; Python does not run in standalone exported HTML.
+
+    Python access to the same matrix
+        If constructed with ``matrix=``, use :meth:`matrix_dataframe` for the underlying
+        ``pandas.DataFrame``.
     """
 
     _esm = _WIDGET_ESM
+    _registry_namespace = "matrix"
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
@@ -1237,7 +1236,21 @@ class Clustergram(anywidget.AnyWidget):
     width = traitlets.Int(500).tag(sync=True)
     height = traitlets.Int(500).tag(sync=True)
 
+    # Multipliers for the row/column label text. Column labels default a
+    # little smaller so longer category names remain readable when zoomed in.
+    row_label_scale = traitlets.Float(1.0).tag(sync=True)
+    col_label_scale = traitlets.Float(0.8).tag(sync=True)
+
     click_info = traitlets.Dict({}).tag(sync=True)
+
+    #: Set by Python (or another front-end) to request ``{req_id, op, ...}``:
+    #: ``row``/``col`` use ``index``; ``cell`` uses ``row``/``col``; ``row_col``
+    #: uses ``row_index``/``col_index`` and optional ``max_entries``. The Matrix
+    #: front-end writes the slice into :attr:`matrix_slice_result`.
+    matrix_slice_request = traitlets.Dict(default_value={}).tag(sync=True)
+
+    #: Populated by the Matrix front-end in response to :attr:`matrix_slice_request`.
+    matrix_slice_result = traitlets.Dict(default_value={}).tag(sync=True)
 
     # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
     # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
@@ -1250,7 +1263,31 @@ class Clustergram(anywidget.AnyWidget):
 
     # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    # A gene selected in Enrich. The Clustergram front-end centers its matching
+    # row without replacing the current enrichment gene set.
+    focused_gene = traitlets.Unicode("").tag(sync=True)
+    # Genes to visually highlight (blue row labels), e.g. the members of an
+    # enriched term selected in a linked Enrich widget. Matched
+    # case-insensitively against row names. Deliberately separate from
+    # ``selected_genes``, which *feeds* enrichment input — reusing it would
+    # loop the linkage.
+    highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
+    #: Upper bound on the gene set a column click sends to enrichment.
     top_n_genes = traitlets.Int(50).tag(sync=True)
+
+    #: Share of the *visible* rows a column click sends to enrichment, as a
+    #: percentage, capped by :attr:`top_n_genes`. Percentage rather than a flat
+    #: count because under a reduced :attr:`rank_dim` view a fixed "top 50"
+    #: can be the entire view, which enriches a gene set against itself. A
+    #: floor of 5 genes applies so very narrow views still say something.
+    top_gene_percent = traitlets.Float(10.0).tag(sync=True)
+
+    #: Active dimensionality view: the number of rows kept by the RANK slider.
+    #: ``0`` (default) means the full matrix. Set to one of the levels
+    #: precomputed by ``Matrix.clust(views=...)`` to open already reduced; the
+    #: front end snaps to the nearest available level and writes the applied
+    #: value back. Has no effect when the matrix carries no views.
+    rank_dim = traitlets.Int(0).tag(sync=True)
 
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
@@ -1351,6 +1388,8 @@ class Clustergram(anywidget.AnyWidget):
             Deprecated path, kept only for backwards-compatibility.
         """
         pq_data = kwargs.pop("parquet_data", None)
+        explicit_name = kwargs.pop("name", None)
+        explicit_registry_key = kwargs.pop("registry_key", None)
 
         if "network" in kwargs:
             warnings.warn(
@@ -1409,12 +1448,10 @@ class Clustergram(anywidget.AnyWidget):
             }
             self.add_traits(**parquet_traits)
 
-        old_widget = _clustergram_registry.get(name)
-        if old_widget:
-            with suppress(Exception):
-                old_widget.close()
-
-        kwargs["name"] = name
+        if explicit_registry_key is not None:
+            name = explicit_registry_key
+        elif explicit_name is not None:
+            name = explicit_name
         kwargs["manual_row_cat"] = manual_row_flag
         kwargs["manual_col_cat"] = manual_col_flag
 
@@ -1423,8 +1460,7 @@ class Clustergram(anywidget.AnyWidget):
         if pq_data is not None and pq_data.get("dot_mat") and "viz_mode" not in kwargs:
             kwargs["viz_mode"] = "dotplot"
 
-        super().__init__(**kwargs)
-        _clustergram_registry[name] = self
+        super().__init__(name=name, **kwargs)
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user
@@ -1584,11 +1620,128 @@ class Clustergram(anywidget.AnyWidget):
             setattr(self, f"{axis}_manual_df", manual_df)
             setattr(self, f"{axis}_manual_colors_df", colors_df)
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
+    def request_matrix_slice(
+        self,
+        op: Literal["row", "col", "cell", "row_col"],
+        *,
+        index: int | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        row_index: int | None = None,
+        col_index: int | None = None,
+        max_entries: int | None = None,
+    ) -> str:
+        """
+        Request a slice from the browser Matrix and return its request ID.
+
+        This method deliberately does not wait for ``matrix_slice_result``: blocking
+        the executing kernel thread prevents inbound widget comm messages from being
+        processed. Observe ``matrix_slice_result`` using the returned ID, or use
+        ``await request_matrix_slice_async(...)`` in an async notebook cell.
+
+        Parameters
+        ----------
+        op
+            ``row`` or ``col``: pass ``index`` (matrix axis index). ``cell``: pass
+            ``row`` and ``col`` matrix indices. ``row_col``: pass ``row_index`` and
+            ``col_index`` to get both axis slices in one result; optional
+            ``max_entries`` (negative means all, subject to a browser-side cap).
+
+        Returns
+        -------
+        str
+            Request ID that will be included in :attr:`matrix_slice_result`.
+        """
+        if op not in ("row", "col", "cell", "row_col"):
+            raise ValueError("op must be 'row', 'col', 'cell', or 'row_col'")
+
+        req_id = str(uuid.uuid4())
+        payload: dict[str, Any] = {"req_id": req_id, "op": op}
+        if op in ("row", "col"):
+            if index is None:
+                raise ValueError("index is required when op is 'row' or 'col'")
+            payload["index"] = int(index)
+        elif op == "cell":
+            if row is None or col is None:
+                raise ValueError("row and col are required when op is 'cell'")
+            payload["row"] = int(row)
+            payload["col"] = int(col)
+        else:
+            if row_index is None or col_index is None:
+                raise ValueError("row_index and col_index are required when op is 'row_col'")
+            payload["row_index"] = int(row_index)
+            payload["col_index"] = int(col_index)
+        if max_entries is not None:
+            payload["max_entries"] = int(max_entries)
+
+        # Deliberately do not blank matrix_slice_result here: it is a shared
+        # mailbox that click-driven front-end slices also write, and clearing
+        # it would destroy a concurrent caller's not-yet-read response. The
+        # per-request UUID makes stale reads impossible for req_id-checking
+        # consumers.
+        self.matrix_slice_request = {}
+        self.matrix_slice_request = payload
+        return req_id
+
+    async def request_matrix_slice_async(
+        self,
+        op: Literal["row", "col", "cell", "row_col"],
+        *,
+        index: int | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        row_index: int | None = None,
+        col_index: int | None = None,
+        max_entries: int | None = None,
+        timeout: float = 5.0,
+    ) -> dict | None:
+        """Request a browser matrix slice and asynchronously wait for its result.
+
+        ``await`` this method from an async notebook cell (awaiting yields to the
+        kernel event loop so it can process the front-end comm message). Resolution
+        is observer-driven: a temporary ``matrix_slice_result`` observer fulfills
+        the wait the moment the response with this request's ID arrives, so the
+        response cannot be missed even if a click-driven slice overwrites the
+        shared ``matrix_slice_result`` mailbox immediately afterwards.
+        """
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        expected: dict[str, str] = {}
+
+        def _on_result(change: dict) -> None:
+            res = dict(change["new"] or {})
+            if res.get("req_id") == expected.get("req_id") and not future.done():
+                future.set_result(res)
+
+        self.observe(_on_result, names="matrix_slice_result")
+        try:
+            expected["req_id"] = self.request_matrix_slice(
+                op,
+                index=index,
+                row=row,
+                col=col,
+                row_index=row_index,
+                col_index=col_index,
+                max_entries=max_entries,
+            )
+            # A synchronous in-process responder can fill the result during
+            # request_matrix_slice, before `expected` was populated — check once.
+            res = dict(self.matrix_slice_result or {})
+            if res.get("req_id") == expected["req_id"]:
+                return res
+            return await asyncio.wait_for(future, timeout)
+        except TimeoutError:
+            return None
+        finally:
+            self.unobserve(_on_result, names="matrix_slice_result")
+
+    def matrix_dataframe(self) -> pd.DataFrame | None:
+        """Return a copy of the Matrix ``data`` when this widget was created with ``matrix=``."""
+        m = getattr(self, "_matrix", None)
+        if m is None:
+            return None
+        data = getattr(m, "data", None)
+        return data.copy() if data is not None else None
 
 
 class Composition(Clustergram):

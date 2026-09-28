@@ -51,6 +51,11 @@ const parseEntitySpec = (value) => {
   return { entity: 'custom', attr: 'name' };
 };
 
+const labelScale = (value, fallback) => {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale > 0 ? scale : fallback;
+};
+
 export const set_mat_constants = (
   model,
   network,
@@ -195,6 +200,10 @@ export const set_mat_constants = (
     viz_state.viz.base_font_size / viz_state.mat.num_rows;
   viz_state.viz.font_size.cols =
     viz_state.viz.base_font_size / viz_state.mat.num_cols;
+  viz_state.viz.label_scale = {
+    rows: labelScale(model.get('row_label_scale'), 1),
+    cols: labelScale(model.get('col_label_scale'), 0.8),
+  };
 
   viz_state.viz.col_region =
     (viz_state.viz.col_cat_height + viz_state.viz.extra_space.col) *
@@ -287,9 +296,16 @@ export const set_mat_constants = (
   viz_state.click.type = null;
   viz_state.click.value = null;
 
+  // Upper bound and percentage-of-visible-rows share for the column-click gene
+  // set sent to enrichment (see resolve_top_gene_count in label_layers.js).
   viz_state.top_n_genes =
     (model && typeof model.get === 'function' && model.get('top_n_genes')) ||
     50;
+  viz_state.top_gene_percent =
+    (model &&
+      typeof model.get === 'function' &&
+      model.get('top_gene_percent')) ||
+    10;
 
   return viz_state;
 };

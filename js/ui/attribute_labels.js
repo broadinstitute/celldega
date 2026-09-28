@@ -336,7 +336,8 @@ const col_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
     (viz_state.labels.clicks.col_attr || 0) + 1;
 
   if (viz_state.labels.clicks.col_attr === 1) {
-    setTimeout(() => {
+    viz_state.labels.attr_click_timeouts ||= {};
+    viz_state.labels.attr_click_timeouts.col = setTimeout(() => {
       viz_state.labels.clicks.col_attr = 0;
     }, DOUBLE_CLICK_DELAY);
   } else if (viz_state.labels.clicks.col_attr === 2) {
@@ -364,7 +365,8 @@ const row_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
     (viz_state.labels.clicks.row_attr || 0) + 1;
 
   if (viz_state.labels.clicks.row_attr === 1) {
-    setTimeout(() => {
+    viz_state.labels.attr_click_timeouts ||= {};
+    viz_state.labels.attr_click_timeouts.row = setTimeout(() => {
       viz_state.labels.clicks.row_attr = 0;
     }, DOUBLE_CLICK_DELAY);
   } else if (viz_state.labels.clicks.row_attr === 2) {
@@ -485,7 +487,9 @@ export const initialize_attribute_labels = (
         manual_store.subscribe(
           () => {
             // Delay refresh slightly to allow attribute definitions to update
-            setTimeout(() => {
+            clearTimeout(viz_state.labels._attr_refresh_timer);
+            viz_state.labels._attr_refresh_timer = setTimeout(() => {
+              if (viz_state.finalized) return;
               refresh_attr_label_layers(deck_mat, layers_mat, viz_state);
             }, 150);
           },

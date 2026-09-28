@@ -31,6 +31,8 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
+from celldega.clust.matrix import marker_ranks_to_uns
+from celldega.clust.utils import compute_marker_ranks
 from celldega.collection import CelldegaCollection
 
 
@@ -277,6 +279,8 @@ class SetCollection(CelldegaCollection):
         aggregate: str = "mean",
         normalization: str | None = "log1p_cpm",
         expr_threshold: float = 0.0,
+        rank_genes_groups: bool = False,
+        rank_genes_groups_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Calculate and attach a set-by-feature signature (pseudobulk).
 
@@ -321,14 +325,43 @@ class SetCollection(CelldegaCollection):
                 Ignored (forced to ``None``) when ``aggregate="fraction"``.
             expr_threshold: A cell counts as expressing when its feature value is
                 strictly greater than this (only used for ``aggregate="fraction"``).
+            rank_genes_groups: Also run :func:`scanpy.tl.rank_genes_groups` on the
+                cell-level `data`, grouped by this collection's ``set_col``, and
+                attach the tidy result to the signature's
+                ``uns["rank_genes_groups"]``. A :class:`~celldega.clust.Matrix`
+                built from that modality picks it up automatically, so
+                ``clust(views="rank_genes_groups")`` works with no further setup.
+                Computed here because differential expression needs the per-cell
+                matrix that aggregation collapses away.
+
+                This is the slow step on large datasets: the default
+                ``"wilcoxon"`` test costs roughly 30 ms per gene at 200k cells,
+                so a few thousand genes runs for minutes. Pass
+                ``rank_genes_groups_kwargs={"method": "t-test"}`` for a ~3x
+                faster (if less robust) alternative.
+            rank_genes_groups_kwargs: Extra keyword arguments forwarded to
+                ``scanpy.tl.rank_genes_groups`` (e.g. ``{"method": "t-test"}``).
+                When ``layer`` is set, marker ranking uses that same layer and
+                disables ``use_raw``.
 
         Returns:
             ``None`` — the modality is attached to ``self.mod``.
+
+        Examples:
+            >>> setc.calc_signature(adata, modality_name="expression", aggregate="mean",
+            ...                     rank_genes_groups=True)
+            >>> mat = dega.clust.Matrix(collection=setc, color_by="expression")
+            >>> mat.clust(views="rank_genes_groups")
         """
         if aggregate not in {"sum", "mean", "fraction"}:
             raise ValueError("aggregate must be 'sum', 'mean', or 'fraction'")
         if weights not in self.mod:
             raise KeyError(f"membership modality '{weights}' not found")
+        if rank_genes_groups and self.set_col is None:
+            raise ValueError(
+                "rank_genes_groups=True needs a set_col to group by; this collection "
+                "was built from a membership matrix without one."
+            )
         adata, feature_type = _resolve_feature_adata(data, feature_type)
         if layer is not None and layer not in adata.layers:
             raise ValueError(f"adata.layers missing requested layer '{layer}'")
@@ -376,6 +409,36 @@ class SetCollection(CelldegaCollection):
                 "expr_threshold": expr_threshold if aggregate == "fraction" else None,
             },
         )
+        # Differential expression for marker-driven Clustergram views. Run on the
+        # member cells only, so it describes exactly the cells this signature
+        # aggregates, and attached to the modality so a Matrix built from it needs
+        # no separate wiring step.
+        if rank_genes_groups:
+            marker_kwargs = dict(rank_genes_groups_kwargs or {})
+            if layer is not None:
+                marker_layer = marker_kwargs.get("layer", layer)
+                if marker_layer != layer:
+                    raise ValueError(
+                        "rank_genes_groups_kwargs['layer'] must match the signature "
+                        f"layer '{layer}', got '{marker_layer}'"
+                    )
+                if marker_kwargs.get("use_raw") is True:
+                    raise ValueError(
+                        "rank_genes_groups_kwargs['use_raw'] cannot be True when "
+                        "the signature uses a layer"
+                    )
+                marker_kwargs["layer"] = layer
+                # Scanpy does not permit layer and use_raw together. Ranking the
+                # same layer used for aggregation keeps both results comparable.
+                marker_kwargs["use_raw"] = False
+            markers = compute_marker_ranks(
+                adata[adata_cells.get_indexer(common), :],
+                self.set_col,
+                marker_kwargs or None,
+            )
+            if markers is not None:
+                signature.uns["rank_genes_groups"] = marker_ranks_to_uns(markers)
+
         # Hint Matrix's axis-entity inference so a Clustergram of this signature
         # (rows=features, cols=sets after transpose) links to a Landscape/Yearbook
         # by the right cell attribute (the set_col), not the hardcoded "leiden".

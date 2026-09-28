@@ -1,5 +1,6 @@
 """Tests for Clustergram widget with Parquet input."""
 
+import asyncio
 import io
 import json
 
@@ -190,6 +191,53 @@ def test_clustergram_selected_genes_trait() -> None:
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]
+
+
+def test_clustergram_highlighted_genes_trait() -> None:
+    widget = Clustergram(matrix=make_simple_matrix())
+
+    assert widget.highlighted_genes == []
+
+    widget.highlighted_genes = ["brd4", "sox2"]
+    assert widget.highlighted_genes == ["brd4", "sox2"]
+
+
+def test_clustergram_label_scales_are_configurable() -> None:
+    mat = make_simple_matrix()
+    widget = Clustergram(matrix=mat, row_label_scale=1.1, col_label_scale=0.7)
+
+    assert widget.row_label_scale == 1.1
+    assert widget.col_label_scale == 0.7
+
+
+def test_clustergram_matrix_slice_request_is_nonblocking() -> None:
+    widget = Clustergram(matrix=make_simple_matrix())
+
+    req_id = widget.request_matrix_slice("row", index=2, max_entries=10)
+
+    assert widget.matrix_slice_request == {
+        "req_id": req_id,
+        "op": "row",
+        "index": 2,
+        "max_entries": 10,
+    }
+    assert widget.matrix_slice_result == {}
+
+
+def test_clustergram_matrix_slice_async_waits_for_matching_response() -> None:
+    widget = Clustergram(matrix=make_simple_matrix())
+
+    async def request_and_reply() -> dict | None:
+        pending = asyncio.create_task(widget.request_matrix_slice_async("cell", row=1, col=3))
+        await asyncio.sleep(0)
+        req_id = widget.matrix_slice_request["req_id"]
+        widget.matrix_slice_result = {"req_id": req_id, "value": 42}
+        return await pending
+
+    assert asyncio.run(request_and_reply()) == {
+        "req_id": widget.matrix_slice_request["req_id"],
+        "value": 42,
+    }
 
 
 def test_clustergram_category_colors_from_matrix() -> None:

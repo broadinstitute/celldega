@@ -1,7 +1,7 @@
-export const set_gene_search_input = (genes) => {
+export const set_gene_search_input = (genes, placeholder = 'Gene search') => {
   const gene_search_input = document.createElement('input');
   gene_search_input.setAttribute('type', 'text');
-  gene_search_input.setAttribute('placeholder', 'Gene search');
+  gene_search_input.setAttribute('placeholder', placeholder);
   gene_search_input.style.width = '500px';
   gene_search_input.style.height = '20px';
   gene_search_input.style.marginTop = '5px';

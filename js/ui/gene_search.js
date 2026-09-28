@@ -5,10 +5,148 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { sync_nbhd_cloud_opacity_sliders } from '../ui/bar_plot';
 import { refresh_layer } from '../utils/refresh_layer';
 
+import { contain_scroll, is_gene_axis } from './gene_info';
 import { set_gene_search_input } from './gene_search_input';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
+
+const is_gene_row_axis = (viz_state) => is_gene_axis(viz_state, 'row');
+
+const get_matrix_row_search_entries = (viz_state) => {
+  const entries = [];
+  const labels = viz_state.labels?.row_label_data || [];
+
+  (viz_state.row_nodes || []).forEach((node, index) => {
+    const name = node?.name;
+    if (name !== null && name !== undefined && String(name) !== '') {
+      entries.push({ index, value: String(name) });
+    }
+
+    const label = labels[index];
+    const display_name = label?.display_name;
+    if (
+      display_name !== null &&
+      display_name !== undefined &&
+      String(display_name) !== ''
+    ) {
+      entries.push({ index, value: String(display_name) });
+    }
+  });
+
+  return entries;
+};
+
+export const find_matrix_row_index = (viz_state, query) => {
+  const value = String(query ?? '').trim();
+  if (!value) return null;
+
+  const entries = get_matrix_row_search_entries(viz_state);
+  const exact = entries.find((entry) => entry.value === value);
+  if (exact) return exact.index;
+
+  const normalized = value.toLocaleLowerCase();
+  return (
+    entries.find((entry) => entry.value.toLocaleLowerCase() === normalized)
+      ?.index ?? null
+  );
+};
+
+/**
+ * Build the compact Clustergram row search. It intentionally reuses the
+ * Landscape search input's styling and datalist behavior, while selection only
+ * centers a matrix row rather than changing the spatial color encoding.
+ */
+export const set_matrix_row_search = (viz_state, on_select) => {
+  const search_container = document.createElement('div');
+  search_container.className = 'matrix_row_search';
+  search_container.style.flexShrink = '0';
+  search_container.style.marginTop = '4px';
+  search_container.style.marginLeft = '10px';
+
+  const search_state = {};
+  const placeholder = is_gene_row_axis(viz_state)
+    ? 'Gene search'
+    : 'Row search';
+  set_gene_search_input(search_state, placeholder);
+  const input = search_state.gene_search_input;
+
+  gene_datalist_counter += 1;
+  const datalist = document.createElement('datalist');
+  datalist.id = `matrix_rows_datalist_${gene_datalist_counter}_${Date.now()}`;
+  input.setAttribute('list', datalist.id);
+
+  const row_values = Array.from(
+    new Set(
+      get_matrix_row_search_entries(viz_state).map((entry) => entry.value)
+    )
+  );
+  row_values.forEach((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    datalist.appendChild(option);
+  });
+
+  input.style.width = '156px';
+  input.style.maxWidth = '250px';
+  input.style.height = '12px';
+  input.style.fontSize = '12px';
+  input.style.border = '1px solid #d3d3d3';
+  input.style.borderRadius = '0';
+  input.style.display = 'inline-block';
+  input.style.padding = '1pt 2pt';
+  input.style.marginTop = '0px';
+
+  const focus_query = (query = input.value) => {
+    const row_index = find_matrix_row_index(viz_state, query);
+    if (row_index === null) return false;
+    on_select?.(row_index);
+    return true;
+  };
+
+  // True while the typed text is a strict prefix of some other row name
+  // (e.g. "ACE" on the way to "ACE2"): focusing now would lurch the view to
+  // the shorter match mid-keystroke. Datalist picks (insertReplacementText)
+  // and Enter always focus.
+  const is_ambiguous_prefix = (query) => {
+    const value = String(query ?? '')
+      .trim()
+      .toLocaleLowerCase();
+    if (!value) return false;
+    return get_matrix_row_search_entries(viz_state).some((entry) => {
+      const candidate = entry.value.toLocaleLowerCase();
+      return candidate !== value && candidate.startsWith(value);
+    });
+  };
+
+  input.addEventListener('input', (event) => {
+    if (
+      event.inputType !== 'insertReplacementText' &&
+      is_ambiguous_prefix(input.value)
+    ) {
+      return;
+    }
+    focus_query();
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    focus_query();
+  });
+
+  search_container.appendChild(input);
+  search_container.appendChild(datalist);
+  viz_state.row_search = {
+    container: search_container,
+    input,
+    focus: (query) => {
+      input.value = String(query ?? '');
+      return focus_query(input.value);
+    },
+  };
+
+  return search_container;
+};
 
 // neighborhood-cloud's gene search is entirely separate from the legacy
 // per-cell path below: there's no cell_exp_array to update, and typing a
@@ -183,16 +321,9 @@ export const set_gene_search = async (
   viz_state.genes.gene_text_box.style.paddingLeft = '2px';
   viz_state.genes.gene_text_box.style.paddingRight = '17px';
 
-  viz_state.genes.gene_text_box.addEventListener('wheel', (event) => {
-    const { scrollTop, scrollHeight, clientHeight } =
-      viz_state.genes.gene_text_box;
-    const atTop = scrollTop === 0;
-    const atBottom = scrollTop + clientHeight === scrollHeight;
-
-    if ((atTop && event.deltaY < 0) || (atBottom && event.deltaY > 0)) {
-      event.preventDefault();
-    }
-  });
+  // Keep wheel gestures inside the panel: previously the page still scrolled
+  // once this box hit either end (or when its text didn't overflow at all).
+  contain_scroll(viz_state.genes.gene_text_box);
 
   viz_state.genes.gene_search.appendChild(viz_state.genes.gene_text_box); // Append the new div with text
 

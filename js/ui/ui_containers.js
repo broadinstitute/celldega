@@ -14,9 +14,8 @@ import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
 import { set_composition_normalized } from '../deck-gl/matrix/composition_layer';
-import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
 import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
@@ -26,11 +25,7 @@ import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
-import {
-  calc_dendro_triangles,
-  calc_dendro_polygons,
-  alt_slice_linkage,
-} from '../matrix/dendro';
+import { get_rank_view_stops, has_rank_views } from '../matrix/rank_views';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -44,16 +39,22 @@ import {
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
-import { set_gene_search } from './gene_search';
+import { update_dendro_from_slider } from './dendro_slider';
+import { is_gene_axis, make_gene_info_box } from './gene_info';
+import { set_gene_search, set_matrix_row_search } from './gene_search';
 import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
+  make_slider,
   toggle_slider,
+  set_slider_value,
+  ini_discrete_slider_params,
   ini_slider,
   ini_slider_params,
 } from './sliders';
 import {
+  apply_state_button_style,
   make_button,
   make_edit_button,
   make_reorder_button,
@@ -246,35 +247,130 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     ctrl_container.appendChild(inst_container);
   });
 
-  viz_state.dendro.sliders = {};
+  // -------------------------------------------------------------------------
+  // Rank: reduced-dimensionality views, sitting directly under the row reorder
+  // buttons. Each stop is a filter level precomputed and independently
+  // re-biclustered by `Matrix.clust(views=...)`, with the last stop being the
+  // full matrix -- the slider loads a level, it never computes one. The whole
+  // row is omitted for matrices exported without views.
+  // -------------------------------------------------------------------------
+  if (has_rank_views(viz_state)) {
+    const rank_container = flex_container('rank_container', 'row');
+    rank_container.style.alignItems = 'center';
+    rank_container.style.marginTop = '10px';
 
-  const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
-    // Update the dendrogram layer
-    _viz_state.dendro.sliders[`${axis}_value`] =
-      (_viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
+    d3.select(rank_container)
+      .append('div')
+      .text('Dim:')
+      .style('flex', `0 0 ${axis_label_width}px`)
+      .style('white-space', 'nowrap')
+      .style('font-size', '9px')
+      .style('font-weight', 'bold')
+      .style('color', 'black')
+      .style('user-select', 'none')
+      .style(
+        'font-family',
+        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+      );
 
-    alt_slice_linkage(
-      _viz_state,
-      axis,
-      _viz_state.dendro.sliders[`${axis}_value`]
+    const stops = get_rank_view_stops(viz_state);
+    const total_rows = viz_state.mat.num_rows;
+    const view_type = viz_state.rank_view?.view_type || 'rank';
+    const per_cluster = viz_state.rank_view?.level_unit === 'per_cluster';
+    const by_level = viz_state.rank_view?.by_level;
+
+    const readout = d3
+      .select(rank_container)
+      .append('div')
+      .style('margin-left', '6px')
+      .style('font-size', '9px')
+      .style('white-space', 'nowrap')
+      .style('color', '#47515b')
+      .style('user-select', 'none')
+      .style(
+        'font-family',
+        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+      );
+
+    // The ranking is named in the readout because it changes what a level
+    // *means*: RANK counts markers per cluster (10 = each cluster's top 10),
+    // while SUM/VAR/MEAN cap total rows outright. The resulting row count is a
+    // derived number for RANK, so it goes in the tooltip.
+    const RANKING_LABELS = {
+      rank_genes_groups: 'RANK',
+      var: 'VAR',
+      sum: 'SUM',
+      mean: 'MEAN',
+    };
+    const ranking_label = RANKING_LABELS[view_type] || view_type.toUpperCase();
+
+    const describe_stop = (stop) => {
+      if (stop == null) return `${ranking_label} all`;
+      return per_cluster
+        ? `${ranking_label} ${stop}/clust`
+        : `${ranking_label} ${stop}`;
+    };
+
+    const describe_title = (stop) => {
+      if (stop == null) return `All ${total_rows} rows`;
+      if (per_cluster) {
+        const rows = by_level?.get(stop)?.n_rows;
+        return `Top ${stop} markers per cluster (rank_genes_groups) — ${rows} of ${total_rows} rows`;
+      }
+      return `Top ${stop} of ${total_rows} rows by ${view_type}`;
+    };
+
+    const update_readout = (stop) => {
+      readout.text(describe_stop(stop)).attr('title', describe_title(stop));
+    };
+
+    const rank_slider = make_slider();
+    viz_state.rank_view.slider = rank_slider;
+
+    const ini_index = Math.max(
+      0,
+      stops.indexOf(viz_state.rank_view.current ?? null)
     );
-    calc_dendro_triangles(_viz_state, axis);
-    calc_dendro_polygons(_viz_state, axis);
-    update_dendro_layer_data(layers_mat, _viz_state, axis);
 
-    _deck_mat.setProps({
-      layers: get_mat_layers_list(layers_mat),
+    ini_discrete_slider_params(rank_slider, {
+      min: 0,
+      max: stops.length - 1,
+      step: 1,
+      value: ini_index,
+      callback: (event) => {
+        const stop = stops[Number(event.target.value)] ?? null;
+        update_readout(stop);
+        apply_rank_view(deck_mat, layers_mat, viz_state, stop);
+      },
     });
-  };
+
+    update_readout(stops[ini_index] ?? null);
+
+    // Lets a Python-driven `rank_dim` change move the control, which otherwise
+    // only ever moves through direct user input.
+    viz_state.rank_view.sync_control = (stop) => {
+      const index = stops.indexOf(stop ?? null);
+      if (index < 0) return;
+
+      set_slider_value(rank_slider, index);
+      update_readout(stop ?? null);
+    };
+
+    rank_container.insertBefore(rank_slider, readout.node());
+    ctrl_container.appendChild(rank_container);
+  }
+
+  viz_state.dendro.sliders = {};
 
   axes.forEach((axis) => {
     const slider = document.createElement('input');
     viz_state.dendro.sliders[axis] = slider;
 
     const ini_dendro_value = 50;
+    viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
 
     ini_slider_params(slider, ini_dendro_value, (event) =>
-      dendro_slider_callback(deck_mat, viz_state, axis, event)
+      update_dendro_from_slider(deck_mat, layers_mat, viz_state, axis, event)
     );
   });
 
@@ -319,58 +415,36 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   ui_container.appendChild(slider_container);
 
   // ---------------------------------------------------------------------
-  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
-  // (composition only). Mounted to the right of the reorder buttons, always
-  // present but shown/hidden per `viz_mode` (see `update_mode_button_visibility`).
+  // Matrix actions: Crop/Undo stays above the body-mode toggles so the
+  // selection workflow is visually separate from tile encoding controls.
   // ---------------------------------------------------------------------
+  const action_container = flex_container('matrix_action_container', 'column');
+  action_container.style.alignItems = 'flex-start';
+  action_container.style.marginTop = '4px';
+  action_container.style.marginLeft = '10px';
+  action_container.style.flexShrink = '0';
+
+  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
+  // (composition only). Shown/hidden per `viz_mode`
+  // (see `update_mode_button_visibility`).
   const mode_container = flex_container('mode_container', 'row');
-  // Top-align with the first reorder-button row (ctrl_container's own
-  // marginTop, below), not vertically centered against the taller sibling
-  // columns to its left.
+  // This sits below Crop/Undo in action_container.
   mode_container.style.alignItems = 'flex-start';
-  mode_container.style.marginTop = '10px';
-  mode_container.style.marginLeft = '10px';
+  mode_container.style.marginTop = '6px';
+  mode_container.style.marginLeft = '0px';
   mode_container.style.flexShrink = '0';
-
-  // Titled group wrapper (e.g. "TILE:" + a toggle group), shown/hidden as one
-  // unit so a title never dangles without its buttons.
-  const make_titled_group = (title, build_group) => {
-    const wrapper = document.createElement('div');
-    wrapper.style.display = 'inline-flex';
-    wrapper.style.alignItems = 'center';
-    mode_container.appendChild(wrapper);
-
-    d3.select(wrapper)
-      .append('div')
-      .text(title)
-      .style('font-size', '9px')
-      .style('font-weight', 'bold')
-      .style('color', 'black')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
-
-    const group = build_group(wrapper);
-    group.container.style.marginLeft = '4px';
-    return { wrapper, group };
-  };
 
   // dot_size_encoded: true -> size encodes the fraction/dot matrix ("PROP"),
   // false -> forced to a full, unit-scaled tile ("UNIT").
-  const { wrapper: dot_wrapper, group: dot_toggle } = make_titled_group(
-    'TILE:',
-    (container) =>
-      make_text_toggle_group(
-        container,
-        [
-          { label: 'prop', value: true },
-          { label: 'unit', value: false },
-        ],
-        viz_state.mat.dot_size_encoded,
-        (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
-        viz_state
-      )
+  const dot_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'prop', value: true },
+      { label: 'unit', value: false },
+    ],
+    viz_state.mat.dot_size_encoded,
+    (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
+    viz_state
   );
 
   const normalized_toggle = make_text_toggle_group(
@@ -384,15 +458,115 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       set_composition_normalized(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
-  normalized_toggle.container.style.marginLeft = '10px';
+  normalized_toggle.container.style.marginLeft = '0px';
 
   viz_state.mode_buttons = {
-    dot: { container: dot_wrapper, setActive: dot_toggle.setActive },
+    dot: dot_toggle,
     normalized: normalized_toggle,
   };
   update_mode_button_visibility(viz_state);
 
-  ui_container.appendChild(mode_container);
+  const crop_container = flex_container('crop_container', 'row');
+  crop_container.style.alignItems = 'flex-start';
+  crop_container.style.marginTop = '0px';
+  crop_container.style.marginLeft = '0px';
+  crop_container.style.flexShrink = '0';
+
+  const crop_button = d3
+    .select(crop_container)
+    .append('div')
+    .text('CROP')
+    .style('display', 'inline-flex')
+    .style('font-size', '9px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    )
+    .on('click', () => {
+      viz_state.crop?.toggle();
+    });
+
+  const undo_button = d3
+    .select(crop_container)
+    .append('div')
+    .text('UNDO')
+    .style('display', 'inline-flex')
+    .style('font-size', '9px')
+    .style('margin-left', '10px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    )
+    .on('click', () => {
+      viz_state.crop?.undo();
+    });
+
+  viz_state.crop?.set_controls({
+    set_active: (active) => {
+      apply_state_button_style(crop_button, active, viz_state);
+    },
+    set_crop_enabled: (enabled) => {
+      crop_button
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+    set_undo_enabled: (enabled) => {
+      apply_state_button_style(undo_button, enabled, viz_state)
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+  });
+
+  action_container.appendChild(crop_container);
+  action_container.appendChild(mode_container);
+  ui_container.appendChild(action_container);
+
+  // Search + gene info stack vertically in one column: ui_container is a flex
+  // row, so appending them as siblings would widen the control panel instead.
+  const search_container = flex_container('matrix_search_container', 'column');
+  search_container.style.flexShrink = '0';
+
+  const row_search = set_matrix_row_search(viz_state, (row_index) =>
+    viz_state.focus_row?.(row_index)
+  );
+  search_container.appendChild(row_search);
+  ui_container.appendChild(search_container);
+
+  // Gene name/description panel (same one Landscape shows under its gene
+  // search). Stateful by design: it tracks the *selected* gene only, while
+  // hover information goes to the row-label tooltip.
+  if (is_gene_axis(viz_state, 'row')) {
+    // Height fits the remaining room under the search input inside the
+    // control panel's fixed 100px height.
+    const gene_info_box = make_gene_info_box({
+      marginLeft: '10px',
+      height: '58px',
+    });
+    viz_state.gene_info_box = gene_info_box;
+    search_container.appendChild(gene_info_box.element);
+
+    // Selecting a gene (row-label click, search, or an Enrich link) pins its
+    // description and echoes it into the search box, which doubles as a
+    // state viewer for "which gene am I on" — same as Landscape's gene bar.
+    // Assigning `.value` doesn't fire an `input` event, so this can't
+    // re-trigger the search's focus zoom.
+    viz_state.obs_store?.selected_genes?.subscribe(
+      (selected_genes) => {
+        if (selected_genes?.length === 1) {
+          gene_info_box.show(selected_genes[0]);
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = selected_genes[0];
+          }
+        } else if (!selected_genes?.length) {
+          gene_info_box.clear();
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = '';
+          }
+        }
+      },
+      { immediate: false }
+    );
+  }
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);

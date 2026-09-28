@@ -13,6 +13,7 @@ def test_enrich_defaults() -> None:
     w = Enrich()
     assert w.component == "Enrich"
     assert w.gene_list == []
+    assert w.source_label == ""
     assert isinstance(w.available_libs, list)
     assert "CellMarker_2024" in w.available_libs
     assert w.inst_lib == "CellMarker_2024"
@@ -24,6 +25,8 @@ def test_enrich_traitlets_update() -> None:
     w = Enrich()
     w.gene_list = ["A", "B"]
     assert w.gene_list == ["A", "B"]
+    w.source_label = "Clustergram row crop"
+    assert w.source_label == "Clustergram row crop"
     w.inst_lib = "GO_Biological_Process_2018"
     assert w.inst_lib == "GO_Biological_Process_2018"
     w.available_libs = ["A", "B"]

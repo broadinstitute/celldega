@@ -2,6 +2,13 @@
 
 Celldega ships interactive visualizations, grouped into three kinds:
 
+Every visualization accepts an optional `name=` (or `registry_key=`). Creating
+another widget of the same kind with the same key closes and replaces the old
+one, which is useful when rerunning notebook cells that create GPU-backed
+widgets. Use distinct keys when widgets should coexist. Widgets without a key
+coexist by default; `Clustergram` retains its matrix-name identity and `Enrich`
+retains its existing `"default"` identity.
+
 ## Spatial
 
 Render directly in geographic (x/y, and sometimes z) space over a tissue

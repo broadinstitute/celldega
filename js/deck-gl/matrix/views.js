@@ -1,7 +1,16 @@
 import { OrthographicView } from 'deck.gl';
 
+import {
+  get_axis_display_count,
+  get_default_pan,
+  get_default_pan_y,
+} from '../../matrix/crop_filter';
+
 export const ini_views = (viz_state) => {
   let switch_ratio;
+  const drag_pan_enabled = !viz_state.crop?.active;
+  const row_count = get_axis_display_count(viz_state, 'row');
+  const col_count = get_axis_display_count(viz_state, 'col');
 
   if (viz_state.mat.viz_mode === 'composition') {
     // Composition: columns (datasets/samples) should always stay fully
@@ -11,15 +20,15 @@ export const ini_views = (viz_state) => {
     viz_state.zoom.major_zoom_axis = 'Y';
     viz_state.zoom.minor_zoom_axis = 'none';
     switch_ratio = 1;
-  } else if (viz_state.mat.num_rows > viz_state.mat.num_cols) {
+  } else if (row_count > col_count) {
     viz_state.zoom.major_zoom_axis = 'Y';
     viz_state.zoom.minor_zoom_axis = 'X';
-    switch_ratio = viz_state.mat.num_rows / viz_state.mat.num_cols;
-  } else if (viz_state.mat.num_rows < viz_state.mat.num_cols) {
+    switch_ratio = row_count / col_count;
+  } else if (row_count < col_count) {
     viz_state.zoom.major_zoom_axis = 'X';
     viz_state.zoom.minor_zoom_axis = 'Y';
-    switch_ratio = viz_state.mat.num_cols / viz_state.mat.num_rows;
-  } else if (viz_state.mat.num_rows === viz_state.mat.num_cols) {
+    switch_ratio = col_count / row_count;
+  } else if (row_count === col_count) {
     viz_state.zoom.major_zoom_axis = 'all';
     viz_state.zoom.minor_zoom_axis = 'none';
     switch_ratio = 1;
@@ -37,6 +46,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.mat_height}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: true,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -51,6 +61,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.mat_height}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -65,6 +76,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.col_region}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -102,6 +114,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.dendrogram_width}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -117,6 +130,7 @@ export const ini_views = (viz_state) => {
       height: `${viz_state.viz.mat_height}px`,
       controller: {
         scrollZoom: true,
+        dragPan: drag_pan_enabled,
         inertia: false,
         zoomAxis: viz_state.zoom.major_zoom_axis,
         doubleClickZoom: false,
@@ -130,17 +144,20 @@ export const ini_views = (viz_state) => {
 };
 
 export const ini_view_state = (viz_state) => {
+  const default_pan = get_default_pan(viz_state);
+  const default_pan_y = get_default_pan_y(viz_state);
+
   const globalViewState = {
     matrix: {
-      target: [viz_state.zoom.ini_pan_x, viz_state.zoom.ini_pan_y],
+      target: default_pan,
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     rows: {
-      target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
+      target: [viz_state.viz.label_row_x, default_pan_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     cols: {
-      target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
+      target: [default_pan[0], viz_state.viz.label_col_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     row_attr_labels: {
@@ -157,11 +174,11 @@ export const ini_view_state = (viz_state) => {
       zoom: [0, 0],
     },
     dendro_rows: {
-      target: [viz_state.viz.label_row_x, viz_state.zoom.ini_pan_y],
+      target: [viz_state.viz.label_row_x, default_pan_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     dendro_cols: {
-      target: [viz_state.zoom.ini_pan_x, viz_state.viz.label_col_y],
+      target: [default_pan[0], viz_state.viz.label_col_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
   };

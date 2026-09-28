@@ -1179,12 +1179,15 @@ export const landscape_ist = async (
         viz_state.row_group_readers?.cbg
       );
 
-      viz_state.layers_obj = layers_obj;
-
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: true,
-      });
+      // deck_ready (the only general repaint signal) fires setProps only on a
+      // false→true transition of the all-layers-ready AND, so a true-only
+      // deck_check write is a no-op in steady state and the freshly fetched
+      // expression colors would never repaint (embedding apps like
+      // celldega-app hit this; the widget linkage has its own toggling path
+      // in update_ist_landscape_from_cgm). refresh_layer toggles false→true
+      // to force the transition, exactly like the widget gene path.
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      refresh_layer(viz_state, layers_obj, 'trx_layer');
 
       // Notify listeners
       callbacks.on_gene_select.forEach((cb) => cb(inst_gene));

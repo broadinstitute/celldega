@@ -30,6 +30,15 @@ def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
     return default
 
 
+def _pixel_height(value: str | int, fallback: int = 700) -> int:
+    """Return a widget-compatible pixel height from a CSS pixel value."""
+    try:
+        pixels = int(str(value).strip().removesuffix("px"))
+    except ValueError:
+        return fallback
+    return pixels if pixels > 0 else fallback
+
+
 def spatial_clustergram(
     spatial: "Landscape | CellCloud | NeighborhoodCloud | Yearbook",
     mat: Clustergram,
@@ -100,12 +109,19 @@ def spatial_clustergram(
         config = dict(enrich_kwargs or {})
         config.setdefault("gene_list", [])
         config.setdefault("width", 250)
+        config.setdefault("height", _pixel_height(height))
         enrich_widget = Enrich(**config)
 
     if enrich_widget is not None:
 
         def _forward_gene_to_spatial(gene: str) -> None:
             if gene:
+                if mat.focused_gene == gene:
+                    # Re-focusing the same gene must still notify JS (traitlets
+                    # suppresses no-change sets), so blank first to force a
+                    # change event and re-center the row.
+                    mat.focused_gene = ""
+                mat.focused_gene = gene
                 spatial.trigger_update({"type": "row_label", "value": {"name": gene}})
 
         _link_clustergram_to_enrich(
@@ -166,15 +182,38 @@ def _link_clustergram_to_enrich(
 
     _record_colors()
 
-    def _set_gene_list(genes) -> None:
+    def _set_gene_list(genes, source_label: str = "") -> None:
+        enrich.source_label = source_label if genes else ""
         enrich.gene_list = list(genes) if genes else []
+
+    def _selection_source_label(click_type: str, click_value: dict) -> str:
+        # "Clustergram" is implied — keep the source short: the column the top
+        # genes came from, or the selection gesture (brush vs dendrogram).
+        if click_type == "col_label":
+            name = click_value.get("name")
+            if name:
+                return str(name)
+        if click_type in ("row_crop", "col_crop"):
+            if click_value.get("crop_source") == "dendrogram":
+                return "Dendrogram selection"
+            return "Brush selection"
+        if click_type in ("row_dendro", "col_dendro"):
+            return "Dendrogram selection"
+        return "Selection"
 
     def _on_selected_genes(change) -> None:
         genes = change["new"] or []
 
         click_info = getattr(cgm, "click_info", {}) or {}
         click_type = (click_info.get("type") or "").lower()
-        selected_names = (click_info.get("value") or {}).get("selected_names") or []
+        click_value = click_info.get("value") or {}
+        selected_names = click_value.get("selected_names") or []
+
+        # A row label selects one gene for linked views, but it is not an
+        # enrichment gene set. Preserve the current enrichment result instead
+        # of replacing or clearing it.
+        if click_type == "row_label":
+            return
 
         is_dendro = click_type.startswith(("row", "col"))
         matches_click = (
@@ -192,7 +231,7 @@ def _link_clustergram_to_enrich(
                 _set_gene_list([])
                 return
 
-        _set_gene_list(genes)
+        _set_gene_list(genes, _selection_source_label(click_type, click_value))
 
     def _on_click_info(change) -> None:
         info = change["new"] or {}
@@ -204,7 +243,7 @@ def _link_clustergram_to_enrich(
                 return
             if selected_names:
                 cgm.selected_genes = list(selected_names)
-        elif click_type.startswith("row"):
+        elif click_type.startswith("row") and click_type != "row_label":
             if not row_enrich:
                 _set_gene_list([])
 
@@ -214,9 +253,19 @@ def _link_clustergram_to_enrich(
         gene = change["new"] or ""
         gene_focus_callback(gene)
 
+    def _on_term_genes(change) -> None:
+        # Mirror the selected enriched term's genes onto the Clustergram so its
+        # row labels can highlight them (blue, matching Enrich's "In term"
+        # paragraph color). Enrich clears term_genes on CLEAR/term-deselect,
+        # which resets the highlight through this same path.
+        cgm.highlighted_genes = list(change["new"] or [])
+
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
     enrich.observe(_on_focused_gene, names="focused_gene")
+    enrich.observe(_on_term_genes, names="term_genes")
+    if enrich.term_genes:
+        cgm.highlighted_genes = list(enrich.term_genes)
 
 
 def clustergram_enrich(
@@ -240,13 +289,22 @@ def clustergram_enrich(
     """
     cgm.layout = Layout(width="600px")
 
-    enrich = Enrich(gene_list=[], width=250)
+    enrich = Enrich(gene_list=[], width=250, height=700)
+
+    def _focus_gene_in_clustergram(gene: str) -> None:
+        if gene:
+            if cgm.focused_gene == gene:
+                # Force a change event so re-clicking the same gene re-centers
+                # its row (traitlets suppresses no-change sets).
+                cgm.focused_gene = ""
+            cgm.focused_gene = gene
 
     _link_clustergram_to_enrich(
         cgm,
         enrich,
         row_enrich=row_enrich,
         col_enrich=col_enrich,
+        gene_focus_callback=_focus_gene_in_clustergram,
     )
 
     return HBox([cgm, enrich], layout=Layout(width="1000px"))

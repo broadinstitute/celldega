@@ -1,6 +1,6 @@
 {
   "name": "celldega",
-  "version": "0.24.2",
+  "version": "0.25.0-alpha.1",
   "type": "module",
   "engines": {
     "node": ">=16",

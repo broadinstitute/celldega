@@ -89,7 +89,11 @@ export const create_obs_store = () => {
       }
 
       const hasCats = store.selected_cats.get().length > 0;
-      const hasGenes = store.selected_genes.get().length > 0;
+      // Only a single selected gene drives expression coloring of the cell
+      // overlay. Multi-gene selections (row dendrogram / crop sync from a
+      // linked Clustergram) stay in cluster coloring, so hiding the images
+      // for them would just black out the view for no informational gain.
+      const hasGenes = store.selected_genes.get().length === 1;
       const isCloseUp = store.close_up.get();
       const isUmap = store.umap_state.get();
 

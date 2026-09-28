@@ -2,6 +2,12 @@ import {
   get_composition_layout,
   rightmost_composition_col,
 } from './composition_data';
+import {
+  get_axis_center_position,
+  get_axis_edge_positions,
+  get_axis_slot_size,
+  is_axis_index_visible,
+} from './crop_filter';
 
 export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
   let clust_a;
@@ -60,7 +66,6 @@ export const calc_dendro_triangles = (viz_state, axis) => {
   const triangle_info = {};
 
   const inst_nodes = viz_state[`${axis}_nodes`];
-  const inst_order = viz_state.order.current[axis];
   const is_composition = viz_state.mat.viz_mode === 'composition';
 
   // Composition mode: row (population) leaf spans come from that row's
@@ -77,6 +82,10 @@ export const calc_dendro_triangles = (viz_state, axis) => {
     : null;
 
   inst_nodes.forEach((inst_node, index) => {
+    if (!is_axis_index_visible(viz_state, axis, index)) {
+      return;
+    }
+
     const inst_group = inst_node.group_links;
 
     let inst_top;
@@ -84,21 +93,18 @@ export const calc_dendro_triangles = (viz_state, axis) => {
 
     if (axis === 'row' && is_composition) {
       const seg = composition_layout[`${index}_${rightmost_col}`];
-      inst_top = seg ? seg.position[1] - seg.half[1] : 0;
-      inst_bot = seg ? seg.position[1] + seg.half[1] : 0;
+      if (!seg) return;
+      inst_top = seg.position[1] - seg.half[1];
+      inst_bot = seg.position[1] + seg.half[1];
     } else if (axis === 'row') {
-      const inst_row_index =
-        viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index];
-      // +1.0 (not the +1.5 cell-center convention used elsewhere) since this
-      // is the leaf's TOP edge, half a slot above its center.
-      inst_top = viz_state.viz.row_offset * (inst_row_index + 1.0);
-      inst_bot = inst_top + viz_state.viz.row_offset;
+      const edges = get_axis_edge_positions(viz_state, 'row', index);
+      if (!edges) return;
+      [inst_top, inst_bot] = edges;
     } else {
-      const inst_col_index =
-        viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index];
-      const center = viz_state.viz.col_offset * (inst_col_index + 0.5);
+      const center = get_axis_center_position(viz_state, 'col', index);
+      if (center === null) return;
       const gap_factor = is_composition ? 0.95 : 1.0; // matches composition_data.js's bar gap
-      const half = (viz_state.viz.col_offset * gap_factor) / 2;
+      const half = (get_axis_slot_size(viz_state, 'col') * gap_factor) / 2;
       inst_top = center - half;
       inst_bot = center + half;
     }
@@ -119,11 +125,13 @@ export const calc_dendro_triangles = (viz_state, axis) => {
         pos_mid: (inst_top + inst_bot) / 2,
         name: inst_group,
         all_names: [],
+        all_indices: [],
         axis,
       };
     }
 
     triangle_info[inst_group].all_names.push(inst_name);
+    triangle_info[inst_group].all_indices.push(index);
 
     if (inst_top < triangle_info[inst_group].pos_top) {
       triangle_info[inst_group].name_top = inst_name;
@@ -167,6 +175,7 @@ export const ini_dendro = (viz_state) => {
   viz_state.dendro.group_info = {};
 
   viz_state.dendro.highlight = { row: null, col: null };
+  viz_state.dendro.selected_polygon = { row: null, col: null };
   viz_state.dendro._highlight_rev = 0;
   viz_state.dendro._hover_timer = null;
 
@@ -220,7 +229,7 @@ export const calc_dendro_polygons = (viz_state, axis) => {
 
       viz_state.dendro.polygons[axis].push({
         coordinates: triangle,
-        properties: { ...group, axis, is_focused: false }, // Attach group data and axis
+        properties: { ...group, axis, is_focused: false, is_selected: false }, // Attach group data and axis
       });
     } else if (axis === 'col') {
       const height = pos_bot - pos_top; // Increase width for better visibility
@@ -238,7 +247,7 @@ export const calc_dendro_polygons = (viz_state, axis) => {
 
       viz_state.dendro.polygons[axis].push({
         coordinates: triangle,
-        properties: { ...group, axis, is_focused: false }, // Attach group data and axis
+        properties: { ...group, axis, is_focused: false, is_selected: false }, // Attach group data and axis
       });
     }
   });

@@ -616,14 +616,13 @@ export const yearbook = async (
       viz_state.yearbook.activeGeneIds = [];
     }
 
-    const geneCounts = viz_state.yearbook.geneCountScratch;
-    const activeGeneIds = viz_state.yearbook.activeGeneIds;
+    const { geneCountScratch: geneCounts, activeGeneIds } = viz_state.yearbook;
     activeGeneIds.length = 0;
+    const { geneIds, positions: trxPositions, size: trxSize } = trxCompact;
 
-    for (let i = 0; i < trxCompact.geneIds.length; i++) {
-      const positions = trxCompact.positions;
-      const x = positions[i * trxCompact.size];
-      const y = positions[i * trxCompact.size + 1];
+    for (let i = 0; i < geneIds.length; i++) {
+      const x = trxPositions[i * trxSize];
+      const y = trxPositions[i * trxSize + 1];
       const inPortrait = centers.some((center) => {
         return (
           x >= center.x - half_view_size &&
@@ -636,7 +635,7 @@ export const yearbook = async (
         continue;
       }
 
-      const geneId = trxCompact.geneIds[i];
+      const geneId = geneIds[i];
       if (geneId < 0) {
         continue;
       }
@@ -677,14 +676,17 @@ export const yearbook = async (
       viz_state.yearbook.activeCellIds = [];
     }
 
-    const cellCounts = viz_state.yearbook.cellCountScratch;
-    const activeCellIds = viz_state.yearbook.activeCellIds;
+    const { cellCountScratch: cellCounts, activeCellIds } = viz_state.yearbook;
     activeCellIds.length = 0;
+    const {
+      categoryIds,
+      positions: cellPositions,
+      size: cellSize,
+    } = cellCompact;
 
-    for (let i = 0; i < cellCompact.categoryIds.length; i++) {
-      const positions = cellCompact.positions;
-      const x = positions[i * cellCompact.size];
-      const y = positions[i * cellCompact.size + 1];
+    for (let i = 0; i < categoryIds.length; i++) {
+      const x = cellPositions[i * cellSize];
+      const y = cellPositions[i * cellSize + 1];
       const inPortrait = centers.some((center) => {
         return (
           x >= center.x - half_view_size &&
@@ -697,7 +699,7 @@ export const yearbook = async (
         continue;
       }
 
-      const categoryId = cellCompact.categoryIds[i];
+      const categoryId = categoryIds[i];
       if (cellCounts[categoryId] === 0) {
         activeCellIds.push(categoryId);
       }

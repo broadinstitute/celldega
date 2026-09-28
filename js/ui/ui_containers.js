@@ -26,6 +26,7 @@ import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
+import { has_axis_filter } from '../matrix/crop_filter';
 import {
   calc_dendro_triangles,
   calc_dendro_polygons,
@@ -44,7 +45,8 @@ import {
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
-import { set_gene_search } from './gene_search';
+import { is_gene_axis, make_gene_info_box } from './gene_info';
+import { set_gene_search, set_matrix_row_search } from './gene_search';
 import { make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
@@ -54,6 +56,7 @@ import {
   ini_slider_params,
 } from './sliders';
 import {
+  apply_state_button_style,
   make_button,
   make_edit_button,
   make_reorder_button,
@@ -249,6 +252,13 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   viz_state.dendro.sliders = {};
 
   const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
+    if (has_axis_filter(_viz_state, axis)) {
+      event.target.value = _viz_state.dendro.sliders[`${axis}_percent`] ?? 50;
+      return;
+    }
+
+    _viz_state.dendro.sliders[`${axis}_percent`] = event.target.value;
+
     // Update the dendrogram layer
     _viz_state.dendro.sliders[`${axis}_value`] =
       (_viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
@@ -272,6 +282,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     viz_state.dendro.sliders[axis] = slider;
 
     const ini_dendro_value = 50;
+    viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
 
     ini_slider_params(slider, ini_dendro_value, (event) =>
       dendro_slider_callback(deck_mat, viz_state, axis, event)
@@ -319,58 +330,36 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   ui_container.appendChild(slider_container);
 
   // ---------------------------------------------------------------------
-  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
-  // (composition only). Mounted to the right of the reorder buttons, always
-  // present but shown/hidden per `viz_mode` (see `update_mode_button_visibility`).
+  // Matrix actions: Crop/Undo stays above the body-mode toggles so the
+  // selection workflow is visually separate from tile encoding controls.
   // ---------------------------------------------------------------------
+  const action_container = flex_container('matrix_action_container', 'column');
+  action_container.style.alignItems = 'flex-start';
+  action_container.style.marginTop = '4px';
+  action_container.style.marginLeft = '10px';
+  action_container.style.flexShrink = '0';
+
+  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
+  // (composition only). Shown/hidden per `viz_mode`
+  // (see `update_mode_button_visibility`).
   const mode_container = flex_container('mode_container', 'row');
-  // Top-align with the first reorder-button row (ctrl_container's own
-  // marginTop, below), not vertically centered against the taller sibling
-  // columns to its left.
+  // This sits below Crop/Undo in action_container.
   mode_container.style.alignItems = 'flex-start';
-  mode_container.style.marginTop = '10px';
-  mode_container.style.marginLeft = '10px';
+  mode_container.style.marginTop = '6px';
+  mode_container.style.marginLeft = '0px';
   mode_container.style.flexShrink = '0';
-
-  // Titled group wrapper (e.g. "TILE:" + a toggle group), shown/hidden as one
-  // unit so a title never dangles without its buttons.
-  const make_titled_group = (title, build_group) => {
-    const wrapper = document.createElement('div');
-    wrapper.style.display = 'inline-flex';
-    wrapper.style.alignItems = 'center';
-    mode_container.appendChild(wrapper);
-
-    d3.select(wrapper)
-      .append('div')
-      .text(title)
-      .style('font-size', '9px')
-      .style('font-weight', 'bold')
-      .style('color', 'black')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
-
-    const group = build_group(wrapper);
-    group.container.style.marginLeft = '4px';
-    return { wrapper, group };
-  };
 
   // dot_size_encoded: true -> size encodes the fraction/dot matrix ("PROP"),
   // false -> forced to a full, unit-scaled tile ("UNIT").
-  const { wrapper: dot_wrapper, group: dot_toggle } = make_titled_group(
-    'TILE:',
-    (container) =>
-      make_text_toggle_group(
-        container,
-        [
-          { label: 'prop', value: true },
-          { label: 'unit', value: false },
-        ],
-        viz_state.mat.dot_size_encoded,
-        (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
-        viz_state
-      )
+  const dot_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'prop', value: true },
+      { label: 'unit', value: false },
+    ],
+    viz_state.mat.dot_size_encoded,
+    (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
+    viz_state
   );
 
   const normalized_toggle = make_text_toggle_group(
@@ -384,15 +373,115 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       set_composition_normalized(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
-  normalized_toggle.container.style.marginLeft = '10px';
+  normalized_toggle.container.style.marginLeft = '0px';
 
   viz_state.mode_buttons = {
-    dot: { container: dot_wrapper, setActive: dot_toggle.setActive },
+    dot: dot_toggle,
     normalized: normalized_toggle,
   };
   update_mode_button_visibility(viz_state);
 
-  ui_container.appendChild(mode_container);
+  const crop_container = flex_container('crop_container', 'row');
+  crop_container.style.alignItems = 'flex-start';
+  crop_container.style.marginTop = '0px';
+  crop_container.style.marginLeft = '0px';
+  crop_container.style.flexShrink = '0';
+
+  const crop_button = d3
+    .select(crop_container)
+    .append('div')
+    .text('CROP')
+    .style('display', 'inline-flex')
+    .style('font-size', '9px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    )
+    .on('click', () => {
+      viz_state.crop?.toggle();
+    });
+
+  const undo_button = d3
+    .select(crop_container)
+    .append('div')
+    .text('UNDO')
+    .style('display', 'inline-flex')
+    .style('font-size', '9px')
+    .style('margin-left', '10px')
+    .style(
+      'font-family',
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    )
+    .on('click', () => {
+      viz_state.crop?.undo();
+    });
+
+  viz_state.crop?.set_controls({
+    set_active: (active) => {
+      apply_state_button_style(crop_button, active, viz_state);
+    },
+    set_crop_enabled: (enabled) => {
+      crop_button
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+    set_undo_enabled: (enabled) => {
+      apply_state_button_style(undo_button, enabled, viz_state)
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+  });
+
+  action_container.appendChild(crop_container);
+  action_container.appendChild(mode_container);
+  ui_container.appendChild(action_container);
+
+  // Search + gene info stack vertically in one column: ui_container is a flex
+  // row, so appending them as siblings would widen the control panel instead.
+  const search_container = flex_container('matrix_search_container', 'column');
+  search_container.style.flexShrink = '0';
+
+  const row_search = set_matrix_row_search(viz_state, (row_index) =>
+    viz_state.focus_row?.(row_index)
+  );
+  search_container.appendChild(row_search);
+  ui_container.appendChild(search_container);
+
+  // Gene name/description panel (same one Landscape shows under its gene
+  // search). Stateful by design: it tracks the *selected* gene only, while
+  // hover information goes to the row-label tooltip.
+  if (is_gene_axis(viz_state, 'row')) {
+    // Height fits the remaining room under the search input inside the
+    // control panel's fixed 100px height.
+    const gene_info_box = make_gene_info_box({
+      marginLeft: '10px',
+      height: '58px',
+    });
+    viz_state.gene_info_box = gene_info_box;
+    search_container.appendChild(gene_info_box.element);
+
+    // Selecting a gene (row-label click, search, or an Enrich link) pins its
+    // description and echoes it into the search box, which doubles as a
+    // state viewer for "which gene am I on" — same as Landscape's gene bar.
+    // Assigning `.value` doesn't fire an `input` event, so this can't
+    // re-trigger the search's focus zoom.
+    viz_state.obs_store?.selected_genes?.subscribe(
+      (selected_genes) => {
+        if (selected_genes?.length === 1) {
+          gene_info_box.show(selected_genes[0]);
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = selected_genes[0];
+          }
+        } else if (!selected_genes?.length) {
+          gene_info_box.clear();
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = '';
+          }
+        }
+      },
+      { immediate: false }
+    );
+  }
 
   // Initialize category bar graphs (shown on dendro click)
   init_matrix_cat_bars(viz_state, ui_container);

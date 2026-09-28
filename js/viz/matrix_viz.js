@@ -148,6 +148,16 @@ export const matrix_viz = async (
     col_dendro_callback
   );
 
+  let finalized = false;
+  const model_listeners = [];
+  const on_model = (event, callback) => {
+    const listener = (...args) => {
+      if (!finalized) callback(...args);
+    };
+    model.on(event, listener);
+    model_listeners.push([event, listener]);
+  };
+
   // fix for tooltip positioning
   el.style.position = 'relative';
   viz_state.el = el;
@@ -327,11 +337,12 @@ export const matrix_viz = async (
   // EventManager listens on (`parent` in `ini_deck`), so this fires at
   // exactly the boundary deck.gl already tracks, just without depending on
   // its per-layer picking diff to get there.
-  viz_state.root.addEventListener('pointerleave', () => {
+  const on_pointer_leave = () => {
     clear_composition_hover(deck_mat, layers_mat, viz_state);
     clear_dendro_hover(deck_mat, layers_mat, viz_state);
     clear_cat_hover(deck_mat, layers_mat, viz_state);
-  });
+  };
+  root.addEventListener('pointerleave', on_pointer_leave);
 
   deck_mat.setProps({
     onViewStateChange: (params) =>
@@ -503,16 +514,20 @@ export const matrix_viz = async (
     };
 
     apply_category_colors();
-    viz_state.model.on('change:category_colors', apply_category_colors);
+    on_model('change:category_colors', apply_category_colors);
 
     // 4) Misc other traitlets
-    viz_state.model.on('change:selected_genes', () => {
+    on_model('change:selected_genes', () => {
       viz_state.obs_store.selected_genes.set(
         viz_state.model.get('selected_genes') || []
       );
     });
 
+<<<<<<< HEAD
     viz_state.model.on('change:focused_gene', () => {
+=======
+    on_model('change:focused_gene', () => {
+>>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       const gene = viz_state.model.get('focused_gene') || '';
       if (gene) {
         viz_state.row_search?.focus(gene);
@@ -527,7 +542,11 @@ export const matrix_viz = async (
       }
     });
 
+<<<<<<< HEAD
     viz_state.model.on('change:highlighted_genes', () => {
+=======
+    on_model('change:highlighted_genes', () => {
+>>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       viz_state.labels.highlighted_genes = new Set(
         (viz_state.model.get('highlighted_genes') || []).map((gene) =>
           String(gene).toLowerCase()
@@ -541,18 +560,30 @@ export const matrix_viz = async (
       viz_state.row_search?.focus(focused_gene);
     }
 
+<<<<<<< HEAD
     viz_state.model.on('change:top_n_genes', () => {
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
     });
 
     viz_state.model.on('change:top_gene_percent', () => {
+=======
+    on_model('change:top_n_genes', () => {
+      viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
+    });
+
+    on_model('change:top_gene_percent', () => {
+>>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       viz_state.top_gene_percent =
         viz_state.model.get('top_gene_percent') || 10;
     });
 
     // Python-driven RANK view switch. `apply_rank_view` always echoes the
     // resolved stop and syncs the control; unchanged geometry remains a no-op.
+<<<<<<< HEAD
     viz_state.model.on('change:rank_dim', () => {
+=======
+    on_model('change:rank_dim', () => {
+>>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       apply_rank_view(
         deck_mat,
         layers_mat,
@@ -564,7 +595,7 @@ export const matrix_viz = async (
     // Live body-mode switch. Crossing the composition boundary rebuilds the
     // body layer (and toggles population-side chrome + legend); staying within
     // the square modes (heatmap/size/dotplot) just re-encodes + animates.
-    viz_state.model.on('change:viz_mode', () => {
+    on_model('change:viz_mode', () => {
       const has_size_mat =
         viz_state.mat.max_size_value > 0 && !!network.size_mat;
       const old_mode = viz_state.mat.viz_mode;
@@ -611,7 +642,7 @@ export const matrix_viz = async (
     });
 
     // Live proportion/count toggle for composition.
-    viz_state.model.on('change:composition_normalized', () => {
+    on_model('change:composition_normalized', () => {
       const value = viz_state.model.get('composition_normalized') !== false;
       viz_state.mat.composition_normalized = value;
       viz_state.mode_buttons?.normalized?.setActive(value);
@@ -632,7 +663,7 @@ export const matrix_viz = async (
 
     // Live per-group weights (e.g. true dataset cell counts) for composition
     // "counts" mode bar height.
-    viz_state.model.on('change:composition_col_weights', () => {
+    on_model('change:composition_col_weights', () => {
       viz_state.mat.composition_col_weights =
         viz_state.model.get('composition_col_weights') || {};
       if (viz_state.mat.viz_mode !== 'composition') return;
@@ -647,7 +678,7 @@ export const matrix_viz = async (
 
     // Live DOT toggle: whether dotplot dot size encodes the secondary
     // (fraction) matrix, or is forced to a full tile.
-    viz_state.model.on('change:dot_size_encoded', () => {
+    on_model('change:dot_size_encoded', () => {
       const value = viz_state.model.get('dot_size_encoded') !== false;
       viz_state.mat.dot_size_encoded = value;
       viz_state.mode_buttons?.dot?.setActive(value);
@@ -720,13 +751,54 @@ export const matrix_viz = async (
       viz_state.model.save_changes();
     };
 
+<<<<<<< HEAD
     viz_state.model.on('change:matrix_slice_request', flushMatrixSliceRequest);
+=======
+    on_model('change:matrix_slice_request', flushMatrixSliceRequest);
+>>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
   }
 
   const matrix = {
     obs_store: viz_state.obs_store,
     finalize: () => {
+      if (finalized) return;
+      finalized = true;
+      viz_state.finalized = true;
+      model_listeners.splice(0).forEach(([event, listener]) => {
+        model.off?.(event, listener);
+      });
+      Object.values(viz_state.obs_store).forEach((store) => store.dispose?.());
+      Object.values(viz_state.obs_store.manual_cat || {}).forEach((store) =>
+        store.dispose()
+      );
+      [
+        ...Object.values(viz_state.labels.click_timeouts || {}),
+        ...Object.values(viz_state.labels.attr_click_timeouts || {}),
+        ...Object.values(viz_state.dendro.click_timeouts || {}),
+        viz_state.labels._attr_refresh_timer,
+        viz_state.dendro._hover_timer,
+        viz_state.mat._comp_hover_timer,
+        viz_state.mat._comp_hover_col_timer,
+        viz_state._cat_hover_timer,
+        viz_state.crop?._snap_timer,
+        viz_state.zoom?._programmatic_transition_timer,
+      ].forEach((timer) => clearTimeout(timer));
+      root.removeEventListener('pointerleave', on_pointer_leave);
+      root.removeEventListener(
+        'pointerdown',
+        viz_state.dendro._native_pointerdown_handler,
+        true
+      );
+      root.removeEventListener(
+        'click',
+        viz_state.dendro._native_click_handler,
+        true
+      );
+      viz_state.gene_info_box?.clear();
+      viz_state.attr.editor?.destroy();
       deck_mat.finalize();
+      ui_container.remove();
+      root.remove();
     },
   };
 

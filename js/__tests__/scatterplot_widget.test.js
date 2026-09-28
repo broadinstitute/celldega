@@ -132,9 +132,9 @@ describe('Scatter widget lifecycle and interaction', () => {
       ...Object.keys(editorHelpers),
       `${sourceWithoutModules('../widgets/scatterplot_widget.js')}; return render_scatter;`
     )(
-      () => {},
+      class DrawPolygonMode {},
       Layer,
-      () => {},
+      class ViewMode {},
       {},
       Deck,
       Layer,
@@ -221,6 +221,29 @@ describe('Scatter widget lifecycle and interaction', () => {
     expect(
       el.querySelector('[aria-label="X scale"] option[value="log1p"]').disabled
     ).toBe(true);
+  });
+
+  test('a requested axis change invalidates a decode still loading the old axes', async () => {
+    const resolvers = [];
+    decode.mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve))
+    );
+    const { model, values } = makeModel();
+    const { el } = mount(model);
+    model.set('x', 'G2');
+    resolvers[0](table(defaultRows));
+    await flush();
+    expect(el.querySelector('[role="status"]').textContent).toContain(
+      'Loading'
+    );
+    expect(decks[0].props.layers[0].props.data).toHaveLength(0);
+    model.set('plot_meta', { ...values.plot_meta, x_label: 'G2', revision: 2 });
+    resolvers[1](table(defaultRows));
+    await flush();
+    expect(el.querySelector('[role="status"]').textContent).toContain(
+      '3 cells'
+    );
+    expect(el.querySelector('svg').textContent).toContain('G2');
   });
 
   test('only stable ordered identities animate and gating waits for the transition', async () => {

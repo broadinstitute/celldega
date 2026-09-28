@@ -42,6 +42,34 @@ landscape
 `Landscape` can also be linked to a `Clustergram` so that selections in one
 update the other — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 
+## Cell attributes and population selection
+
+Pass the observation columns you want to explore through `cell_attr`. The
+**CELL** dropdown switches the active color attribute; `color_by` chooses its
+initial value and can also be changed from Python. Keep `cluster_attr` set to
+the attribute used by a linked Clustergram's columns.
+
+```python
+landscape = dega.viz.Landscape(
+    base_url="https://your-landscape-files-url",
+    adata=adata,
+    cluster_attr="leiden",
+    cell_attr=["leiden", "cell_type", "total_counts", "cell_area"],
+    color_by="leiden",
+)
+landscape.color_by = "total_counts"
+```
+
+Categorical attributes use population bars that update with the viewport.
+Click a bar to select a category; Shift-click bars to add or remove categories.
+Shift-clicking cells or their outlines supports the same category selection.
+Numerical attributes use a continuous color legend with a fixed global range;
+missing and non-finite values are gray, and zero remains a valid value. Gene
+expression coloring remains available through gene search and linked widgets.
+
+See the [linked pancreas notebook](../examples/brief_notebooks/Scatter_Pancreas_Linked.ipynb)
+for Scatter gates and Clustergram selections highlighted in Landscape.
+
 For the full list of constructor arguments (multi-dataset support, point-cloud
 options, `AnnData` integration, etc.), see the
 [Viz Module API reference](../python/viz/api.md).

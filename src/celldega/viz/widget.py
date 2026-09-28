@@ -616,14 +616,22 @@ class Landscape(CelldegaWidget):
                 if attribute == "color":
                     continue
                 series = meta_cell_df[attribute]
-                numeric = pd.api.types.is_numeric_dtype(series.dtype) and not pd.api.types.is_bool_dtype(series.dtype)
+                numeric = pd.api.types.is_numeric_dtype(
+                    series.dtype
+                ) and not pd.api.types.is_bool_dtype(series.dtype)
                 attribute_types[str(attribute)] = "numeric" if numeric else "categorical"
                 if numeric:
                     continue
-                categories = series.cat.categories if isinstance(series.dtype, pd.CategoricalDtype) else sorted(series.dropna().unique(), key=str)
+                categories = (
+                    series.cat.categories
+                    if isinstance(series.dtype, pd.CategoricalDtype)
+                    else sorted(series.dropna().unique(), key=str)
+                )
                 stored = adata.uns.get(f"{attribute}_colors", []) if adata is not None else []
                 attribute_colors[str(attribute)] = {
-                    str(category): str(stored[index]) if index < len(stored) else _hsv_to_hex(index / max(len(categories), 1))
+                    str(category): str(stored[index])
+                    if index < len(stored)
+                    else _hsv_to_hex(index / max(len(categories), 1))
                     for index, category in enumerate(categories)
                 }
             kwargs.setdefault("cell_attribute_types", attribute_types)

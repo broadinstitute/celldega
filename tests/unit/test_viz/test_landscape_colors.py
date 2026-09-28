@@ -88,3 +88,23 @@ def test_meta_cell_keyed_by_obs_names_not_cell_id_column() -> None:
     keys = {str(x) for x in table.column(key_field).to_pylist()}
     assert keys == set(adata.obs_names)  # keyed by obs_names ...
     assert not (keys & set(adata.obs["cell_id"]))  # ... not the cell_id column
+
+
+def test_landscape_exports_numeric_types_palettes_and_nullable_values():
+    import io
+
+    import pyarrow.parquet as pq
+
+    adata = ad.AnnData(np.zeros((3, 2)))
+    adata.obs["leiden"] = pd.Categorical([0, 1, 0])
+    adata.obs["counts"] = [0.0, np.nan, 10.0]
+    adata.uns["leiden_colors"] = ["#ff0000", "#00ff00"]
+    widget = Landscape(adata=adata, cell_attr=["leiden"], color_by="counts", transform=np.eye(3))
+
+    assert widget.color_by == "counts"
+    assert widget.cell_attr == ["leiden", "counts"]
+    assert widget.cell_attribute_types == {"leiden": "categorical", "counts": "numeric"}
+    assert widget.cell_attribute_colors["leiden"] == {"0": "#ff0000", "1": "#00ff00"}
+    table = pq.read_table(io.BytesIO(widget.meta_cell_parquet))
+    assert table["counts"].to_pylist() == [0.0, None, 10.0]
+    widget.close()

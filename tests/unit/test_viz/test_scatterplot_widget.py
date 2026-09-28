@@ -627,6 +627,26 @@ def test_browser_category_and_cell_batch_preserves_matching_categories(adata, wi
     assert widget.get_selection() == ["cell-a", "cell-c"]
 
 
+@pytest.mark.parametrize("cells_first", [True, False])
+def test_browser_gate_batch_replaces_categories_without_losing_explicit_ids(
+    adata, widgets, cells_first
+):
+    widget = widgets(adata, color_by="cell_type")
+    widget.select_categories(["T"])
+    fields = [("selected_categories", []), ("selected_cells", ["cell-b"])]
+    widget.set_state(dict(reversed(fields) if cells_first else fields))
+    assert widget.selected_categories == []
+    assert widget.get_selection() == ["cell-b"]
+
+
+def test_browser_batch_keeps_explicit_ids_if_category_label_is_stale(adata, widgets):
+    widget = widgets(adata, color_by="cell_type")
+    widget.select_cells(["cell-b"])
+    widget.set_state({"selected_categories": ["T"], "selected_cells": ["cell-b"]})
+    assert widget.selected_categories == []
+    assert widget.get_selection() == ["cell-b"]
+
+
 def test_annotation_clears_categories_without_changing_selected_cells(adata, widgets):
     widget = widgets(adata, color_by="cell_type")
     widget.select_categories(["T"])

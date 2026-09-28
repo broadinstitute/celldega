@@ -80,6 +80,7 @@ const path_layer_onclick = async (
 ) => {
   const inst_cell_id = viz_state.cats.polygon_cell_names[info.index];
   const inst_cat = viz_state.cats.dict_cell_cats[inst_cell_id];
+  if (viz_state.cats.attribute_numeric) return;
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
@@ -89,7 +90,12 @@ const path_layer_onclick = async (
   });
 
   update_cat(viz_state.cats, 'cluster');
-  select_category(viz_state.cats, inst_cat, viz_state.obs_store, Boolean(_d?.srcEvent?.shiftKey));
+  select_category(
+    viz_state.cats,
+    inst_cat,
+    viz_state.obs_store,
+    Boolean(_d?.srcEvent?.shiftKey)
+  );
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 

@@ -58,7 +58,12 @@ export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
 };
 
 /** A plain click toggles one category; Shift toggles its membership in the set. */
-export const select_category = (cats, category, obs_store, additive = false) => {
+export const select_category = (
+  cats,
+  category,
+  obs_store,
+  additive = false
+) => {
   if (cats.attribute_numeric) return;
   const selected = cats.selected_cats || [];
   const key = String(category);
@@ -68,4 +73,5 @@ export const select_category = (cats, category, obs_store, additive = false) => 
       : [...selected, category]
     : [category];
   update_selected_cats(cats, next, obs_store);
+  cats.reset_cat = cats.selected_cats.length === 0;
 };

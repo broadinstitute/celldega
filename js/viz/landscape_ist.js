@@ -94,8 +94,8 @@ import {
 //   getVersion as getParquetWasmVersion,
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
-import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { make_cell_attribute_control } from '../ui/cell_attribute_control';
+import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { make_ist_ui_container } from '../ui/ui_containers';
@@ -1026,9 +1026,36 @@ export const landscape_ist = async (
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 
+  let attribute_control = null;
+  const apply_attribute_choice = (attribute) => {
+    if (!apply_cell_attribute(viz_state, attribute)) return;
+    update_selected_genes(viz_state.genes, [], viz_state.obs_store);
+    viz_state.obs_store.selected_cats.set([]);
+    viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
+    refresh_cell_layer();
+    layers_obj.path_layer = layers_obj.path_layer.clone({
+      updateTriggers: { getColor: attribute },
+    });
+    refresh_layer(viz_state, layers_obj, 'path_layer');
+    attribute_control?.update();
+  };
+
   if (viz_state.model?.on) {
-    const on_update_trigger = () =>
-      update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+    const on_update_trigger = () => {
+      const event = viz_state.model.get('update_trigger') || {};
+      const value = event.value || event.click_value || {};
+      const entity = value.col_entity_full || value;
+      if (
+        entity.entity === 'cell' &&
+        viz_state.cats.meta_cell_attr.includes(entity.attr) &&
+        entity.attr !== viz_state.cats.inst_cell_attr
+      ) {
+        apply_attribute_choice(entity.attr);
+        viz_state.model.set('color_by', entity.attr);
+        viz_state.model.save_changes();
+      }
+      return update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+    };
     const on_cell_clusters = () =>
       update_cell_clusters(deck_ist, layers_obj, viz_state);
     const on_selected_cells = () => {
@@ -1053,19 +1080,7 @@ export const landscape_ist = async (
     viz_state
   );
 
-  const apply_attribute_choice = (attribute) => {
-    if (!apply_cell_attribute(viz_state, attribute)) return;
-    update_selected_genes(viz_state.genes, [], viz_state.obs_store);
-    viz_state.obs_store.selected_cats.set([]);
-    viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
-    refresh_cell_layer();
-    layers_obj.path_layer = layers_obj.path_layer.clone({
-      updateTriggers: { getColor: attribute },
-    });
-    refresh_layer(viz_state, layers_obj, 'path_layer');
-    attribute_control?.update();
-  };
-  const attribute_control = make_cell_attribute_control(viz_state, (attribute) => {
+  attribute_control = make_cell_attribute_control(viz_state, (attribute) => {
     apply_attribute_choice(attribute);
     if (viz_state.model?.set) {
       viz_state.model.set('color_by', attribute);
@@ -1075,10 +1090,14 @@ export const landscape_ist = async (
   if (attribute_control) {
     const bars = viz_state.containers.bar_cluster;
     bars.parentElement.insertBefore(attribute_control.root, bars);
-    apply_attribute_choice(viz_state.model?.get?.('color_by') || viz_state.cats.inst_cell_attr);
+    apply_attribute_choice(
+      viz_state.model?.get?.('color_by') || viz_state.cats.inst_cell_attr
+    );
     const on_color_by = () => {
-      const attribute = viz_state.model.get('color_by') || viz_state.model.get('cluster_attr');
-      if (attribute !== viz_state.cats.inst_cell_attr) apply_attribute_choice(attribute);
+      const attribute =
+        viz_state.model.get('color_by') || viz_state.model.get('cluster_attr');
+      if (attribute !== viz_state.cats.inst_cell_attr)
+        apply_attribute_choice(attribute);
     };
     viz_state.model?.on?.('change:color_by', on_color_by);
     cleanup_callbacks.push(() => {

@@ -1179,11 +1179,13 @@ export const make_ist_ui_container = (
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
           const rgb = color_dict[d.name] || [0, 0, 0];
-          const selected = bar_callback === bar_callback_cat
-            ? viz_state.cats.selected_cats
-            : selected_array;
+          const selected =
+            bar_callback === bar_callback_cat
+              ? viz_state.cats.selected_cats
+              : selected_array;
           const opacity =
-            selected.length === 0 || selected.map(String).includes(String(d.name))
+            selected.length === 0 ||
+            selected.map(String).includes(String(d.name))
               ? 1
               : 0.1;
           return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;

@@ -392,6 +392,13 @@ class Scatter(CelldegaWidget):
     def _on_selected_categories(self, change):
         if not self._ready or self._closed or self._syncing_categories:
             return
+        # ipywidgets keeps incoming properties locked until all held observers
+        # finish. A gate can clear categories and provide explicit cell IDs in
+        # that same message; those IDs take precedence over category expansion.
+        if "selected_cells" in self._property_lock:
+            if set(self.selected_cells) != set(self._category_cell_ids(change["new"])):
+                self._clear_category_selection()
+            return
         self._syncing_categories = True
         try:
             self.selected_cells = self._category_cell_ids(change["new"])

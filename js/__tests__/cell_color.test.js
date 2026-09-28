@@ -12,6 +12,7 @@ describe('cell color selection semantics', () => {
         path.join(__dirname, '../deck-gl/layers/cell_color.js'),
         'utf8'
       )
+      .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
       .replace(/^export const /gm, 'const ');
     const code = `${source}\nmodule.exports = { get_cell_color };`;
     const module = { exports: {} };

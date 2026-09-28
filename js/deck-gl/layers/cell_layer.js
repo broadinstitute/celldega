@@ -660,7 +660,12 @@ const cell_layer_onclick = async (
     path_layer: false,
     trx_layer: false,
   });
-  select_category(viz_state.cats, inst_cat, viz_state.obs_store, Boolean(_d?.srcEvent?.shiftKey));
+  select_category(
+    viz_state.cats,
+    inst_cat,
+    viz_state.obs_store,
+    Boolean(_d?.srcEvent?.shiftKey)
+  );
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 

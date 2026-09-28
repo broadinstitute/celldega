@@ -35,7 +35,7 @@ export const create_scatter_category_panel = ({ onSelect }) => {
   });
   const summary = element('div', { margin: '2px 0', color: '#47515b' });
   const bars = element('div', {
-    height: '49px',
+    height: '34px',
     overflowY: 'auto',
     border: '1px solid #d3d3d3',
   });
@@ -101,7 +101,10 @@ export const create_scatter_category_panel = ({ onSelect }) => {
       ).values(),
     ];
     const selected = new Set(selectedCategories);
-    const maxCount = Math.max(1, ...counts.values());
+    const maxCount = [...counts.values()].reduce(
+      (maximum, count) => Math.max(maximum, count),
+      1
+    );
     bars.replaceChildren(
       ...categories.map(({ name, color }) => {
         const count = counts.get(String(name)) || 0;

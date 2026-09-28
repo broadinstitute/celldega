@@ -703,6 +703,11 @@ export const render_scatter = ({ model, el }) => {
       prepared.points.every(
         (point, index) => point.id === state.prepared.points[index].id
       ) &&
+      prepared.points.some((point, index) =>
+        point.position.some(
+          (value, axis) => value !== state.prepared.points[index].position[axis]
+        )
+      ) &&
       duration > 0;
     setState({ prepared, animating, ...clearSketch() });
     if (animating)
@@ -741,6 +746,9 @@ export const render_scatter = ({ model, el }) => {
     const scaleChange =
       previous.x_scale !== settings.x_scale ||
       previous.y_scale !== settings.y_scale;
+    // A newly requested projection supersedes an older decode even before the
+    // kernel has sent its next coordinate payload.
+    if (coordinateChange || colorChange) parseRevision += 1;
     setState({
       settings,
       ...(coordinateChange || colorChange ? { loading: true } : {}),

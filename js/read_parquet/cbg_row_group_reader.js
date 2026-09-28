@@ -498,17 +498,4 @@ export class CBGRowGroupReader extends ParquetReaderLifecycle {
     this.geneList = null;
     this.initialized = false;
   }
-
-  /** Release the persistent parquet-wasm reader and large lookup tables. */
-  dispose() {
-    try {
-      this.parquetFile?.free?.();
-    } catch {
-      // A concurrent read may already have consumed/released the handle.
-    }
-    this.parquetFile = null;
-    this.geneToRowGroup = null;
-    this.geneList = null;
-    this.initialized = false;
-  }
 }

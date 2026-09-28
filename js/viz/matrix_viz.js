@@ -523,11 +523,7 @@ export const matrix_viz = async (
       );
     });
 
-<<<<<<< HEAD
-    viz_state.model.on('change:focused_gene', () => {
-=======
     on_model('change:focused_gene', () => {
->>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       const gene = viz_state.model.get('focused_gene') || '';
       if (gene) {
         viz_state.row_search?.focus(gene);
@@ -542,11 +538,7 @@ export const matrix_viz = async (
       }
     });
 
-<<<<<<< HEAD
-    viz_state.model.on('change:highlighted_genes', () => {
-=======
     on_model('change:highlighted_genes', () => {
->>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       viz_state.labels.highlighted_genes = new Set(
         (viz_state.model.get('highlighted_genes') || []).map((gene) =>
           String(gene).toLowerCase()
@@ -560,30 +552,18 @@ export const matrix_viz = async (
       viz_state.row_search?.focus(focused_gene);
     }
 
-<<<<<<< HEAD
-    viz_state.model.on('change:top_n_genes', () => {
-      viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
-    });
-
-    viz_state.model.on('change:top_gene_percent', () => {
-=======
     on_model('change:top_n_genes', () => {
       viz_state.top_n_genes = viz_state.model.get('top_n_genes') || 50;
     });
 
     on_model('change:top_gene_percent', () => {
->>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       viz_state.top_gene_percent =
         viz_state.model.get('top_gene_percent') || 10;
     });
 
     // Python-driven RANK view switch. `apply_rank_view` always echoes the
     // resolved stop and syncs the control; unchanged geometry remains a no-op.
-<<<<<<< HEAD
-    viz_state.model.on('change:rank_dim', () => {
-=======
     on_model('change:rank_dim', () => {
->>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
       apply_rank_view(
         deck_mat,
         layers_mat,
@@ -751,11 +731,7 @@ export const matrix_viz = async (
       viz_state.model.save_changes();
     };
 
-<<<<<<< HEAD
-    viz_state.model.on('change:matrix_slice_request', flushMatrixSliceRequest);
-=======
     on_model('change:matrix_slice_request', flushMatrixSliceRequest);
->>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
   }
 
   const matrix = {

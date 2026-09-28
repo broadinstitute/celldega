@@ -347,16 +347,7 @@ export class RowGroupTileReader extends ParquetReaderLifecycle {
   /** Release cached Arrow data and the persistent parquet-wasm reader. */
   dispose() {
     this.requestCache.clear();
-<<<<<<< HEAD
-    try {
-      this.parquetFile?.free?.();
-    } catch {
-      // A concurrent read may already have consumed/released the handle.
-    }
-    this.parquetFile = null;
-=======
     super.dispose();
->>>>>>> 1e3458b16775f66f1df8fe906f611b5faa9e65bd
     this.initialized = false;
   }
 }

@@ -237,6 +237,19 @@ def _serialize_linkage(linkage_matrix: np.ndarray) -> list[list[float]]:
     return [[round(float(value), 6) for value in row] for row in linkage_matrix]
 
 
+def _clustering_distances(data: np.ndarray, dist_type: str) -> np.ndarray:
+    """Share distance handling between the full matrix and reduced views."""
+    if dist_type == Distance.COSINE.value and (
+        data.shape[1] > 1000 or np.any(~np.any(data, axis=1))
+    ):
+        # scipy's cosine metric is undefined for zero vectors. Use the same
+        # explicit zero-vector convention at every matrix/view size.
+        return fast_cosine_distance(data)
+    distances = pdist(data, metric=dist_type)
+    np.maximum(distances, 0.0, out=distances)
+    return distances
+
+
 class Matrix:
     """
     High-performance matrix class for single-cell genomics data processing.
@@ -849,11 +862,7 @@ class Matrix:
                 return
 
             try:
-                if dist_type == Distance.COSINE.value and data.shape[1] > 1000:
-                    distances = fast_cosine_distance(data)
-                else:
-                    distances = pdist(data, metric=dist_type)
-                    np.maximum(distances, 0.0, out=distances)
+                distances = _clustering_distances(data, dist_type)
 
                 # Cache with size limit
                 if len(_distance_cache[self]) < CONFIG["cache_size_limit"]:
@@ -880,11 +889,7 @@ class Matrix:
             return None, None
 
         try:
-            if dist_type == Distance.COSINE.value and data.shape[1] > 1000:
-                distances = fast_cosine_distance(data)
-            else:
-                distances = pdist(data, metric=dist_type)
-                np.maximum(distances, 0.0, out=distances)
+            distances = _clustering_distances(data, dist_type)
 
             linkage_matrix = linkage(distances, method=linkage_type)
             leaves = dendrogram(linkage_matrix, no_plot=True)["leaves"]

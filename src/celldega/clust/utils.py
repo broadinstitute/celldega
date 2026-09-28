@@ -68,13 +68,20 @@ def compute_metric(data: pd.DataFrame | np.ndarray, metric: str, axis: int = 1) 
 
 
 def fast_cosine_distance(data: np.ndarray) -> np.ndarray:
-    """Optimized cosine distance computation."""
+    """Cosine distances, treating two zero vectors as identical.
+
+    A zero vector has distance one from a nonzero vector. Clip roundoff so
+    identical vectors cannot yield negative linkage heights.
+    """
     norms = np.linalg.norm(data, axis=1, keepdims=True)
+    zero_rows = np.flatnonzero(norms[:, 0] == 0)
     norms[norms == 0] = 1
     normalized_data = data / norms
 
     similarity_matrix = np.dot(normalized_data, normalized_data.T)
     distance_matrix = 1 - similarity_matrix
+    np.clip(distance_matrix, 0.0, 2.0, out=distance_matrix)
+    distance_matrix[np.ix_(zero_rows, zero_rows)] = 0.0
 
     # Extract upper triangle
     n = distance_matrix.shape[0]
@@ -159,16 +166,8 @@ def compute_marker_ranks(
     # absorbs Scanpy's uns side effects and keeps categorical coercion off the
     # caller's object.
     selected_layer = kwargs.get("layer")
-    layers = (
-        {selected_layer: adata.layers[selected_layer]}
-        if selected_layer is not None
-        else None
-    )
-    raw = (
-        {"X": adata.raw.X, "var": adata.raw.var.copy()}
-        if adata.raw is not None
-        else None
-    )
+    layers = {selected_layer: adata.layers[selected_layer]} if selected_layer is not None else None
+    raw = {"X": adata.raw.X, "var": adata.raw.var.copy()} if adata.raw is not None else None
     working = AnnData(
         X=adata.X,
         obs=pd.DataFrame(

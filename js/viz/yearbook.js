@@ -1307,7 +1307,20 @@ export const yearbook = async (
       return viz_state.yearbook.query || {};
     },
     finalize: () => {
+      viz_state.cache?.cell?.clear?.();
+      viz_state.cache?.trx?.clear?.();
+
+      const readers = viz_state.row_group_readers || {};
+      [readers.cell, readers.trx, readers.cbg].forEach((reader) =>
+        reader?.dispose?.()
+      );
+      Object.values(readers.images || {}).forEach((reader) =>
+        reader?.dispose?.()
+      );
+
       deck_yearbook.finalize();
+      ui_container.remove();
+      root.remove();
     },
   };
 

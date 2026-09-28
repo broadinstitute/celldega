@@ -18,11 +18,11 @@ is the DegaFiles manifest each fetches: ``cell_cloud.json`` /
 
 import uuid
 
-import anywidget
 import numpy as np
 import pandas as pd
 import traitlets
 
+from ._widget_lifecycle import CelldegaWidget
 from .widget import (
     _WIDGET_ESM,
     _hsv_to_hex,
@@ -51,7 +51,7 @@ def _reset_index_for_parquet(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index()
 
 
-class _SpatialWidget(anywidget.AnyWidget):
+class _SpatialWidget(CelldegaWidget):
     """Shared base for celldega spatial widgets (trait surface + AnnData plumbing).
 
     Holds the traits and construction logic common to every spatial widget:
@@ -322,14 +322,6 @@ class _SpatialWidget(anywidget.AnyWidget):
     def highlight_cells(self, cell_ids):
         """Highlight specific cells by their identifiers."""
         self.selected_cells = list(cell_ids)
-
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        from contextlib import suppress
-
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
 
 
 class CellCloud(_SpatialWidget):

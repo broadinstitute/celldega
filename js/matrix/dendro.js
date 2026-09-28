@@ -54,7 +54,9 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh, leaf_map) => {
   let new_clust_id;
 
   viz_state.linkage[axis].forEach((x, i) => {
-    if (x[2] > min_dist && x[2] < dist_thresh) {
+    // Identical leaves merge at zero. Skipping those merges loses their
+    // membership when a later node refers to the resulting cluster id.
+    if (x[2] >= min_dist && x[2] < dist_thresh) {
       // get cluster that are being combined together
       clust_a = x[0];
       clust_b = x[1];
@@ -223,7 +225,7 @@ export const ini_dendro = (viz_state) => {
   axes.forEach((axis) => {
     link_mat = viz_state.linkage[axis];
     viz_state.dendro.max_linkage_dist[axis] =
-      link_mat[link_mat.length - 1][2] + 0.01;
+      (link_mat[link_mat.length - 1]?.[2] || 0) + 0.01;
     dist_thresh =
       viz_state.dendro.max_linkage_dist[axis] *
       viz_state.dendro.default_link_level;

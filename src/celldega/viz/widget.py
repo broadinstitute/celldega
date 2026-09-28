@@ -3,7 +3,6 @@
 import asyncio
 from collections.abc import Sequence
 import colorsys
-from contextlib import suppress
 from copy import deepcopy
 import importlib.metadata
 import json
@@ -16,16 +15,14 @@ from urllib.parse import urlparse
 import uuid
 import warnings
 
-import anywidget
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.affinity import affine_transform
 import traitlets
 
+from ._widget_lifecycle import CelldegaWidget
 
-_clustergram_registry = {}  # maps names to widget instances
-_enrich_registry = {}  # maps names to widget instances
 
 _LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
@@ -220,7 +217,7 @@ def _coerce_nbhd_for_landscape(
     return gdf, meta_nbhd
 
 
-class Landscape(anywidget.AnyWidget):
+class Landscape(CelldegaWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget
     currently supports segmented spatial transcriptomics data (Xenium, MERSCOPE,
@@ -677,12 +674,6 @@ class Landscape(anywidget.AnyWidget):
 
         self.nbhd = gdf
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
-
 
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
@@ -701,7 +692,7 @@ class ManualAttributeTrait(traitlets.Unicode):
         return super().validate(obj, str(value).strip())
 
 
-class Enrich(anywidget.AnyWidget):
+class Enrich(CelldegaWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
 
@@ -750,20 +741,11 @@ class Enrich(anywidget.AnyWidget):
     focused_gene = traitlets.Unicode("").tag(sync=True)
 
     def __init__(self, **kwargs):
-        name = kwargs.pop("name", "default")
-        old_widget = _enrich_registry.get(name)
-        if old_widget:
-            with suppress(Exception):
-                old_widget.close()
-
-        kwargs["name"] = name
-        super().__init__(**kwargs)
-        _enrich_registry[name] = self
-
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
+        name = kwargs.pop("name", None)
+        registry_key = kwargs.pop("registry_key", None)
+        if name is None and registry_key is None:
+            registry_key = "default"
+        super().__init__(name=name, registry_key=registry_key, **kwargs)
 
 
 def _colors_from_adata(
@@ -916,7 +898,7 @@ def _composition_matrix_inputs(
     }
 
 
-class Yearbook(anywidget.AnyWidget):
+class Yearbook(CelldegaWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
 
@@ -1211,14 +1193,8 @@ class Yearbook(anywidget.AnyWidget):
         """Navigate to a specific page."""
         self.current_page = max(0, min(page, self.total_pages - 1))
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
 
-
-class Clustergram(anywidget.AnyWidget):
+class Clustergram(CelldegaWidget):
     """
     Minimal version of the Clustergram widget.
 
@@ -1248,6 +1224,7 @@ class Clustergram(anywidget.AnyWidget):
     """
 
     _esm = _WIDGET_ESM
+    _registry_namespace = "matrix"
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
@@ -1411,6 +1388,8 @@ class Clustergram(anywidget.AnyWidget):
             Deprecated path, kept only for backwards-compatibility.
         """
         pq_data = kwargs.pop("parquet_data", None)
+        explicit_name = kwargs.pop("name", None)
+        explicit_registry_key = kwargs.pop("registry_key", None)
 
         if "network" in kwargs:
             warnings.warn(
@@ -1469,12 +1448,10 @@ class Clustergram(anywidget.AnyWidget):
             }
             self.add_traits(**parquet_traits)
 
-        old_widget = _clustergram_registry.get(name)
-        if old_widget:
-            with suppress(Exception):
-                old_widget.close()
-
-        kwargs["name"] = name
+        if explicit_registry_key is not None:
+            name = explicit_registry_key
+        elif explicit_name is not None:
+            name = explicit_name
         kwargs["manual_row_cat"] = manual_row_flag
         kwargs["manual_col_cat"] = manual_col_flag
 
@@ -1483,8 +1460,7 @@ class Clustergram(anywidget.AnyWidget):
         if pq_data is not None and pq_data.get("dot_mat") and "viz_mode" not in kwargs:
             kwargs["viz_mode"] = "dotplot"
 
-        super().__init__(**kwargs)
-        _clustergram_registry[name] = self
+        super().__init__(name=name, **kwargs)
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user
@@ -1766,12 +1742,6 @@ class Clustergram(anywidget.AnyWidget):
             return None
         data = getattr(m, "data", None)
         return data.copy() if data is not None else None
-
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
 
 
 class Composition(Clustergram):

@@ -4,6 +4,44 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.25.0] - 2026-09-29
+
+Major Clustergram-focused release adding interactive matrix filtering, reduced-dimensionality views, full dendrogram tree visualization, tighter Enrich integration, and a broad round of visualization and lifecycle improvements.
+
+### Added
+
+- **Interactive Clustergram crop filtering** — a new `CROP` / `UNDO` workflow lets users drag-select a region of the matrix and filter to the selected rows and columns. Double-clicking a dendrogram branch can also crop directly to that hierarchical cluster. Cropping updates the matrix, labels, annotations, dendrograms, and category summaries together, and gene-row crops propagate to linked Enrich and spatial views. Crop filtering can be used within an active reduced-dimensionality view. ([#251](https://github.com/broadinstitute/celldega/pull/251))
+
+- **Reduced-dimensionality Clustergram views** — `Matrix.clust(views=..., levels=...)` can now precompute filtered views using `"rank_genes_groups"`, `"var"`, `"sum"`, or `"mean"`. Each level is independently re-biclustered on both axes rather than simply hiding rows, and is exposed through a new `RANK` / `VAR` / `SUM` / `MEAN` slider in the Clustergram. The complete matrix remains available as the `all` view. `Clustergram.rank_dim` can also select a view programmatically. ([#334](https://github.com/broadinstitute/celldega/pull/334))
+
+- **Marker ranking support for dimensionality filtering** — `Matrix.downsample_to(..., rank_genes_groups=True)`, `Matrix.set_marker_ranks(...)`, and `SetCollection.calc_signature(..., rank_genes_groups=True)` can compute or preserve differential-expression rankings for marker-driven Clustergram views. Existing `AnnData.uns["rank_genes_groups"]` results are recognized automatically. ([#334](https://github.com/broadinstitute/celldega/pull/334))
+
+- **Full dendrogram tree and rising-water cut visualization** — adjusting a dendrogram cutoff slider now temporarily displays the complete row or column tree over the matrix, together with a watershed-style blue region showing the portion of the hierarchy merged below the current linkage threshold. The preview follows matrix zoom and pan, supports reduced `RANK` views and cropped layouts, and can be dismissed immediately with Escape. ([#342](https://github.com/broadinstitute/celldega/pull/342))
+
+- **Clustergram row search and shared gene information** — gene rows can be searched and focused directly in the Clustergram. UniProt-backed gene names and descriptions are now shared across Clustergram row tooltips, Enrich, and Landscape transcript tooltips. ([#251](https://github.com/broadinstitute/celldega/pull/251))
+
+- **Programmatic Clustergram matrix slices** — new `request_matrix_slice`, `request_matrix_slice_async`, and `matrix_slice_result` interfaces expose row, column, and cell slices from the live browser-side matrix. `matrix_dataframe()` provides access to the backing Python matrix when available. ([#251](https://github.com/broadinstitute/celldega/pull/251))
+
+### Changed
+
+- **Enrich visualization and interaction improvements** — Enrich now reports the source and size of its input gene set, provides a `CLEAR` action, respects its configured widget height, contains scrolling within the widget, and provides richer term and gene hover information including combined score, p-values, odds ratio, gene overlap, and UniProt gene information. Async enrichment updates now guard against stale results replacing a newer request. ([#251](https://github.com/broadinstitute/celldega/pull/251))
+
+- **Improved Clustergram ↔ Enrich linking** — column, crop, and dendrogram selections can populate Enrich while preserving the source of the selection; selecting an enriched term highlights its member genes in the Clustergram; and selecting a gene in Enrich focuses the corresponding Clustergram row and linked spatial view. Single row-label selections no longer overwrite an existing enrichment gene set. ([#251](https://github.com/broadinstitute/celldega/pull/251), [#334](https://github.com/broadinstitute/celldega/pull/334))
+
+- **Enrichment gene selection adapts to filtered views** — genes sent from a Clustergram column to Enrich are now selected from the currently visible rows and scale with the visible dimensionality using `top_gene_percent`, capped by `top_n_genes`. This avoids selecting nearly an entire reduced `RANK` view as the enrichment gene set. ([#334](https://github.com/broadinstitute/celldega/pull/334))
+
+- **Widget lifecycle and cleanup were consolidated** — Celldega widgets now share explicit replacement and teardown behavior, with more complete cleanup of model listeners, timers, WebGL resources, observable stores, and asynchronous Parquet/WASM reader handles when widgets are closed or replaced. ([#340](https://github.com/broadinstitute/celldega/pull/340))
+
+- **Tutorial documentation updated** — the documentation now links the Xenium `Preprocess DegaFiles and Viz Pancreas` workflow in place of the older Visium-HD preprocessing tutorial. ([#331](https://github.com/broadinstitute/celldega/pull/331))
+
+### Fixed
+
+- **Cosine clustering with zero or duplicate rows** — zero vectors now have well-defined cosine distances, numerical roundoff is constrained to valid distances, and the same behavior is used for both full matrices and reduced views. This also fixes dendrogram behavior around zero-distance/duplicate merges. ([#340](https://github.com/broadinstitute/celldega/pull/340), [#342](https://github.com/broadinstitute/celldega/pull/342))
+
+- **Clustergram metadata could become stale after adding categories** — `Matrix.make_viz()` now rebuilds node metadata so newly-added row or column attributes are included correctly in the visualization. ([#251](https://github.com/broadinstitute/celldega/pull/251))
+
+- **Clustergram visualization and interaction fixes** — numerous fixes improve filtered matrix layout, dendrogram visibility and interaction, label highlighting, row focus, tooltips, reorder animations, zoom/pan behavior, and cleanup when widgets are re-rendered or replaced. Dedicated regression coverage was added for crop filtering, dimensionality views, dendrogram cutting, zero-distance trees, row search, tooltips, and widget lifecycle. ([#251](https://github.com/broadinstitute/celldega/pull/251), [#334](https://github.com/broadinstitute/celldega/pull/334), [#340](https://github.com/broadinstitute/celldega/pull/340), [#342](https://github.com/broadinstitute/celldega/pull/342))
+
 ## [0.24.2] - 2026-08-12
 
 Patch release fixing missing/generic documentation links on the visualization

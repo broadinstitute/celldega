@@ -11,7 +11,12 @@ tissue location.
   encodes value) or a filled tile, toggled with the `TILE: prop/unit` and
   composition `prop/counts` controls.
 - **Dendrograms** on both axes, with sliders to change the linkage-distance
-  cutoff used to cut the tree into clusters.
+  cutoff used to cut the tree into clusters. While adjusting a slider, a
+  temporary full-tree overview appears over the matrix on a translucent white
+  background. A blue water rectangle expands from the leaves to the cutoff,
+  showing the branches merged below that level. It rises for
+  columns and moves sideways for rows. Release the slider to fade the overview,
+  or press Escape to dismiss it immediately. Keyboard slider controls also work.
 - **Reorder controls** for both axes (`clust`, `sum`, `var`, `ini`) to
   resort rows/columns by clustering order, summed value, variance, or the
   original input order.
@@ -21,6 +26,12 @@ tissue location.
 For comparing category composition (e.g. cell-type proportions) across
 groups instead of a general heatmap, see [Composition](composition.md), a
 `Clustergram` variant purpose-built for that comparison.
+
+The tree preview follows the matrix's zoom and pan: row branches stay aligned
+vertically and column branches horizontally, including in the current RANK
+view. The blue cut rectangle stays fitted to the visible matrix. The preview
+appears in clustering order; an axis crop keeps its dendrogram slice pinned
+until the crop is undone.
 
 ## Usage
 

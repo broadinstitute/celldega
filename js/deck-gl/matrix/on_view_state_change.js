@@ -6,6 +6,7 @@ import { get_zoomed_axis_label_font_size } from '../../matrix/crop_filter';
 import { curate_pan_x, curate_pan_y } from './curate_pan';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
+import { DENDRO_TREE_VIEW_IDS } from './views';
 import { update_zoom_data } from './zoom';
 
 // Label and dendrogram viewports have their own local coordinate systems.
@@ -29,6 +30,11 @@ export const on_view_state_change = (
 ) => {
   const { viewState } = params;
   const { viewId } = params;
+
+  // These overlapping preview views have controllers only so deck.gl can
+  // interpolate their programmatic camera state. They must never drive the
+  // matrix camera or its zoom bookkeeping themselves.
+  if (DENDRO_TREE_VIEW_IDS.has(viewId)) return;
 
   const { zoom, target } = viewState;
 
@@ -249,7 +255,7 @@ export const on_view_state_change = (
   // Preserve controller: false for static views (attribute labels)
   viz_state.views.views_list = viz_state.views.views_list.map((view) => {
     // Don't modify controller for static views
-    if (view.props.controller === false) {
+    if (view.props.controller === false || DENDRO_TREE_VIEW_IDS.has(view.id)) {
       return view;
     }
     return new OrthographicView({

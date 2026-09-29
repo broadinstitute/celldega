@@ -1,3 +1,5 @@
+import { get_dendro_tree_view_states } from './views';
+
 // Static view states that never change (for attribute labels)
 const get_static_view_states = (viz_state) => ({
   row_attr_labels: {
@@ -44,6 +46,7 @@ export const redefine_global_view_state = (
       zoom: [zoom_curated[0], viz_state.zoom.ini_zoom_y],
       target: [pan_curated[0], viz_state.viz.label_col_y],
     },
+    ...get_dendro_tree_view_states(viz_state, zoom_curated, pan_curated),
     ...staticStates,
   };
 };

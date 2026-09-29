@@ -165,6 +165,7 @@ export const set_rank_view_state = (viz_state, level) => {
   if (target != null && !view) return false;
 
   const source = view || rank_view.base;
+  viz_state.dendro?.tree_overlay?.hide(true);
 
   rank_view.current = view ? view.level : null;
   rank_view.filter = { row: view ? view.row_indices : null, col: null };

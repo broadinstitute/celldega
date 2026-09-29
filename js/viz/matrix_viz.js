@@ -47,6 +47,7 @@ import {
   set_dendro_layer_onhover,
   toggle_dendro_layer_visibility,
 } from '../deck-gl/matrix/dendro_layers';
+import { ini_dendro_tree_layers } from '../deck-gl/matrix/dendro_tree_layers';
 import {
   ini_row_label_layer,
   ini_row_label_focus_layer,
@@ -113,6 +114,7 @@ import {
 import { set_mat_constants } from '../matrix/set_constants';
 import { initialize_attribute_editor } from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
+import { initialize_dendro_tree_overlay } from '../ui/dendro_tree_overlay';
 import {
   make_matrix_ui_container,
   update_mode_button_visibility,
@@ -218,6 +220,7 @@ export const matrix_viz = async (
   layers_mat.col_cat_layer = ini_col_cat_layer(viz_state);
   layers_mat.row_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'row');
   layers_mat.col_dendro_layer = ini_dendro_layer(layers_mat, viz_state, 'col');
+  ini_dendro_tree_layers(layers_mat);
 
   initialize_matrix_crop(deck_mat, layers_mat, viz_state, {
     on_mode_change: () => {
@@ -240,6 +243,7 @@ export const matrix_viz = async (
   // reorder) and only swaps the body geometry + hides population-side chrome.
   // ---------------------------------------------------------------------------
   const set_body_mode = (mode) => {
+    viz_state.dendro.tree_overlay?.hide(true);
     viz_state.mat.viz_mode = mode;
 
     // Leaf-position formula (composition vs. uniform heatmap spacing) is
@@ -371,6 +375,8 @@ export const matrix_viz = async (
 
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
+
+  initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);
 
   initialize_attribute_editor(viz_state, deck_mat, layers_mat);
   initialize_attribute_labels(deck_mat, layers_mat, viz_state);
@@ -740,6 +746,7 @@ export const matrix_viz = async (
       if (finalized) return;
       finalized = true;
       viz_state.finalized = true;
+      viz_state.dendro.tree_overlay?.destroy();
       model_listeners.splice(0).forEach(([event, listener]) => {
         model.off?.(event, listener);
       });

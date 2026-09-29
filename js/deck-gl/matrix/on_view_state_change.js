@@ -31,6 +31,11 @@ export const on_view_state_change = (
   const { viewState } = params;
   const { viewId } = params;
 
+  // These overlapping preview views have controllers only so deck.gl can
+  // interpolate their programmatic camera state. They must never drive the
+  // matrix camera or its zoom bookkeeping themselves.
+  if (DENDRO_TREE_VIEW_IDS.has(viewId)) return;
+
   const { zoom, target } = viewState;
 
   // Per-frame events from a transition we initiated (focus fly-to): the zoom

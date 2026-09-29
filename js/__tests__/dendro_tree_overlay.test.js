@@ -26,6 +26,20 @@ const update_dendro_tree_layers = jest.fn((layers, data, options) => {
   layers.preview = { data, options };
 });
 const get_mat_layers_list = (layers) => Object.values(layers);
+const get_dendro_tree_view_states = (state, zoom, pan) => ({
+  dendro_tree_static: {
+    target: [state.viz.mat_width / 2, state.viz.mat_height / 2],
+    zoom: [0, 0],
+  },
+  dendro_tree_rows: {
+    target: [state.viz.mat_width / 2, pan[1]],
+    zoom: [0, zoom[1]],
+  },
+  dendro_tree_cols: {
+    target: [pan[0], state.viz.mat_height / 2],
+    zoom: [zoom[0], 0],
+  },
+});
 const preview_views = [
   'dendro_tree_backdrop',
   'dendro_tree_rows',
@@ -45,6 +59,7 @@ const initialize_dendro_tree_overlay = new Function(
   'remove_dendro_tree_layers',
   'update_dendro_tree_layers',
   'get_mat_layers_list',
+  'get_dendro_tree_view_states',
   'with_dendro_tree_views',
   'without_dendro_tree_views',
   `
@@ -60,6 +75,7 @@ const initialize_dendro_tree_overlay = new Function(
   remove_dendro_tree_layers,
   update_dendro_tree_layers,
   get_mat_layers_list,
+  get_dendro_tree_view_states,
   with_dendro_tree_views,
   without_dendro_tree_views
 );
@@ -110,7 +126,14 @@ describe('deck.gl temporary dendrogram tree preview', () => {
         sliders: { row, col, row_percent: 50, col_percent: 50 },
       },
     };
-    deck = { setProps: jest.fn() };
+    deck = {
+      props: {
+        viewState: {
+          matrix: { target: [111, 222], zoom: [2, 3] },
+        },
+      },
+      setProps: jest.fn(),
+    };
     layers = {};
     controller = initialize_dendro_tree_overlay(state, deck, layers);
   });
@@ -137,6 +160,15 @@ describe('deck.gl temporary dendrogram tree preview', () => {
     expect(data.cut_outline[0].width).toBe(5);
     expect(data.cut[0].width).toBe(2.5);
     expect(data.caption[0].text).toContain('Column tree · 2 groups');
+    expect(deck.setProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        viewState: expect.objectContaining({
+          dendro_tree_static: { target: [150, 100], zoom: [0, 0] },
+          dendro_tree_rows: { target: [150, 222], zoom: [0, 3] },
+          dendro_tree_cols: { target: [111, 100], zoom: [2, 0] },
+        }),
+      })
+    );
   });
 
   test('keeps branch leaf coordinates in matrix world space and water screen-fitted', () => {
@@ -216,6 +248,23 @@ describe('deck.gl temporary dendrogram tree preview', () => {
     jest.advanceTimersByTime(1);
     expect(layers.preview.options).toMatchObject({ opacity: 0, duration: 180 });
     jest.advanceTimersByTime(180);
+    expect(controller.has_views()).toBe(false);
+  });
+
+  test('switching sliders does not let the old blur cancel the new drag', () => {
+    event(state.dendro.sliders.row, 'focus');
+    event(state.dendro.sliders.col, 'pointerdown');
+    state.dendro.sliders.row.dispatchEvent(new Event('blur'));
+    event(state.dendro.sliders.col, 'focus');
+    event(state.dendro.sliders.col, 'input');
+
+    expect(controller.has_views()).toBe(true);
+    expect(layers.preview.data.col_branches).toHaveLength(1);
+    jest.advanceTimersByTime(1000);
+    expect(controller.has_views()).toBe(true);
+
+    event(window, 'pointerup');
+    jest.advanceTimersByTime(450 + 180);
     expect(controller.has_views()).toBe(false);
   });
 

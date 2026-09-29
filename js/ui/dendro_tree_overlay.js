@@ -5,6 +5,7 @@ import {
 } from '../deck-gl/matrix/dendro_tree_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
 import {
+  get_dendro_tree_view_states,
   with_dendro_tree_views,
   without_dendro_tree_views,
 } from '../deck-gl/matrix/views';
@@ -63,11 +64,31 @@ export const initialize_dendro_tree_overlay = (
     viz_state.order.current[axis] === 'clust' &&
     !has_axis_crop_filter(viz_state, axis) &&
     viz_state.linkage[axis]?.length > 0;
-  const commit = () =>
+  const commit = () => {
+    const current_view_state =
+      deck_mat.props?.viewState || deck_mat.viewState || {};
+    const zoom_data = viz_state.zoom?.zoom_data?.matrix;
+    const matrix_state = current_view_state.matrix || {};
+    const zoom = matrix_state.zoom || [
+      zoom_data?.zoom_x ?? viz_state.zoom?.ini_zoom_x ?? 0,
+      zoom_data?.zoom_y ?? viz_state.zoom?.ini_zoom_y ?? 0,
+    ];
+    const pan = matrix_state.target || [
+      zoom_data?.pan_x ?? viz_state.viz.mat_width / 2,
+      zoom_data?.pan_y ?? viz_state.viz.mat_height / 2,
+    ];
+    const preview_view_state = get_dendro_tree_view_states(
+      viz_state,
+      zoom,
+      pan
+    );
+
     deck_mat.setProps({
       views: viz_state.views.views_list,
       layers: get_mat_layers_list(layers_mat),
+      viewState: { ...current_view_state, ...preview_view_state },
     });
+  };
   const mount_views = () => {
     if (views_mounted) return;
     views_mounted = true;
@@ -313,7 +334,11 @@ export const initialize_dendro_tree_overlay = (
       if (!pointer_slider) release();
     });
     listen(slider, 'change', release);
-    listen(slider, 'blur', () => hide());
+    listen(slider, 'blur', () => {
+      // Focusing the other slider blurs this one after its pointerdown. Do not
+      // let that stale blur cancel the newly active drag.
+      if (!pointer_slider && active_axis === axis) hide();
+    });
     listen(slider, 'keydown', (event) => {
       if (event.key === 'Escape') hide(true);
       else if (SLICE_KEYS.has(event.key)) show(axis);

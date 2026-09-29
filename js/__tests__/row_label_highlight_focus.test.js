@@ -398,6 +398,12 @@ describe('on_view_state_change during a programmatic transition', () => {
       const get_mat_layers_list = () => [];
       const redefine_global_view_state = () => ({});
       const update_zoom_data = () => {};
+      const DENDRO_TREE_VIEW_IDS = new Set([
+        'dendro_tree_backdrop',
+        'dendro_tree_rows',
+        'dendro_tree_cols',
+        'dendro_tree_foreground',
+      ]);
     `;
     ({ on_view_state_change } = load_module(
       '../deck-gl/matrix/on_view_state_change.js',
@@ -448,6 +454,21 @@ describe('on_view_state_change during a programmatic transition', () => {
 
     on_view_state_change(
       params({ inTransition: true }),
+      deck_mat,
+      layers_mat,
+      viz_state
+    );
+
+    expect(set_props_calls).toHaveLength(0);
+    expect(viz_state.zoom.zoom_data.total_zoom).toEqual({ x: 0, y: 0 });
+  });
+
+  test('preview-controller events never mutate the matrix camera', () => {
+    const { deck_mat, layers_mat, viz_state, set_props_calls } = make_fixture();
+    viz_state.zoom._programmatic_view_transition = false;
+
+    on_view_state_change(
+      { ...params({}), viewId: 'dendro_tree_rows' },
       deck_mat,
       layers_mat,
       viz_state

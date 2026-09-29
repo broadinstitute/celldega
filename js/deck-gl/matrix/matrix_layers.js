@@ -86,6 +86,22 @@ export const get_mat_layers_list = (layers_mat, options = {}) => {
     layers_mat.col_dendro_layer,
   ];
 
+  // Temporary full-tree preview. These are ordinary deck.gl layers rendered
+  // by deck_mat in dedicated overlapping views; no second canvas or Deck is
+  // involved. Their order mirrors the visual stack: backdrop, branches, then
+  // the water/cut/caption foreground.
+  [
+    layers_mat.dendro_tree_background_layer,
+    layers_mat.row_dendro_tree_branches_layer,
+    layers_mat.col_dendro_tree_branches_layer,
+    layers_mat.dendro_tree_water_layer,
+    layers_mat.dendro_tree_cut_outline_layer,
+    layers_mat.dendro_tree_cut_layer,
+    layers_mat.dendro_tree_caption_layer,
+  ].forEach((layer) => {
+    if (layer) layers_list.push(layer);
+  });
+
   // Bold overlay for the focused row label (drawn above the base labels)
   if (layers_mat.row_label_focus_layer) {
     layers_list.push(layers_mat.row_label_focus_layer);
@@ -124,6 +140,31 @@ export const layer_filter = ({ layer, viewport }) => {
   } else if (viewport.id === 'dendro_rows' && layer.id === 'row-dendro-layer') {
     return true;
   } else if (viewport.id === 'dendro_cols' && layer.id === 'col-dendro-layer') {
+    return true;
+  } else if (
+    viewport.id === 'dendro_tree_backdrop' &&
+    layer.id === 'dendro-tree-background-layer'
+  ) {
+    return true;
+  } else if (
+    viewport.id === 'dendro_tree_rows' &&
+    layer.id === 'row-dendro-tree-branches-layer'
+  ) {
+    return true;
+  } else if (
+    viewport.id === 'dendro_tree_cols' &&
+    layer.id === 'col-dendro-tree-branches-layer'
+  ) {
+    return true;
+  } else if (
+    viewport.id === 'dendro_tree_foreground' &&
+    [
+      'dendro-tree-water-layer',
+      'dendro-tree-cut-outline-layer',
+      'dendro-tree-cut-layer',
+      'dendro-tree-caption-layer',
+    ].includes(layer.id)
+  ) {
     return true;
   } else if (
     viewport.id === 'col_attr_labels' &&

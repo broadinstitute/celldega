@@ -1762,12 +1762,6 @@ class Matrix:
                         if cat_col in meta_df.columns:
                             all_cats.update(meta_df[cat_col].dropna().astype(str).unique().tolist())
 
-            # Add row/col index values as potential categories (for nbhd-by-nbhd matrices)
-            if self.meta_row is not None:
-                all_cats.update(str(x) for x in self.meta_row.index)
-            if self.meta_col is not None:
-                all_cats.update(str(x) for x in self.meta_col.index)
-
             for i, cat in enumerate(sorted(all_cats)):
                 if cat not in color_mapping:
                     color_mapping[cat] = _COLOR_PALETTE[i % len(_COLOR_PALETTE)]

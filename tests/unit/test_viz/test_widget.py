@@ -159,6 +159,33 @@ def test_matrix_custom_entities_override_population_inference() -> None:
     assert mat.col_entity == {"entity": "custom_col", "attr": "id"}
 
 
+def test_auto_category_colors_do_not_serialize_unique_axis_names() -> None:
+    """Only rendered category values need colors; row/column ids do not."""
+    data = pd.DataFrame(
+        np.ones((1000, 2)),
+        index=[f"gene-{i}" for i in range(1000)],
+        columns=["sample-a", "sample-b"],
+    )
+
+    mat = Matrix(data, disable_processing=True)
+
+    assert mat.viz["global_cat_colors"] == {}
+
+
+def test_auto_category_colors_still_cover_categorical_attributes() -> None:
+    data = pd.DataFrame([[1, 2], [3, 4]], index=["g1", "g2"], columns=["a", "b"])
+    meta_col = pd.DataFrame({"condition": ["control", "treated"]}, index=data.columns)
+
+    mat = Matrix(
+        data,
+        meta_col=meta_col,
+        col_attr=["condition"],
+        disable_processing=True,
+    )
+
+    assert set(mat.viz["global_cat_colors"]) == {"control", "treated"}
+
+
 def test_clustergram_initializes_with_parquet() -> None:
     mat = make_simple_matrix()
     pq = mat.export_viz_parquet()

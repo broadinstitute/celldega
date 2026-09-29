@@ -27,6 +27,7 @@ class CelldegaWidget(anywidget.AnyWidget):
         self._registry_key = None if key is None else str(key)
         namespace = self._registry_namespace or type(self)
         self._registry_id = None if self._registry_key is None else (namespace, self._registry_key)
+        self._owns_layout = "layout" not in kwargs
 
         if self._registry_id is not None:
             old_widget = _widget_registry.get(self._registry_id)
@@ -41,7 +42,11 @@ class CelldegaWidget(anywidget.AnyWidget):
 
     def close(self):  # pragma: no cover - front-end cleanup depends on JS
         """Finalize the front end, unregister this instance, and close its comm."""
-        if self.comm is not None:
+        trait_values = getattr(self, "_trait_values", {}) or {}
+        comm = trait_values.get("comm")
+        layout = trait_values.get("layout") if getattr(self, "_owns_layout", False) else None
+
+        if comm is not None:
             with suppress(Exception):
                 self.send({"event": "finalize"})
 
@@ -50,4 +55,8 @@ class CelldegaWidget(anywidget.AnyWidget):
             with suppress(KeyError):
                 del _widget_registry[registry_id]
 
-        super().close()
+        with suppress(Exception):
+            super().close()
+        if layout is not None:
+            with suppress(Exception):
+                layout.close()

@@ -47,7 +47,7 @@ describe('temporary dendrogram deck layers', () => {
     });
   });
 
-  test('fades via deck attribute transitions and removes layers on teardown', () => {
+  test('fades via deck layer opacity and removes layers on teardown', () => {
     const layers = {};
     api.ini_dendro_tree_layers(layers);
     const data = api.empty_dendro_tree_data();
@@ -65,16 +65,20 @@ describe('temporary dendrogram deck layers', () => {
       revision: 2,
       duration: 180,
     });
+    expect(layers.dendro_tree_background_layer.props.opacity).toBe(0);
+    expect(layers.dendro_tree_caption_layer.props.opacity).toBe(0);
     expect(
       layers.dendro_tree_background_layer.props.getFillColor(data.background[0])
-    ).toEqual([255, 255, 255, 0]);
+    ).toEqual([255, 255, 255, 200]);
     expect(
       layers.dendro_tree_caption_layer.props.getBackgroundColor(data.caption[0])
-    ).toEqual([255, 255, 255, 0]);
+    ).toEqual([255, 255, 255, 230]);
+    expect(
+      layers.dendro_tree_background_layer.props.transitions.opacity.duration
+    ).toBe(180);
     expect(
       layers.dendro_tree_background_layer.props.transitions.getFillColor
-        .duration
-    ).toBe(180);
+    ).toBeUndefined();
     api.remove_dendro_tree_layers(layers);
     expect(Object.keys(layers)).toEqual([]);
   });

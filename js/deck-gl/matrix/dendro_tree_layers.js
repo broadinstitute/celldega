@@ -10,16 +10,9 @@ export const DENDRO_TREE_LAYER_KEYS = [
   'dendro_tree_caption_layer',
 ];
 
-const fade_color = (color, opacity) => [
-  color[0],
-  color[1],
-  color[2],
-  Math.round((color[3] ?? 255) * opacity),
-];
-
 const ease_out = (t) => 1 - (1 - t) ** 3;
 
-const color_transition = (duration) =>
+const opacity_transition = (duration) =>
   duration > 0 ? { duration, easing: ease_out } : false;
 
 const polygon_layer = (id) =>
@@ -87,94 +80,62 @@ export const ini_dendro_tree_layers = (layers_mat) => {
   layers_mat.dendro_tree_caption_layer = caption_layer();
 };
 
-const clone_polygon = (layer, data, opacity, revision, duration) =>
+const clone_layer = (layer, data, opacity, duration) =>
   layer.clone({
     data,
-    getFillColor: (d) => fade_color(d.color, opacity),
-    updateTriggers: { getFillColor: revision },
-    transitions: { getFillColor: color_transition(duration) },
-  });
-
-const clone_path = (layer, data, opacity, revision, duration) =>
-  layer.clone({
-    data,
-    getColor: (d) => fade_color(d.color, opacity),
-    updateTriggers: { getColor: revision },
-    transitions: { getColor: color_transition(duration) },
-  });
-
-const clone_caption = (layer, data, opacity, revision, duration) =>
-  layer.clone({
-    data,
-    getColor: (d) => fade_color(d.color, opacity),
-    getBackgroundColor: (d) => fade_color(d.background_color, opacity),
-    updateTriggers: {
-      getColor: revision,
-      getBackgroundColor: revision,
-    },
-    transitions: {
-      getColor: color_transition(duration),
-      getBackgroundColor: color_transition(duration),
-    },
+    opacity,
+    transitions: { opacity: opacity_transition(duration) },
   });
 
 /**
- * Replace preview geometry and/or animate its opacity using deck.gl attribute
- * transitions. The data is intentionally retained during a fade so deck.gl can
- * interpolate it without an external animation loop.
+ * Replace preview geometry and/or animate its layer opacity. Keeping the fade
+ * out of color attributes lets new geometry appear immediately after teardown.
  */
 export const update_dendro_tree_layers = (
   layers_mat,
   data,
-  { opacity = 1, revision = 0, duration = 0 } = {}
+  { opacity = 1, duration = 0 } = {}
 ) => {
-  layers_mat.dendro_tree_background_layer = clone_polygon(
+  layers_mat.dendro_tree_background_layer = clone_layer(
     layers_mat.dendro_tree_background_layer,
     data.background,
     opacity,
-    revision,
     duration
   );
-  layers_mat.row_dendro_tree_branches_layer = clone_path(
+  layers_mat.row_dendro_tree_branches_layer = clone_layer(
     layers_mat.row_dendro_tree_branches_layer,
     data.row_branches,
     opacity,
-    revision,
     duration
   );
-  layers_mat.col_dendro_tree_branches_layer = clone_path(
+  layers_mat.col_dendro_tree_branches_layer = clone_layer(
     layers_mat.col_dendro_tree_branches_layer,
     data.col_branches,
     opacity,
-    revision,
     duration
   );
-  layers_mat.dendro_tree_water_layer = clone_polygon(
+  layers_mat.dendro_tree_water_layer = clone_layer(
     layers_mat.dendro_tree_water_layer,
     data.water,
     opacity,
-    revision,
     duration
   );
-  layers_mat.dendro_tree_cut_outline_layer = clone_path(
+  layers_mat.dendro_tree_cut_outline_layer = clone_layer(
     layers_mat.dendro_tree_cut_outline_layer,
     data.cut_outline,
     opacity,
-    revision,
     duration
   );
-  layers_mat.dendro_tree_cut_layer = clone_path(
+  layers_mat.dendro_tree_cut_layer = clone_layer(
     layers_mat.dendro_tree_cut_layer,
     data.cut,
     opacity,
-    revision,
     duration
   );
-  layers_mat.dendro_tree_caption_layer = clone_caption(
+  layers_mat.dendro_tree_caption_layer = clone_layer(
     layers_mat.dendro_tree_caption_layer,
     data.caption,
     opacity,
-    revision,
     duration
   );
 };

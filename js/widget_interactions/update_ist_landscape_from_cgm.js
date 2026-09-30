@@ -30,84 +30,10 @@ const strip_cell_prefixes = (names, viz_state) => {
   return names.map((n) => strip_cell_prefix(n, viz_state));
 };
 
-/**
- * Clear the individual-cell selection, but only when there is one to clear.
- *
- * `Observable.set` compares by identity, so `set([])` on an already-empty
- * selection is still a change: it wakes the `selected_cells` subscriber
- * (landscape_ist.js), which bumps `selection_token` and rebuilds the whole
- * cell layer. On a multi-million-cell CellCloud that rebuild walks every cell
- * twice and re-uploads the position/color buffers to the GPU -- and then
- * `update_selected_cats` immediately does it all again. Skipping the no-op
- * halves the per-click cost for the common case (no cells individually
- * selected).
- */
-const clear_selected_cells = (viz_state) => {
+const clear_selected_cells_if_needed = (viz_state) => {
   if ((viz_state.obs_store.selected_cells.get()?.length ?? 0) > 0) {
     viz_state.obs_store.selected_cells.set([]);
   }
-};
-
-/**
- * Color the Landscape/CellCloud by a single gene -- the shared tail of every
- * Clustergram interaction that selects one gene (row label, single-gene row
- * dendrogram cut, and either gene x cluster matrix cell).
- *
- * Mirrors bar_plot.js's `bar_callback_gene`, in particular its `deck_check`
- * guard: deck.gl is held back for the whole await so the intermediate states
- * (new gene selected, expression data not fetched yet) can never reach the
- * screen. Without it the `selected_genes` subscriber's layer refresh lands
- * while `cell_exp_array` still holds the *previous* gene, costing a full
- * render of stale data before the real one.
- *
- * @param {Object} viz_state
- * @param {string} gene - Gene to fetch expression for and color by.
- * @param {string} cat - Value for `cats.cat` ('cluster' toggles coloring off).
- * @param {string[]} selected_cats - Passed to `update_selected_cats`; drives
- *   which cells stay visible (empty = all, a cluster name = filtered to it).
- * @param {boolean} [sync_selected_genes=true] - Whether to route the gene
- *   through `update_selected_genes`. The row-dendrogram path sets
- *   `selected_genes` itself beforehand (that helper's toggle-off behavior
- *   fights the Clustergram's own sync), so it opts out.
- */
-const apply_gene_selection = async (
-  viz_state,
-  { gene, cat, selected_cats, sync_selected_genes = true }
-) => {
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    trx_layer: false,
-  });
-
-  // Cleared directly rather than through obs_store.selected_cells so this
-  // doesn't trigger a cell-layer rebuild of its own -- the single rebuild
-  // driven by update_selected_cats below reads this same field.
-  viz_state.highlighted_cells = new Set();
-
-  update_cat(viz_state.cats, cat);
-  if (sync_selected_genes) {
-    update_selected_genes(viz_state.genes, [gene], viz_state.obs_store);
-  }
-
-  // Load gene expression BEFORE updating selected_cats, so cell_exp_array is
-  // populated by the time the cell layer refreshes.
-  await update_cell_exp_array(
-    viz_state.cats,
-    viz_state.genes,
-    viz_state.global_base_url,
-    gene,
-    viz_state.seg.version,
-    viz_state.vector_name_integer,
-    viz_state.aws,
-    viz_state.row_group_readers?.cbg
-  );
-
-  clear_selected_cells(viz_state);
-  update_selected_cats(viz_state.cats, selected_cats, viz_state.obs_store);
-
-  viz_state.obs_store.viz_nbhd_layer.set(false);
-  viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 };
 
 /**
@@ -115,7 +41,7 @@ const apply_gene_selection = async (
  */
 const reset_to_cluster_mode = (viz_state, layers_obj) => {
   viz_state.highlighted_cells = new Set();
-  clear_selected_cells(viz_state);
+  viz_state.obs_store.selected_cells.set([]);
   update_cat(viz_state.cats, 'cluster');
   update_selected_cats(viz_state.cats, [], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -259,7 +185,7 @@ export const update_ist_landscape_from_cgm = async (
           );
         } else {
           // Clear selected cells when switching to cluster mode
-          clear_selected_cells(viz_state);
+          viz_state.obs_store.selected_cells.set([]);
 
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
@@ -287,14 +213,44 @@ export const update_ist_landscape_from_cgm = async (
         } else {
           new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-          await apply_gene_selection(viz_state, {
-            gene: inst_gene,
-            cat: new_cat,
-            selected_cats: new_cat === 'cluster' ? [] : [inst_gene],
-          });
+          // Clear highlighted cells immediately (without triggering subscription refresh)
+          // This prevents the old gene data from showing during loading
+          viz_state.highlighted_cells = new Set();
 
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
+          update_cat(viz_state.cats, new_cat);
+          update_selected_genes(
+            viz_state.genes,
+            [inst_gene],
+            viz_state.obs_store
+          );
+
+          // Load gene expression data BEFORE updating selected_cats
+          // This ensures cell_exp_array is populated before the cell layer refreshes
+          await update_cell_exp_array(
+            viz_state.cats,
+            viz_state.genes,
+            viz_state.global_base_url,
+            inst_gene,
+            viz_state.seg.version,
+            viz_state.vector_name_integer,
+            viz_state.aws,
+            viz_state.row_group_readers?.cbg
+          );
+
+          // Avoid waking the selected_cells subscriber when there is no real
+          // cell selection to clear. update_selected_cats below performs the
+          // one cell-layer rebuild needed for this linked gene selection.
+          clear_selected_cells_if_needed(viz_state);
+
+          // Update selected_cats after cell_exp_array has been populated
+          update_selected_cats(
+            viz_state.cats,
+            new_cat === 'cluster' ? [] : [inst_gene],
+            viz_state.obs_store
+          );
+
+          viz_state.obs_store.viz_nbhd_layer.set(false);
+          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
         }
       }
     } else if (click_type === 'col_label') {
@@ -356,7 +312,7 @@ export const update_ist_landscape_from_cgm = async (
           );
         } else {
           // Clear selected cells when switching to cluster mode
-          clear_selected_cells(viz_state);
+          viz_state.obs_store.selected_cells.set([]);
 
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
@@ -433,7 +389,7 @@ export const update_ist_landscape_from_cgm = async (
         );
       } else {
         // Clear selected cells when switching to cluster mode
-        clear_selected_cells(viz_state);
+        viz_state.obs_store.selected_cells.set([]);
 
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
@@ -490,7 +446,7 @@ export const update_ist_landscape_from_cgm = async (
           return;
         }
         viz_state.highlighted_cells = new Set();
-        clear_selected_cells(viz_state);
+        viz_state.obs_store.selected_cells.set([]);
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
@@ -526,24 +482,41 @@ export const update_ist_landscape_from_cgm = async (
           inst_gene = new_cats[0];
           new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
 
-          // selected_genes was already set directly above, so don't route it
-          // through update_selected_genes a second time.
-          await apply_gene_selection(viz_state, {
-            gene: inst_gene,
-            cat: new_cat,
-            selected_cats: new_cat === 'cluster' ? [] : [inst_gene],
-            sync_selected_genes: false,
-          });
+          // Clear highlighted cells immediately (without triggering subscription refresh)
+          viz_state.highlighted_cells = new Set();
+
+          update_cat(viz_state.cats, new_cat);
+
+          // Load gene expression data BEFORE updating selected_cats
+          await update_cell_exp_array(
+            viz_state.cats,
+            viz_state.genes,
+            viz_state.global_base_url,
+            inst_gene,
+            viz_state.seg.version,
+            viz_state.vector_name_integer,
+            viz_state.aws
+          );
+
+          // Clear selected cells in obs_store (after data is loaded)
+          viz_state.obs_store.selected_cells.set([]);
+
+          // Update selected_cats after cell_exp_array has been populated
+          update_selected_cats(
+            viz_state.cats,
+            new_cat === 'cluster' ? [] : [inst_gene],
+            viz_state.obs_store
+          );
         } else {
           // Multiple genes selected - just switch to cluster mode for now
           viz_state.highlighted_cells = new Set();
-          clear_selected_cells(viz_state);
+          viz_state.obs_store.selected_cells.set([]);
           update_cat(viz_state.cats, 'cluster');
           update_selected_cats(viz_state.cats, [], viz_state.obs_store);
-
-          viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
         }
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -571,7 +544,7 @@ export const update_ist_landscape_from_cgm = async (
       } else if (axis === 'col') {
         // Category on columns (e.g., cell clusters)
         // Clear selected cells when switching to cluster mode
-        clear_selected_cells(viz_state);
+        viz_state.obs_store.selected_cells.set([]);
 
         update_cat(viz_state.cats, 'cluster');
         update_selected_cats(viz_state.cats, [value], viz_state.obs_store);
@@ -620,7 +593,7 @@ export const update_ist_landscape_from_cgm = async (
       ) {
         // Same entity:attr on both axes (e.g., cluster-cluster similarity matrix)
         // Highlight BOTH clusters in the Landscape
-        clear_selected_cells(viz_state);
+        viz_state.obs_store.selected_cells.set([]);
         viz_state.obs_store.viz_nbhd_layer.set(false);
         viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
@@ -636,24 +609,83 @@ export const update_ist_landscape_from_cgm = async (
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else if (is_gene(rowEntity) && is_cell_cluster(colEntity)) {
-        // Gene (row) x Cluster (col): Show gene expression filtered to cluster.
-        // selected_cats is the cluster (not the gene), so the cell layer keeps
-        // only that cluster's cells while coloring them by expression.
-        await apply_gene_selection(viz_state, {
-          gene: row.name,
-          cat: row.name,
-          selected_cats: [col.name],
-        });
+        // Gene (row) x Cluster (col): Show gene expression filtered to cluster
+        const gene_name = row.name;
+        const cluster_name = col.name;
+
+        // Clear any previous cell selection
+        viz_state.highlighted_cells = new Set();
+        viz_state.obs_store.selected_cells.set([]);
+
+        // Set the gene as the category for coloring
+        update_cat(viz_state.cats, gene_name);
+        update_selected_genes(
+          viz_state.genes,
+          [gene_name],
+          viz_state.obs_store
+        );
+
+        // Load gene expression data
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          gene_name,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws
+        );
+
+        // Update selected_cats to filter to only cells in this cluster
+        // The cell layer will use this to filter which cells to show
+        update_selected_cats(
+          viz_state.cats,
+          [cluster_name],
+          viz_state.obs_store
+        );
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
       } else if (is_cell_cluster(rowEntity) && is_gene(colEntity)) {
-        // Cluster (row) x Gene (col): same as above with the axes swapped.
-        await apply_gene_selection(viz_state, {
-          gene: col.name,
-          cat: col.name,
-          selected_cats: [row.name],
-        });
+        // Cluster (row) x Gene (col): Show gene expression filtered to cluster
+        const cluster_name = row.name;
+        const gene_name = col.name;
+
+        // Clear any previous cell selection
+        viz_state.highlighted_cells = new Set();
+        viz_state.obs_store.selected_cells.set([]);
+
+        // Set the gene as the category for coloring
+        update_cat(viz_state.cats, gene_name);
+        update_selected_genes(
+          viz_state.genes,
+          [gene_name],
+          viz_state.obs_store
+        );
+
+        // Load gene expression data
+        await update_cell_exp_array(
+          viz_state.cats,
+          viz_state.genes,
+          viz_state.global_base_url,
+          gene_name,
+          viz_state.seg.version,
+          viz_state.vector_name_integer,
+          viz_state.aws
+        );
+
+        // Update selected_cats to filter to only cells in this cluster
+        update_selected_cats(
+          viz_state.cats,
+          [cluster_name],
+          viz_state.obs_store
+        );
+
+        viz_state.obs_store.viz_nbhd_layer.set(false);
+        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -702,16 +734,6 @@ export const update_ist_landscape_from_cgm = async (
       }
     }
   } catch (error) {
-    // apply_gene_selection holds deck.gl back (deck_check false) across its
-    // await. If anything in between throws, releasing it here is what keeps a
-    // failed gene lookup from leaving the widget permanently frozen -- with
-    // deck_ready stuck false, no later interaction would ever render again.
-    viz_state.obs_store?.deck_check?.set({
-      ...viz_state.obs_store.deck_check.get(),
-      cell_layer: true,
-      trx_layer: true,
-    });
-
     handleAsyncError(error, {
       context: 'updating IST landscape from CGM',
       logUnexpected: true,

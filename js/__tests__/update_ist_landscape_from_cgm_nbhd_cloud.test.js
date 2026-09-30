@@ -93,7 +93,6 @@ describe('update_ist_landscape_from_cgm routes neighborhood-cloud clicks to its 
       selected_cells: { get: () => [], set: () => {} },
       selected_genes: { set: () => {} },
       viz_nbhd_layer: { set: () => {} },
-      deck_check: { get: () => ({}), set: () => {} },
     },
     buttons: { buttons: { nbhd: { style: () => {} } } },
   });
@@ -168,7 +167,8 @@ describe('update_ist_landscape_from_cgm routes neighborhood-cloud clicks to its 
     await update_ist_landscape_from_cgm(null, {}, viz_state);
 
     expect(calls.generic).toContain('update_cell_exp_array');
-    expect(calls.refreshed).toContain('cell_layer');
+    // The selected_cats subscription owns the generic cell-layer repaint.
+    expect(calls.refreshed).not.toContain('cell_layer');
     expect(calls.nbhd).toEqual([]);
   });
 });

@@ -815,14 +815,11 @@ export const landscape_ist = async (
   };
 
   const refresh_cell_layer = () => {
-    // Deliberately no `id` override. Both the point-cloud and scatterplot
-    // paths hand deck.gl *binary* attributes (`data.attributes`), so a new
-    // `data` object is already enough for it to re-upload -- while a changed
-    // layer id makes deck.gl unmount the layer and mount a fresh one, throwing
-    // away every GPU buffer and re-uploading from scratch. On a
-    // multi-million-cell CellCloud that is ~100 MB of position + color data
-    // re-sent per selection change, for no correctness gain.
-    refresh_cell_layer_data(layers_obj, viz_state);
+    const selected_cats_name = viz_state.cats.selected_cats.join('-');
+
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      id: `cell-layer-${selected_cats_name}-sel-${viz_state.selection_token}`,
+    });
 
     // Toggle cell layer readiness so deck.gl re-renders when selections arrive
     // from the Python backend.

@@ -590,17 +590,11 @@ export const refresh_cell_layer_data = (
     layerProps;
   const isPointCloud = is_point_cloud_viz(viz_state);
 
-  // Only a *new id* remounts the layer and drops deck.gl's transition
-  // baseline; reset the flag in that case so the next toggle re-primes with
-  // the near-instant first transition instead of animating from the origin.
-  // A refresh that keeps the id (the selection-driven path -- see
-  // refresh_cell_layer in landscape_ist.js) leaves the baseline intact, so
-  // resetting there would needlessly snap the next spatial<->UMAP toggle
-  // instead of animating it.
-  const nextId = stableLayerProps.id;
-  const idChanged =
-    nextId !== undefined && nextId !== layers_obj.cell_layer.props.id;
-  if (idChanged && viz_state.spatial) {
+  // A refresh rebuilds the layer (often under a new id from the selection-keyed
+  // layerProps.id), which drops deck.gl's transition baseline. Reset the flag so
+  // the next toggle re-primes with the near-instant first transition instead of
+  // animating from the origin.
+  if (viz_state.spatial) {
     viz_state.spatial.position_transitions_ready = false;
   }
 

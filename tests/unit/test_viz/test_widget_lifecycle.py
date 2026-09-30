@@ -1,4 +1,3 @@
-from ipywidgets import Widget
 import pytest
 
 from celldega.viz._widget_lifecycle import CelldegaWidget, _widget_registry
@@ -20,14 +19,15 @@ def teardown_function():
 def test_same_registry_key_closes_and_replaces_previous_widget():
     first = _TestWidget(name="shared")
     first_model_id = first.model_id
-    first_layout_id = first.layout.model_id
+    first_layout = first.layout
 
     second = _TestWidget(registry_key="shared")
-    manager_state = Widget.get_manager_state()["state"]
 
+    # Replaced widget and the layout it owns are actually closed.
     assert first.comm is None
-    assert first_model_id not in manager_state
-    assert first_layout_id not in manager_state
+    assert first_layout.comm is None
+
+    # Replacement is alive and owns the registry entry.
     assert second.comm is not None
     assert _widget_registry[("test-widget-lifecycle", "shared")] is second
     assert first_model_id != second.model_id

@@ -30,6 +30,12 @@ const strip_cell_prefixes = (names, viz_state) => {
   return names.map((n) => strip_cell_prefix(n, viz_state));
 };
 
+const clear_selected_cells_if_needed = (viz_state) => {
+  if ((viz_state.obs_store.selected_cells.get()?.length ?? 0) > 0) {
+    viz_state.obs_store.selected_cells.set([]);
+  }
+};
+
 /**
  * Helper to clear cell selection and reset to cluster mode.
  */
@@ -231,8 +237,10 @@ export const update_ist_landscape_from_cgm = async (
             viz_state.row_group_readers?.cbg
           );
 
-          // Clear selected cells in obs_store (after data is loaded to avoid flash)
-          viz_state.obs_store.selected_cells.set([]);
+          // Avoid waking the selected_cells subscriber when there is no real
+          // cell selection to clear. update_selected_cats below performs the
+          // one cell-layer rebuild needed for this linked gene selection.
+          clear_selected_cells_if_needed(viz_state);
 
           // Update selected_cats after cell_exp_array has been populated
           update_selected_cats(
@@ -243,9 +251,6 @@ export const update_ist_landscape_from_cgm = async (
 
           viz_state.obs_store.viz_nbhd_layer.set(false);
           viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
-
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
         }
       }
     } else if (click_type === 'col_label') {

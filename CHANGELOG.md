@@ -4,6 +4,27 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.25.1]
+
+### Performance
+
+- Improved linked **Clustergram → Landscape/CellCloud gene-selection performance**.
+  - Avoids clearing `selected_cells` when no individual cells are selected, preventing an unnecessary full cell-layer rebuild.
+  - Removes redundant explicit cell and transcript layer refreshes after linked gene selection.
+  - Uses the existing `selected_cats` subscription as the canonical cell-layer update path, reducing duplicate deck.gl updates during gene selection.
+- Retains selection-keyed cell-layer IDs to ensure updated binary color buffers are reliably uploaded to deck.gl.
+
+### Fixes
+
+- Preserves correct cell coloring when switching genes through linked Clustergram interactions.
+- Avoids redundant deck.gl `setProps` calls while retaining the buffer invalidation behavior required for binary cell attributes.
+
+### Validation
+
+- Validated with 2D `Landscape` datasets using gene and cluster selections from both the Clustergram and Landscape controls.
+- Includes additional JavaScript tests covering linked gene-selection update behavior.
+- This release will also be used to evaluate the performance improvements on very large 3D `CellCloud` datasets.
+
 ## [0.25.0] - 2026-09-29
 
 Major Clustergram-focused release adding interactive matrix filtering, reduced-dimensionality views, full dendrogram tree visualization, tighter Enrich integration, and a broad round of visualization and lifecycle improvements.

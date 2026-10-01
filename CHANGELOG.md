@@ -60,8 +60,8 @@ All notable changes to Celldega are documented here. This project follows
 - `Matrix.cut_tree()` replaces `Matrix.to_cluster()` (kept as a deprecated
   alias) and requires exactly one of `n_clusters` or `threshold`.
 - `spatial_clustergram(width=...)` now sizes only the spatial widget. The
-  Clustergram panel follows the Clustergram's own `width`, widened to at least
-  600px so its control bar (including gene search) is never clipped.
+  Clustergram panel fits the Clustergram's canvas (`width` + ~100px for
+  labels), widened to at least 550px so its control bar (including gene search) is never clipped.
 
 ### Fixed
 

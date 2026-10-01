@@ -39,15 +39,21 @@ def _pixel_height(value: str | int, fallback: int = 700) -> int:
     return pixels if pixels > 0 else fallback
 
 
-# Width that fits the Clustergram control bar (reorder buttons, dendrogram
-# sliders, CROP/UNDO and gene search); matches landscape_clustergram's long-
-# standing 600px default. A narrower panel clips the gene search.
-_CLUSTERGRAM_MIN_PANEL_WIDTH = 600
+# Width that fits the compact Clustergram control panel: order/dendrogram grid
+# (~170px), ROW/COL category bars (~210px) and gene search (~160px). Narrower
+# clips the gene search.
+_CLUSTERGRAM_MIN_PANEL_WIDTH = 550
+
+
+# The front end draws the deck canvas at ``width + 100`` (room for labels; see
+# js/deck-gl/matrix/deck_mat.js), plus a 1px border on each side.
+_CLUSTERGRAM_CANVAS_PADDING = 102
 
 
 def _clustergram_panel_width(mat: Clustergram) -> str:
-    """Panel width for a Clustergram: its canvas width, but never narrower than its controls."""
-    return f"{max(int(mat.width or 0), _CLUSTERGRAM_MIN_PANEL_WIDTH)}px"
+    """Panel width for a Clustergram: its full canvas, but never narrower than its controls."""
+    canvas = int(mat.width or 0) + _CLUSTERGRAM_CANVAS_PADDING
+    return f"{max(canvas, _CLUSTERGRAM_MIN_PANEL_WIDTH)}px"
 
 
 def spatial_clustergram(
@@ -79,8 +85,8 @@ def spatial_clustergram(
             spatial widget to link.
         mat (Clustergram): A `Clustergram` widget.
         width (str): The width of the spatial widget. The Clustergram panel is
-            sized from the Clustergram's own ``width`` (its canvas), widened if
-            needed so its control bar fits.
+            sized to the Clustergram's canvas (its ``width`` plus ~100px for
+            labels), widened if needed so its control panel fits.
         height (str): The total height of the spatial widget, including its
             control bar, and the default height of the `Enrich` widget. The
             Clustergram's ``height`` sets only its canvas; its controls and

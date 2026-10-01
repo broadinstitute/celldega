@@ -317,7 +317,7 @@ export const set_gene_search = async (
   viz_state.genes.gene_text_box.style.overflow = 'scroll';
   viz_state.genes.gene_text_box.style.fontSize = '12px';
   viz_state.genes.gene_text_box.style.cursor = 'default';
-  viz_state.genes.gene_text_box.style.width = '142px';
+  viz_state.genes.gene_text_box.style.width = '120px';
   viz_state.genes.gene_text_box.style.paddingLeft = '2px';
   viz_state.genes.gene_text_box.style.paddingRight = '17px';
 

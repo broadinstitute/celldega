@@ -152,7 +152,7 @@ def test_spatial_clustergram_yearbook_uses_front_end_query():
     assert yearbook.front_end_query.get("gene") == "g2"
 
 
-@pytest.mark.parametrize(("cgm_width", "expected"), [(450, "600px"), (700, "700px")])
+@pytest.mark.parametrize(("cgm_width", "expected"), [(400, "550px"), (450, "552px"), (700, "802px")])
 def test_spatial_clustergram_sizes_clustergram_panel_from_its_own_width(cgm_width, expected):
     spatial = Landscape(base_url="https://example.com/data")
     cgm = _clustergram()

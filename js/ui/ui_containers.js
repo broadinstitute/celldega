@@ -164,10 +164,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     display: 'grid',
     gridTemplateColumns: '28px 40px 80px',
     columnGap: '6px',
-    rowGap: '4px',
+    rowGap: '5px',
     alignItems: 'center',
     alignContent: 'start',
-    margin: '7px 6px 0 6px',
+    margin: '3px 6px 0 6px',
     flexShrink: '0',
   });
 
@@ -424,6 +424,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const gene_info_box = make_gene_info_box({
       marginLeft: '10px',
       height: '58px',
+      width: '136px',
     });
     viz_state.gene_info_box = gene_info_box;
     search_container.appendChild(gene_info_box.element);
@@ -452,7 +453,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   }
 
   // The logo shares the search row, sized to the gene info box below it.
-  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '156px');
+  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '136px');
 
   return ui_container;
 };
@@ -1168,7 +1169,7 @@ export const make_ist_ui_container = (
     ctrl_container.appendChild(gene_container);
   }
 
-  viz_state.genes.gene_search.style.width = '160px';
+  viz_state.genes.gene_search.style.width = '141px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
   // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
@@ -1533,7 +1534,7 @@ export const make_ist_ui_container = (
     embed_logo_in_search(
       viz_state.genes.gene_search_input,
       logoDocsPath,
-      '163px'
+      '141px'
     );
   } else {
     ui_container.appendChild(make_logo_button(logoDocsPath));

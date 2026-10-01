@@ -311,6 +311,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   action_container.style.gridColumn = '1 / -1';
   action_container.style.alignItems = 'center';
   action_container.style.gap = '16px';
+  // Sit a little closer to the DIM/COL row above.
+  action_container.style.marginTop = '-2px';
 
   const crop_container = flex_container('crop_container', 'row');
   crop_container.style.alignItems = 'center';
@@ -385,8 +387,12 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       set_composition_normalized(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
-  dot_toggle.container.style.marginLeft = '0px';
-  normalized_toggle.container.style.marginLeft = '0px';
+  // Drop the toggle group's own offsets so PROP | UNIT shares CROP | UNDO's
+  // baseline.
+  [dot_toggle, normalized_toggle].forEach(({ container }) => {
+    container.style.marginLeft = '0px';
+    container.style.marginTop = '0px';
+  });
 
   viz_state.mode_buttons = {
     dot: dot_toggle,
@@ -399,9 +405,15 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   grid.appendChild(action_container);
   ui_container.appendChild(grid);
 
-  // ROW / COL category bars (shown when the matrix has categorical
-  // attributes) sit between the controls and the search column.
-  init_matrix_cat_bars(viz_state, ui_container);
+  // ROW / COL category bars sit between the controls and the search column.
+  // They are built into a slot so they can still be added after manual
+  // categories load (see matrix_viz's bootstrap_manual_categories).
+  const cat_bars_slot = document.createElement('div');
+  cat_bars_slot.className = 'matrix_cat_bars_slot';
+  cat_bars_slot.style.flexShrink = '0';
+  viz_state.cat_bars_slot = cat_bars_slot;
+  ui_container.appendChild(cat_bars_slot);
+  init_matrix_cat_bars(viz_state, cat_bars_slot);
 
   // Search + gene info stack vertically in one column: ui_container is a flex
   // row, so appending them as siblings would widen the control panel instead.
@@ -423,7 +435,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     // control panel's fixed 100px height.
     const gene_info_box = make_gene_info_box({
       marginLeft: '10px',
-      height: '58px',
+      height: '68px',
       width: '136px',
     });
     viz_state.gene_info_box = gene_info_box;

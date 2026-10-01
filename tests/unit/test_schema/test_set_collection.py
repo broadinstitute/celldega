@@ -431,3 +431,41 @@ def test_calc_signature_warns_when_marker_layer_is_ignored():
         clust.calc_signature(
             adata, modality_name="expression", rank_genes_groups_layer="X", verbose=False
         )
+
+
+def test_calc_signature_assigns_each_gene_its_best_scoring_set(tmp_path):
+    pytest.importorskip("scanpy")
+    from celldega.clust import Matrix
+
+    adata = _adata(n=90)
+    # Make g0 a clear marker of leiden "0" and g1 of leiden "1".
+    adata.X[(adata.obs["leiden"] == "0").to_numpy(), 0] += 20
+    adata.X[(adata.obs["leiden"] == "1").to_numpy(), 1] += 20
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    clust.calc_signature(
+        adata,
+        modality_name="expression",
+        rank_genes_groups=True,
+        rank_genes_groups_kwargs={"method": "t-test"},
+        verbose=False,
+    )
+
+    marker = clust.mod["expression"].var["leiden_marker"]
+    assert marker["g0"] == "0"
+    assert marker["g1"] == "1"
+    assert set(marker) <= set(clust.obs.index.astype(str))
+
+    path = tmp_path / "sets.h5mu"
+    clust.write(path)
+    reloaded = SetCollection.read(path)
+    assert list(reloaded.mod["expression"].var["leiden_marker"]) == list(marker)
+
+    # The marker column and the set ids are ordinary Matrix attributes.
+    mat = Matrix(
+        collection=reloaded,
+        color_by="expression",
+        col_attr=["leiden"],
+        row_attr=["leiden_marker"],
+    )
+    assert "leiden" in mat.col_cats
+    assert "leiden_marker" in mat.row_cats

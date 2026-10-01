@@ -45,6 +45,11 @@ All notable changes to Celldega are documented here. This project follows
   `rank_genes_groups=True`.
 - `Matrix(..., size_by_layer=...)` can use a layer on the color modality as its
   dot-size channel.
+- `calc_signature(rank_genes_groups=True)` also stores each feature's
+  best-scoring set in `var[f"{set_col}_marker"]` (e.g. `leiden_marker`), a
+  gene-level grouping derived from the cell clustering. Select it with
+  `Matrix(..., row_attr=["leiden_marker"])`, alongside `col_attr=["leiden"]`, to
+  color rows and columns with the shared per-set palette.
 - Clustergram column-label clicks send Enrich only genes above
   `Clustergram.top_gene_min_value` (default `0`, i.e. enriched in that column
   after row z-scoring; `None` disables). Genes sent to Enrich are shown as bold

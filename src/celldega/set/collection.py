@@ -382,7 +382,9 @@ class SetCollection(CelldegaCollection):
             rank_genes_groups: Also run :func:`scanpy.tl.rank_genes_groups` on the
                 cell-level `data`, grouped by this collection's ``set_col``, and
                 attach the tidy result to the signature's
-                ``uns["rank_genes_groups"]``. A :class:`~celldega.clust.Matrix`
+                ``uns["rank_genes_groups"]``, plus ``var[f"{set_col}_marker"]``:
+                each feature's highest-scoring set, for coloring Clustergram rows
+                (``Matrix(..., row_attr=[f"{set_col}_marker"])``). A :class:`~celldega.clust.Matrix`
                 built from that modality picks it up automatically, so
                 ``cluster(view="rank_genes_groups")`` works with no further setup.
                 Computed here because differential expression needs the per-cell
@@ -611,6 +613,16 @@ class SetCollection(CelldegaCollection):
             markers = compute_marker_ranks(member_adata, self.set_col, marker_kwargs or None)
             if markers is not None:
                 signature.uns["rank_genes_groups"] = marker_ranks_to_uns(markers)
+                # Each feature's best-scoring set, as a categorical row attribute
+                # (e.g. var["leiden_marker"]). Values are set ids, so a Clustergram
+                # colors them with the same per-set palette as its columns.
+                best = markers.loc[markers.groupby("names", observed=True)["scores"].idxmax()]
+                best_set = pd.Series(
+                    best["group"].astype(str).to_numpy(), index=best["names"].astype(str)
+                )
+                signature.var[f"{self.set_col}_marker"] = (
+                    signature.var_names.to_series().map(best_set).fillna("none").to_numpy()
+                )
 
         # Hint Matrix's axis-entity inference so a Clustergram of this signature
         # (rows=features, cols=sets after transpose) links to a Landscape/Yearbook

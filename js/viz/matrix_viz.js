@@ -132,6 +132,13 @@ export const matrix_viz = async (
 ) => {
   const root = document.createElement('div');
   root.style.border = '1px solid #d3d3d3';
+  // Wheel gestures anywhere on the canvas belong to the Clustergram, including
+  // the empty corner left of the column labels (no deck view there, so the
+  // page used to scroll mid-zoom). preventDefault only stops page scrolling;
+  // deck.gl still receives the event for its own zoom handling.
+  root.addEventListener('wheel', (event) => event.preventDefault(), {
+    passive: false,
+  });
   const deck_mat = ini_deck(root, width, height);
 
   const row_entity = model.get('row_entity');

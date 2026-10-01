@@ -74,6 +74,7 @@ nav:
   - Example Notebooks:
     - examples/index.md
     - Tutorials:
+      - Atera Breast Cancer Landscape-Clustergram: examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
       - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
       - Chromium Pre-process: examples/tutorial_notebooks/Scanpy_Chromium.ipynb

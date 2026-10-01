@@ -12,3 +12,56 @@
 /* .jupyter-wrapper ~ .md-sidebar--secondary {
     display: none !important;
 } */
+
+/* Opt-in full-width layout for wide, linked-widget notebooks. */
+.celldega-wide-notebook .md-sidebar--primary,
+.celldega-wide-notebook .md-sidebar--secondary {
+    display: none !important;
+}
+
+.celldega-wide-notebook .md-main__inner {
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.celldega-wide-notebook .md-content,
+.celldega-wide-notebook .md-content__inner,
+.celldega-wide-notebook .jupyter-wrapper {
+    max-width: none !important;
+    width: 100% !important;
+}
+
+.celldega-wide-notebook .md-content__inner {
+    margin: 0 !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+
+.celldega-wide-notebook .jupyter-wrapper .jp-Notebook {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.celldega-wide-notebook-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 0.4rem;
+}
+
+.celldega-wide-notebook-toggle {
+    appearance: none;
+    background: var(--md-primary-fg-color);
+    border: 0;
+    border-radius: 0.2rem;
+    color: var(--md-primary-bg-color);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.55rem;
+}
+
+.celldega-wide-notebook-toggle:hover,
+.celldega-wide-notebook-toggle:focus-visible {
+    filter: brightness(1.12);
+}

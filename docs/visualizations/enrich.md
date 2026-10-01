@@ -26,8 +26,12 @@ enrich
 ```
 
 `Enrich` is commonly driven by a gene list derived from a `Clustergram` or
-`Landscape` selection (e.g. marker genes for a clicked cluster). For the full
-list of constructor arguments, see the
+`Landscape` selection (e.g. marker genes for a clicked cluster). Use
+`dega.viz.clustergram_enrich(cgm)` or
+`dega.viz.spatial_clustergram(spatial, cgm, enrich=True)` to create that link.
+The core Clustergram-to-Enrich gene-list link runs in the browser, so it also
+works in a statically embedded documentation notebook without a live Python
+kernel. For the full list of constructor arguments, see the
 [Viz Module API reference](../python/viz/api.md).
 
 !!! note

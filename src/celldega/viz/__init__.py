@@ -4,7 +4,7 @@ Module for visualization
 
 import json
 
-from ipywidgets import HBox, Layout, VBox, jslink
+from ipywidgets import HBox, Layout, VBox, jsdlink, jslink
 
 from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
@@ -268,6 +268,13 @@ def _link_clustergram_to_enrich(
     cgm.observe(_on_click_info, names="click_info")
     enrich.observe(_on_focused_gene, names="focused_gene")
     enrich.observe(_on_term_genes, names="term_genes")
+
+    # Python observers provide the richer source labels and selection semantics
+    # above in a live kernel. These browser-side links keep the core interaction
+    # working in static notebook exports, where no Python callback can run.
+    jsdlink((cgm, "selected_genes"), (enrich, "gene_list"))
+    jsdlink((enrich, "focused_gene"), (cgm, "focused_gene"))
+    jsdlink((enrich, "term_genes"), (cgm, "highlighted_genes"))
     if enrich.term_genes:
         cgm.highlighted_genes = list(enrich.term_genes)
 

@@ -314,6 +314,9 @@ class Landscape(CelldegaWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
+    # Browser-linked gene focus (e.g. a click in Enrich). The front end turns
+    # this into the same gene-selection action as a Clustergram row click.
+    focused_gene = traitlets.Unicode("").tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
     # AnnData obs columns (cell attributes)
     cell_attr = traitlets.List(
@@ -1263,6 +1266,13 @@ class Clustergram(CelldegaWidget):
 
     # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    # Gene set intended for enrichment. Unlike selected_genes, a single row
+    # label click does not overwrite this value. Keeping the two concerns
+    # separate makes browser-only widget links match live Python behavior.
+    enrichment_genes = traitlets.List(default_value=[]).tag(sync=True)
+    enrichment_source_label = traitlets.Unicode("").tag(sync=True)
+    row_enrich_enabled = traitlets.Bool(True).tag(sync=True)
+    col_enrich_enabled = traitlets.Bool(False).tag(sync=True)
     # A gene selected in Enrich. The Clustergram front-end centers its matching
     # row without replacing the current enrichment gene set.
     focused_gene = traitlets.Unicode("").tag(sync=True)
@@ -1281,6 +1291,16 @@ class Clustergram(CelldegaWidget):
     #: can be the entire view, which enriches a gene set against itself. A
     #: floor of 5 genes applies so very narrow views still say something.
     top_gene_percent = traitlets.Float(10.0).tag(sync=True)
+
+    #: Column-click marker candidates must be strictly above this matrix value.
+    #: ``0`` is a natural default after row z-scoring: only genes enriched in
+    #: the clicked column are sent to Enrich. Set to ``None`` to disable.
+    top_gene_min_value = traitlets.Float(0.0, allow_none=True).tag(sync=True)
+
+    #: When a secondary size matrix is available (typically fraction
+    #: expressing), require at least this value for column-click enrichment.
+    #: Ignored when no size matrix exists; set to ``None`` to disable.
+    top_gene_min_fraction = traitlets.Float(0.5, allow_none=True).tag(sync=True)
 
     #: Active dimensionality view: the number of rows kept by the RANK slider.
     #: ``0`` (default) means the full matrix. Set to one of the levels

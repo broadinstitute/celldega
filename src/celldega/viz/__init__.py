@@ -113,24 +113,15 @@ def spatial_clustergram(
         enrich_widget = Enrich(**config)
 
     if enrich_widget is not None:
-
-        def _forward_gene_to_spatial(gene: str) -> None:
-            if gene:
-                if mat.focused_gene == gene:
-                    # Re-focusing the same gene must still notify JS (traitlets
-                    # suppresses no-change sets), so blank first to force a
-                    # change event and re-center the row.
-                    mat.focused_gene = ""
-                mat.focused_gene = gene
-                spatial.trigger_update({"type": "row_label", "value": {"name": gene}})
-
         _link_clustergram_to_enrich(
             mat,
             enrich_widget,
             row_enrich=row_enrich,
             col_enrich=col_enrich,
-            gene_focus_callback=_forward_gene_to_spatial,
         )
+        # Browser-native and persisted with saved widget state: Enrich gene
+        # clicks follow the same route in Jupyter and static documentation.
+        jslink((enrich_widget, "focused_gene"), (spatial, "focused_gene"))
 
     children = [spatial, mat]
     if enrich_widget is not None:
@@ -172,9 +163,10 @@ def _link_clustergram_to_enrich(
     *,
     row_enrich: bool = True,
     col_enrich: bool = False,
-    gene_focus_callback=None,
 ) -> None:
     enrich_colors = {"In term": "#2f74ff", "Out of term": "#ffffff"}
+    cgm.row_enrich_enabled = row_enrich
+    cgm.col_enrich_enabled = col_enrich
 
     def _record_colors() -> None:
         if hasattr(cgm, "_record_category_colors"):
@@ -251,12 +243,6 @@ def _link_clustergram_to_enrich(
             if not row_enrich:
                 _set_gene_list([])
 
-    def _on_focused_gene(change) -> None:
-        if gene_focus_callback is None:
-            return
-        gene = change["new"] or ""
-        gene_focus_callback(gene)
-
     def _on_term_genes(change) -> None:
         # Mirror the selected enriched term's genes onto the Clustergram so its
         # row labels can highlight them (blue, matching Enrich's "In term"
@@ -266,14 +252,17 @@ def _link_clustergram_to_enrich(
 
     cgm.observe(_on_selected_genes, names="selected_genes")
     cgm.observe(_on_click_info, names="click_info")
-    enrich.observe(_on_focused_gene, names="focused_gene")
     enrich.observe(_on_term_genes, names="term_genes")
 
     # Python observers provide the richer source labels and selection semantics
     # above in a live kernel. These browser-side links keep the core interaction
     # working in static notebook exports, where no Python callback can run.
-    jsdlink((cgm, "selected_genes"), (enrich, "gene_list"))
-    jsdlink((enrich, "focused_gene"), (cgm, "focused_gene"))
+    # Bidirectional browser links behave identically with a live kernel and in
+    # saved widget state. Enrich CLEAR/manual lists therefore also update the
+    # Clustergram's bold enrichment-gene labels.
+    jslink((cgm, "enrichment_genes"), (enrich, "gene_list"))
+    jsdlink((cgm, "enrichment_source_label"), (enrich, "source_label"))
+    jslink((enrich, "focused_gene"), (cgm, "focused_gene"))
     jsdlink((enrich, "term_genes"), (cgm, "highlighted_genes"))
     if enrich.term_genes:
         cgm.highlighted_genes = list(enrich.term_genes)
@@ -302,20 +291,11 @@ def clustergram_enrich(
 
     enrich = Enrich(gene_list=[], width=250, height=700)
 
-    def _focus_gene_in_clustergram(gene: str) -> None:
-        if gene:
-            if cgm.focused_gene == gene:
-                # Force a change event so re-clicking the same gene re-centers
-                # its row (traitlets suppresses no-change sets).
-                cgm.focused_gene = ""
-            cgm.focused_gene = gene
-
     _link_clustergram_to_enrich(
         cgm,
         enrich,
         row_enrich=row_enrich,
         col_enrich=col_enrich,
-        gene_focus_callback=_focus_gene_in_clustergram,
     )
 
     return HBox([cgm, enrich], layout=Layout(width="1000px"))

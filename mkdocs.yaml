@@ -60,6 +60,8 @@ nav:
       - cloud_env/index.md
   - Gallery:
       - gallery/index.md
+      - Web Presentations:
+          - Broad Retreat 2024: https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/
       - Imaging Spatial Transcriptomics:
           - Xenium:
               - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md

@@ -13,7 +13,8 @@
     display: none !important;
 } */
 
-/* Opt-in full-width layout for wide, linked-widget notebooks. */
+/* Render notebook pages full-width by default. The compact header control
+   added by hide_notebook_sidebar.js restores the navigation on demand. */
 .celldega-wide-notebook .md-sidebar--primary,
 .celldega-wide-notebook .md-sidebar--secondary {
     display: none !important;
@@ -43,25 +44,40 @@
     padding-right: 0 !important;
 }
 
-.celldega-wide-notebook-controls {
-    display: flex;
-    justify-content: flex-end;
-    margin: 0 0 0.4rem;
+/* The rendered In/Out prompts are useful context, but mkdocs-jupyter reserves
+   64px for them. A compact gutter buys meaningful width for linked widgets. */
+.celldega-wide-notebook .jupyter-wrapper {
+    --jp-cell-prompt-width: 42px;
+    --jp-notebook-padding: 4px;
 }
 
-.celldega-wide-notebook-toggle {
+.celldega-wide-notebook .jupyter-wrapper .jp-InputArea-prompt,
+.celldega-wide-notebook .jupyter-wrapper .jp-OutputArea-prompt {
+    padding-left: 0 !important;
+    padding-right: 0.2rem !important;
+}
+
+.celldega-notebook-nav-toggle {
     appearance: none;
-    background: var(--md-primary-fg-color);
-    border: 0;
-    border-radius: 0.2rem;
+    align-items: center;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--md-primary-bg-color) 55%, transparent);
+    border-radius: 50%;
     color: var(--md-primary-bg-color);
     cursor: pointer;
-    font: inherit;
-    font-size: 0.72rem;
-    padding: 0.3rem 0.55rem;
+    display: flex;
+    font-size: 0.62rem;
+    height: 1.65rem;
+    justify-content: center;
+    margin-left: 0;
+    margin-right: 0.25rem;
+    padding: 0;
+    width: 1.65rem;
 }
 
-.celldega-wide-notebook-toggle:hover,
-.celldega-wide-notebook-toggle:focus-visible {
-    filter: brightness(1.12);
+.celldega-notebook-nav-toggle:hover,
+.celldega-notebook-nav-toggle:focus-visible {
+    background: color-mix(in srgb, var(--md-primary-bg-color) 14%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--md-primary-bg-color) 65%, transparent);
+    outline-offset: 2px;
 }

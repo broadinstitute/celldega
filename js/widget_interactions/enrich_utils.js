@@ -29,8 +29,15 @@ export const updateGeneInfo = async (gene, geneInfoHolder) => {
     const info = uniprot_data[gene] || { name: '', description: '' };
     const boldElement = document.createElement('b');
     boldElement.textContent = `${gene}: ${info.name}`;
+    boldElement.style.fontFamily = 'inherit';
+    boldElement.style.fontSize = '12px';
+    boldElement.style.lineHeight = '1.35';
     const paragraphElement = document.createElement('p');
     paragraphElement.textContent = info.description;
+    paragraphElement.style.fontFamily = 'inherit';
+    paragraphElement.style.fontSize = '12px';
+    paragraphElement.style.lineHeight = '1.35';
+    paragraphElement.style.margin = '4px 0 0';
     geneInfoHolder.textContent = ''; // Clear existing content
     geneInfoHolder.appendChild(boldElement);
     geneInfoHolder.appendChild(paragraphElement);

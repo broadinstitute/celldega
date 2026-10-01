@@ -3,6 +3,7 @@
 describe('force_set_selected_genes', () => {
   let force_set_selected_genes;
   let update_selected_genes;
+  let sync_selected_genes;
 
   beforeAll(() => {
     const fs = require('fs');
@@ -15,10 +16,11 @@ describe('force_set_selected_genes', () => {
       )
       .replace(/^export const /gm, 'const ');
 
-    const code = `${source}\nmodule.exports = { force_set_selected_genes, update_selected_genes };`;
+    const code = `${source}\nmodule.exports = { force_set_selected_genes, update_selected_genes, sync_selected_genes };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
-    ({ force_set_selected_genes, update_selected_genes } = module.exports);
+    ({ force_set_selected_genes, update_selected_genes, sync_selected_genes } =
+      module.exports);
   });
 
   const makeGenes = () => ({
@@ -76,5 +78,67 @@ describe('force_set_selected_genes', () => {
     force_set_selected_genes(genes, [], makeStore());
     expect(genes.selected_genes).toEqual([]);
     expect(genes.selected_gene_ids.size).toBe(0);
+  });
+
+  const makeClustergramState = (click, traits = {}) => {
+    const values = {
+      component: 'Matrix',
+      row_enrich_enabled: true,
+      col_enrich_enabled: false,
+      ...traits,
+    };
+    const model = {
+      get: (name) => values[name],
+      set: (name, value) => {
+        values[name] = value;
+      },
+      save_changes: jest.fn(),
+    };
+    return {
+      values,
+      state: {
+        click,
+        model,
+        row_entity: { entity: 'gene' },
+        genes: makeGenes(),
+        obs_store: makeStore(),
+      },
+    };
+  };
+
+  it('does not replace the enrichment set for a row-label focus click', () => {
+    const { state, values } = makeClustergramState({
+      type: 'row_label',
+      value: { name: 'GAPDH' },
+    });
+
+    sync_selected_genes(state, ['GAPDH']);
+
+    expect(values.selected_genes).toEqual(['GAPDH']);
+    expect(values.enrichment_genes).toBeUndefined();
+  });
+
+  it('syncs row gene-set selections and their source for static links', () => {
+    const { state, values } = makeClustergramState({
+      type: 'row_dendro',
+      value: { selected_names: ['GAPDH', 'INS'] },
+    });
+
+    sync_selected_genes(state, ['GAPDH', 'INS']);
+
+    expect(values.enrichment_genes).toEqual(['GAPDH', 'INS']);
+    expect(values.enrichment_source_label).toBe('Dendrogram selection');
+  });
+
+  it('syncs column-label top genes even when column enrichment is disabled', () => {
+    const { state, values } = makeClustergramState({
+      type: 'col_label',
+      value: { name: 'cluster 3' },
+    });
+
+    sync_selected_genes(state, ['GAPDH', 'INS']);
+
+    expect(values.enrichment_genes).toEqual(['GAPDH', 'INS']);
+    expect(values.enrichment_source_label).toBe('cluster 3');
   });
 });

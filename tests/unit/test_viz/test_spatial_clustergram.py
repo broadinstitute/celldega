@@ -12,6 +12,7 @@ try:
     from ipywidgets import HBox
 
     from celldega.clust import Matrix
+    import celldega.viz as viz_mod
     from celldega.viz import (
         CellCloud,
         Clustergram,
@@ -72,6 +73,8 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     enrich = box.children[1]
 
     assert enrich.height == 700
+    assert cgm.row_enrich_enabled is True
+    assert cgm.col_enrich_enabled is False
 
     enrich.gene_list = ["g0", "g1"]
     cgm.click_info = {"type": "row_label", "value": {"name": "g1"}}
@@ -118,11 +121,10 @@ def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
     assert enrich.gene_list == ["g1", "g0"]
     assert enrich.source_label == "s2"
 
-    # Clicking a gene in Enrich focuses the matching Clustergram row without
-    # changing the enrichment gene list.
-    enrich.focused_gene = "g1"
-    assert cgm.focused_gene == "g1"
-    assert enrich.gene_list == ["g1", "g0"]
+    # Focus propagation is deliberately browser-native (jslink), so the same
+    # saved links work in both a live notebook and a static documentation embed.
+    assert hasattr(enrich, "focused_gene")
+    assert hasattr(cgm, "focused_gene")
 
 
 def test_clustergram_enrich_mirrors_term_genes_to_highlighted_genes():
@@ -148,27 +150,23 @@ def test_clustergram_enrich_mirrors_term_genes_to_highlighted_genes():
     assert cgm.highlighted_genes == []
 
 
-def test_clustergram_enrich_refocuses_the_same_gene():
+def test_spatial_clustergram_uses_browser_native_gene_focus_links(monkeypatch):
+    links = []
+
+    def capture_link(source, target):
+        links.append((source, target))
+        return
+
+    monkeypatch.setattr(viz_mod, "jslink", capture_link)
+
+    spatial = Landscape(base_url="https://example.com/data")
     cgm = _clustergram()
-    box = clustergram_enrich(cgm)
-    enrich = box.children[1]
+    box = viz_mod.spatial_clustergram(spatial, cgm, enrich=True)
+    enrich = box.children[2]
 
-    focus_events = []
-    cgm.observe(lambda change: focus_events.append(change["new"]), names="focused_gene")
-
-    enrich.focused_gene = "g1"
-    assert cgm.focused_gene == "g1"
-
-    # Enrich CLEAR blanks its own focused_gene; the Clustergram keeps focus.
-    enrich.focused_gene = ""
-    assert cgm.focused_gene == "g1"
-
-    # Re-clicking the same gene must still notify the front end (traitlets
-    # suppresses no-change sets), so the link blanks then re-sets the trait.
-    focus_events.clear()
-    enrich.focused_gene = "g1"
-    assert cgm.focused_gene == "g1"
-    assert focus_events == ["", "g1"]
+    assert ((cgm, "enrichment_genes"), (enrich, "gene_list")) in links
+    assert ((enrich, "focused_gene"), (cgm, "focused_gene")) in links
+    assert ((enrich, "focused_gene"), (spatial, "focused_gene")) in links
 
 
 def test_spatial_clustergram_matches_enrich_height_to_linked_widgets():

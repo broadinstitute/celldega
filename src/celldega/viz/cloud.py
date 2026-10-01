@@ -98,6 +98,7 @@ class _SpatialWidget(CelldegaWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
+    focused_gene = traitlets.Unicode("").tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
 
     # AnnData obs columns (cell attributes)

@@ -91,6 +91,16 @@ const is_row_label_highlighted = (viz_state, d) =>
     viz_state.labels.highlighted_genes?.has(String(d.name || '').toLowerCase())
   );
 
+// Gene sets sent from the Clustergram to Enrich stay bold so the user can
+// see exactly which rows underpin the current enrichment query. The focused
+// gene is included in the same overlay because TextLayer font weight is
+// layer-level rather than per datum.
+const is_row_label_bold = (viz_state, d) =>
+  d.index === viz_state.labels.focused_row_index ||
+  Boolean(
+    viz_state.labels.enrichment_genes?.has(String(d.name || '').toLowerCase())
+  );
+
 // The reorder driver is the double-clicked label the matrix is custom-sorted
 // by; it stays blue only while the *other* axis's order is still 'custom'
 // (a reorder button on that axis replaces the custom order and un-blues it).
@@ -156,12 +166,11 @@ export const ini_row_label_layer = (viz_state) => {
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
     getText: (d) => d.display_name || d.name,
     getSize: get_axis_label_font_size(viz_state, 'row'),
-    // The focused row's base label is drawn fully transparent: the bold
-    // overlay replaces it (bold glyph widths differ, so drawing both would
-    // ghost). The datum stays in `data` so sibling labels keep their indices
-    // (removing it would index-shift-animate the whole column).
+    // Rows in the current enrichment set (plus the focused row) are drawn by
+    // the bold overlay. Keep their base data in place so sibling labels retain
+    // stable indices during animated reorders.
     getColor: (d) =>
-      d.index === viz_state.labels.focused_row_index
+      is_row_label_bold(viz_state, d)
         ? [0, 0, 0, 0]
         : row_label_text_color(viz_state, d),
     getAngle: 0,
@@ -183,24 +192,18 @@ export const ini_row_label_layer = (viz_state) => {
 };
 
 /**
- * Bold overlay for the focused row's label (Enrich gene click or row search).
- * deck.gl TextLayer font weight is layer-level, not per-datum, so the focused
- * label is drawn as its own one-datum bold layer on top of the base label
- * (same color/position/size — bold glyphs fully cover the regular ones). The
- * base datum stays in place and pickable; the overlay is not pickable.
+ * Bold overlay for rows sent to Enrich and the focused row (Enrich gene click
+ * or row search). deck.gl TextLayer font weight is layer-level, not per datum,
+ * so these labels are drawn in a separate layer over transparent base labels.
  *
- * Rebuilt (fresh one-element `data` array) wherever the base layer's
+ * Rebuilt (fresh filtered `data` array) wherever the base layer's
  * geometry-affecting props change, so accessors re-evaluate without
  * trigger bookkeeping.
  */
 export const ini_row_label_focus_layer = (viz_state) => {
-  const focused_index = viz_state.labels.focused_row_index;
-  const data =
-    focused_index == null
-      ? []
-      : filter_label_data(viz_state, 'row').filter(
-          (d) => d.index === focused_index
-        );
+  const data = filter_label_data(viz_state, 'row').filter((d) =>
+    is_row_label_bold(viz_state, d)
+  );
 
   return new TextLayer({
     // Contains 'row-label-layer' so layer_filter routes it to the rows
@@ -228,10 +231,9 @@ export const ini_row_label_focus_layer = (viz_state) => {
     onClick: (event) => viz_state.labels._row_label_click_handler?.(event),
     onHover: (info) => viz_state.labels._row_label_hover_handler?.(info),
     // Deliberately no transitions: TextLayer expands strings into
-    // per-character instances, so transitioning this one-datum layer between
-    // differently-named genes both "flies" the bold label from the previous
-    // focus position and truncates it to the overlapping character count
-    // mid-flight. Snapping keeps the overlay exactly in the base label's slot.
+    // per-character instances, so transitioning this filtered layer between
+    // gene sets can pair unrelated glyphs. Snapping keeps every bold label in
+    // the corresponding base-label slot.
   });
 };
 
@@ -242,8 +244,8 @@ export const refresh_row_label_focus_layer = (layers_mat, viz_state) => {
 /**
  * Re-trigger row-label colors (term-gene highlight, reorder driver, and the
  * hide-under-bold rule) and rebuild the bold focus overlay. Call after
- * changing highlighted_genes, the focused row, or the reorder driver; the
- * caller issues the setProps.
+ * changing highlighted_genes, enrichment_genes, the focused row, or the
+ * reorder driver; the caller issues the setProps.
  */
 export const refresh_row_label_styles = (layers_mat, viz_state) => {
   viz_state.labels._row_style_rev = (viz_state.labels._row_style_rev || 0) + 1;
@@ -368,13 +370,49 @@ const resolve_top_gene_count = (viz_state) => {
 };
 
 // Top genes for a clicked column, ranked over the *visible* (crop-filtered)
-// rows only, so a row crop never leaks hidden genes into linked widgets.
+// rows only, so a row crop never leaks hidden genes into linked widgets. For
+// row-z-scored matrices the default value threshold (> 0) keeps only genes
+// enriched in that column. When dot-size data is present, the default fraction
+// threshold additionally requires expression in at least 50% of cells.
+const column_gene_passes_enrichment_filters = (
+  viz_state,
+  row_index,
+  col_index
+) => {
+  const value = Number(viz_state.mat.net_mat?.[row_index]?.[col_index]);
+  const min_value = viz_state.top_gene_min_value;
+  if (
+    min_value != null &&
+    Number.isFinite(Number(min_value)) &&
+    !(value > Number(min_value))
+  ) {
+    return false;
+  }
+
+  const { size_mat } = viz_state.mat;
+  const min_fraction = viz_state.top_gene_min_fraction;
+  if (
+    Array.isArray(size_mat) &&
+    min_fraction != null &&
+    Number.isFinite(Number(min_fraction))
+  ) {
+    const fraction = Number(size_mat?.[row_index]?.[col_index]);
+    if (!Number.isFinite(fraction) || fraction < Number(min_fraction)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const top_gene_names_for_column = (viz_state, col_index) => {
   const slice = buildColAxisSlice(
     viz_state,
     col_index,
     resolve_top_gene_count(viz_state),
-    (row_index) => is_axis_index_visible(viz_state, 'row', row_index)
+    (row_index) =>
+      is_axis_index_visible(viz_state, 'row', row_index) &&
+      column_gene_passes_enrichment_filters(viz_state, row_index, col_index)
   );
   return slice ? slice.entries.map((entry) => entry.counterpart_name) : [];
 };

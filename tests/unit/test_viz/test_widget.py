@@ -211,10 +211,27 @@ def test_clustergram_selected_genes_trait() -> None:
     widget = Clustergram(matrix=mat)
 
     assert widget.selected_genes == []
+    assert widget.enrichment_genes == []
+    assert widget.enrichment_source_label == ""
     assert widget.top_n_genes == 50
+    assert widget.top_gene_min_value == 0.0
+    assert widget.top_gene_min_fraction == 0.5
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]
+
+    widget.enrichment_genes = ["A", "B"]
+    widget.enrichment_source_label = "Dendrogram selection"
+    assert widget.enrichment_genes == ["A", "B"]
+    assert widget.enrichment_source_label == "Dendrogram selection"
+
+
+def test_spatial_widgets_expose_browser_linked_focused_gene() -> None:
+    landscape = Landscape(base_url="https://example.com/data")
+
+    assert landscape.focused_gene == ""
+    landscape.focused_gene = "GATA3"
+    assert landscape.focused_gene == "GATA3"
 
 
 def test_clustergram_highlighted_genes_trait() -> None:

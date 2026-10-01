@@ -31,7 +31,11 @@ enrich
 `dega.viz.spatial_clustergram(spatial, cgm, enrich=True)` to create that link.
 The core Clustergram-to-Enrich gene-list link runs in the browser, so it also
 works in a statically embedded documentation notebook without a live Python
-kernel. For the full list of constructor arguments, see the
+kernel. Clustergram keeps this enrichment set separate from its focused gene:
+clicking one row can focus that gene across the linked views without replacing
+the multi-gene enrichment query. Dendrogram/crop selections and a column's
+top-marker selection update the enrichment set. For the full list of
+constructor arguments, see the
 [Viz Module API reference](../python/viz/api.md).
 
 !!! note

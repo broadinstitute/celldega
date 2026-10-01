@@ -1,59 +1,48 @@
-const WIDE_MARKER = '[data-celldega-wide-notebook]';
 const WIDE_CLASS = 'celldega-wide-notebook';
+const TOGGLE_CLASS = 'celldega-notebook-nav-toggle';
 
 function initializeNotebookLayout() {
-    // Keep the existing modest width improvement for every notebook/gallery.
-    const isNotebookPage =
-        window.location.pathname.includes('notebook') ||
-        window.location.pathname.includes('gallery_');
+    document.querySelectorAll(`.${TOGGLE_CLASS}`).forEach((button) => button.remove());
 
-    if (isNotebookPage) {
-        const primarySidebar = document.querySelector('.md-sidebar--primary');
-        const secondarySidebar = document.querySelector('.md-sidebar--secondary');
-        const mainGrid = document.querySelector('.md-main__inner');
-
-        if (primarySidebar) primarySidebar.style.width = '8.1rem';
-        if (secondarySidebar) secondarySidebar.style.display = 'none';
-        if (mainGrid) {
-            mainGrid.style.marginLeft = 'unset';
-            mainGrid.style.marginRight = 'unset';
-            mainGrid.style.maxWidth = 'none';
-        }
-    }
-
-    const marker = document.querySelector(WIDE_MARKER);
-    if (!marker) {
+    // nbconvert wraps rendered notebooks in .jupyter-wrapper. Detecting the
+    // generated markup is more reliable than coupling this behavior to URL
+    // conventions, and makes every documentation notebook wide by default.
+    const isNotebookPage = Boolean(document.querySelector('.jupyter-wrapper'));
+    if (!isNotebookPage) {
         document.body.classList.remove(WIDE_CLASS);
         return;
     }
 
-    // The marker makes wide mode opt-in and reusable for future notebook pages.
-    // Default to expanded, but remember the reader's choice for this page.
     const storageKey = `celldega-wide-notebook:${window.location.pathname}`;
     const savedPreference = window.sessionStorage.getItem(storageKey);
-    let expanded = savedPreference !== 'false';
+    let wide = savedPreference !== 'false';
+
+    const header = document.querySelector('.md-header__inner');
+    if (!header) return;
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'celldega-wide-notebook-toggle';
+    button.className = `md-header__button ${TOGGLE_CLASS}`;
 
     const applyLayout = () => {
-        document.body.classList.toggle(WIDE_CLASS, expanded);
-        button.textContent = expanded ? 'Show navigation' : 'Expand notebook';
-        button.setAttribute('aria-pressed', String(expanded));
-        button.title = expanded
-            ? 'Restore the documentation navigation sidebar'
-            : 'Hide navigation and use the full browser width';
+        document.body.classList.toggle(WIDE_CLASS, wide);
+        const action = wide ? 'Show navigation sidebar' : 'Hide navigation sidebar';
+        button.textContent = wide ? '▶' : '◀';
+        button.setAttribute('aria-label', action);
+        button.setAttribute('aria-pressed', String(wide));
+        button.title = action;
     };
 
     button.addEventListener('click', () => {
-        expanded = !expanded;
-        window.sessionStorage.setItem(storageKey, String(expanded));
+        wide = !wide;
+        window.sessionStorage.setItem(storageKey, String(wide));
         applyLayout();
     });
 
-    marker.classList.add('celldega-wide-notebook-controls');
-    marker.replaceChildren(button);
+    // The left edge, immediately before the logo, visually associates the
+    // control with the navigation drawer it reveals. `title` above supplies
+    // the native hover tooltip in addition to the accessible label.
+    header.insertBefore(button, header.firstElementChild);
     applyLayout();
 }
 

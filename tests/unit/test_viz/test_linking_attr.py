@@ -24,8 +24,8 @@ def _clustergram_with_col_attr(attr):
         index=[f"g{i}" for i in range(3)],
         columns=[f"s{j}" for j in range(4)],
     )
-    mat = Matrix(df, col_entity={"entity": "cell", "attr": attr}, disable_processing=True)
-    mat.clust()
+    mat = Matrix(df, col_entity={"entity": "cell", "attr": attr})
+    mat.cluster()
     return Clustergram(matrix=mat)
 
 
@@ -36,7 +36,7 @@ def test_clustergram_col_attr_helper_reads_col_entity():
 
 def test_clustergram_col_attr_helper_defaults_to_leiden_when_missing():
     df = pd.DataFrame(np.zeros((2, 2)), index=["g0", "g1"], columns=["a", "b"])
-    cgm = Clustergram(matrix=Matrix(df, disable_processing=True))
+    cgm = Clustergram(matrix=Matrix(df))
     # default col_entity is the cell_cluster/leiden shorthand
     assert _clustergram_col_attr(cgm) == "leiden"
 

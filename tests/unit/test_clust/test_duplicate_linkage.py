@@ -20,14 +20,14 @@ from celldega.clust.utils import fast_cosine_distance
     ],
 )
 def test_duplicate_rows_and_columns(metric, values):
-    matrix = Matrix(pd.DataFrame(values), disable_processing=True)
-    matrix.clust(dist_type=metric)
+    matrix = Matrix(pd.DataFrame(values))
+    matrix.cluster(dist_type=metric)
     for axis in ("row", "col"):
         linkage = np.asarray(matrix.viz["linkage"][axis])
         assert is_valid_linkage(linkage)
         assert np.all(np.isfinite(linkage))
         assert linkage[0, 2] == pytest.approx(0, abs=1e-14)
-        labels = matrix.to_cluster(axis=axis, threshold=1e-10)
+        labels = matrix.cut_tree(axis=axis, threshold=1e-10)
         assert labels.iloc[0] == labels.iloc[1]
         # The reduced-view path must use the same distances and leaf identities.
         data = matrix.data.values if axis == "row" else matrix.data.values.T
@@ -42,8 +42,8 @@ def test_high_dimensional_duplicates_do_not_produce_negative_linkage():
     distances = fast_cosine_distance(data)
     assert np.all(distances >= 0)
     assert distances[0] == pytest.approx(0, abs=1e-14)
-    matrix = Matrix(pd.DataFrame(data), disable_processing=True)
-    matrix.clust()
+    matrix = Matrix(pd.DataFrame(data))
+    matrix.cluster()
     assert is_valid_linkage(np.asarray(matrix.viz["linkage"]["row"]))
     linkage, leaves = Matrix._subset_axis_linkage(data, "cosine", "average")
     assert is_valid_linkage(linkage)

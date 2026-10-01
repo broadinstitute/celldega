@@ -32,8 +32,8 @@ def _clustergram() -> Clustergram:
         index=[f"g{i}" for i in range(3)],
         columns=[f"s{j}" for j in range(4)],
     )
-    mat = Matrix(df, disable_processing=True)
-    mat.clust()
+    mat = Matrix(df)
+    mat.cluster()
     return Clustergram(matrix=mat)
 
 

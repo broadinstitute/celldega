@@ -1,4 +1,4 @@
-"""Tests for reduced-dimensionality views built by Matrix.clust(views=...)."""
+"""Tests for reduced-dimensionality views built by Matrix.cluster(view=...)."""
 
 import sys
 from types import SimpleNamespace
@@ -26,7 +26,6 @@ def _matrix(n_rows=40, n_cols=6, seed=0):
             index=[f"g{i}" for i in range(n_rows)],
             columns=[f"c{j}" for j in range(n_cols)],
         ),
-        disable_processing=True,
     )
 
 
@@ -153,14 +152,25 @@ def test_compute_marker_ranks_preserves_scanpy_expression_sources(monkeypatch):
 
 def test_views_default_to_no_views():
     mat = _matrix()
-    mat.clust()
+    mat.cluster()
     assert mat.views == []
     assert mat.viz["views"] == []
 
 
+def test_deprecated_clustering_aliases_forward_to_cluster():
+    mat = _matrix()
+    with pytest.deprecated_call(match="Matrix.cluster"):
+        assert mat.clust(views="var", levels=[5]) is mat
+    assert mat.views[0]["view_type"] == "var"
+
+    with pytest.deprecated_call(match="singular"):
+        assert mat.cluster(views="sum", levels=[5]) is mat
+    assert mat.views[0]["view_type"] == "sum"
+
+
 def test_metric_levels_count_total_rows():
     mat = _matrix()
-    mat.clust(views="var", levels=[5, 10, 25])
+    mat.cluster(view="var", levels=[5, 10, 25])
 
     assert [view["level"] for view in mat.views] == [5, 10, 25]
     for view in mat.views:
@@ -172,7 +182,7 @@ def test_metric_levels_count_total_rows():
 
 def test_view_arrays_are_sized_and_ordered_for_the_front_end():
     mat = _matrix(n_rows=40, n_cols=6)
-    mat.clust(views="sum", levels=[10])
+    mat.cluster(view="sum", levels=[10])
     (view,) = mat.views
 
     # Ascending row indices are what lets the front end map this view's scipy
@@ -207,8 +217,8 @@ def test_metric_views_keep_exactly_the_top_ranked_rows():
         columns=[f"c{index}" for index in range(4)],
     )
 
-    mat = Matrix(frame, disable_processing=True)
-    mat.clust(views="sum", levels=[3, 5])
+    mat = Matrix(frame)
+    mat.cluster(view="sum", levels=[3, 5])
 
     # Row sums increase with the index, so the top rows are the last ones.
     assert _view_genes(mat, mat.views[0]) == {"g7", "g8", "g9"}
@@ -227,12 +237,12 @@ def test_metric_views_rank_by_the_requested_metric():
 
     frame = pd.DataFrame(values, index=index, columns=[f"c{position}" for position in range(6)])
 
-    by_sum = Matrix(frame, disable_processing=True)
-    by_sum.clust(views="sum", levels=[3])
+    by_sum = Matrix(frame)
+    by_sum.cluster(view="sum", levels=[3])
     top_by_sum = _view_genes(by_sum, by_sum.views[0])
 
-    by_var = Matrix(frame, disable_processing=True)
-    by_var.clust(views="var", levels=[3])
+    by_var = Matrix(frame)
+    by_var.cluster(view="var", levels=[3])
     top_by_var = _view_genes(by_var, by_var.views[0])
 
     assert "g0" in top_by_sum and "g0" not in top_by_var
@@ -241,7 +251,7 @@ def test_metric_views_rank_by_the_requested_metric():
 
 def test_marker_levels_count_markers_per_cluster():
     mat = _marker_matrix()
-    mat.clust(views="rank_genes_groups", levels=[1, 2, 3])
+    mat.cluster(view="rank_genes_groups", levels=[1, 2, 3])
 
     assert [view["level"] for view in mat.views] == [1, 2, 3]
     for view in mat.views:
@@ -253,7 +263,7 @@ def test_marker_levels_count_markers_per_cluster():
 
 def test_marker_view_keeps_each_clusters_top_markers():
     mat = _marker_matrix()
-    mat.clust(views="rank_genes_groups", levels=[1, 3, 5])
+    mat.cluster(view="rank_genes_groups", levels=[1, 3, 5])
 
     for view in mat.views:
         assert _view_genes(mat, view) == _expected_top_markers(mat, view["level"])
@@ -261,7 +271,7 @@ def test_marker_view_keeps_each_clusters_top_markers():
 
 def test_marker_view_only_draws_from_the_planted_marker_blocks():
     mat = _marker_matrix()
-    mat.clust(views="rank_genes_groups", levels=[2])
+    mat.cluster(view="rank_genes_groups", levels=[2])
     (view,) = mat.views
 
     blocks = {
@@ -280,7 +290,7 @@ def test_marker_view_only_draws_from_the_planted_marker_blocks():
 
 def test_every_cluster_is_represented_at_the_smallest_level():
     mat = _marker_matrix()
-    mat.clust(views="rank_genes_groups", levels=[1])
+    mat.cluster(view="rank_genes_groups", levels=[1])
     (view,) = mat.views
 
     genes = _view_genes(mat, view)
@@ -294,7 +304,7 @@ def test_every_cluster_is_represented_at_the_smallest_level():
 
 def test_marker_levels_nest():
     mat = _marker_matrix()
-    mat.clust(views="rank_genes_groups", levels=[1, 2, 3, 5])
+    mat.cluster(view="rank_genes_groups", levels=[1, 2, 3, 5])
 
     for finer, coarser in zip(mat.views, mat.views[1:], strict=False):
         assert set(finer["row_indices"]).issubset(set(coarser["row_indices"]))
@@ -321,7 +331,7 @@ def test_marker_view_deduplicates_genes_shared_between_clusters():
         ]
     )
 
-    mat.clust(views="rank_genes_groups", levels=[2])
+    mat.cluster(view="rank_genes_groups", levels=[2])
     (view,) = mat.views
 
     genes = [str(mat.data.index[index]) for index in view["row_indices"]]
@@ -338,7 +348,7 @@ def test_marker_view_deduplicates_genes_shared_between_clusters():
 def test_levels_covering_the_whole_matrix_are_dropped():
     mat = _matrix(n_rows=20)
     with pytest.warns(UserWarning, match="No requested view level"):
-        mat.clust(views="var", levels=[20, 50])
+        mat.cluster(view="var", levels=[20, 50])
     assert mat.views == []
 
 
@@ -347,7 +357,7 @@ def test_levels_resolving_to_the_same_rows_are_deduplicated():
     # Each group only has MARKERS_PER_GROUP genes above background, but asking
     # past that just keeps pulling in the same tail, so several high levels land
     # on identical row sets.
-    mat.clust(views="rank_genes_groups", levels=[1, 2, 2, 3])
+    mat.cluster(view="rank_genes_groups", levels=[1, 2, 2, 3])
 
     levels = [view["level"] for view in mat.views]
     assert levels == sorted(set(levels))
@@ -358,7 +368,7 @@ def test_levels_resolving_to_the_same_rows_are_deduplicated():
 
 def test_views_ride_along_in_the_exported_metadata():
     mat = _matrix()
-    mat.clust(views="var", levels=[5, 10])
+    mat.cluster(view="var", levels=[5, 10])
     meta = mat.export_viz_parquet()["meta"]
     assert [view["level"] for view in meta["views"]] == [5, 10]
 
@@ -370,20 +380,20 @@ def test_views_ride_along_in_the_exported_metadata():
 
 def test_multiple_view_types_are_rejected():
     mat = _matrix()
-    with pytest.raises(ValueError, match="single view type"):
-        mat.clust(views=["var", "sum"])
+    with pytest.raises(TypeError, match="single string"):
+        mat.cluster(view=["var", "sum"])
 
 
 def test_unknown_view_type_is_rejected():
     mat = _matrix()
     with pytest.raises(ValueError, match="unknown view type"):
-        mat.clust(views="nonsense")
+        mat.cluster(view="nonsense")
 
 
 def test_rank_genes_groups_view_requires_differential_expression():
     mat = _matrix()
     with pytest.raises(ValueError, match="needs differential expression"):
-        mat.clust(views="rank_genes_groups")
+        mat.cluster(view="rank_genes_groups")
 
 
 def test_marker_ranks_are_picked_up_from_adata_uns():
@@ -398,7 +408,7 @@ def test_marker_ranks_are_picked_up_from_adata_uns():
     )
 
     rebuilt = Matrix(signature)
-    rebuilt.clust(views="rank_genes_groups", levels=[2])
+    rebuilt.cluster(view="rank_genes_groups", levels=[2])
     assert _view_genes(rebuilt, rebuilt.views[0]) == _expected_top_markers(rebuilt, 2)
 
 
@@ -411,5 +421,5 @@ def test_marker_ranks_are_picked_up_from_scanpy_native_uns():
     sc.tl.rank_genes_groups(adata, groupby="leiden", method="wilcoxon")
 
     mat = Matrix(adata)
-    mat.clust(views="rank_genes_groups", levels=[3])
+    mat.cluster(view="rank_genes_groups", levels=[3])
     assert mat.views

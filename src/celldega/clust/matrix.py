@@ -251,10 +251,11 @@ def _clustering_distances(data: np.ndarray, dist_type: str) -> np.ndarray:
 
 class Matrix:
     """
-    High-performance matrix class for data processing and hierarchical clustering.
+    High-performance matrix class for explicit transformations and hierarchical clustering.
 
-    Features automatic processing pipeline, hierarchical clustering, and visualization export.
-    Uses intelligent caching for performance with large datasets.
+    Construction preserves supplied values. Filtering and normalization are
+    explicit operations, followed by hierarchical clustering and visualization
+    export. Uses intelligent caching for performance with large datasets.
 
     Examples:
         # Preserve an already-prepared matrix
@@ -262,13 +263,9 @@ class Matrix:
         mat.cluster()
 
         # Explicit preprocessing for a general dataset
-        mat = Matrix(
-            adata,
-            preprocess=True,
-            filter_genes=5000,
-            norm_row='qn',
-            global_colors={"high": "red", "low": "blue"},
-        )
+        mat = Matrix(adata, global_colors={"high": "red", "low": "blue"})
+        mat.filter("row", by="var", num=5000)
+        mat.norm("row", by="qn")
     """
 
     def __init__(
@@ -280,17 +277,10 @@ class Matrix:
         row_attr: list[str] | None = None,
         row_entity: str | dict | AxisEntity | None = "gene",
         col_entity: str | dict | AxisEntity | None = "cell_cluster",
-        # Processing parameters
-        filter_genes: int | None = None,
-        norm_col: str | None = "total",
-        norm_row: str | None = "zscore",
-        # Deprecated inverse processing flag (kept for compatibility)
-        disable_processing: bool | None = None,
         # Visualization parameters
         global_colors: dict[str, str] | pd.DataFrame | None = None,
         name: str | None = None,
         *,
-        preprocess: bool = False,
         # Celldega collection convenience path (alternative to `data`)
         collection: Any = None,
         color_by: str | None = None,
@@ -299,7 +289,7 @@ class Matrix:
         dot_plot: str | None = None,
     ):
         """
-        Create a Matrix, optionally preprocessing standalone input data.
+        Create a Matrix while preserving the supplied values.
 
         Args:
             data: DataFrame or AnnData object
@@ -317,13 +307,6 @@ class Matrix:
                 - tuple: Compact format, e.g., ("nbhd", "name")
                 - dict: Full format, e.g., {"entity": "nbhd", "attr": "name"}
             col_entity: Entity specification for columns (same formats as row_entity)
-            filter_genes: Number of top variable genes to keep (None = no filtering)
-            norm_col: Column normalization ('total', 'zscore', 'qn', None)
-            norm_row: Row normalization ('total', 'zscore', 'qn', None)
-            disable_processing: Deprecated inverse alias for ``preprocess``.
-            preprocess: Apply ``filter_genes``/``norm_col``/``norm_row`` during
-                construction. Defaults to ``False``, so supplied values are
-                preserved unless preprocessing is explicitly requested.
             global_colors: Global category color mapping (dict or DataFrame with 'color' column)
             name: Name for the matrix (default: None)
             collection: A Celldega collection (``SetCollection``/``DatasetCollection``/etc.)
@@ -340,7 +323,7 @@ class Matrix:
                 the secondary size channel. This is the compact path for a
                 signature created with ``fraction_expressing_layer``. Mutually
                 exclusive with ``size_by`` and ``dot_plot``.
-            dot_plot: Alias for `size_by` (pass either, not both).
+            dot_plot: Deprecated alias for `size_by` (pass either, not both).
 
         Examples:
             # Preserve already-prepared values (default)
@@ -348,13 +331,9 @@ class Matrix:
 
             # Explicit preprocessing for a general standalone dataset
             colors = {"Cancer": "#ff0000", "Normal": "#0000ff"}
-            mat = Matrix(
-                adata,
-                preprocess=True,
-                filter_genes=5000,
-                norm_row='qn',
-                global_colors=colors,
-            )
+            mat = Matrix(adata, global_colors=colors)
+            mat.filter("row", by="var", num=5000)
+            mat.norm("row", by="qn")
 
             # Dot plot directly from a SetCollection, no manual DataFrame wrangling
             setc.calc_signature(
@@ -384,18 +363,6 @@ class Matrix:
                 row_entity={"entity": "cell", "attr": "leiden"},
                 col_entity={"entity": "nbhd", "attr": "name"})
         """
-        if disable_processing is not None:
-            warnings.warn(
-                "`disable_processing` is deprecated; use `preprocess=True` to "
-                "request preprocessing or omit it to preserve input values.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            requested_preprocess = not disable_processing
-            if preprocess and not requested_preprocess:
-                raise ValueError("`preprocess=True` conflicts with `disable_processing=True`")
-            preprocess = requested_preprocess
-
         if dot_plot is not None:
             warnings.warn(
                 "`dot_plot` is deprecated; use `size_by` for a modality or "
@@ -444,10 +411,10 @@ class Matrix:
         # Differential-expression results carried by the input AnnData, as a
         # tidy frame with group/names/scores/logfoldchanges/pvals/pvals_adj.
         # Kept internal: SetCollection owns calculation and persistence; Matrix
-        # only consumes the ranks for `clust(views="rank_genes_groups")`.
+        # only consumes the ranks for `cluster(view="rank_genes_groups")`.
         self._marker_ranks: pd.DataFrame | None = None
 
-        # Precomputed dimensionality views (see `clust(views=...)`). Each entry
+        # Precomputed dimensionality views (see `cluster(view=...)`). Each entry
         # is one re-biclustered filter level; exported in the viz metadata and
         # driven by the Clustergram's RANK slider.
         self.views: list[dict[str, Any]] = []
@@ -492,9 +459,9 @@ class Matrix:
         else:
             self._data_hash_name = name
 
-        # Load data and optionally apply processing
+        # Load data without changing supplied values. Filtering and normalization
+        # remain explicit Matrix operations via ``filter`` and ``norm``.
         if data is not None:
-            # Step 1: Always load data
             if isinstance(data, AnnData):
                 # by default no metadata should be visualized for AnnDatas
                 if col_attr is None:
@@ -512,14 +479,10 @@ class Matrix:
                     row_attr,
                 )
 
-            # Step 2: Apply processing unless disabled
-            if preprocess:
-                self.process(filter_genes=filter_genes, norm_col=norm_col, norm_row=norm_row)
-
-        # Step 3: Always assign colors (auto-generated if not provided)
+        # Always assign colors (auto-generated if not provided)
         self.set_global_cat_colors(global_colors)
 
-        # Step 4: Optional size channel from the same collection
+        # Optional size channel from the same collection
         if size_by is not None:
             if collection is None:
                 raise ValueError("`size_by`/`dot_plot` require `collection`")
@@ -558,31 +521,6 @@ class Matrix:
 
         return self._dat_cache
 
-    def process(
-        self,
-        filter_genes: int | None = None,
-        norm_col: str | None = "total",
-        norm_row: str | None = "zscore",
-    ) -> None:
-        """
-        Apply processing pipeline to the matrix.
-
-        Args:
-            filter_genes: Number of top variable genes to keep
-            norm_col: Column normalization method ('total', 'zscore', 'qn', None)
-            norm_row: Row normalization method ('total', 'zscore', 'qn', None)
-
-        Examples:
-            mat = Matrix(adata)  # Preserve input values
-            mat.process(filter_genes=5000, norm_row='qn')  # Explicit processing
-        """
-        if filter_genes:
-            self.filter(axis=Axis.ROW, by="var", num=filter_genes)
-        if norm_col:
-            self.norm(axis=Axis.COL, by=norm_col)
-        if norm_row:
-            self.norm(axis=Axis.ROW, by=norm_row)
-
     def clust(
         self,
         dist_type: DistanceType = "cosine",
@@ -600,10 +538,7 @@ class Matrix:
         )
         if isinstance(views, list):
             if len(views) != 1:
-                raise ValueError(
-                    "cluster(view=...) takes a single view type "
-                    f"(got {views!r})"
-                )
+                raise ValueError(f"cluster(view=...) takes a single view type (got {views!r})")
             view = views[0]
         else:
             view = views
@@ -701,7 +636,7 @@ class Matrix:
 
         # Differential expression carried on the AnnData -- written by
         # `SetCollection.calc_signature(rank_genes_groups=True)`, or by scanpy
-        # itself -- makes `clust(views="rank_genes_groups")` work with no
+        # itself -- makes `cluster(view="rank_genes_groups")` work with no
         # further setup. `load_df` above reset state, so this has to follow it.
         for key in ("rank_genes_groups", "marker_ranks"):
             markers = marker_ranks_from_uns(adata.uns.get(key))
@@ -909,13 +844,13 @@ class Matrix:
                 raise ValueError("pass either `view` or deprecated `views`, not both")
             if isinstance(views, list):
                 if len(views) != 1:
-                    raise ValueError(
-                        "cluster(view=...) takes a single view type "
-                        f"(got {views!r})"
-                    )
+                    raise ValueError(f"cluster(view=...) takes a single view type (got {views!r})")
                 view = views[0]
             else:
                 view = views
+
+        if view is not None and not isinstance(view, str):
+            raise TypeError("`view` must be a single string")
 
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
@@ -1142,7 +1077,8 @@ class Matrix:
         one axis and returns a label per row/column. Use ``n_clusters`` to request
         a fixed number of clusters (``fcluster`` with ``criterion="maxclust"``) or
         ``threshold`` to cut at a linkage distance (``criterion="distance"``).
-        Exactly one of the two must be given unless ``criterion`` is set explicitly.
+        Exactly one of the two must be given. ``criterion`` can override the
+        inferred SciPy criterion, but it does not replace the cut value.
 
         This is the programmatic counterpart to the Clustergram's interactive
         dendrogram slider: it turns a clustered Matrix into discrete groups (e.g.
@@ -1163,7 +1099,7 @@ class Matrix:
 
         Raises:
             ValueError: If the matrix is unclustered, the linkage is empty, or
-                neither ``n_clusters`` nor ``threshold`` is provided.
+                not exactly one of ``n_clusters`` or ``threshold`` is provided.
         """
         from scipy.cluster.hierarchy import fcluster
 
@@ -1380,10 +1316,10 @@ class Matrix:
     def _require_marker_ranks(self) -> None:
         if self._marker_ranks is None or self._marker_ranks.empty:
             raise ValueError(
-                "views='rank_genes_groups' needs differential expression results. "
+                "view='rank_genes_groups' needs differential expression results. "
                 "Use SetCollection.calc_signature(..., rank_genes_groups=True), "
                 "or pass an AnnData carrying scanpy rank_genes_groups results -- "
-                "or pick a view that needs no groups, e.g. views='var' / views='sum'."
+                "or pick a view that needs no groups, e.g. view='var' / view='sum'."
             )
 
     def _validate_view_type(self, view_type: str) -> None:
@@ -1400,7 +1336,7 @@ class Matrix:
         """Rows kept at one view level.
 
         `level` means top markers **per cluster** for ``rank_genes_groups`` and
-        total rows for the metric rankings -- see `clust`'s `levels` argument.
+        total rows for the metric rankings -- see `cluster`'s `levels` argument.
         """
         if view_type == "rank_genes_groups":
             return self._marker_row_names(level)
@@ -1435,7 +1371,7 @@ class Matrix:
         )
         if not self._clustered:
             warnings.warn(
-                "Matrix not clustered. Call clust() first.",
+                "Matrix not clustered. Call cluster() first.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -1478,7 +1414,7 @@ class Matrix:
         independently of the main matrix which continues to drive color/opacity
         and the clustering order.
 
-        The dot matrix is aligned to the main matrix **by row and column name** at
+        The size matrix is aligned to the main matrix **by row and column name** at
         export time, so it does not need to share the clustered ordering — only
         the same labels. Missing entries become ``0`` (no dot).
 
@@ -1519,7 +1455,7 @@ class Matrix:
                     f"{arr.shape} does not match matrix shape "
                     f"{(len(row_names), len(col_names))}; pass a DataFrame to align by name"
                 )
-            dot = pd.DataFrame(arr, index=row_names, columns=col_names)
+            size = pd.DataFrame(arr, index=row_names, columns=col_names)
 
         self.size_matrix = size
         return self
@@ -1556,7 +1492,7 @@ class Matrix:
         """Export visualization using Parquet encoded tables."""
         if not self._clustered:
             warnings.warn(
-                "Matrix not clustered. Call clust() first.",
+                "Matrix not clustered. Call cluster() first.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -1652,7 +1588,7 @@ class Matrix:
         Examples
         --------
         >>> mat = Matrix(adata)
-        >>> mat.clust()
+        >>> mat.cluster()
         >>> mat.write_dega_files("./my_dega_files", name="skin_cancer_clusters")
         >>>
         >>> # JavaScript can then load from:

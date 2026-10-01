@@ -1284,7 +1284,7 @@ class Clustergram(CelldegaWidget):
 
     #: Active dimensionality view: the number of rows kept by the RANK slider.
     #: ``0`` (default) means the full matrix. Set to one of the levels
-    #: precomputed by ``Matrix.clust(views=...)`` to open already reduced; the
+    #: precomputed by ``Matrix.cluster(view=...)`` to open already reduced; the
     #: front end snaps to the nearest available level and writes the applied
     #: value back. Has no effect when the matrix carries no views.
     rank_dim = traitlets.Int(0).tag(sync=True)
@@ -1504,7 +1504,7 @@ class Clustergram(CelldegaWidget):
     ) -> pd.Series:
         """Cut the dendrogram into flat cluster labels via the underlying Matrix.
 
-        Thin wrapper over :meth:`celldega.clust.Matrix.to_cluster`. When neither
+        Thin wrapper over :meth:`celldega.clust.Matrix.cut_tree`. When neither
         ``n_clusters`` nor ``threshold`` is passed, the cut is read from the
         front-end dendrogram slider state in ``dendro_cut[axis]`` — a dict of
         ``{"n_clusters": int}`` or ``{"threshold": float}`` that the JS widget
@@ -1535,7 +1535,7 @@ class Clustergram(CelldegaWidget):
                     f"no cut for axis '{axis}': move the dendrogram slider or pass "
                     "n_clusters / threshold explicitly"
                 )
-        return self._matrix.to_cluster(
+        return self._matrix.cut_tree(
             axis=axis, n_clusters=n_clusters, threshold=threshold, criterion=criterion
         )
 
@@ -1840,11 +1840,10 @@ class Composition(Clustergram):
             row_entity={"entity": "cell_population", "attr": "name"},
             col_entity={"entity": "dataset", "attr": "name"},
             global_colors=merged_colors or None,
-            disable_processing=True,
             name=name,
         )
         if cluster:
-            mat.clust()
+            mat.cluster()
         else:
             # Build viz nodes/ranks without hierarchical clustering so export works.
             mat.make_viz()

@@ -20,6 +20,18 @@ All notable changes to Celldega are documented here. This project follows
   only consumes rankings attached to its input. The redundant
   `Matrix.marker_ranks`, `Matrix.set_marker_ranks`, and marker-ranking options on
   `Matrix.downsample_to` have been removed.
+- `Matrix.cluster(view=...)` is now the canonical clustering entry point and
+  returns the matrix for chaining; `clust()` and `views=` remain deprecated
+  compatibility aliases. Matrix construction now always preserves supplied
+  values; the redundant bundled `process()` pipeline and its constructor flags
+  have been removed. General datasets can still be transformed explicitly with
+  `filter()` and `norm()` before clustering.
+- The secondary quantitative channel is now named `size_matrix` and configured
+  with `set_size_matrix()` / `size_by_layer`. `dot_mat`, `set_dot_matrix()`, and
+  `dot_plot` remain deprecated compatibility aliases.
+- `Matrix.cut_tree()` replaces `Matrix.to_cluster()` and requires exactly one of
+  `n_clusters` or `threshold`. The unimplemented `SetCollection.to_nbhd()` stub
+  has been removed from the public API.
 
 ## [0.25.1]
 

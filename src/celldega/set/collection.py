@@ -17,8 +17,8 @@ first-class modality, from which signatures and overlaps are derived.
 
 Status: initial sketch (branch DEGA-487). The constructor, ``calc_signature``,
 ``calc_population``, ``calc_overlap``, and ``concat_sets`` are implemented;
-``to_nbhd`` (graduation to a ``NeighborhoodCollection``) is stubbed with its
-intended API.
+geometry conversion remains an internal design direction rather than a public,
+unimplemented API.
 """
 
 from __future__ import annotations
@@ -350,7 +350,7 @@ class SetCollection(CelldegaCollection):
                 attach the tidy result to the signature's
                 ``uns["rank_genes_groups"]``. A :class:`~celldega.clust.Matrix`
                 built from that modality picks it up automatically, so
-                ``clust(views="rank_genes_groups")`` works with no further setup.
+                ``cluster(view="rank_genes_groups")`` works with no further setup.
                 Computed here because differential expression needs the per-cell
                 matrix that aggregation collapses away.
 
@@ -380,7 +380,7 @@ class SetCollection(CelldegaCollection):
             ...                     rank_genes_groups_layer="X")
             >>> mat = dega.clust.Matrix(collection=setc, color_by="expression",
             ...                         size_by_layer="fraction_expressing")
-            >>> mat.clust(views="rank_genes_groups")
+            >>> mat.cluster(view="rank_genes_groups")
         """
         if aggregate not in {"sum", "mean", "fraction"}:
             raise ValueError("aggregate must be 'sum', 'mean', or 'fraction'")
@@ -662,22 +662,6 @@ class SetCollection(CelldegaCollection):
                 var_entity_type=var_entity_type,
             )
         return overlap
-
-    def to_nbhd(self, method: str = "points", **kwargs: Any) -> Any:
-        """Graduate set membership to geometry, returning a ``NeighborhoodCollection``.
-
-        For each set, gather its member cells, read their coordinates from the
-        ``membership.var`` axis, and materialize geometry: ``"points"`` stores the
-        raw ``MultiPoint`` (unopinionated); ``"alpha_shape"`` / ``"convex_hull"``
-        build a polygon (opinionated). The inverse operation,
-        ``NeighborhoodCollection.to_set``, projects geometry back to cell sets —
-        round-tripping ``alpha_shape`` quantifies how faithfully a polygon recovers
-        its defining cells (precision/recall).
-
-        TODO(DEGA-487): implement by reusing ``nbhd.alpha_shape_cell_clusters`` and
-        constructing a ``NeighborhoodCollection`` (lazy import to avoid a cycle).
-        """
-        raise NotImplementedError("SetCollection.to_nbhd is planned; see DEGA-487 design notes")
 
 
 def concat_sets(

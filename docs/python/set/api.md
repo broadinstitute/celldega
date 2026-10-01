@@ -42,7 +42,7 @@ mat = dega.clust.Matrix(
     color_by="expression",
     size_by_layer="fraction_expressing",
 )
-mat.clust(views="rank_genes_groups")
+mat.cluster(view="rank_genes_groups")
 
 # Per-set cell-type composition (sets x populations)
 clust.calc_population(adata, category="cell_type")

@@ -85,7 +85,7 @@ dev = [
 ]
 # Optional dependency for SetCollection marker ranking and Matrix.downsample_to().
 scanpy = [
-    "scanpy>=1.12.3,<1.13"
+    "scanpy>=1.11.5,<1.12"
 ]
 
 # Optional dependencies for pre-processing

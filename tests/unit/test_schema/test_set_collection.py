@@ -209,7 +209,7 @@ def test_calc_signature_attaches_and_persists_rank_genes_groups(tmp_path):
     from celldega.clust import Matrix
 
     mat = Matrix(collection=clust, color_by="expression")
-    mat.clust(views="rank_genes_groups", levels=[1, 2])
+    mat.cluster(view="rank_genes_groups", levels=[1, 2])
     assert [view["level_unit"] for view in mat.views] == ["per_cluster"] * len(mat.views)
     assert mat.views
 
@@ -225,8 +225,8 @@ def test_calc_signature_attaches_and_persists_rank_genes_groups(tmp_path):
         color_by="expression",
         size_by_layer="fraction_expressing",
     )
-    assert reloaded_mat.dot_mat is not None
-    reloaded_mat.clust(views="rank_genes_groups", levels=[1])
+    assert reloaded_mat.size_matrix is not None
+    reloaded_mat.cluster(view="rank_genes_groups", levels=[1])
     assert reloaded_mat.views
 
 

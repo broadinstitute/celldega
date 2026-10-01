@@ -32,7 +32,7 @@ except Exception as e:  # pragma: no cover - if deps missing skip
 def make_simple_matrix() -> Matrix:
     np.random.seed(0)
     df = pd.DataFrame(np.random.rand(4, 5))
-    mat = Matrix(df, disable_processing=True)
+    mat = Matrix(df)
     mat.cluster()
     return mat
 
@@ -104,7 +104,6 @@ def test_matrix_with_custom_entity_spec() -> None:
         df,
         row_entity={"entity": "cell", "attr": "leiden"},
         col_entity={"entity": "nbhd", "attr": "name"},
-        disable_processing=True,
     )
     mat.cluster()
 
@@ -132,7 +131,7 @@ def test_matrix_infers_population_ann_data_entities() -> None:
         uns={"category": "cell_type", "output": "counts"},
     )
 
-    mat = Matrix(population, disable_processing=True)
+    mat = Matrix(population)
 
     assert mat.row_entity == {"entity": "cell", "attr": "cell_type"}
     assert mat.col_entity == {"entity": "nbhd", "attr": "name"}
@@ -152,7 +151,6 @@ def test_matrix_custom_entities_override_population_inference() -> None:
         population,
         row_entity={"entity": "custom_row", "attr": "id"},
         col_entity={"entity": "custom_col", "attr": "id"},
-        disable_processing=True,
     )
 
     assert mat.row_entity == {"entity": "custom_row", "attr": "id"}
@@ -167,7 +165,7 @@ def test_auto_category_colors_do_not_serialize_unique_axis_names() -> None:
         columns=["sample-a", "sample-b"],
     )
 
-    mat = Matrix(data, disable_processing=True)
+    mat = Matrix(data)
 
     assert mat.viz["global_cat_colors"] == {}
 
@@ -180,7 +178,6 @@ def test_auto_category_colors_still_cover_categorical_attributes() -> None:
         data,
         meta_col=meta_col,
         col_attr=["condition"],
-        disable_processing=True,
     )
 
     assert set(mat.viz["global_cat_colors"]) == {"control", "treated"}

@@ -230,15 +230,15 @@ def test_calc_signature_attaches_and_persists_rank_genes_groups(tmp_path):
     assert reloaded_mat.views
 
 
-def test_calc_signature_ranks_the_layer_it_aggregates(monkeypatch):
+def test_calc_signature_log_normalizes_counts_for_marker_ranking(monkeypatch, capsys):
+    sc = pytest.importorskip("scanpy")
     adata = _adata()
     adata.layers["counts"] = adata.X + 10
     clust = SetCollection(adata, set_col="leiden", name="leiden")
     captured = {}
 
-    def capture_marker_ranks(_adata, groupby, kwargs):
-        captured["groupby"] = groupby
-        captured["kwargs"] = kwargs
+    def capture_marker_ranks(ranked_adata, groupby, kwargs):
+        captured.update(adata=ranked_adata, groupby=groupby, kwargs=kwargs)
 
     monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", capture_marker_ranks)
 
@@ -250,8 +250,52 @@ def test_calc_signature_ranks_the_layer_it_aggregates(monkeypatch):
         rank_genes_groups=True,
     )
 
+    # Scanpy's recommended input: log1p(normalize_total(counts)) of the counts
+    # the signature aggregates, ranked from X with use_raw disabled.
+    expected = AnnData(X=adata.layers["counts"].astype(np.float32))
+    sc.pp.normalize_total(expected)
+    sc.pp.log1p(expected)
     assert captured["groupby"] == "leiden"
-    assert captured["kwargs"] == {"layer": "counts", "use_raw": False}
+    assert captured["kwargs"] == {"use_raw": False}
+    np.testing.assert_allclose(captured["adata"].X, expected.X, rtol=1e-6)
+    assert "log1p(normalize_total(adata.layers['counts']))" in capsys.readouterr().out
+
+
+def test_calc_signature_ranks_an_already_normalized_source_as_is(monkeypatch):
+    adata = _adata()
+    adata.X = np.log1p(adata.X)
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    captured = {}
+
+    def capture_marker_ranks(ranked_adata, groupby, kwargs):
+        captured.update(adata=ranked_adata, kwargs=kwargs)
+
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", capture_marker_ranks)
+
+    with pytest.warns(UserWarning, match="does not look like raw counts"):
+        clust.calc_signature(
+            adata, modality_name="expression", rank_genes_groups=True, verbose=False
+        )
+
+    np.testing.assert_allclose(captured["adata"].X, adata.X)
+    assert captured["kwargs"] == {"use_raw": False}
+
+
+def test_calc_signature_warns_when_an_explicit_marker_source_is_counts(monkeypatch):
+    adata = _adata()
+    adata.layers["counts"] = adata.X.copy()
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", lambda *_: None)
+
+    with pytest.warns(UserWarning, match="looks like raw counts"):
+        clust.calc_signature(
+            adata,
+            modality_name="expression",
+            layer="counts",
+            rank_genes_groups=True,
+            rank_genes_groups_layer="counts",
+            verbose=False,
+        )
 
 
 def test_calc_signature_accepts_an_alternate_marker_layer(monkeypatch):

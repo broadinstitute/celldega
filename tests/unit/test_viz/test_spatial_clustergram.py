@@ -150,3 +150,17 @@ def test_spatial_clustergram_yearbook_uses_front_end_query():
 
     cgm.click_info = {"type": "row_label", "value": {"name": "g2"}}
     assert yearbook.front_end_query.get("gene") == "g2"
+
+
+@pytest.mark.parametrize(("cgm_width", "expected"), [(450, "600px"), (700, "700px")])
+def test_spatial_clustergram_sizes_clustergram_panel_from_its_own_width(cgm_width, expected):
+    spatial = Landscape(base_url="https://example.com/data")
+    cgm = _clustergram()
+    cgm.width = cgm_width
+
+    spatial_clustergram(spatial, cgm, width="500px", height="650px")
+
+    # The spatial width no longer squeezes the Clustergram; its panel is never
+    # narrower than the control bar, so the gene search is not clipped.
+    assert spatial.layout.width == "500px"
+    assert cgm.layout.width == expected

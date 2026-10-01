@@ -39,6 +39,17 @@ def _pixel_height(value: str | int, fallback: int = 700) -> int:
     return pixels if pixels > 0 else fallback
 
 
+# Width that fits the Clustergram control bar (reorder buttons, dendrogram
+# sliders, CROP/UNDO and gene search); matches landscape_clustergram's long-
+# standing 600px default. A narrower panel clips the gene search.
+_CLUSTERGRAM_MIN_PANEL_WIDTH = 600
+
+
+def _clustergram_panel_width(mat: Clustergram) -> str:
+    """Panel width for a Clustergram: its canvas width, but never narrower than its controls."""
+    return f"{max(int(mat.width or 0), _CLUSTERGRAM_MIN_PANEL_WIDTH)}px"
+
+
 def spatial_clustergram(
     spatial: "Landscape | CellCloud | NeighborhoodCloud | Yearbook",
     mat: Clustergram,
@@ -67,8 +78,15 @@ def spatial_clustergram(
         spatial (Landscape | CellCloud | NeighborhoodCloud | Yearbook): The
             spatial widget to link.
         mat (Clustergram): A `Clustergram` widget.
-        width (str): The width of the widgets.
-        height (str): The height of the widgets.
+        width (str): The width of the spatial widget. The Clustergram panel is
+            sized from the Clustergram's own ``width`` (its canvas), widened if
+            needed so its control bar fits.
+        height (str): The total height of the spatial widget, including its
+            control bar, and the default height of the `Enrich` widget. The
+            Clustergram's ``height`` sets only its canvas; its controls and
+            dendrogram add about 200px, so ``Clustergram(height=<height - 200>)``
+            lines the two up (e.g. the 700px default with ``height=500``). The
+            row stretches every widget to the tallest one.
         enrich (bool | Enrich): If True, create an `Enrich` widget; if an
             `Enrich` instance is provided, use it directly. If False, no
             enrichment widget is shown. Ignored for a `Yearbook` `spatial`.
@@ -99,7 +117,7 @@ def spatial_clustergram(
     jslink((mat, "click_info"), (spatial, "update_trigger"))
 
     # Layouts
-    mat.layout = Layout(width=width)
+    mat.layout = Layout(width=_clustergram_panel_width(mat))
     spatial.layout = Layout(width=width, height=height)
 
     enrich_widget: Enrich | None = None

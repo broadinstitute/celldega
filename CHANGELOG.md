@@ -23,7 +23,9 @@ All notable changes to Celldega are documented here. This project follows
   silently rank `adata.raw` when it exists: it ranks the aggregated `layer`, or
   `adata.X`, with `use_raw=False`. Marker results change for AnnData objects
   carrying `.raw`; pass `rank_genes_groups_kwargs={"use_raw": True}` to keep the
-  old behavior.
+  old behavior. By default (`rank_genes_groups_layer=None`) a raw-count source
+  is log-normalized on the fly (`log1p(normalize_total(counts))`, as Scanpy
+  recommends) before ranking; an already-normalized source is ranked as-is.
 - Clustergram/Enrich linking is now entirely browser-side (`jslink`), so live
   and static (documentation) notebooks behave identically. The Python observers
   that mirrored selections into `Enrich.gene_list` are gone; a kernel-side
@@ -57,6 +59,9 @@ All notable changes to Celldega are documented here. This project follows
   `dot_plot` remain deprecated compatibility aliases.
 - `Matrix.cut_tree()` replaces `Matrix.to_cluster()` (kept as a deprecated
   alias) and requires exactly one of `n_clusters` or `threshold`.
+- `spatial_clustergram(width=...)` now sizes only the spatial widget. The
+  Clustergram panel follows the Clustergram's own `width`, widened to at least
+  600px so its control bar (including gene search) is never clipped.
 
 ### Fixed
 

@@ -64,6 +64,20 @@ def _looks_like_counts(matrix: Any, max_values: int = 100_000) -> bool:
     return bool(np.all(values >= 0) and np.all(np.mod(values, 1) == 0))
 
 
+def _log_normalized(adata: AnnData, matrix: Any, groupby: str) -> AnnData:
+    """Scanpy's recommended marker-ranking input: ``log1p(normalize_total(counts))``."""
+    import scanpy as sc
+
+    normalized = AnnData(
+        X=matrix.astype(np.float32, copy=True),
+        obs=adata.obs[[groupby]].copy(),
+        var=pd.DataFrame(index=adata.var_names.copy()),
+    )
+    sc.pp.normalize_total(normalized)
+    sc.pp.log1p(normalized)
+    return normalized
+
+
 def _source_label(layer: str | None) -> str:
     return "adata.X" if layer is None else f"adata.layers[{layer!r}]"
 
@@ -379,12 +393,17 @@ class SetCollection(CelldegaCollection):
                 so a few thousand genes runs for minutes. Pass
                 ``rank_genes_groups_kwargs={"method": "t-test"}`` for a ~3x
                 faster (if less robust) alternative.
-            rank_genes_groups_layer: Expression source for marker ranking. ``None``
-                ranks the same source the signature aggregates (``layer``, or
-                ``adata.X`` when ``layer`` is ``None``); pass ``"X"`` to rank
-                log-normalized ``adata.X`` while aggregating a counts layer, or
-                another layer name to rank that layer. ``adata.raw`` is never used
-                unless ``rank_genes_groups_kwargs={"use_raw": True}`` asks for it.
+            rank_genes_groups_layer: Expression source for marker ranking.
+                Scanpy's ``rank_genes_groups`` expects log-normalized expression
+                (its log fold changes assume ``log1p`` data), so the default
+                ``None`` follows that recommendation automatically: it starts from
+                the source the signature aggregates (``layer``, or ``adata.X``) and,
+                when that source looks like raw counts, ranks
+                ``log1p(normalize_total(counts))`` computed on the fly; an
+                already-normalized source is ranked as-is. Pass ``"X"`` or a layer
+                name to rank exactly that source instead (a warning is raised if it
+                looks like raw counts). ``adata.raw`` is never used unless
+                ``rank_genes_groups_kwargs={"use_raw": True}`` asks for it.
                 Ignored (with a warning) when ``rank_genes_groups=False``. Ranking
                 results are stored on the signature modality and therefore persist
                 with :meth:`write`.
@@ -557,22 +576,39 @@ class SetCollection(CelldegaCollection):
                 # Explicitly select X instead of allowing Scanpy to silently prefer
                 # adata.raw when it exists.
                 marker_kwargs.setdefault("use_raw", False)
-            if verbose:
-                marker_source = (
-                    "adata.raw"
-                    if marker_layer is None and marker_kwargs.get("use_raw")
-                    else _source_label(marker_layer)
+
+            member_adata = adata[adata_cells.get_indexer(common), :]
+            if marker_kwargs.get("use_raw"):
+                marker_source = "adata.raw"
+            else:
+                marker_source = _source_label(marker_layer)
+                marker_matrix = (
+                    member_adata.X if marker_layer is None else member_adata.layers[marker_layer]
                 )
+                if _looks_like_counts(marker_matrix):
+                    if rank_genes_groups_layer is None and not kwargs_has_layer:
+                        # Default: follow Scanpy's recommendation and rank
+                        # log-normalized expression derived from the counts.
+                        member_adata = _log_normalized(member_adata, marker_matrix, self.set_col)
+                        marker_kwargs.pop("layer", None)
+                        marker_kwargs["use_raw"] = False
+                        marker_source = f"log1p(normalize_total({marker_source}))"
+                    else:
+                        warnings.warn(
+                            f"marker ranking uses {marker_source}, which looks like raw "
+                            "counts; scanpy.tl.rank_genes_groups expects log-normalized "
+                            "expression. Omit rank_genes_groups_layer to log-normalize "
+                            "automatically.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+            if verbose:
                 method = marker_kwargs.get("method", "wilcoxon")
                 print(
                     f"  uns['rank_genes_groups']: {method} on {marker_source}, "
                     f"grouped by {self.set_col!r}"
                 )
-            markers = compute_marker_ranks(
-                adata[adata_cells.get_indexer(common), :],
-                self.set_col,
-                marker_kwargs or None,
-            )
+            markers = compute_marker_ranks(member_adata, self.set_col, marker_kwargs or None)
             if markers is not None:
                 signature.uns["rank_genes_groups"] = marker_ranks_to_uns(markers)
 

@@ -9,7 +9,9 @@ import pandas as pd
 import pytest
 
 from celldega.clust import Matrix
+from celldega.clust.matrix import marker_ranks_to_uns
 from celldega.clust.utils import compute_marker_ranks
+from celldega.set import SetCollection
 
 
 N_GROUPS = 4
@@ -59,15 +61,21 @@ def _grouped_adata(n_cells=400, n_genes=80, seed=1):
 
 def _marker_matrix():
     pytest.importorskip("scanpy")
-    mat = Matrix(_grouped_adata())
-    mat.downsample_to("leiden", rank_genes_groups=True)
-    return mat
+    adata = _grouped_adata()
+    setc = SetCollection(adata, set_col="leiden", name="leiden")
+    setc.calc_signature(
+        adata,
+        modality_name="expression",
+        normalization=None,
+        rank_genes_groups=True,
+    )
+    return Matrix(collection=setc, color_by="expression")
 
 
 def _expected_top_markers(mat, per_cluster):
-    """The union of each group's top `per_cluster` markers, read off marker_ranks."""
+    """The union of each group's top ``per_cluster`` persisted markers."""
     expected = set()
-    for _, frame in mat.marker_ranks.groupby("group", observed=True):
+    for _, frame in mat._marker_ranks.groupby("group", observed=True):
         names = frame.sort_values("rank")["names"].astype(str)
         expected.update(names[names.isin(mat.data.index.astype(str))][:per_cluster])
     return expected
@@ -301,7 +309,7 @@ def test_marker_view_deduplicates_genes_shared_between_clusters():
     test, not the differential expression.
     """
     mat = _matrix(n_rows=12, n_cols=4)
-    mat.marker_ranks = pd.DataFrame(
+    mat._marker_ranks = pd.DataFrame(
         [
             # groupA and groupB share "g0" as their best marker.
             {"group": "groupA", "names": "g0", "rank": 0},
@@ -356,7 +364,7 @@ def test_views_ride_along_in_the_exported_metadata():
 
 
 # ---------------------------------------------------------------------------
-# Errors and alternate entry points
+# Errors and persisted inputs
 # ---------------------------------------------------------------------------
 
 
@@ -378,43 +386,18 @@ def test_rank_genes_groups_view_requires_differential_expression():
         mat.clust(views="rank_genes_groups")
 
 
-def test_downsample_to_stashes_rank_genes_groups_results():
-    mat = _marker_matrix()
-
-    assert mat.marker_ranks is not None
-    assert set(mat.marker_ranks["group"]) == {f"group{index}" for index in range(N_GROUPS)}
-    # scanpy orders each group best-first; `rank` makes that explicit.
-    for _, frame in mat.marker_ranks.groupby("group"):
-        assert frame["rank"].tolist() == sorted(frame["rank"].tolist())
-
-    # Aggregation still happened: columns are now the groups.
-    assert sorted(mat.data.columns) == [f"group{index}" for index in range(N_GROUPS)]
-
-
-def test_downsample_to_rejects_rank_genes_groups_on_the_row_axis():
-    pytest.importorskip("scanpy")
-
-    mat = Matrix(_grouped_adata())
-    with pytest.raises(ValueError, match="requires axis='col'"):
-        mat.downsample_to("leiden", axis="row", rank_genes_groups=True)
-
-
 def test_marker_ranks_are_picked_up_from_adata_uns():
     """A Matrix built from a signature carrying DE needs no extra wiring."""
     mat = _marker_matrix()
-
-    from celldega.clust.matrix import marker_ranks_to_uns
 
     signature = AnnData(
         X=mat.data.values.T,
         obs=pd.DataFrame(index=mat.data.columns.astype(str)),
         var=pd.DataFrame(index=mat.data.index.astype(str)),
-        uns={"rank_genes_groups": marker_ranks_to_uns(mat.marker_ranks)},
+        uns={"rank_genes_groups": marker_ranks_to_uns(mat._marker_ranks)},
     )
 
     rebuilt = Matrix(signature)
-    assert rebuilt.marker_ranks is not None
-
     rebuilt.clust(views="rank_genes_groups", levels=[2])
     assert _view_genes(rebuilt, rebuilt.views[0]) == _expected_top_markers(rebuilt, 2)
 
@@ -428,32 +411,5 @@ def test_marker_ranks_are_picked_up_from_scanpy_native_uns():
     sc.tl.rank_genes_groups(adata, groupby="leiden", method="wilcoxon")
 
     mat = Matrix(adata)
-    assert mat.marker_ranks is not None
-    assert set(mat.marker_ranks["group"]) == {f"group{index}" for index in range(N_GROUPS)}
-
-
-def test_set_marker_ranks_supports_hand_built_matrices():
-    pytest.importorskip("scanpy")
-
-    adata = _grouped_adata()
-    frame = pd.DataFrame(
-        {
-            group: np.asarray(adata[adata.obs["leiden"] == group].X).mean(axis=0)
-            for group in sorted(adata.obs["leiden"].unique())
-        },
-        index=adata.var_names,
-    )
-
-    mat = Matrix(frame, disable_processing=True)
-    assert mat.set_marker_ranks(adata, groupby="leiden") is mat
-
     mat.clust(views="rank_genes_groups", levels=[3])
-    assert _view_genes(mat, mat.views[0]) == _expected_top_markers(mat, 3)
-
-
-def test_set_marker_ranks_rejects_a_missing_groupby():
-    pytest.importorskip("scanpy")
-
-    mat = _matrix()
-    with pytest.raises(ValueError, match=r"not found in adata\.obs"):
-        mat.set_marker_ranks(_grouped_adata(), groupby="missing")
+    assert mat.views

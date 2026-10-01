@@ -19,11 +19,30 @@ import celldega as dega
 # Build one SetCollection per clustering "opinion" (the cells define the sets)
 clust = dega.set.SetCollection(adata, set_col="leiden", name="leiden")
 
-# Per-set expression signature (pseudobulk). modality_name is always required
-# (so it's always clear which modality a call produces); feature_type is only
-# required when passing a MuData -- for an AnnData it defaults to "gene".
-clust.calc_signature(adata, modality_name="expression")
+# Per-set expression signature (pseudobulk), with fraction expressing stored on
+# the same set × gene modality for a Clustergram size channel. modality_name is
+# always required; feature_type is only required for MuData.
+clust.calc_signature(
+    adata,
+    modality_name="expression",
+    layer="counts",
+    aggregate="sum",
+    normalization="log1p_cpm",
+    fraction_expressing_layer="fraction_expressing",
+    rank_genes_groups=True,
+    rank_genes_groups_layer="X",  # rank log-normalized X, not the counts layer
+)
 clust.calc_signature(mdata, modality_name="protein", feature_type="protein")   # protein modality of a MuData
+
+# Marker rankings live in expression.uns["rank_genes_groups"] and persist in
+# the collection's .h5mu file. Matrix consumes them but does not calculate or own
+# a separate copy.
+mat = dega.clust.Matrix(
+    collection=clust,
+    color_by="expression",
+    size_by_layer="fraction_expressing",
+)
+mat.clust(views="rank_genes_groups")
 
 # Per-set cell-type composition (sets x populations)
 clust.calc_population(adata, category="cell_type")

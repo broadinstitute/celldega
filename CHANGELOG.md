@@ -4,6 +4,23 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `SetCollection.calc_signature` can store fraction expressing as a layer on the
+  expression signature via `fraction_expressing_layer`, and can rank a different
+  expression source via `rank_genes_groups_layer` (including normalized `X`).
+- `Matrix(..., size_by_layer=...)` can use a layer on the color modality as its
+  dot-size channel.
+
+### Changed
+
+- Marker rankings are now calculated and persisted by `SetCollection`; `Matrix`
+  only consumes rankings attached to its input. The redundant
+  `Matrix.marker_ranks`, `Matrix.set_marker_ranks`, and marker-ranking options on
+  `Matrix.downsample_to` have been removed.
+
 ## [0.25.1]
 
 ### Performance

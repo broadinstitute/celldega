@@ -83,9 +83,9 @@ dev = [
     "nbconvert",
     "nbformat",
 ]
-# optional dependency for celldega.clust.Matrix.downsample_to()
+# Optional dependency for SetCollection marker ranking and Matrix.downsample_to().
 scanpy = [
-    "scanpy>=1.11,<1.12"
+    "scanpy>=1.12.3,<1.13"
 ]
 
 # Optional dependencies for pre-processing

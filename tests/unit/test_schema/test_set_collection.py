@@ -59,6 +59,42 @@ def test_calc_signature_gene_default_and_protein_mudata():
     assert clust.mod["protein"].var["entity_type"].iloc[0] == "protein"
 
 
+def test_calc_signature_stores_fraction_expressing_as_a_layer():
+    adata = _adata()
+    combined = SetCollection(adata, set_col="leiden", name="leiden")
+    combined.calc_signature(
+        adata,
+        modality_name="expression",
+        aggregate="sum",
+        normalization="log1p_cpm",
+        fraction_expressing_layer="fraction_expressing",
+    )
+
+    reference = SetCollection(adata, set_col="leiden", name="leiden")
+    reference.calc_signature(
+        adata,
+        modality_name="fraction_expressing",
+        aggregate="fraction",
+        normalization=None,
+    )
+
+    expression = combined.mod["expression"]
+    assert set(combined.mod) == {"membership", "expression"}
+    assert expression.uns["fraction_expressing_layer"] == "fraction_expressing"
+    np.testing.assert_allclose(
+        expression.layers["fraction_expressing"],
+        reference.mod["fraction_expressing"].X,
+    )
+
+    with pytest.raises(ValueError, match="only valid with aggregate"):
+        combined.calc_signature(
+            adata,
+            modality_name="invalid",
+            aggregate="fraction",
+            fraction_expressing_layer="fraction_expressing",
+        )
+
+
 def test_obs_color_stored_from_category_colors():
     adata = _adata()
     # categorical labels + a scanpy-style colors palette aligned to categories
@@ -150,14 +186,18 @@ def test_concat_sets_prefixes_ids_and_unions_cells():
     assert rel.shape == (combined.obs.shape[0], combined.obs.shape[0])
 
 
-def test_calc_signature_attaches_rank_genes_groups():
+def test_calc_signature_attaches_and_persists_rank_genes_groups(tmp_path):
     """DE computed alongside the signature is what a marker view reads."""
     pytest.importorskip("scanpy")
 
     adata = _adata(n=200, g=20)
     clust = SetCollection(adata, set_col="leiden", name="leiden")
     clust.calc_signature(
-        adata, modality_name="expression", normalization=None, rank_genes_groups=True
+        adata,
+        modality_name="expression",
+        normalization=None,
+        fraction_expressing_layer="fraction_expressing",
+        rank_genes_groups=True,
     )
 
     payload = clust.mod["expression"].uns["rank_genes_groups"]
@@ -169,11 +209,25 @@ def test_calc_signature_attaches_rank_genes_groups():
     from celldega.clust import Matrix
 
     mat = Matrix(collection=clust, color_by="expression")
-    assert mat.marker_ranks is not None
-
     mat.clust(views="rank_genes_groups", levels=[1, 2])
     assert [view["level_unit"] for view in mat.views] == ["per_cluster"] * len(mat.views)
     assert mat.views
+
+    path = tmp_path / "set_collection.h5mu"
+    clust.write(path)
+    loaded = SetCollection.read(path)
+    assert loaded.set_col == "leiden"
+    assert "rank_genes_groups" in loaded.mod["expression"].uns
+    assert "fraction_expressing" in loaded.mod["expression"].layers
+
+    reloaded_mat = Matrix(
+        collection=loaded,
+        color_by="expression",
+        size_by_layer="fraction_expressing",
+    )
+    assert reloaded_mat.dot_mat is not None
+    reloaded_mat.clust(views="rank_genes_groups", levels=[1])
+    assert reloaded_mat.views
 
 
 def test_calc_signature_ranks_the_layer_it_aggregates(monkeypatch):
@@ -186,9 +240,7 @@ def test_calc_signature_ranks_the_layer_it_aggregates(monkeypatch):
         captured["groupby"] = groupby
         captured["kwargs"] = kwargs
 
-    monkeypatch.setattr(
-        "celldega.set.collection.compute_marker_ranks", capture_marker_ranks
-    )
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", capture_marker_ranks)
 
     clust.calc_signature(
         adata,
@@ -202,30 +254,77 @@ def test_calc_signature_ranks_the_layer_it_aggregates(monkeypatch):
     assert captured["kwargs"] == {"layer": "counts", "use_raw": False}
 
 
-def test_calc_signature_rejects_a_different_marker_layer():
+def test_calc_signature_accepts_an_alternate_marker_layer(monkeypatch):
+    adata = _adata()
+    adata.layers["counts"] = adata.X + 10
+    adata.layers["normalized"] = adata.X
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    captured = []
+
+    def capture_marker_ranks(_adata, groupby, kwargs):
+        captured.append((groupby, kwargs))
+
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", capture_marker_ranks)
+
+    clust.calc_signature(
+        adata,
+        modality_name="counts_rank_x",
+        layer="counts",
+        normalization=None,
+        rank_genes_groups=True,
+        rank_genes_groups_layer="X",
+    )
+    clust.calc_signature(
+        adata,
+        modality_name="counts_rank_normalized",
+        layer="counts",
+        normalization=None,
+        rank_genes_groups=True,
+        rank_genes_groups_layer="normalized",
+    )
+
+    assert captured == [
+        ("leiden", {"use_raw": False}),
+        ("leiden", {"layer": "normalized", "use_raw": False}),
+    ]
+
+
+def test_calc_signature_validates_marker_expression_source():
     adata = _adata()
     adata.layers["counts"] = adata.X + 10
     adata.layers["normalized"] = adata.X
     clust = SetCollection(adata, set_col="leiden", name="leiden")
 
-    with pytest.raises(ValueError, match="must match the signature layer"):
+    with pytest.raises(ValueError, match="must match"):
         clust.calc_signature(
             adata,
-            modality_name="counts_signature",
+            modality_name="conflicting_layers",
             layer="counts",
             normalization=None,
             rank_genes_groups=True,
+            rank_genes_groups_layer="X",
             rank_genes_groups_kwargs={"layer": "normalized"},
         )
 
-    with pytest.raises(ValueError, match=r"use_raw.*cannot be True"):
+    with pytest.raises(ValueError, match=r"cannot be combined with use_raw=True"):
         clust.calc_signature(
             adata,
-            modality_name="counts_signature",
+            modality_name="raw_conflict",
             layer="counts",
             normalization=None,
             rank_genes_groups=True,
+            rank_genes_groups_layer="X",
             rank_genes_groups_kwargs={"use_raw": True},
+        )
+
+    with pytest.raises(ValueError, match="missing requested marker layer"):
+        clust.calc_signature(
+            adata,
+            modality_name="missing_layer",
+            layer="counts",
+            normalization=None,
+            rank_genes_groups=True,
+            rank_genes_groups_layer="missing",
         )
 
 

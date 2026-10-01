@@ -265,6 +265,15 @@ class SetCollection(CelldegaCollection):
             obs_entity_type="set",
         )
 
+        # A collection read from .h5mu already carries these values in its
+        # Celldega metadata. Rehydrate the convenience attributes so the loaded
+        # wrapper behaves like the object that was originally written.
+        if mdata is not None:
+            self.set_col = self.uns.get("set_col", self.set_col)
+            self.name = self.uns.get("name", self.name)
+            self.element_type = self.uns.get("element_type", self.element_type)
+            self.source = self.provenance.get("source", self.source)
+
         if built_membership is not None and "membership" not in self.mod:
             self.add_mod("membership", built_membership, var_entity_type=element_type)
 
@@ -279,7 +288,9 @@ class SetCollection(CelldegaCollection):
         aggregate: str = "mean",
         normalization: str | None = "log1p_cpm",
         expr_threshold: float = 0.0,
+        fraction_expressing_layer: str | None = None,
         rank_genes_groups: bool = False,
+        rank_genes_groups_layer: str | None = None,
         rank_genes_groups_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Calculate and attach a set-by-feature signature (pseudobulk).
@@ -304,6 +315,11 @@ class SetCollection(CelldegaCollection):
         Pair a ``mean`` signature (color) with a ``fraction`` signature (dot size)
         to drive a dot-plot :class:`~celldega.viz.Clustergram`.
 
+        When ``fraction_expressing_layer`` is given, that same fraction is computed
+        alongside a ``"sum"`` or ``"mean"`` signature and stored as a layer of the
+        resulting modality. This keeps two matrices with identical set/feature axes
+        together and avoids a second :meth:`calc_signature` call.
+
         Args:
             data: Cell-level ``AnnData``, or a ``MuData`` paired with
                 ``feature_type``. Cells are aligned to the membership ``var`` axis.
@@ -324,7 +340,11 @@ class SetCollection(CelldegaCollection):
             normalization: ``None``, ``"cpm"``, or ``"log1p_cpm"`` per set row.
                 Ignored (forced to ``None``) when ``aggregate="fraction"``.
             expr_threshold: A cell counts as expressing when its feature value is
-                strictly greater than this (only used for ``aggregate="fraction"``).
+                strictly greater than this. Used for ``aggregate="fraction"`` and
+                ``fraction_expressing_layer``.
+            fraction_expressing_layer: Optional layer name on the resulting
+                signature in which to store the set-by-feature fraction expressing.
+                Only valid with ``aggregate="sum"`` or ``"mean"``.
             rank_genes_groups: Also run :func:`scanpy.tl.rank_genes_groups` on the
                 cell-level `data`, grouped by this collection's ``set_col``, and
                 attach the tidy result to the signature's
@@ -339,22 +359,38 @@ class SetCollection(CelldegaCollection):
                 so a few thousand genes runs for minutes. Pass
                 ``rank_genes_groups_kwargs={"method": "t-test"}`` for a ~3x
                 faster (if less robust) alternative.
+            rank_genes_groups_layer: Expression source for marker ranking. ``None``
+                preserves the existing behavior of ranking the signature's ``layer``;
+                pass ``"X"`` to rank log-normalized ``adata.X`` while aggregating a
+                counts layer, or pass another layer name to rank that layer. Ranking
+                results are stored on the signature modality and therefore persist
+                with :meth:`write`.
             rank_genes_groups_kwargs: Extra keyword arguments forwarded to
                 ``scanpy.tl.rank_genes_groups`` (e.g. ``{"method": "t-test"}``).
-                When ``layer`` is set, marker ranking uses that same layer and
-                disables ``use_raw``.
+                ``layer`` may still be supplied here for compatibility, but must
+                agree with ``rank_genes_groups_layer`` when both are explicit.
 
         Returns:
             ``None`` — the modality is attached to ``self.mod``.
 
         Examples:
             >>> setc.calc_signature(adata, modality_name="expression", aggregate="mean",
-            ...                     rank_genes_groups=True)
-            >>> mat = dega.clust.Matrix(collection=setc, color_by="expression")
+            ...                     fraction_expressing_layer="fraction_expressing",
+            ...                     rank_genes_groups=True,
+            ...                     rank_genes_groups_layer="X")
+            >>> mat = dega.clust.Matrix(collection=setc, color_by="expression",
+            ...                         size_by_layer="fraction_expressing")
             >>> mat.clust(views="rank_genes_groups")
         """
         if aggregate not in {"sum", "mean", "fraction"}:
             raise ValueError("aggregate must be 'sum', 'mean', or 'fraction'")
+        if fraction_expressing_layer is not None:
+            if not fraction_expressing_layer:
+                raise ValueError("fraction_expressing_layer must be a non-empty string")
+            if aggregate == "fraction":
+                raise ValueError(
+                    "fraction_expressing_layer is only valid with aggregate='sum' or 'mean'"
+                )
         if weights not in self.mod:
             raise KeyError(f"membership modality '{weights}' not found")
         if rank_genes_groups and self.set_col is None:
@@ -392,6 +428,15 @@ class SetCollection(CelldegaCollection):
             values = _normalize_rows(totals, normalization)
             normalization_used = normalization
 
+        signature_layers: dict[str, np.ndarray] = {}
+        if fraction_expressing_layer is not None:
+            detected = (features > expr_threshold).astype(float)
+            fraction_values = _to_dense(weight_matrix @ detected)
+            per_set = np.asarray(weight_matrix.sum(axis=1)).ravel()
+            nonzero = per_set > 0
+            fraction_values[nonzero, :] = fraction_values[nonzero, :] / per_set[nonzero, None]
+            signature_layers[fraction_expressing_layer] = fraction_values
+
         var = adata.var.copy()
         var.index = adata.var_names.astype(str)
         if feature_type not in var.columns:
@@ -401,12 +446,18 @@ class SetCollection(CelldegaCollection):
             X=values,
             obs=self.obs.copy(),
             var=var,
+            layers=signature_layers,
             uns={
                 "feature_type": feature_type,
                 "aggregate": aggregate,
                 "normalization": normalization_used,
                 "layer": layer,
-                "expr_threshold": expr_threshold if aggregate == "fraction" else None,
+                "expr_threshold": (
+                    expr_threshold
+                    if aggregate == "fraction" or fraction_expressing_layer is not None
+                    else None
+                ),
+                "fraction_expressing_layer": fraction_expressing_layer,
             },
         )
         # Differential expression for marker-driven Clustergram views. Run on the
@@ -415,22 +466,37 @@ class SetCollection(CelldegaCollection):
         # no separate wiring step.
         if rank_genes_groups:
             marker_kwargs = dict(rank_genes_groups_kwargs or {})
-            if layer is not None:
-                marker_layer = marker_kwargs.get("layer", layer)
-                if marker_layer != layer:
+            kwargs_has_layer = "layer" in marker_kwargs
+            marker_layer = marker_kwargs.get("layer", layer)
+            if rank_genes_groups_layer is not None:
+                requested_marker_layer = (
+                    None if rank_genes_groups_layer == "X" else rank_genes_groups_layer
+                )
+                if rank_genes_groups_layer == "X" and marker_kwargs.get("use_raw") is True:
                     raise ValueError(
-                        "rank_genes_groups_kwargs['layer'] must match the signature "
-                        f"layer '{layer}', got '{marker_layer}'"
+                        "rank_genes_groups_layer='X' cannot be combined with use_raw=True"
+                    )
+                if kwargs_has_layer and marker_kwargs["layer"] != requested_marker_layer:
+                    raise ValueError(
+                        "rank_genes_groups_kwargs['layer'] must match "
+                        f"rank_genes_groups_layer={rank_genes_groups_layer!r}"
+                    )
+                marker_layer = requested_marker_layer
+
+            if marker_layer is not None:
+                if marker_layer not in adata.layers:
+                    raise ValueError(
+                        f"adata.layers missing requested marker layer '{marker_layer}'"
                     )
                 if marker_kwargs.get("use_raw") is True:
-                    raise ValueError(
-                        "rank_genes_groups_kwargs['use_raw'] cannot be True when "
-                        "the signature uses a layer"
-                    )
-                marker_kwargs["layer"] = layer
-                # Scanpy does not permit layer and use_raw together. Ranking the
-                # same layer used for aggregation keeps both results comparable.
+                    raise ValueError("marker ranking cannot combine a layer with use_raw=True")
+                marker_kwargs["layer"] = marker_layer
                 marker_kwargs["use_raw"] = False
+            else:
+                marker_kwargs.pop("layer", None)
+                # Explicitly select X instead of allowing Scanpy to silently prefer
+                # adata.raw when it exists.
+                marker_kwargs.setdefault("use_raw", False)
             markers = compute_marker_ranks(
                 adata[adata_cells.get_indexer(common), :],
                 self.set_col,

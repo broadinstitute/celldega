@@ -446,6 +446,22 @@ class TestMatrix:
         mat_alias = Matrix(collection=setc, color_by="expression", dot_plot="fraction_expressing")
         assert mat_alias.dot_mat is not None
 
+        # The compact form keeps the fraction matrix with expression when both
+        # share the same axes.
+        compact = SetCollection(adata, set_col="leiden", name="leiden")
+        compact.calc_signature(
+            adata,
+            modality_name="expression",
+            fraction_expressing_layer="fraction_expressing",
+        )
+        mat_layer = Matrix(
+            collection=compact,
+            color_by="expression",
+            size_by_layer="fraction_expressing",
+        )
+        assert mat_layer.dot_mat is not None
+        np.testing.assert_allclose(mat_layer.dot_mat, mat.dot_mat)
+
         # size_by/dot_plot are mutually exclusive
         with pytest.raises(ValueError, match="not both"):
             Matrix(
@@ -455,6 +471,14 @@ class TestMatrix:
                 dot_plot="fraction_expressing",
             )
 
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(
+                collection=compact,
+                color_by="expression",
+                size_by="fraction_expressing",
+                size_by_layer="fraction_expressing",
+            )
+
         # data/collection are mutually exclusive
         with pytest.raises(ValueError, match="not both"):
             Matrix(data=adata, collection=setc, color_by="expression")
@@ -462,6 +486,9 @@ class TestMatrix:
         # unknown size_by modality raises a clear error
         with pytest.raises(KeyError, match="size_by"):
             Matrix(collection=setc, color_by="expression", size_by="nope")
+
+        with pytest.raises(KeyError, match="size_by_layer"):
+            Matrix(collection=compact, color_by="expression", size_by_layer="nope")
 
     def test_matrix_error_handling(self) -> None:
         """Test Matrix error handling and edge cases."""

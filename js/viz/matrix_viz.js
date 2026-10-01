@@ -175,12 +175,6 @@ export const matrix_viz = async (
       String(gene).toLowerCase()
     )
   );
-  // Genes most recently sent to Enrich are rendered as bold row labels.
-  viz_state.labels.enrichment_genes = new Set(
-    (model.get('enrichment_genes') || []).map((gene) =>
-      String(gene).toLowerCase()
-    )
-  );
   viz_state.labels._row_style_rev = 0;
   viz_state.labels._col_style_rev = 0;
   // Matrix row index of the focused row (Enrich gene click or row search);
@@ -553,15 +547,6 @@ export const matrix_viz = async (
     on_model('change:highlighted_genes', () => {
       viz_state.labels.highlighted_genes = new Set(
         (viz_state.model.get('highlighted_genes') || []).map((gene) =>
-          String(gene).toLowerCase()
-        )
-      );
-      refresh_row_label_highlight(deck_mat, layers_mat, viz_state);
-    });
-
-    on_model('change:enrichment_genes', () => {
-      viz_state.labels.enrichment_genes = new Set(
-        (viz_state.model.get('enrichment_genes') || []).map((gene) =>
           String(gene).toLowerCase()
         )
       );

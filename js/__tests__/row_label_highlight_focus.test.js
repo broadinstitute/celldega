@@ -74,7 +74,6 @@ const make_viz_state = (overrides = {}) => ({
   order: { current: { row: 'clust', col: 'clust' } },
   labels: {
     highlighted_genes: new Set(),
-    enrichment_genes: new Set(),
     row_visibility: null,
     _row_vis_rev: 0,
     _row_style_rev: 0,
@@ -173,24 +172,15 @@ describe('term-gene row label highlighting', () => {
     ]);
   });
 
-  test('genes sent to Enrich remain bold and replace their base labels', () => {
+  test('genes sent to Enrich are not bolded (only the focused row is)', () => {
     const viz_state = make_viz_state();
     viz_state.labels.enrichment_genes = new Set(['epha7', 'fam124a']);
 
     const base = ini_row_label_layer(viz_state);
-    expect(base.props.getColor({ name: 'EPHA7', index: 0 })).toEqual([
+    expect(base.props.getColor({ name: 'EPHA7', index: 0 })).not.toEqual([
       0, 0, 0, 0,
     ]);
-    expect(base.props.getColor({ name: 'FAM124A', index: 1 })).toEqual([
-      0, 0, 0, 0,
-    ]);
-
-    const bold = ini_row_label_focus_layer(viz_state);
-    expect(bold.props.data).toEqual([
-      { name: 'EPHA7', index: 0 },
-      { name: 'FAM124A', index: 1 },
-    ]);
-    expect(bold.props.fontWeight).toBe('bold');
+    expect(ini_row_label_focus_layer(viz_state).props.data).toEqual([]);
   });
 
   test('the double-clicked reorder driver is blue while its custom order holds', () => {

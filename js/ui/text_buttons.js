@@ -78,160 +78,175 @@ export const deselect_reorder_buttons = (viz_state, axis) => {
     .selectAll(`.button-${axis}`)
     .classed('active', false)
     .style('color', viz_state.buttons.text_inactive);
-};
 
-const reorder_button_callback = (
-  event,
-  axis,
-  deck_mat,
-  layers_mat,
-  viz_state
-) => {
-  const current = d3.select(event.currentTarget);
-
-  let button_name = current.text().toLowerCase();
-
-  // quick fix for naming mismatch
-  if (button_name === 'var') {
-    button_name = 'rankvar';
-  } else if (button_name === 'sum') {
-    button_name = 'rank';
+  // The order dropdown has no "nothing selected" state, so it shows CUSTOM.
+  const dropdown = viz_state.reorder_dropdowns?.[axis];
+  if (dropdown) {
+    dropdown.value = 'custom';
+    dropdown.style.color = viz_state.buttons.text_inactive;
   }
-
-  const is_active = current.classed('active');
-
-  if (is_active === false) {
-    current.classed('active', true);
-
-    deselect_reorder_buttons(viz_state, axis);
-
-    apply_state_button_style(current, true, viz_state).classed('active', true);
-
-    viz_state.order.current[axis] = button_name;
-
-    layers_mat.mat_layer = layers_mat.mat_layer.clone({
-      updateTriggers: mat_reorder_triggers(viz_state),
-    });
-
-    if (axis === 'row') {
-      layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-        updateTriggers: {
-          ...get_layer_update_triggers(layers_mat.row_label_layer),
-          getPosition: [
-            viz_state.order.current.row,
-            crop_filter_signature(viz_state),
-          ],
-        },
-      });
-
-      // reorder cat_layer
-      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-        updateTriggers: {
-          ...get_layer_update_triggers(layers_mat.row_cat_layer),
-          getPosition: [
-            viz_state.order.current.row,
-            crop_filter_signature(viz_state),
-          ],
-        },
-      });
-    } else {
-      layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-        updateTriggers: {
-          ...get_layer_update_triggers(layers_mat.col_label_layer),
-          getPosition: [
-            viz_state.order.current.col,
-            crop_filter_signature(viz_state),
-          ],
-        },
-      });
-
-      // reorder cat_layer
-      layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-        updateTriggers: {
-          ...get_layer_update_triggers(layers_mat.col_cat_layer),
-          getPosition: [
-            viz_state.order.current.col,
-            crop_filter_signature(viz_state),
-          ],
-        },
-      });
-    }
-
-    // A button reorder replaces any double-click custom order, so re-trigger
-    // both axes' label colors: the blue reorder-driver label (valid only
-    // while the sorted axis is still 'custom') reverts to black.
-    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-      updateTriggers: {
-        ...get_layer_update_triggers(layers_mat.row_label_layer),
-        getColor: row_label_color_triggers(viz_state),
-      },
-    });
-    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-      updateTriggers: {
-        ...get_layer_update_triggers(layers_mat.col_label_layer),
-        getColor: col_label_color_triggers(viz_state),
-      },
-    });
-
-    // Composition mode: row labels are positioned by their actual segment
-    // (which moves on either a row or a column reorder) and filtered by fit,
-    // so refresh on any reorder. No-op outside composition mode. Same for the
-    // row dendrogram, whose leaves come from the rightmost bar's segments.
-    refresh_row_label_visibility(layers_mat, viz_state);
-    refresh_composition_dendro(layers_mat, viz_state);
-
-    toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
-
-    deck_mat.setProps({
-      layers: get_mat_layers_list(layers_mat),
-    });
-  }
-};
-
-export const make_reorder_button = (
-  container,
-  text,
-  active,
-  width = 40,
-  axis,
-  deck_mat,
-  layers_mat,
-  viz_state
-) => {
-  const button_class = `button-${axis}`;
-
-  // Keep original uppercase text for display
-  const display_text = text.toUpperCase();
-
-  const selection = d3
-    .select(container)
-    .append('div')
-    .classed(button_class, true)
-    .classed('active', active)
-    .text(display_text)
-    .style('width', `${width}px`)
-    .style('height', '16px')
-    .style('display', 'inline-flex')
-    .style('align-items', 'center')
-    .style('justify-content', 'center')
-    .style('text-align', 'center')
-    .style('font-size', '9px')
-    .style('margin-top', '4px')
-    .style('margin-left', '3px')
-    .style('padding', '2px 4px')
-    .style(
-      'font-family',
-      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    )
-    .on('click', (event) =>
-      reorder_button_callback(event, axis, deck_mat, layers_mat, viz_state)
-    );
-
-  apply_state_button_style(selection, active, viz_state);
 };
 
 const BUTTON_FONT_FAMILY =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+// Display label -> internal order name (viz_state.order.current values).
+const REORDER_OPTIONS = [
+  { label: 'CLUST', order: 'clust' },
+  { label: 'SUM', order: 'rank' },
+  { label: 'VAR', order: 'rankvar' },
+  { label: 'INI', order: 'ini' },
+];
+
+/**
+ * Reorder one axis of the matrix to `order_name` ('clust', 'rank', 'rankvar',
+ * or 'ini') and refresh every layer that depends on that order.
+ */
+const apply_reorder = (axis, order_name, deck_mat, layers_mat, viz_state) => {
+  viz_state.order.current[axis] = order_name;
+
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    updateTriggers: mat_reorder_triggers(viz_state),
+  });
+
+  if (axis === 'row') {
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.row_label_layer),
+        getPosition: [
+          viz_state.order.current.row,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+
+    // reorder cat_layer
+    layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.row_cat_layer),
+        getPosition: [
+          viz_state.order.current.row,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+  } else {
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_label_layer),
+        getPosition: [
+          viz_state.order.current.col,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+
+    // reorder cat_layer
+    layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_cat_layer),
+        getPosition: [
+          viz_state.order.current.col,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+  }
+
+  // A button reorder replaces any double-click custom order, so re-trigger
+  // both axes' label colors: the blue reorder-driver label (valid only
+  // while the sorted axis is still 'custom') reverts to black.
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.row_label_layer),
+      getColor: row_label_color_triggers(viz_state),
+    },
+  });
+  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.col_label_layer),
+      getColor: col_label_color_triggers(viz_state),
+    },
+  });
+
+  // Composition mode: row labels are positioned by their actual segment
+  // (which moves on either a row or a column reorder) and filtered by fit,
+  // so refresh on any reorder. No-op outside composition mode. Same for the
+  // row dendrogram, whose leaves come from the rightmost bar's segments.
+  refresh_row_label_visibility(layers_mat, viz_state);
+  refresh_composition_dendro(layers_mat, viz_state);
+
+  toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
+
+  deck_mat.setProps({
+    layers: get_mat_layers_list(layers_mat),
+  });
+};
+
+/**
+ * Order selector for one matrix axis: a native <select> styled like the text
+ * reorder buttons it replaces (bold 9px uppercase, blue while an order is
+ * applied, gray once a custom order takes over), with no dropdown arrow.
+ *
+ * @returns {HTMLSelectElement}
+ */
+export const make_reorder_dropdown = (
+  container,
+  axis,
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  const select = document.createElement('select');
+  select.className = `reorder-dropdown-${axis}`;
+  select.title = 'Order';
+
+  REORDER_OPTIONS.forEach(({ label, order }) => {
+    const option = document.createElement('option');
+    option.value = order;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+  // Shown (never pickable) after a label double-click or attribute reorder.
+  const custom = document.createElement('option');
+  custom.value = 'custom';
+  custom.textContent = 'CUSTOM';
+  custom.hidden = true;
+  custom.disabled = true;
+  select.appendChild(custom);
+
+  const current = viz_state.order?.current?.[axis] || 'clust';
+  select.value = REORDER_OPTIONS.some((o) => o.order === current)
+    ? current
+    : 'clust';
+
+  Object.assign(select.style, {
+    appearance: 'none',
+    webkitAppearance: 'none',
+    MozAppearance: 'none',
+    border: 'none',
+    background: 'transparent',
+    padding: '0',
+    margin: '0',
+    fontFamily: BUTTON_FONT_FAMILY,
+    fontSize: '9px',
+    fontWeight: 'bold',
+    color: viz_state.buttons.text_active,
+    cursor: 'pointer',
+    outline: 'none',
+    userSelect: 'none',
+  });
+
+  select.addEventListener('change', () => {
+    select.style.color = viz_state.buttons.text_active;
+    apply_reorder(axis, select.value, deck_mat, layers_mat, viz_state);
+  });
+
+  viz_state.reorder_dropdowns = viz_state.reorder_dropdowns || {};
+  viz_state.reorder_dropdowns[axis] = select;
+  container.appendChild(select);
+  return select;
+};
 
 /**
  * A row of mutually-exclusive text-toggle options rendered as

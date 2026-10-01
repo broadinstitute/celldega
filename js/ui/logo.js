@@ -38,3 +38,45 @@ export const make_logo_button = (docsPath) => {
   logo_button.appendChild(logo_img);
   return logo_button;
 };
+
+/**
+ * Place the logo button inside a search bar's row, right of the input, so the
+ * pair spans exactly `width` (the width of the description box below it).
+ * This keeps the logo out of the control panel's column flow, giving that
+ * width back to the other controls.
+ *
+ * Must be called after `input` is attached to the DOM: the row takes the
+ * input's place in its parent.
+ *
+ * @param {HTMLInputElement} input - The search input.
+ * @param {string} docsPath - Docs page the logo links to (see make_logo_button).
+ * @param {string} width - CSS width of the input + logo row.
+ * @returns {HTMLElement} The row element.
+ */
+export const embed_logo_in_search = (input, docsPath, width) => {
+  const row = document.createElement('div');
+  row.className = 'search_logo_row';
+  row.style.display = 'flex';
+  row.style.alignItems = 'center';
+  row.style.gap = '4px';
+  row.style.width = width;
+  row.style.boxSizing = 'border-box';
+  row.style.marginTop = input.style.marginTop;
+
+  input.parentNode?.insertBefore(row, input);
+  input.style.marginTop = '0px';
+  input.style.boxSizing = 'border-box';
+  input.style.height = '18px';
+  input.style.flex = '1 1 0';
+  input.style.minWidth = '0';
+  input.style.width = 'auto';
+  row.appendChild(input);
+
+  const logo_button = make_logo_button(docsPath);
+  logo_button.style.margin = '0';
+  logo_button.style.display = 'flex';
+  logo_button.querySelector('img').style.height = '14px';
+  row.appendChild(logo_button);
+
+  return row;
+};

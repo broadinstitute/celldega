@@ -506,7 +506,7 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
         : viz_state.manual_cat?.config?.row?.attribute || 'Manual';
     const { wrapper, svg, title, bar_container } = make_axis_cat_bar(
       'row',
-      `Row: ${attr_name}`
+      `ROW: ${attr_name}`
     );
     cat_bars_container.appendChild(wrapper);
 
@@ -552,7 +552,7 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
         : viz_state.manual_cat?.config?.col?.attribute || 'Manual';
     const { wrapper, svg, title, bar_container } = make_axis_cat_bar(
       'col',
-      `Col: ${attr_name}`
+      `COL: ${attr_name}`
     );
     cat_bars_container.appendChild(wrapper);
 
@@ -655,7 +655,7 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
               );
 
               // Update title
-              const axis_label = axis === 'row' ? 'Row' : 'Col';
+              const axis_label = axis === 'row' ? 'ROW' : 'COL';
               viz_state.cat_bars[axis].title.textContent =
                 `${axis_label}: ${breakdown.attr_name}`;
             }
@@ -780,7 +780,7 @@ function update_cat_bars_on_selection(viz_state, selection) {
 
           // Update title to show attribute name
           const attr_name = get_first_cat_attr_name(viz_state, axis);
-          const axis_label = axis === 'row' ? 'Row' : 'Col';
+          const axis_label = axis === 'row' ? 'ROW' : 'COL';
           viz_state.cat_bars[axis].title.textContent =
             `${axis_label}: ${attr_name}${title_suffix(initial.data)}`;
         }
@@ -825,7 +825,7 @@ function update_cat_bars_on_selection(viz_state, selection) {
 
       // Update title to show filtered count
       const attr_name = get_first_cat_attr_name(viz_state, axis);
-      const axis_label = axis === 'row' ? 'Row' : 'Col';
+      const axis_label = axis === 'row' ? 'ROW' : 'COL';
       const total = filtered.data.reduce((sum, d) => sum + d.value, 0);
       viz_state.cat_bars[axis].title.textContent =
         `${axis_label}: ${attr_name} (${total})`;

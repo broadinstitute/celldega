@@ -24,6 +24,7 @@ unimplemented API.
 from __future__ import annotations
 
 from typing import Any
+import warnings
 
 from anndata import AnnData
 from mudata import MuData
@@ -47,6 +48,24 @@ _COORD_CANDIDATES = (
     ("centroid_x", "centroid_y"),
     ("x", "y"),
 )
+
+
+def _looks_like_counts(matrix: Any, max_values: int = 100_000) -> bool:
+    """Whether a sample of ``matrix``'s nonzero values are non-negative integers.
+
+    A cheap heuristic for "raw counts": normalized or log-transformed data
+    almost always carries fractional values.
+    """
+    values = matrix.data if sparse.issparse(matrix) else np.asarray(matrix).ravel()
+    values = values[:max_values]
+    values = values[values != 0]
+    if values.size == 0:
+        return True
+    return bool(np.all(values >= 0) and np.all(np.mod(values, 1) == 0))
+
+
+def _source_label(layer: str | None) -> str:
+    return "adata.X" if layer is None else f"adata.layers[{layer!r}]"
 
 
 def _to_dense(matrix: Any) -> np.ndarray:
@@ -82,9 +101,9 @@ def _normalize_rows(values: np.ndarray, normalization: str | None) -> np.ndarray
 def _cell_coords(adata: AnnData) -> pd.DataFrame | None:
     """Best-effort spatial coordinates per cell, tagged onto ``membership.var``.
 
-    Carrying x/y on the element axis is what lets a ``SetCollection`` graduate to
-    geometry (:meth:`SetCollection.to_nbhd`) without a round-trip to the original
-    ``adata``. Looks in ``obsm['spatial']`` first, then common centroid columns.
+    Carrying x/y on the element axis is what will let a ``SetCollection``
+    graduate to neighborhood geometry (planned, DEGA-487) without a round-trip to
+    the original ``adata``. Looks in ``obsm['spatial']`` first, then common centroid columns.
     """
     index = pd.Index(adata.obs_names.astype(str), name="cell")
     if "spatial" in adata.obsm and np.asarray(adata.obsm["spatial"]).shape[1] >= 2:
@@ -292,6 +311,7 @@ class SetCollection(CelldegaCollection):
         rank_genes_groups: bool = False,
         rank_genes_groups_layer: str | None = None,
         rank_genes_groups_kwargs: dict[str, Any] | None = None,
+        verbose: bool = True,
     ) -> None:
         """Calculate and attach a set-by-feature signature (pseudobulk).
 
@@ -360,15 +380,22 @@ class SetCollection(CelldegaCollection):
                 ``rank_genes_groups_kwargs={"method": "t-test"}`` for a ~3x
                 faster (if less robust) alternative.
             rank_genes_groups_layer: Expression source for marker ranking. ``None``
-                preserves the existing behavior of ranking the signature's ``layer``;
-                pass ``"X"`` to rank log-normalized ``adata.X`` while aggregating a
-                counts layer, or pass another layer name to rank that layer. Ranking
+                ranks the same source the signature aggregates (``layer``, or
+                ``adata.X`` when ``layer`` is ``None``); pass ``"X"`` to rank
+                log-normalized ``adata.X`` while aggregating a counts layer, or
+                another layer name to rank that layer. ``adata.raw`` is never used
+                unless ``rank_genes_groups_kwargs={"use_raw": True}`` asks for it.
+                Ignored (with a warning) when ``rank_genes_groups=False``. Ranking
                 results are stored on the signature modality and therefore persist
                 with :meth:`write`.
             rank_genes_groups_kwargs: Extra keyword arguments forwarded to
                 ``scanpy.tl.rank_genes_groups`` (e.g. ``{"method": "t-test"}``).
                 ``layer`` may still be supplied here for compatibility, but must
                 agree with ``rank_genes_groups_layer`` when both are explicit.
+            verbose: Print which expression source each output is computed from.
+                Aggregation, ``normalization`` and fraction expressing assume raw
+                counts; a ``UserWarning`` is raised when that source has
+                non-integer values.
 
         Returns:
             ``None`` — the modality is attached to ``self.mod``.
@@ -393,6 +420,12 @@ class SetCollection(CelldegaCollection):
                 )
         if weights not in self.mod:
             raise KeyError(f"membership modality '{weights}' not found")
+        if rank_genes_groups_layer is not None and not rank_genes_groups:
+            warnings.warn(
+                "rank_genes_groups_layer is ignored because rank_genes_groups=False",
+                UserWarning,
+                stacklevel=2,
+            )
         if rank_genes_groups and self.set_col is None:
             raise ValueError(
                 "rank_genes_groups=True needs a set_col to group by; this collection "
@@ -412,6 +445,33 @@ class SetCollection(CelldegaCollection):
         weight_matrix = membership.X[:, cell_index.get_indexer(common)]
         matrix = adata.X if layer is None else adata.layers[layer]
         features = matrix[adata_cells.get_indexer(common), :]
+
+        source = _source_label(layer)
+        if verbose:
+            detail = (
+                f"threshold > {expr_threshold}"
+                if aggregate == "fraction"
+                else f"normalization={normalization!r}"
+            )
+            print(f"calc_signature({modality_name!r}): {aggregate} of {source} ({detail})")
+            if fraction_expressing_layer is not None:
+                print(
+                    f"  layers[{fraction_expressing_layer!r}]: fraction of cells with "
+                    f"{source} > {expr_threshold}"
+                )
+        if not _looks_like_counts(features):
+            uses = [f"aggregate={aggregate!r}"]
+            if fraction_expressing_layer is not None:
+                uses.append(f"fraction_expressing_layer={fraction_expressing_layer!r}")
+            warnings.warn(
+                f"calc_signature is computing {', '.join(uses)} from {source}, which has "
+                "non-integer values and so does not look like raw counts. Signatures "
+                "and fraction expressing assume untransformed counts; pass the counts "
+                "layer via `layer=` (e.g. layer='counts').",
+                UserWarning,
+                stacklevel=2,
+            )
+
         if aggregate == "fraction":
             # Binarize to a "detected / not detected" indicator, then the weighted
             # per-set average of that indicator is the fraction of cells expressing.
@@ -497,6 +557,17 @@ class SetCollection(CelldegaCollection):
                 # Explicitly select X instead of allowing Scanpy to silently prefer
                 # adata.raw when it exists.
                 marker_kwargs.setdefault("use_raw", False)
+            if verbose:
+                marker_source = (
+                    "adata.raw"
+                    if marker_layer is None and marker_kwargs.get("use_raw")
+                    else _source_label(marker_layer)
+                )
+                method = marker_kwargs.get("method", "wilcoxon")
+                print(
+                    f"  uns['rank_genes_groups']: {method} on {marker_source}, "
+                    f"grouped by {self.set_col!r}"
+                )
             markers = compute_marker_ranks(
                 adata[adata_cells.get_indexer(common), :],
                 self.set_col,

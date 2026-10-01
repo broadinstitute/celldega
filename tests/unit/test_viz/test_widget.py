@@ -215,7 +215,6 @@ def test_clustergram_selected_genes_trait() -> None:
     assert widget.enrichment_source_label == ""
     assert widget.top_n_genes == 50
     assert widget.top_gene_min_value == 0.0
-    assert widget.top_gene_min_fraction == 0.5
 
     widget.selected_genes = ["A", "B"]
     assert widget.selected_genes == ["A", "B"]

@@ -149,11 +149,6 @@ export const set_mat_constants = (
   };
 
   viz_state.mat.net_mat = network.mat;
-  // Keep the aligned secondary matrix available to interaction logic as well
-  // as rendering (e.g. column-click marker filtering by fraction expressing).
-  viz_state.mat.size_mat = Array.isArray(network.size_mat)
-    ? network.size_mat
-    : null;
 
   viz_state.linkage = network.linkage;
 
@@ -314,9 +309,6 @@ export const set_mat_constants = (
   const top_gene_min_value = model?.get?.('top_gene_min_value');
   viz_state.top_gene_min_value =
     top_gene_min_value == null ? null : Number(top_gene_min_value);
-  const top_gene_min_fraction = model?.get?.('top_gene_min_fraction');
-  viz_state.top_gene_min_fraction =
-    top_gene_min_fraction == null ? null : Number(top_gene_min_fraction);
 
   return viz_state;
 };

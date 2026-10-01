@@ -1297,11 +1297,6 @@ class Clustergram(CelldegaWidget):
     #: the clicked column are sent to Enrich. Set to ``None`` to disable.
     top_gene_min_value = traitlets.Float(0.0, allow_none=True).tag(sync=True)
 
-    #: When a secondary size matrix is available (typically fraction
-    #: expressing), require at least this value for column-click enrichment.
-    #: Ignored when no size matrix exists; set to ``None`` to disable.
-    top_gene_min_fraction = traitlets.Float(0.5, allow_none=True).tag(sync=True)
-
     #: Active dimensionality view: the number of rows kept by the RANK slider.
     #: ``0`` (default) means the full matrix. Set to one of the levels
     #: precomputed by ``Matrix.cluster(view=...)`` to open already reduced; the

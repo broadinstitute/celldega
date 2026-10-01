@@ -6,32 +6,64 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [Unreleased]
 
+### Breaking
+
+- `Matrix` construction now always preserves supplied values. The bundled
+  `process()` pipeline and the `filter_genes`, `norm_col`, `norm_row`, and
+  `disable_processing` constructor arguments are removed (passing them raises
+  `TypeError`); transform explicitly with `filter()` and `norm()` before
+  clustering.
+- Marker rankings are calculated and persisted only by `SetCollection`; `Matrix`
+  consumes rankings attached to its input. `Matrix.marker_ranks`,
+  `Matrix.set_marker_ranks()`, and the `rank_genes_groups` /
+  `rank_genes_groups_kwargs` arguments of `Matrix.downsample_to()` are removed.
+- `Matrix.cluster()` now returns the `Matrix` itself (for chaining) instead of
+  the documented visualization dict; read `mat.viz` if you need that structure.
+- `SetCollection.calc_signature(rank_genes_groups=True)` no longer lets Scanpy
+  silently rank `adata.raw` when it exists: it ranks the aggregated `layer`, or
+  `adata.X`, with `use_raw=False`. Marker results change for AnnData objects
+  carrying `.raw`; pass `rank_genes_groups_kwargs={"use_raw": True}` to keep the
+  old behavior.
+- Clustergram/Enrich linking is now entirely browser-side (`jslink`), so live
+  and static (documentation) notebooks behave identically. The Python observers
+  that mirrored selections into `Enrich.gene_list` are gone; a kernel-side
+  change to `Clustergram.selected_genes` no longer updates Enrich.
+- The unimplemented `SetCollection.to_nbhd()` stub (it only raised
+  `NotImplementedError`) is removed; geometry graduation remains planned.
+
 ### Added
 
 - `SetCollection.calc_signature` can store fraction expressing as a layer on the
   expression signature via `fraction_expressing_layer`, and can rank a different
   expression source via `rank_genes_groups_layer` (including normalized `X`).
+- `calc_signature` prints the expression source used for aggregation, fraction
+  expressing, and marker ranking (`verbose=False` silences it), and warns when
+  the aggregated source has non-integer values, i.e. does not look like raw
+  counts. It also warns when `rank_genes_groups_layer` is passed without
+  `rank_genes_groups=True`.
 - `Matrix(..., size_by_layer=...)` can use a layer on the color modality as its
   dot-size channel.
+- Clustergram column-label clicks send Enrich only genes above
+  `Clustergram.top_gene_min_value` (default `0`, i.e. enriched in that column
+  after row z-scoring; `None` disables). Genes sent to Enrich are shown as bold
+  row labels.
 
 ### Changed
 
-- Marker rankings are now calculated and persisted by `SetCollection`; `Matrix`
-  only consumes rankings attached to its input. The redundant
-  `Matrix.marker_ranks`, `Matrix.set_marker_ranks`, and marker-ranking options on
-  `Matrix.downsample_to` have been removed.
-- `Matrix.cluster(view=...)` is now the canonical clustering entry point and
-  returns the matrix for chaining; `clust()` and `views=` remain deprecated
-  compatibility aliases. Matrix construction now always preserves supplied
-  values; the redundant bundled `process()` pipeline and its constructor flags
-  have been removed. General datasets can still be transformed explicitly with
-  `filter()` and `norm()` before clustering.
+- `Matrix.cluster(view=...)` is now the canonical clustering entry point;
+  `clust()` and `views=` remain deprecated compatibility aliases.
 - The secondary quantitative channel is now named `size_matrix` and configured
   with `set_size_matrix()` / `size_by_layer`. `dot_mat`, `set_dot_matrix()`, and
   `dot_plot` remain deprecated compatibility aliases.
-- `Matrix.cut_tree()` replaces `Matrix.to_cluster()` and requires exactly one of
-  `n_clusters` or `threshold`. The unimplemented `SetCollection.to_nbhd()` stub
-  has been removed from the public API.
+- `Matrix.cut_tree()` replaces `Matrix.to_cluster()` (kept as a deprecated
+  alias) and requires exactly one of `n_clusters` or `threshold`.
+
+### Fixed
+
+- `Matrix.write_dega_files()` raised `AttributeError` when called without
+  `name=`; it now falls back to the matrix's name (or data hash).
+- `SetCollection.read()` from `.h5mu` now restores `set_col`, `name`,
+  `element_type`, and `source`.
 
 ## [0.25.1]
 

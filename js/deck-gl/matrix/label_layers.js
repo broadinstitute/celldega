@@ -372,37 +372,16 @@ const resolve_top_gene_count = (viz_state) => {
 // Top genes for a clicked column, ranked over the *visible* (crop-filtered)
 // rows only, so a row crop never leaks hidden genes into linked widgets. For
 // row-z-scored matrices the default value threshold (> 0) keeps only genes
-// enriched in that column. When dot-size data is present, the default fraction
-// threshold additionally requires expression in at least 50% of cells.
+// enriched in that column.
 const column_gene_passes_enrichment_filters = (
   viz_state,
   row_index,
   col_index
 ) => {
-  const value = Number(viz_state.mat.net_mat?.[row_index]?.[col_index]);
   const min_value = viz_state.top_gene_min_value;
-  if (
-    min_value != null &&
-    Number.isFinite(Number(min_value)) &&
-    !(value > Number(min_value))
-  ) {
-    return false;
-  }
-
-  const { size_mat } = viz_state.mat;
-  const min_fraction = viz_state.top_gene_min_fraction;
-  if (
-    Array.isArray(size_mat) &&
-    min_fraction != null &&
-    Number.isFinite(Number(min_fraction))
-  ) {
-    const fraction = Number(size_mat?.[row_index]?.[col_index]);
-    if (!Number.isFinite(fraction) || fraction < Number(min_fraction)) {
-      return false;
-    }
-  }
-
-  return true;
+  if (min_value == null || !Number.isFinite(Number(min_value))) return true;
+  const value = Number(viz_state.mat.net_mat?.[row_index]?.[col_index]);
+  return value > Number(min_value);
 };
 
 const top_gene_names_for_column = (viz_state, col_index) => {

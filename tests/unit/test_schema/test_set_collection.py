@@ -334,3 +334,56 @@ def test_calc_signature_rank_genes_groups_needs_a_set_col():
     clust.set_col = None
     with pytest.raises(ValueError, match="needs a set_col"):
         clust.calc_signature(adata, modality_name="expression", rank_genes_groups=True)
+
+
+def test_calc_signature_reports_expression_sources(monkeypatch, capsys):
+    adata = _adata()
+    adata.layers["counts"] = adata.X.copy()
+    adata.X = np.log1p(adata.X)
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", lambda *_: None)
+
+    clust.calc_signature(
+        adata,
+        modality_name="expression",
+        layer="counts",
+        aggregate="sum",
+        fraction_expressing_layer="fraction_expressing",
+        rank_genes_groups=True,
+        rank_genes_groups_layer="X",
+        rank_genes_groups_kwargs={"method": "t-test"},
+    )
+
+    out = capsys.readouterr().out
+    assert "sum of adata.layers['counts'] (normalization='log1p_cpm')" in out
+    assert (
+        "layers['fraction_expressing']: fraction of cells with adata.layers['counts'] > 0.0" in out
+    )
+    assert "uns['rank_genes_groups']: t-test on adata.X, grouped by 'leiden'" in out
+
+    clust.calc_signature(adata, modality_name="quiet", layer="counts", verbose=False)
+    assert capsys.readouterr().out == ""
+
+
+def test_calc_signature_warns_when_aggregating_non_count_data():
+    adata = _adata()
+    adata.X = np.log1p(adata.X)
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+
+    with pytest.warns(UserWarning, match=r"from adata\.X, which has non-integer values"):
+        clust.calc_signature(
+            adata,
+            modality_name="expression",
+            fraction_expressing_layer="fraction_expressing",
+            verbose=False,
+        )
+
+
+def test_calc_signature_warns_when_marker_layer_is_ignored():
+    adata = _adata()
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+
+    with pytest.warns(UserWarning, match="rank_genes_groups_layer is ignored"):
+        clust.calc_signature(
+            adata, modality_name="expression", rank_genes_groups_layer="X", verbose=False
+        )

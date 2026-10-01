@@ -141,4 +141,43 @@ describe('force_set_selected_genes', () => {
     expect(values.enrichment_genes).toEqual(['GAPDH', 'INS']);
     expect(values.enrichment_source_label).toBe('cluster 3');
   });
+
+  it('labels row brush crops and dendrogram crops by gesture', () => {
+    const brush = makeClustergramState({
+      type: 'row_crop',
+      value: { selected_names: ['GAPDH'] },
+    });
+    sync_selected_genes(brush.state, ['GAPDH']);
+    expect(brush.values.enrichment_source_label).toBe('Brush selection');
+
+    const dendro = makeClustergramState({
+      type: 'row_crop',
+      value: { selected_names: ['GAPDH'], crop_source: 'dendrogram' },
+    });
+    sync_selected_genes(dendro.state, ['GAPDH']);
+    expect(dendro.values.enrichment_source_label).toBe('Dendrogram selection');
+  });
+
+  it('leaves the enrichment set untouched when row enrichment is disabled', () => {
+    const { state, values } = makeClustergramState(
+      { type: 'row_dendro', value: { selected_names: ['GAPDH'] } },
+      { row_enrich_enabled: false }
+    );
+
+    sync_selected_genes(state, ['GAPDH']);
+
+    expect(values.enrichment_genes).toBeUndefined();
+  });
+
+  it('syncs column dendrogram gene sets only when column enrichment is enabled', () => {
+    const { state, values } = makeClustergramState(
+      { type: 'col_dendro', value: { selected_names: ['GAPDH', 'INS'] } },
+      { col_enrich_enabled: true }
+    );
+
+    sync_selected_genes(state, ['GAPDH', 'INS']);
+
+    expect(values.enrichment_genes).toEqual(['GAPDH', 'INS']);
+    expect(values.enrichment_source_label).toBe('Dendrogram selection');
+  });
 });

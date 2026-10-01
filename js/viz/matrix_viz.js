@@ -587,11 +587,6 @@ export const matrix_viz = async (
       viz_state.top_gene_min_value = value == null ? null : Number(value);
     });
 
-    on_model('change:top_gene_min_fraction', () => {
-      const value = viz_state.model.get('top_gene_min_fraction');
-      viz_state.top_gene_min_fraction = value == null ? null : Number(value);
-    });
-
     // Python-driven RANK view switch. `apply_rank_view` always echoes the
     // resolved stop and syncs the control; unchanged geometry remains a no-op.
     on_model('change:rank_dim', () => {

@@ -14,6 +14,46 @@ import {
   updateGeneInfo,
 } from '../widget_interactions/enrich_utils';
 
+// Enrich typography lives in one stylesheet rather than per-element inline
+// styles. Selectors are scoped under `.celldega-enrich` with enough
+// specificity to win over host page rules (e.g. MkDocs `.md-typeset p`).
+const ENRICH_FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+const enrich_style_block = `
+.celldega-enrich {
+  font-family: ${ENRICH_FONT_FAMILY};
+  font-size: 12px;
+  line-height: 1.35;
+}
+.celldega-enrich select,
+.celldega-enrich .celldega-enrich__paragraph,
+.celldega-enrich .celldega-enrich__paragraph *,
+.celldega-enrich .celldega-enrich__gene-info,
+.celldega-enrich .celldega-enrich__gene-info * {
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.celldega-enrich .celldega-enrich__paragraph,
+.celldega-enrich .celldega-enrich__gene-info {
+  padding: 3px;
+}
+.celldega-enrich .celldega-enrich__gene-info p {
+  margin: 4px 0 0;
+}
+`;
+
+let enrich_styles_injected = false;
+
+const ensure_enrich_styles = () => {
+  if (enrich_styles_injected || typeof document === 'undefined') return;
+  const style_element = document.createElement('style');
+  style_element.textContent = enrich_style_block;
+  document.head.appendChild(style_element);
+  enrich_styles_injected = true;
+};
+
 export const render_enrich = async ({ model, el }) => {
   const store = create_enrich_store();
   const subscriptions = [];
@@ -111,6 +151,7 @@ export const render_enrich = async ({ model, el }) => {
   const clearButton = document.createElement('button');
   const linkHolder = document.createElement('a');
 
+  ensure_enrich_styles();
   container.className = 'celldega-enrich';
   paragraphHolder.className = 'celldega-enrich__paragraph';
   geneInfoHolder.className = 'celldega-enrich__gene-info';
@@ -151,16 +192,10 @@ export const render_enrich = async ({ model, el }) => {
   container.style.flexDirection = 'column';
   container.style.overflowX = 'scroll';
   container.style.marginLeft = '5px';
-  container.style.fontFamily =
-    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
-  container.style.fontSize = '12px';
-  container.style.lineHeight = '1.35';
 
   select.style.marginTop = '5px';
   select.style.minWidth = '0';
   select.style.flex = '1 1 auto';
-  select.style.fontFamily = 'inherit';
-  select.style.fontSize = '12px';
 
   layout.style.width = `${width}px`;
   // Reserve room at the bottom of the widget for the Enrichr link. Previously
@@ -197,10 +232,6 @@ export const render_enrich = async ({ model, el }) => {
   paragraphHolder.style.marginTop = '0';
   paragraphHolder.style.overflowY = 'auto';
   paragraphHolder.style.border = '1px solid #d3d3d3';
-  paragraphHolder.style.fontFamily = 'inherit';
-  paragraphHolder.style.fontSize = '12px';
-  paragraphHolder.style.lineHeight = '1.35';
-  paragraphHolder.style.padding = '3px';
 
   geneInfoHolder.style.height = 'auto';
   geneInfoHolder.style.flex = '2 1 0';
@@ -209,11 +240,6 @@ export const render_enrich = async ({ model, el }) => {
   geneInfoHolder.style.marginTop = '0';
   geneInfoHolder.style.overflowY = 'auto';
   geneInfoHolder.style.border = '1px solid #d3d3d3';
-  geneInfoHolder.style.fontFamily =
-    '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
-  geneInfoHolder.style.fontSize = '12px';
-  geneInfoHolder.style.lineHeight = '1.35';
-  geneInfoHolder.style.padding = '3px';
 
   sourceRow.style.display = 'flex';
   sourceRow.style.alignItems = 'center';
@@ -513,9 +539,6 @@ export const render_enrich = async ({ model, el }) => {
       const element = document.createElement('div');
       element.style.userSelect = 'none';
       element.style.webkitUserSelect = 'none';
-      element.style.fontFamily = 'inherit';
-      element.style.fontSize = '12px';
-      element.style.lineHeight = '1.35';
       element.value = 'Click on a gene to obtain detailed information';
 
       paragraphElement = element;
@@ -527,12 +550,6 @@ export const render_enrich = async ({ model, el }) => {
         .join('span')
         .text((d) => d)
         .style('font-weight', '550')
-        .style(
-          'font-family',
-          '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-        )
-        .style('font-size', '12px')
-        .style('line-height', '1.35')
         .style('color', () => 'black')
         // Hovering a gene shows its UniProt name/description in a tooltip
         // (same lookup and shared cache the Clustergram/Landscape tooltips

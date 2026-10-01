@@ -67,87 +67,44 @@ def test_landscape_clustergram_is_still_a_working_alias():
     assert cgm in box.children
 
 
-def test_clustergram_enrich_preserves_current_genes_on_single_row_label():
+def _capture_links(monkeypatch):
+    links = []
+
+    def capture(kind):
+        def _link(source, target):
+            links.append((kind, source, target))
+
+        return _link
+
+    monkeypatch.setattr(viz_mod, "jslink", capture("jslink"))
+    monkeypatch.setattr(viz_mod, "jsdlink", capture("jsdlink"))
+    return links
+
+
+@pytest.mark.parametrize(("row_enrich", "col_enrich"), [(True, False), (False, True)])
+def test_clustergram_enrich_links_entirely_in_the_browser(monkeypatch, row_enrich, col_enrich):
+    links = _capture_links(monkeypatch)
     cgm = _clustergram()
-    box = clustergram_enrich(cgm)
+
+    box = clustergram_enrich(cgm, row_enrich=row_enrich, col_enrich=col_enrich)
     enrich = box.children[1]
 
     assert enrich.height == 700
-    assert cgm.row_enrich_enabled is True
-    assert cgm.col_enrich_enabled is False
+    # The front end reads these to decide which selections become gene sets.
+    assert cgm.row_enrich_enabled is row_enrich
+    assert cgm.col_enrich_enabled is col_enrich
+    assert links == [
+        ("jslink", (cgm, "enrichment_genes"), (enrich, "gene_list")),
+        ("jsdlink", (cgm, "enrichment_source_label"), (enrich, "source_label")),
+        ("jslink", (enrich, "focused_gene"), (cgm, "focused_gene")),
+        ("jsdlink", (enrich, "term_genes"), (cgm, "highlighted_genes")),
+    ]
 
-    enrich.gene_list = ["g0", "g1"]
-    cgm.click_info = {"type": "row_label", "value": {"name": "g1"}}
-    cgm.selected_genes = ["g1"]
-
-    assert enrich.gene_list == ["g0", "g1"]
-
-    # Row dendrogram selections remain meaningful gene sets and continue to
-    # populate the enrichment widget under the default configuration.
-    cgm.click_info = {
-        "type": "row_dendro",
-        "value": {"selected_names": ["g0", "g1"]},
-    }
+    # No Python observers: a kernel-side selection change must not touch Enrich,
+    # so live and static notebooks follow the same (browser) code path.
+    cgm.click_info = {"type": "row_dendro", "value": {"selected_names": ["g0", "g1"]}}
     cgm.selected_genes = ["g0", "g1"]
-
-    assert enrich.gene_list == ["g0", "g1"]
-    assert enrich.source_label == "Dendrogram selection"
-
-    # Gene row crops are also meaningful enrichment gene sets. A brush crop
-    # (no dendro crop_source) reads as a brush selection...
-    cgm.click_info = {
-        "type": "row_crop",
-        "value": {"selected_names": ["g2", "g3"]},
-    }
-    cgm.selected_genes = ["g2", "g3"]
-
-    assert enrich.gene_list == ["g2", "g3"]
-    assert enrich.source_label == "Brush selection"
-
-    # ...while a dendrogram double-click crop names the gesture.
-    cgm.click_info = {
-        "type": "row_crop",
-        "value": {"selected_names": ["g0", "g2"], "crop_source": "dendrogram"},
-    }
-    cgm.selected_genes = ["g0", "g2"]
-
-    assert enrich.source_label == "Dendrogram selection"
-
-    # Column-label clicks (single or double) send the column's top genes with
-    # the column name as the source ("Clustergram" is implied).
-    cgm.click_info = {"type": "col_label", "value": {"name": "s2", "index": 2}}
-    cgm.selected_genes = ["g1", "g0"]
-
-    assert enrich.gene_list == ["g1", "g0"]
-    assert enrich.source_label == "s2"
-
-    # Focus propagation is deliberately browser-native (jslink), so the same
-    # saved links work in both a live notebook and a static documentation embed.
-    assert hasattr(enrich, "focused_gene")
-    assert hasattr(cgm, "focused_gene")
-
-
-def test_clustergram_enrich_mirrors_term_genes_to_highlighted_genes():
-    cgm = _clustergram()
-    box = clustergram_enrich(cgm)
-    enrich = box.children[1]
-
-    assert cgm.highlighted_genes == []
-
-    # Selecting an enriched term (Enrich lowercases its member genes) should
-    # highlight those genes' row labels in the Clustergram.
-    enrich.term_genes = ["g0", "g2"]
-    enrich.selected_term = "Example term"
-    assert cgm.highlighted_genes == ["g0", "g2"]
-
-    # A new Clustergram selection invalidates the term from the old query and
-    # clears its row-label highlight immediately on the Python side.
-    cgm.click_info = {"type": "col_label", "value": {"name": "s2", "index": 2}}
-    cgm.selected_genes = ["g1"]
-
-    assert enrich.term_genes == []
-    assert enrich.selected_term == "Select Term"
-    assert cgm.highlighted_genes == []
+    assert enrich.gene_list == []
 
 
 def test_spatial_clustergram_uses_browser_native_gene_focus_links(monkeypatch):

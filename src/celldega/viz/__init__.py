@@ -164,108 +164,21 @@ def _link_clustergram_to_enrich(
     row_enrich: bool = True,
     col_enrich: bool = False,
 ) -> None:
-    enrich_colors = {"In term": "#2f74ff", "Out of term": "#ffffff"}
     cgm.row_enrich_enabled = row_enrich
     cgm.col_enrich_enabled = col_enrich
+    if hasattr(cgm, "_record_category_colors"):
+        cgm._record_category_colors({"In term": "#2f74ff", "Out of term": "#ffffff"})
 
-    def _record_colors() -> None:
-        if hasattr(cgm, "_record_category_colors"):
-            cgm._record_category_colors(enrich_colors)
-
-    _record_colors()
-
-    def _set_gene_list(genes, source_label: str = "") -> None:
-        next_genes = list(genes) if genes else []
-        if next_genes != list(enrich.gene_list):
-            enrich.term_genes = []
-            enrich.selected_term = "Select Term"
-        enrich.source_label = source_label if next_genes else ""
-        enrich.gene_list = next_genes
-
-    def _selection_source_label(click_type: str, click_value: dict) -> str:
-        # "Clustergram" is implied — keep the source short: the column the top
-        # genes came from, or the selection gesture (brush vs dendrogram).
-        if click_type == "col_label":
-            name = click_value.get("name")
-            if name:
-                return str(name)
-        if click_type in ("row_crop", "col_crop"):
-            if click_value.get("crop_source") == "dendrogram":
-                return "Dendrogram selection"
-            return "Brush selection"
-        if click_type in ("row_dendro", "col_dendro"):
-            return "Dendrogram selection"
-        return "Selection"
-
-    def _on_selected_genes(change) -> None:
-        genes = change["new"] or []
-
-        click_info = getattr(cgm, "click_info", {}) or {}
-        click_type = (click_info.get("type") or "").lower()
-        click_value = click_info.get("value") or {}
-        selected_names = click_value.get("selected_names") or []
-
-        # A row label selects one gene for linked views, but it is not an
-        # enrichment gene set. Preserve the current enrichment result instead
-        # of replacing or clearing it.
-        if click_type == "row_label":
-            return
-
-        is_dendro = click_type.startswith(("row", "col"))
-        matches_click = (
-            bool(selected_names)
-            and len(selected_names) == len(genes)
-            and set(selected_names) == set(genes)
-        )
-
-        if is_dendro and matches_click:
-            if click_type.startswith("row"):
-                if not row_enrich:
-                    _set_gene_list([])
-                    return
-            elif click_type.startswith("col") and not col_enrich:
-                _set_gene_list([])
-                return
-
-        _set_gene_list(genes, _selection_source_label(click_type, click_value))
-
-    def _on_click_info(change) -> None:
-        info = change["new"] or {}
-        click_type = (info.get("type") or "").lower()
-        selected_names = (info.get("value") or {}).get("selected_names") or []
-
-        if click_type.startswith("col"):
-            if not col_enrich:
-                return
-            if selected_names:
-                cgm.selected_genes = list(selected_names)
-        elif click_type.startswith("row") and click_type != "row_label":
-            if not row_enrich:
-                _set_gene_list([])
-
-    def _on_term_genes(change) -> None:
-        # Mirror the selected enriched term's genes onto the Clustergram so its
-        # row labels can highlight them (blue, matching Enrich's "In term"
-        # paragraph color). Enrich clears term_genes on CLEAR/term-deselect,
-        # which resets the highlight through this same path.
-        cgm.highlighted_genes = list(change["new"] or [])
-
-    cgm.observe(_on_selected_genes, names="selected_genes")
-    cgm.observe(_on_click_info, names="click_info")
-    enrich.observe(_on_term_genes, names="term_genes")
-
-    # Python observers provide the richer source labels and selection semantics
-    # above in a live kernel. These browser-side links keep the core interaction
-    # working in static notebook exports, where no Python callback can run.
-    # Bidirectional browser links behave identically with a live kernel and in
-    # saved widget state. Enrich CLEAR/manual lists therefore also update the
-    # Clustergram's bold enrichment-gene labels.
+    # The whole Clustergram <-> Enrich interaction runs in the browser, so it
+    # behaves identically with a live kernel and in a static notebook export.
+    # The Clustergram front end decides which selections become enrichment
+    # gene sets (honoring row/col_enrich_enabled) and writes them to
+    # ``enrichment_genes``; Enrich CLEAR/manual lists flow back through the
+    # same bidirectional link and update the bold enrichment-gene labels.
     jslink((cgm, "enrichment_genes"), (enrich, "gene_list"))
     jsdlink((cgm, "enrichment_source_label"), (enrich, "source_label"))
     jslink((enrich, "focused_gene"), (cgm, "focused_gene"))
     jsdlink((enrich, "term_genes"), (cgm, "highlighted_genes"))
-    if enrich.term_genes:
-        cgm.highlighted_genes = list(enrich.term_genes)
 
 
 def clustergram_enrich(

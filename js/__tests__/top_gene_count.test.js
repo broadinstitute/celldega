@@ -124,17 +124,13 @@ describe('resolve_top_gene_count', () => {
     );
   });
 
-  test('column genes must be positive and expressed in at least half the cells', () => {
+  test('column genes must be above the minimum value', () => {
     const viz_state = {
       visible_rows: 4,
       top_n_genes: 50,
       top_gene_percent: 100,
       top_gene_min_value: 0,
-      top_gene_min_fraction: 0.5,
-      mat: {
-        net_mat: [[1], [-0.1], [0.5], [2]],
-        size_mat: [[0.8], [0.9], [0.4], [0.5]],
-      },
+      mat: { net_mat: [[1], [-0.1], [0.5], [2]] },
       row_nodes: [
         { name: 'g0' },
         { name: 'g1' },
@@ -143,20 +139,20 @@ describe('resolve_top_gene_count', () => {
       ],
     };
 
-    expect(top_gene_names_for_column(viz_state, 0)).toEqual(['g3', 'g0']);
+    expect(top_gene_names_for_column(viz_state, 0)).toEqual(['g3', 'g0', 'g2']);
   });
 
-  test('fraction threshold is ignored when no size matrix exists', () => {
+  test('a null minimum value disables the filter', () => {
     const viz_state = {
       visible_rows: 3,
       top_n_genes: 50,
       top_gene_percent: 100,
-      top_gene_min_value: 0,
-      top_gene_min_fraction: 0.5,
+      top_gene_min_value: null,
       mat: { net_mat: [[1], [-2], [0.5]] },
       row_nodes: [{ name: 'g0' }, { name: 'g1' }, { name: 'g2' }],
     };
 
-    expect(top_gene_names_for_column(viz_state, 0)).toEqual(['g0', 'g2']);
+    // Unfiltered, the slice ranks by magnitude, so the negative gene leads.
+    expect(top_gene_names_for_column(viz_state, 0)).toEqual(['g1', 'g0', 'g2']);
   });
 });

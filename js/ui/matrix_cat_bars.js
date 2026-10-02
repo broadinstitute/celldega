@@ -438,6 +438,28 @@ const compute_breakdown = (viz_state, axis, source, selected_names = null) => {
   return { attr_name, attr_index, data };
 };
 
+const hex_to_rgb = (hex) => {
+  const clean = String(hex || '').replace('#', '');
+  if (clean.length !== 6) return null;
+  return [0, 2, 4].map((i) => parseInt(clean.substring(i, i + 2), 16));
+};
+
+/**
+ * Colors for a bar: the shared category colors, with a manual source's own
+ * picked colors taking precedence (they are known before the attribute
+ * definitions are rebuilt).
+ */
+const bar_color_dict = (viz_state, axis, source) => {
+  const colors = get_color_dict(viz_state);
+  if (source !== MANUAL_SOURCE) return colors;
+  const manual_colors = viz_state.obs_store?.manual_cat?.[axis]?.colors;
+  manual_colors?.forEach?.((hex, value) => {
+    const rgb = hex_to_rgb(hex);
+    if (rgb) colors[value] = rgb;
+  });
+  return colors;
+};
+
 /**
  * Redraw one axis's bar for its current source, honoring an active dendrogram
  * selection on that axis and showing a count while cropped or selected.
@@ -465,7 +487,7 @@ const render_axis_cat_bar = (viz_state, axis) => {
   update_cat_bar_graph(
     bar.svg,
     breakdown.data,
-    get_color_dict(viz_state),
+    bar_color_dict(viz_state, axis, bar.source),
     (d) => {
       viz_state.obs_store?.selected_category?.set({
         axis,
@@ -645,14 +667,21 @@ export const init_matrix_cat_bars = (viz_state, ui_container) => {
 
       manual_store.subscribe(
         () => {
-          const bar = viz_state.cat_bars?.[axis];
-          if (!bar?.svg) return;
-          const breakdown = compute_manual_category_breakdown(viz_state, axis);
-          if (breakdown && breakdown.data.length > 0) {
-            bar.source = MANUAL_SOURCE;
-          }
-          sync_bar_sources(viz_state, axis);
-          render_axis_cat_bar(viz_state, axis);
+          // Deferred so matrix_viz's own subscriber (registered later) has
+          // applied the edit -- category defs and colors -- before we redraw.
+          queueMicrotask(() => {
+            const bar = viz_state.cat_bars?.[axis];
+            if (!bar?.svg) return;
+            const breakdown = compute_manual_category_breakdown(
+              viz_state,
+              axis
+            );
+            if (breakdown && breakdown.data.length > 0) {
+              bar.source = MANUAL_SOURCE;
+            }
+            sync_bar_sources(viz_state, axis);
+            render_axis_cat_bar(viz_state, axis);
+          });
         },
         { immediate: false }
       );

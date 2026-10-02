@@ -4,7 +4,7 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.26.0]
 
 ### Breaking
 
@@ -52,8 +52,15 @@ All notable changes to Celldega are documented here. This project follows
   color rows and columns with the shared per-set palette.
 - Clustergram column-label clicks send Enrich only genes above
   `Clustergram.top_gene_min_value` (default `0`, i.e. enriched in that column
-  after row z-scoring; `None` disables). Genes sent to Enrich are shown as bold
-  row labels.
+  after row z-scoring; `None` disables).
+- Clustergram category bars (ROW/COL) have a source dropdown listing every
+  categorical attribute passed via `col_attr`/`row_attr`, plus the manual
+  category once it exists; blue marks a clickable picker.
+- Hovering a Clustergram category (tile or control-panel bar) now also outlines
+  the matching tiles and bar in dark gray, so light colors still read.
+- Docs: new Atera breast cancer Landscape + Clustergram + Enrich tutorial; the
+  notebook sidebar toggle has a sidebar icon that reflects its direction, and
+  is also available on gallery example pages.
 
 ### Changed
 
@@ -66,7 +73,18 @@ All notable changes to Celldega are documented here. This project follows
   alias) and requires exactly one of `n_clusters` or `threshold`.
 - `spatial_clustergram(width=...)` now sizes only the spatial widget. The
   Clustergram panel fits the Clustergram's canvas (`width` + ~100px for
-  labels), widened to at least 550px so its control bar (including gene search) is never clipped.
+  labels), widened to at least 550px so its control bar (including gene search)
+  is never clipped.
+- Clustergram control panel redesign: a compact ROW / COL grid with an order
+  dropdown (CLUST, SUM, VAR, INI; shows CUSTOM after a label reorder) and the
+  dendrogram slider on each axis row, then DIM (precomputed views only),
+  CROP | UNDO and PROP | UNIT. Axes are labeled ROW/COL rather than by entity
+  name. Optional rows drop out without shifting the layout.
+- The Celldega logo now sits inside the gene search bar (Clustergram,
+  Landscape, CellCloud, NeighborhoodCloud), freeing control-panel width; gene
+  info boxes are narrower.
+- Clustergram tooltips appear after a 0.1 s dwell, and control-panel category
+  bar hovers apply after 150 ms (with a short clear delay) to stop flicker.
 
 ### Fixed
 
@@ -74,6 +92,15 @@ All notable changes to Celldega are documented here. This project follows
   `name=`; it now falls back to the matrix's name (or data hash).
 - `SetCollection.read()` from `.h5mu` now restores `set_col`, `name`,
   `element_type`, and `source`.
+- A Clustergram with both static and manual categories failed to render
+  ("error in render function"): the manual-category bar breakdown called
+  methods the manual-category store does not have.
+- Manual categories now appear in the category bars immediately (with their
+  chosen colors) and survive switching the bar's source.
+- The manual-category editor keeps one color for a new category while you type
+  its name, instead of allocating a new color on every keystroke.
+- Mouse-wheel gestures over the Clustergram (including the empty corner left of
+  the column labels) no longer scroll the page.
 
 ## [0.25.1]
 

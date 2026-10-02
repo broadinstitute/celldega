@@ -61,12 +61,11 @@
     appearance: none;
     align-items: center;
     background: transparent;
-    border: 1px solid color-mix(in srgb, var(--md-primary-bg-color) 55%, transparent);
-    border-radius: 50%;
+    border: none;
+    border-radius: 0.3rem;
     color: var(--md-primary-bg-color);
     cursor: pointer;
     display: flex;
-    font-size: 0.62rem;
     height: 1.65rem;
     justify-content: center;
     margin-left: 0;
@@ -80,4 +79,8 @@
     background: color-mix(in srgb, var(--md-primary-bg-color) 14%, transparent);
     outline: 2px solid color-mix(in srgb, var(--md-primary-bg-color) 65%, transparent);
     outline-offset: 2px;
+}
+
+.celldega-notebook-nav-toggle svg {
+    display: block;
 }

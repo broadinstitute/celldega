@@ -7,6 +7,7 @@ These example notebooks demonstrate how to use Celldega for spatial transcriptom
 Comprehensive tutorials that walk through complete workflows:
 
 - [Atera Breast Cancer Landscape-Clustergram](tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb) - Loads a precomputed Scanpy clustering (or optionally recomputes it) and creates linked Landscape, Clustergram, and Enrich widgets
+- [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Builds a SetCollection from a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
 - [Chromium Pre-process](tutorial_notebooks/Scanpy_Chromium.ipynb) - Pre-processing Chromium single-cell RNA-seq data

@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 
+import { ini_cat_outline_layer } from '../deck-gl/matrix/cat_layers';
 import {
   get_layer_update_triggers,
   get_mat_layers_list,
@@ -225,17 +226,21 @@ const update_bar_hover_state = (viz_state, hovered_name) => {
       if (!hover_name) {
         // No hover - restore full opacity by removing inline styles
         group.style('opacity', null);
-        rect.style('opacity', null);
+        rect.style('opacity', null).attr('stroke', null);
         text.style('opacity', null);
       } else if (bar_name === hover_name) {
-        // Matching category - full opacity (explicitly set to override any transitions)
+        // Matching category - full opacity (explicitly set to override any
+        // transitions) and the same dark gray outline as its matrix tiles.
         group.style('opacity', '1');
-        rect.style('opacity', '1');
+        rect
+          .style('opacity', '1')
+          .attr('stroke', '#404040')
+          .attr('stroke-width', 1);
         text.style('opacity', '1');
       } else {
         // Non-matching - very transparent
         group.style('opacity', '0.15');
-        rect.style('opacity', '0.15');
+        rect.style('opacity', '0.15').attr('stroke', null);
         text.style('opacity', '0.15');
       }
     });
@@ -277,49 +282,46 @@ const update_cat_tile_layers = (viz_state) => {
     });
   }
 
+  layers_mat.row_cat_outline_layer = ini_cat_outline_layer(viz_state, 'row');
+  layers_mat.col_cat_outline_layer = ini_cat_outline_layer(viz_state, 'col');
+
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };
 
-/**
- * Create hover handlers for bar graphs that sync with viz_state.hovered_cat.
- */
+// Bar hovers apply after a short dwell, and leaving a bar clears after an even
+// shorter one. Sliding from one bar to the next therefore swaps highlights
+// directly instead of flashing the matrix back to unhighlighted in between.
+const BAR_HOVER_DELAY_MS = 150;
+const BAR_HOVER_CLEAR_DELAY_MS = 100;
+
 const create_bar_hover_handlers = (viz_state, axis, attr_index) => {
-  const on_hover = (d) => {
-    // Set hovered_cat on viz_state (for category tile highlighting)
-    viz_state.hovered_cat = {
-      axis,
-      name: d.name,
-      level: attr_index,
-    };
-
-    // Update bar graph opacities
-    update_bar_hover_state(viz_state, d.name);
-
-    // Update category tile layers in the Clustergram visualization
+  const apply = (name) => {
+    viz_state.hovered_cat = name ? { axis, name, level: attr_index } : null;
+    update_bar_hover_state(viz_state, name);
     update_cat_tile_layers(viz_state);
 
-    // Update obs_store for any other listeners
     if (viz_state.obs_store?.hovered_category) {
       const attr_name = viz_state.attr.names[axis]?.[attr_index];
-      viz_state.obs_store.hovered_category.set({
-        axis,
-        attr_name,
-        attr_index,
-        value: d.name,
-      });
+      viz_state.obs_store.hovered_category.set(
+        name ? { axis, attr_name, attr_index, value: name } : null
+      );
     }
   };
 
+  const on_hover = (d) => {
+    clearTimeout(viz_state._bar_hover_timer);
+    viz_state._bar_hover_timer = setTimeout(
+      () => apply(d.name),
+      BAR_HOVER_DELAY_MS
+    );
+  };
+
   const on_hover_out = () => {
-    viz_state.hovered_cat = null;
-    update_bar_hover_state(viz_state, null);
-
-    // Update category tile layers
-    update_cat_tile_layers(viz_state);
-
-    if (viz_state.obs_store?.hovered_category) {
-      viz_state.obs_store.hovered_category.set(null);
-    }
+    clearTimeout(viz_state._bar_hover_timer);
+    viz_state._bar_hover_timer = setTimeout(
+      () => apply(null),
+      BAR_HOVER_CLEAR_DELAY_MS
+    );
   };
 
   return { on_hover, on_hover_out };

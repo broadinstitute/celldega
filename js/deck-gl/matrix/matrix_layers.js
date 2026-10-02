@@ -102,6 +102,14 @@ export const get_mat_layers_list = (layers_mat, options = {}) => {
     if (layer) layers_list.push(layer);
   });
 
+  // Hover outline around the hovered category's tiles (above the tiles)
+  if (layers_mat.row_cat_outline_layer) {
+    layers_list.push(layers_mat.row_cat_outline_layer);
+  }
+  if (layers_mat.col_cat_outline_layer) {
+    layers_list.push(layers_mat.col_cat_outline_layer);
+  }
+
   // Bold overlay for the focused row label (drawn above the base labels)
   if (layers_mat.row_label_focus_layer) {
     layers_list.push(layers_mat.row_label_focus_layer);
@@ -132,6 +140,10 @@ export const layer_filter = ({ layer, viewport }) => {
   } else if (viewport.id === 'rows' && layer.id === 'row-layer') {
     return true;
   } else if (viewport.id === 'cols' && layer.id === 'col-layer') {
+    return true;
+  } else if (viewport.id === 'rows' && layer.id === 'row-cat-outline-layer') {
+    return true;
+  } else if (viewport.id === 'cols' && layer.id === 'col-cat-outline-layer') {
     return true;
   } else if (viewport.id === 'rows' && layer.id.includes('row-label-layer')) {
     return true;

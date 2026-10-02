@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { PathLayer } from 'deck.gl';
 
 import {
   crop_fade_axis_alpha_factor,
@@ -141,6 +142,66 @@ const cat_layer_onclick = (event, viz_state, axis) => {
 // clears instantly.
 const CAT_HOVER_DELAY_MS = 250;
 
+// Tile geometry shared by the category layers and their hover outline:
+// center plus half-extents in world units (CustomMatrixLayer scales its unit
+// quad by tile_width / tile_height).
+const cat_tile_center = (viz_state, axis, d) =>
+  axis === 'row'
+    ? [
+        d.position[0] + viz_state.viz.cat_shift_row,
+        get_axis_center_position(viz_state, 'row', d.original_index) ?? 0,
+      ]
+    : [
+        get_axis_center_position(viz_state, 'col', d.original_index) ?? 0,
+        d.position[1] + viz_state.viz.cat_shift_col,
+      ];
+
+const cat_tile_half_size = (viz_state, axis) =>
+  axis === 'row'
+    ? [
+        (viz_state.viz.row_cat_width / 2) * 0.9,
+        get_axis_slot_size(viz_state, 'row') * 0.5,
+      ]
+    : [
+        get_axis_slot_size(viz_state, 'col') * 0.5,
+        viz_state.viz.col_cat_height / 2,
+      ];
+
+/**
+ * Dark gray outline around every tile of the hovered category value, so the
+ * highlight still reads for light category colors. Only present while a
+ * category is hovered.
+ */
+export const ini_cat_outline_layer = (viz_state, axis) => {
+  const hovered = viz_state.hovered_cat;
+  if (!hovered?.name) return null;
+
+  const [half_w, half_h] = cat_tile_half_size(viz_state, axis);
+  const data = filter_cat_data(viz_state, axis)
+    .filter((d) => d.name === hovered.name)
+    .map((d) => {
+      const [x, y] = cat_tile_center(viz_state, axis, d);
+      return [
+        [x - half_w, y - half_h],
+        [x + half_w, y - half_h],
+        [x + half_w, y + half_h],
+        [x - half_w, y + half_h],
+        [x - half_w, y - half_h],
+      ];
+    });
+
+  return new PathLayer({
+    // layer_filter routes these ids to the rows / cols views.
+    id: `${axis}-cat-outline-layer`,
+    data,
+    getPath: (path) => path,
+    getColor: [64, 64, 64, 255],
+    getWidth: 1,
+    widthUnits: 'pixels',
+    pickable: false,
+  });
+};
+
 const apply_cat_hover = (deck_mat, layers_mat, viz_state, hovered) => {
   const prev_hovered = viz_state.hovered_cat;
   if (
@@ -166,6 +227,8 @@ const apply_cat_hover = (deck_mat, layers_mat, viz_state, hovered) => {
       getFillColor: cat_fill_trigger(viz_state, hovered),
     },
   });
+  layers_mat.row_cat_outline_layer = ini_cat_outline_layer(viz_state, 'row');
+  layers_mat.col_cat_outline_layer = ini_cat_outline_layer(viz_state, 'col');
   deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 
   // Also update obs_store for other listeners
@@ -190,13 +253,8 @@ const apply_cat_hover = (deck_mat, layers_mat, viz_state, hovered) => {
  * Handle category tile hover - for highlighting.
  * Updates viz_state.hovered_cat and triggers layer re-render.
  */
-// Hovering a category tile no longer dims the rest of the matrix (too busy);
-// flip this to restore the cross-matrix highlight.
-const CAT_TILE_HOVER_HIGHLIGHT = false;
-
 const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
   clearTimeout(viz_state._cat_hover_timer);
-  if (!CAT_TILE_HOVER_HIGHLIGHT) return;
 
   if (!info.object) {
     // Mouse left the tile - clear hover state immediately.

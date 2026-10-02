@@ -28,13 +28,32 @@ const dendro_tooltip_html = (label, object) => {
   return `${label} dendrogram: ${escape_html(properties.name)}${names_line}`;
 };
 
-const base_tooltip_style = () => ({
-  color: 'white',
-  display: 'block',
-  marginLeft: '0px',
-  marginTop: '0px',
-  translate: '0 0',
-});
+// Tooltips appear after a short hover dwell. deck.gl hides the tooltip
+// (display: none) between hovers, and re-showing it restarts this animation,
+// so the delay applies each time the pointer settles onto something new.
+const TOOLTIP_DELAY = '0.1s';
+let tooltip_keyframes_injected = false;
+
+const ensure_tooltip_keyframes = () => {
+  if (tooltip_keyframes_injected || typeof document === 'undefined') return;
+  const style_element = document.createElement('style');
+  style_element.textContent =
+    '@keyframes celldega-tooltip-in { from { opacity: 0; } to { opacity: 1; } }';
+  document.head.appendChild(style_element);
+  tooltip_keyframes_injected = true;
+};
+
+const base_tooltip_style = () => {
+  ensure_tooltip_keyframes();
+  return {
+    color: 'white',
+    display: 'block',
+    marginLeft: '0px',
+    marginTop: '0px',
+    translate: '0 0',
+    animation: `celldega-tooltip-in 0s linear ${TOOLTIP_DELAY} both`,
+  };
+};
 
 const reset_tooltip_position = (viz_state) => {
   const tooltip_container = viz_state.root?.querySelector?.('.deck-tooltip');

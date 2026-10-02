@@ -190,8 +190,13 @@ const apply_cat_hover = (deck_mat, layers_mat, viz_state, hovered) => {
  * Handle category tile hover - for highlighting.
  * Updates viz_state.hovered_cat and triggers layer re-render.
  */
+// Hovering a category tile no longer dims the rest of the matrix (too busy);
+// flip this to restore the cross-matrix highlight.
+const CAT_TILE_HOVER_HIGHLIGHT = false;
+
 const cat_layer_onhover = (info, viz_state, axis, deck_mat, layers_mat) => {
   clearTimeout(viz_state._cat_hover_timer);
+  if (!CAT_TILE_HOVER_HIGHLIGHT) return;
 
   if (!info.object) {
     // Mouse left the tile - clear hover state immediately.

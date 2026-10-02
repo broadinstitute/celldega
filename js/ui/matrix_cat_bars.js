@@ -375,14 +375,18 @@ const BAR_FONT_FAMILY =
  * @returns {Array<{value: string, label: string}>}
  */
 const get_bar_sources = (viz_state, axis) => {
-  const sources = (viz_state.attr?.cats?.[axis] || []).map((name) => ({
-    value: name,
-    label: name,
-  }));
   const manual_store = viz_state.obs_store?.manual_cat?.[axis];
   const manual_name =
     manual_store?.attribute || viz_state.manual_cat?.config?.[axis]?.attribute;
-  if (manual_store && (viz_state.manual_cat?.flags?.[axis] || manual_name)) {
+  const has_manual =
+    !!manual_store && !!(viz_state.manual_cat?.flags?.[axis] || manual_name);
+
+  // Annotating also registers the manual attribute among the axis's
+  // categories, so skip that copy here; it is listed once, as the manual source.
+  const sources = (viz_state.attr?.cats?.[axis] || [])
+    .filter((name) => !(has_manual && name === manual_name))
+    .map((name) => ({ value: name, label: name }));
+  if (has_manual) {
     sources.push({ value: MANUAL_SOURCE, label: manual_name || 'manual' });
   }
   return sources;

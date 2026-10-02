@@ -73,6 +73,14 @@ describe('compute_manual_category_breakdown', () => {
       { value: 'leiden', label: 'leiden' },
       { value: MANUAL_SOURCE, label: 'cell_type' },
     ]);
+
+    // Annotating registers the manual attribute among the categories too; it
+    // must still be listed only once.
+    viz_state.attr.cats.col.push('cell_type');
+    expect(get_bar_sources(viz_state, 'col')).toEqual([
+      { value: 'leiden', label: 'leiden' },
+      { value: MANUAL_SOURCE, label: 'cell_type' },
+    ]);
   });
 
   test('breaks down the chosen source, optionally within a selection', () => {

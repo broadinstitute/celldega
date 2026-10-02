@@ -841,6 +841,11 @@ const apply_single_click_selection = (
     sync_selected_genes(viz_state, names_to_sync);
   } else if (axis === 'col') {
     sync_selected_cols(viz_state, names_to_sync);
+    // Column dendrogram groups are gene sets only when columns are genes; the
+    // caller opts in with col_enrich_enabled (see enrichmentSelection).
+    if (viz_state.model?.get?.('col_enrich_enabled')) {
+      sync_selected_genes(viz_state, names_to_sync);
+    }
   }
 
   if (!is_unselecting) {

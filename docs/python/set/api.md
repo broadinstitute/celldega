@@ -19,11 +19,35 @@ import celldega as dega
 # Build one SetCollection per clustering "opinion" (the cells define the sets)
 clust = dega.set.SetCollection(adata, set_col="leiden", name="leiden")
 
-# Per-set expression signature (pseudobulk). modality_name is always required
-# (so it's always clear which modality a call produces); feature_type is only
-# required when passing a MuData -- for an AnnData it defaults to "gene".
-clust.calc_signature(adata, modality_name="expression")
+# Per-set expression signature (pseudobulk), with fraction expressing stored on
+# the same set × gene modality for a Clustergram size channel. modality_name is
+# always required; feature_type is only required for MuData.
+clust.calc_signature(
+    adata,
+    modality_name="expression",
+    layer="counts",
+    aggregate="sum",
+    normalization="log1p_cpm",
+    fraction_expressing_layer="fraction_expressing",
+    rank_genes_groups=True,
+    rank_genes_groups_layer="X",  # rank log-normalized X, not the counts layer
+)
 clust.calc_signature(mdata, modality_name="protein", feature_type="protein")   # protein modality of a MuData
+
+# The compact signature layout is one modality with two quantitative channels:
+expression = clust.mod["expression"]
+expression.X                              # log1p-CPM expression, sets × genes
+expression.layers["fraction_expressing"] # fraction in [0, 1], same axes
+
+# Marker rankings live in expression.uns["rank_genes_groups"] and persist in
+# the collection's .h5mu file. Matrix consumes them but does not calculate or own
+# a separate copy.
+mat = dega.clust.Matrix(
+    collection=clust,
+    color_by="expression",
+    size_by_layer="fraction_expressing",
+)
+mat.cluster(view="rank_genes_groups")
 
 # Per-set cell-type composition (sets x populations)
 clust.calc_population(adata, category="cell_type")
@@ -45,7 +69,36 @@ loaded = dega.set.SetCollection.read("clusters.h5mu")
 
 Hierarchical clustering of any modality is done with the `Matrix` /
 `Clustergram` classes, and the resulting dendrogram can be cut into flat labels
-with `Matrix.to_cluster` / `Clustergram.to_cluster` (e.g. to define consensus
+with `Matrix.cut_tree` / `Clustergram.to_cluster` (e.g. to define consensus
 domains or meta-clusters), which you then attach back to the collection's `obs`.
+
+## Signature expression sources and persistence
+
+`layer` selects the untransformed source used to aggregate a per-set signature.
+`rank_genes_groups_layer` independently selects the cell-level expression source
+used by Scanpy marker ranking. This allows pseudobulk expression and fraction
+expressing to come from `layers["counts"]`, while differential expression uses
+log-normalized `X`:
+
+```python
+clust.calc_signature(
+    adata,
+    modality_name="expression",
+    layer="counts",
+    aggregate="sum",
+    normalization="log1p_cpm",
+    fraction_expressing_layer="fraction_expressing",
+    rank_genes_groups=True,
+    rank_genes_groups_layer="X",
+    rank_genes_groups_kwargs={"method": "t-test"},
+)
+```
+
+Unless `n_genes` is supplied through `rank_genes_groups_kwargs`, Scanpy ranks
+all genes. Celldega stores the tidy ranking in
+`clust.mod["expression"].uns["rank_genes_groups"]`; both it and the
+`fraction_expressing` layer survive `clust.write("clusters.h5mu")` and
+`SetCollection.read(...)`. `Matrix` consumes those persisted ranks when building
+`view="rank_genes_groups"`; it does not maintain a separate marker-ranking API.
 
 ::: celldega.set

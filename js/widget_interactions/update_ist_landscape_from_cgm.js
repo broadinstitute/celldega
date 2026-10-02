@@ -104,6 +104,31 @@ export const is_cell = (clickValue) => {
   return clickValue.entity === 'cell' && clickValue.attr === 'name';
 };
 
+/**
+ * Route an Enrich gene click through Landscape's existing Clustergram update
+ * path. `focused_gene` is linked entirely in the browser, so this works both
+ * with a live Python kernel and in a static widget embed.
+ */
+export const sync_focused_gene_to_landscape = (model) => {
+  const gene = model?.get?.('focused_gene') || '';
+  if (!gene) return false;
+
+  // Reset first so selecting the same gene again still emits a Backbone
+  // change event for update_trigger.
+  model.set('update_trigger', null);
+  model.set('update_trigger', {
+    type: 'row_label',
+    value: {
+      name: gene,
+      entity: 'gene',
+      attr: 'name',
+      row_entity: 'gene',
+    },
+  });
+  model.save_changes?.();
+  return true;
+};
+
 export const update_ist_landscape_from_cgm = async (
   deck_ist,
   layers_obj,

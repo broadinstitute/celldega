@@ -1,8 +1,8 @@
 /* global require */
 
 // Enrich-linked row-label styling: term genes render blue (#2f74ff), the
-// focused gene gets a one-datum bold overlay, and focus_matrix_row flies the
-// views to the row instead of snapping.
+// focused gene and genes sent to Enrich get a bold overlay, and
+// focus_matrix_row flies the views to the row instead of snapping.
 
 const fs = require('fs');
 const path = require('path');
@@ -170,6 +170,17 @@ describe('term-gene row label highlighting', () => {
     expect(layer.props.getColor({ name: 'FAM124A', index: 1 })).toEqual([
       0, 0, 0, 255,
     ]);
+  });
+
+  test('genes sent to Enrich are not bolded (only the focused row is)', () => {
+    const viz_state = make_viz_state();
+    viz_state.labels.enrichment_genes = new Set(['epha7', 'fam124a']);
+
+    const base = ini_row_label_layer(viz_state);
+    expect(base.props.getColor({ name: 'EPHA7', index: 0 })).not.toEqual([
+      0, 0, 0, 0,
+    ]);
+    expect(ini_row_label_focus_layer(viz_state).props.data).toEqual([]);
   });
 
   test('the double-clicked reorder driver is blue while its custom order holds', () => {

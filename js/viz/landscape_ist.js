@@ -105,7 +105,10 @@ import { refresh_layer } from '../utils/refresh_layer';
 import { build_rotation_state } from '../utils/rotation';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
-import { update_ist_landscape_from_cgm } from '../widget_interactions/update_ist_landscape_from_cgm';
+import {
+  sync_focused_gene_to_landscape,
+  update_ist_landscape_from_cgm,
+} from '../widget_interactions/update_ist_landscape_from_cgm';
 
 // Row group reading support
 
@@ -1027,6 +1030,8 @@ export const landscape_ist = async (
   if (viz_state.model?.on) {
     const on_update_trigger = () =>
       update_ist_landscape_from_cgm(deck_ist, layers_obj, viz_state);
+    const on_focused_gene = () =>
+      sync_focused_gene_to_landscape(viz_state.model);
     const on_cell_clusters = () =>
       update_cell_clusters(deck_ist, layers_obj, viz_state);
     const on_selected_cells = () => {
@@ -1035,10 +1040,12 @@ export const landscape_ist = async (
     };
 
     viz_state.model.on('change:update_trigger', on_update_trigger);
+    viz_state.model.on('change:focused_gene', on_focused_gene);
     viz_state.model.on('change:cell_clusters', on_cell_clusters);
     viz_state.model.on('change:selected_cells', on_selected_cells);
     cleanup_callbacks.push(() => {
       viz_state.model.off?.('change:update_trigger', on_update_trigger);
+      viz_state.model.off?.('change:focused_gene', on_focused_gene);
       viz_state.model.off?.('change:cell_clusters', on_cell_clusters);
       viz_state.model.off?.('change:selected_cells', on_selected_cells);
     });

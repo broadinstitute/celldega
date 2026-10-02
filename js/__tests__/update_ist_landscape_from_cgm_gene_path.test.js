@@ -2,6 +2,7 @@
 
 describe('linked Clustergram gene selection for Landscape', () => {
   let update_ist_landscape_from_cgm;
+  let sync_focused_gene_to_landscape;
   const calls = {
     events: [],
     expression: [],
@@ -48,14 +49,15 @@ describe('linked Clustergram gene selection for Landscape', () => {
       const sync_nbhd_cloud_opacity_sliders = () => {};
     `;
 
-    const code = `${shims}\n${source}\nmodule.exports = { update_ist_landscape_from_cgm };`;
+    const code = `${shims}\n${source}\nmodule.exports = { update_ist_landscape_from_cgm, sync_focused_gene_to_landscape };`;
     const module = { exports: {} };
     new Function('module', 'exports', 'calls', code)(
       module,
       module.exports,
       calls
     );
-    ({ update_ist_landscape_from_cgm } = module.exports);
+    ({ update_ist_landscape_from_cgm, sync_focused_gene_to_landscape } =
+      module.exports);
   });
 
   beforeEach(() => {
@@ -142,5 +144,39 @@ describe('linked Clustergram gene selection for Landscape', () => {
     await update_ist_landscape_from_cgm(null, {}, vizState);
 
     expect(calls.refreshed).toEqual([]);
+  });
+
+  test('turns a browser-linked Enrich focus into a Landscape gene update', () => {
+    const values = {
+      focused_gene: 'GATA3',
+      update_trigger: { type: 'old' },
+    };
+    const changes = [];
+    const model = {
+      get: (key) => values[key],
+      set: (key, value) => {
+        values[key] = value;
+        changes.push([key, value]);
+      },
+      save_changes: jest.fn(),
+    };
+
+    expect(sync_focused_gene_to_landscape(model)).toBe(true);
+    expect(changes).toEqual([
+      ['update_trigger', null],
+      [
+        'update_trigger',
+        {
+          type: 'row_label',
+          value: {
+            name: 'GATA3',
+            entity: 'gene',
+            attr: 'name',
+            row_entity: 'gene',
+          },
+        },
+      ],
+    ]);
+    expect(model.save_changes).toHaveBeenCalledTimes(1);
   });
 });

@@ -11,6 +11,44 @@ const updateSelectedGeneState = (genes, selectedGenes) => {
   );
 };
 
+const enrichmentSelection = (viz_state, selectedGenes) => {
+  const { model } = viz_state;
+  if (!model?.get || model.get('component') !== 'Matrix') return null;
+
+  const clickType = String(viz_state.click?.type || '').toLowerCase();
+  const clickValue = viz_state.click?.value || {};
+
+  // A row label is a focus/navigation action, not a gene-set selection.
+  // Leaving enrichment_genes untouched preserves the current Enrich results.
+  if (!clickType || clickType === 'row_label') return null;
+
+  let enabled = false;
+  let sourceLabel = 'Selection';
+
+  if (clickType === 'col_label') {
+    enabled = true;
+    sourceLabel = String(clickValue.name || 'Column selection');
+  } else if (clickType.startsWith('row')) {
+    enabled = Boolean(model.get('row_enrich_enabled'));
+    sourceLabel =
+      clickValue.crop_source === 'dendrogram' || clickType === 'row_dendro'
+        ? 'Dendrogram selection'
+        : 'Brush selection';
+  } else if (clickType.startsWith('col')) {
+    enabled = Boolean(model.get('col_enrich_enabled'));
+    sourceLabel =
+      clickValue.crop_source === 'dendrogram' || clickType === 'col_dendro'
+        ? 'Dendrogram selection'
+        : 'Brush selection';
+  }
+
+  if (!enabled) return null;
+  return {
+    genes: selectedGenes,
+    sourceLabel: selectedGenes.length ? sourceLabel : '',
+  };
+};
+
 export const update_selected_genes = (genes, new_selected_genes, obs_store) => {
   const currentSelectedGenes = Array.isArray(genes?.selected_genes)
     ? genes.selected_genes
@@ -65,6 +103,12 @@ export const sync_selected_genes = (viz_state, genes) => {
     const { row_entity } = viz_state;
     if (row_entity?.entity === 'gene') {
       viz_state.model.set('selected_rows', selectedGenes);
+    }
+
+    const enrichment = enrichmentSelection(viz_state, selectedGenes);
+    if (enrichment) {
+      viz_state.model.set('enrichment_genes', enrichment.genes);
+      viz_state.model.set('enrichment_source_label', enrichment.sourceLabel);
     }
 
     viz_state.model.save_changes();

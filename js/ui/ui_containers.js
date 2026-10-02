@@ -42,7 +42,7 @@ import { make_dataset_dropdown } from './dataset_dropdown';
 import { update_dendro_from_slider } from './dendro_slider';
 import { is_gene_axis, make_gene_info_box } from './gene_info';
 import { set_gene_search, set_matrix_row_search } from './gene_search';
-import { make_logo_button } from './logo';
+import { embed_logo_in_search, make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
@@ -57,9 +57,33 @@ import {
   apply_state_button_style,
   make_button,
   make_edit_button,
-  make_reorder_button,
+  make_reorder_dropdown,
   make_text_toggle_group,
 } from './text_buttons';
+
+const can_scroll_vertically = (element, delta_y) => {
+  const { overflowY } = window.getComputedStyle(element);
+  if (overflowY !== 'auto' && overflowY !== 'scroll') return false;
+  if (element.scrollHeight <= element.clientHeight) return false;
+  return delta_y < 0
+    ? element.scrollTop > 0
+    : element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+};
+
+export const block_page_scroll_in_panel = (event) => {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const panel = event.currentTarget;
+  for (
+    let node = event.target;
+    node && node !== panel;
+    node = node.parentElement
+  ) {
+    if (node instanceof Element && can_scroll_vertically(node, event.deltaY)) {
+      return;
+    }
+  }
+  event.preventDefault();
+};
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -81,6 +105,15 @@ export const make_ui_container = () => {
   // instead of squeezing/overlapping the logo button pinned at the right
   // (see make_logo_button's flex-shrink:0).
   ui_container.style.overflowX = 'auto';
+
+  // Vertical wheel gestures over a control panel never scroll the page. A
+  // scrollable box inside the panel (bar plots, gene info) still scrolls while
+  // it has room in that direction; otherwise the gesture is absorbed.
+  // Horizontal gestures are left alone so the panel itself can still scroll
+  // sideways when it is wider than the page.
+  ui_container.addEventListener('wheel', block_page_scroll_in_panel, {
+    passive: false,
+  });
 
   return ui_container;
 };
@@ -123,40 +156,8 @@ export const make_slider_container = (class_name) => {
   return slider_container;
 };
 
-/**
- * Get a short display name for an axis entity.
- * Returns "Row" or "Col" if no entity is specified or if entity is "N.A.".
- */
-const get_axis_display_name = (viz_state, axis) => {
-  const entity_info =
-    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
-
-  // Default to "Row" or "Col" if no entity or if entity is "N.A."
-  const default_name = axis === 'row' ? 'Row' : 'Col';
-
-  if (entity_info && entity_info.entity) {
-    const { entity } = entity_info;
-
-    // If entity is "N.A." or empty, use default axis name
-    if (!entity || entity === 'N.A.' || entity === 'n.a.') {
-      return default_name;
-    }
-
-    // Use abbreviated entity name for known types
-    const abbrev = {
-      gene: 'Gene',
-      cell: 'Cell',
-      nbhd: 'Nbhd',
-      cluster: 'Clust',
-      hextile: 'Hex',
-      dataset: 'DSET',
-      cell_population: 'POP',
-    };
-    return abbrev[entity] || entity.substring(0, 4).toUpperCase();
-  }
-
-  return default_name;
-};
+const MATRIX_UI_FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**
  * Show/hide viz_mode-dependent control-panel chrome: the "TILE: PROP|UNIT"
@@ -185,93 +186,72 @@ export const update_mode_button_visibility = (viz_state) => {
 
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const ui_container = make_ui_container();
-  const ctrl_container = flex_container('button_container', 'column');
-  // Never shrink/wrap ui_container's direct children -- with the row now
-  // scrollable (see make_ui_container), squeezing these instead of
-  // scrolling would visually corrupt the fixed-size logo button.
-  ctrl_container.style.flexShrink = '0';
 
-  const slider_container = flex_container('slider_container', 'column');
-  slider_container.style.flexShrink = '0';
-
-  // Button width for reorder controls (compact sizing).
-  const button_width = 34;
-  // Fixed label width (both axis rows use it) so reorder buttons start at
-  // the same x position regardless of entity name length.
-  const axis_label_width = 44;
-
-  const axes = ['col', 'row'];
-
-  const inst_orders = ['clust', 'sum', 'var', 'ini'];
-
-  // Match the vertical rhythm of the Dendro slider pair (10px between the
-  // two sliders) between the two reorder-button rows.
-  const axis_row_margin_top = { col: '0px', row: '10px' };
-
-  axes.forEach((axis) => {
-    const inst_container = flex_container(axis, 'row');
-    inst_container.style.alignItems = 'center';
-    inst_container.style.marginTop = axis_row_margin_top[axis];
-
-    // Use entity name if available. Non-clickable: black, plain text, no pill.
-    const axis_label = get_axis_display_name(viz_state, axis);
-
-    d3.select(inst_container)
-      .append('div')
-      .text(`${axis_label}:`)
-      .style('flex', `0 0 ${axis_label_width}px`)
-      .style('white-space', 'nowrap')
-      .style('font-size', '9px')
-      .style('font-weight', 'bold')
-      .style('color', 'black')
-      .style('user-select', 'none')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
-
-    inst_orders.forEach((label) => {
-      const isClust = label === 'clust';
-      make_reorder_button(
-        inst_container,
-        label,
-        isClust,
-        button_width,
-        axis,
-        deck_mat,
-        layers_mat,
-        viz_state
-      );
-    });
-
-    ctrl_container.appendChild(inst_container);
+  // Left control block: a fixed-column grid (label | order/readout | slider)
+  // so optional rows -- DIM (only with precomputed views) and the body-mode
+  // toggles (only for dot plots / compositions) -- drop out without shifting
+  // the columns of the rows that remain.
+  const grid = document.createElement('div');
+  grid.className = 'matrix_controls';
+  Object.assign(grid.style, {
+    display: 'grid',
+    gridTemplateColumns: '28px 40px 80px',
+    columnGap: '6px',
+    rowGap: '5px',
+    alignItems: 'center',
+    alignContent: 'start',
+    margin: '3px 6px 0 6px',
+    flexShrink: '0',
   });
 
-  // -------------------------------------------------------------------------
-  // Rank: reduced-dimensionality views, sitting directly under the row reorder
-  // buttons. Each stop is a filter level precomputed and independently
-  // re-biclustered by `Matrix.clust(views=...)`, with the last stop being the
-  // full matrix -- the slider loads a level, it never computes one. The whole
-  // row is omitted for matrices exported without views.
-  // -------------------------------------------------------------------------
-  if (has_rank_views(viz_state)) {
-    const rank_container = flex_container('rank_container', 'row');
-    rank_container.style.alignItems = 'center';
-    rank_container.style.marginTop = '10px';
-
-    d3.select(rank_container)
+  const append_label = (text) =>
+    d3
+      .select(grid)
       .append('div')
-      .text('Dim:')
-      .style('flex', `0 0 ${axis_label_width}px`)
+      .text(text)
       .style('white-space', 'nowrap')
       .style('font-size', '9px')
       .style('font-weight', 'bold')
       .style('color', 'black')
       .style('user-select', 'none')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
+      .style('font-family', MATRIX_UI_FONT_FAMILY);
+
+  // ROW / COL rows: order dropdown + dendrogram slider per axis.
+  viz_state.dendro.sliders = {};
+  ['row', 'col'].forEach((axis) => {
+    append_label(axis === 'row' ? 'ROW:' : 'COL:');
+
+    make_reorder_dropdown(grid, axis, deck_mat, layers_mat, viz_state);
+
+    const slider = document.createElement('input');
+    viz_state.dendro.sliders[axis] = slider;
+    const ini_dendro_value = 50;
+    viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
+    ini_slider_params(slider, ini_dendro_value, (event) =>
+      update_dendro_from_slider(deck_mat, layers_mat, viz_state, axis, event)
+    );
+    slider.title = 'Dendrogram';
+    slider.style.width = '80px';
+    slider.style.margin = '0';
+    grid.appendChild(slider);
+  });
+
+  // Light gray rule between the ordering controls (top) and the view/action
+  // controls (bottom); present whether or not the DIM row is.
+  d3.select(grid)
+    .append('div')
+    .style('grid-column', '1 / -1')
+    .style('height', '1px')
+    .style('background', '#d3d3d3');
+
+  // -------------------------------------------------------------------------
+  // DIM: reduced-dimensionality views. Each stop is a filter level precomputed
+  // and independently re-biclustered by `Matrix.cluster(view=...)`, with the
+  // last stop being the full matrix -- the slider loads a level, it never
+  // computes one. The whole row is omitted for matrices exported without views.
+  // -------------------------------------------------------------------------
+  if (has_rank_views(viz_state)) {
+    append_label('DIM:');
 
     const stops = get_rank_view_stops(viz_state);
     const total_rows = viz_state.mat.num_rows;
@@ -280,22 +260,18 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const by_level = viz_state.rank_view?.by_level;
 
     const readout = d3
-      .select(rank_container)
+      .select(grid)
       .append('div')
-      .style('margin-left', '6px')
       .style('font-size', '9px')
       .style('white-space', 'nowrap')
       .style('color', '#47515b')
       .style('user-select', 'none')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
+      .style('font-family', MATRIX_UI_FONT_FAMILY);
 
-    // The ranking is named in the readout because it changes what a level
-    // *means*: RANK counts markers per cluster (10 = each cluster's top 10),
-    // while SUM/VAR/MEAN cap total rows outright. The resulting row count is a
-    // derived number for RANK, so it goes in the tooltip.
+    // The readout stays compact ("5/clust"); the ranking is named in the
+    // tooltip because it changes what a level *means*: RANK counts markers
+    // per cluster (5 = each cluster's top 5), while SUM/VAR/MEAN cap total
+    // rows outright.
     const RANKING_LABELS = {
       rank_genes_groups: 'RANK',
       var: 'VAR',
@@ -305,19 +281,17 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const ranking_label = RANKING_LABELS[view_type] || view_type.toUpperCase();
 
     const describe_stop = (stop) => {
-      if (stop == null) return `${ranking_label} all`;
-      return per_cluster
-        ? `${ranking_label} ${stop}/clust`
-        : `${ranking_label} ${stop}`;
+      if (stop == null) return 'all';
+      return per_cluster ? `${stop}/clust` : `${stop}`;
     };
 
     const describe_title = (stop) => {
-      if (stop == null) return `All ${total_rows} rows`;
+      if (stop == null) return `${ranking_label}: all ${total_rows} rows`;
       if (per_cluster) {
         const rows = by_level?.get(stop)?.n_rows;
-        return `Top ${stop} markers per cluster (rank_genes_groups) — ${rows} of ${total_rows} rows`;
+        return `${ranking_label}: top ${stop} markers per cluster (rank_genes_groups) — ${rows} of ${total_rows} rows`;
       }
-      return `Top ${stop} of ${total_rows} rows by ${view_type}`;
+      return `${ranking_label}: top ${stop} of ${total_rows} rows by ${view_type}`;
     };
 
     const update_readout = (stop) => {
@@ -343,6 +317,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
         apply_rank_view(deck_mat, layers_mat, viz_state, stop);
       },
     });
+    rank_slider.style.width = '80px';
+    rank_slider.style.margin = '0';
 
     update_readout(stops[ini_index] ?? null);
 
@@ -356,83 +332,69 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       update_readout(stop ?? null);
     };
 
-    rank_container.insertBefore(rank_slider, readout.node());
-    ctrl_container.appendChild(rank_container);
+    grid.appendChild(rank_slider);
   }
 
-  viz_state.dendro.sliders = {};
+  // ---------------------------------------------------------------------
+  // Actions row: CROP | UNDO, then the body-mode toggles -- PROP|UNIT
+  // (dotplot only) or PROP|COUNTS (composition only), shown/hidden per
+  // `viz_mode` (see `update_mode_button_visibility`).
+  // ---------------------------------------------------------------------
+  const action_container = flex_container('matrix_action_container', 'row');
+  action_container.style.gridColumn = '1 / -1';
+  action_container.style.alignItems = 'center';
+  action_container.style.gap = '16px';
+  // Sit a little closer to the DIM/COL row above.
+  action_container.style.marginTop = '-2px';
 
-  axes.forEach((axis) => {
-    const slider = document.createElement('input');
-    viz_state.dendro.sliders[axis] = slider;
+  const crop_container = flex_container('crop_container', 'row');
+  crop_container.style.alignItems = 'center';
 
-    const ini_dendro_value = 50;
-    viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
+  const action_text = (selection, text) =>
+    selection
+      .append('div')
+      .text(text)
+      .style('display', 'inline-flex')
+      .style('font-size', '9px')
+      .style('font-family', MATRIX_UI_FONT_FAMILY);
 
-    ini_slider_params(slider, ini_dendro_value, (event) =>
-      update_dendro_from_slider(deck_mat, layers_mat, viz_state, axis, event)
-    );
+  const crop_button = action_text(d3.select(crop_container), 'CROP').on(
+    'click',
+    () => {
+      viz_state.crop?.toggle();
+    }
+  );
+  // Same spacer as make_text_toggle_group's PROP | UNIT.
+  action_text(d3.select(crop_container), '|')
+    .style('margin', '0 3px')
+    .style('font-weight', 'bold')
+    .style('color', 'black')
+    .style('user-select', 'none');
+  const undo_button = action_text(d3.select(crop_container), 'UNDO').on(
+    'click',
+    () => {
+      viz_state.crop?.undo();
+    }
+  );
+
+  viz_state.crop?.set_controls({
+    set_active: (active) => {
+      apply_state_button_style(crop_button, active, viz_state);
+    },
+    set_crop_enabled: (enabled) => {
+      crop_button
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+    set_undo_enabled: (enabled) => {
+      apply_state_button_style(undo_button, enabled, viz_state)
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
   });
 
-  viz_state.dendro.sliders.col.style.marginTop = '3px';
-  viz_state.dendro.sliders.row.style.marginTop = '10px';
-
-  d3.select(slider_container)
-    .append('div')
-    .text('Dendro')
-    .style('width', '40px')
-    .style('height', '16px')
-    .style('display', 'inline-flex')
-    .style('align-items', 'center')
-    .style('justify-content', 'center')
-    .style('text-align', 'center')
-    .style('cursor', 'pointer')
-    .style('font-size', '10px')
-    .style('font-weight', 'bold')
-    .style('color', '#47515b')
-    .style('border', '2px solid')
-    .style('border-color', 'white')
-    .style('border-radius', '8px')
-    .style('margin-left', '10px')
-    .style('user-select', 'none')
-    .style(
-      'font-family',
-      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    );
-
-  slider_container.appendChild(viz_state.dendro.sliders.col);
-  slider_container.appendChild(viz_state.dendro.sliders.row);
-
-  // add top margin to ctrl_container and slider_container
-  ctrl_container.style.marginTop = '10px';
-  // Small gap so the entity-title label (e.g. "DSET:") isn't flush against
-  // the control panel's left border.
-  ctrl_container.style.marginLeft = '6px';
-  slider_container.style.marginTop = '0px';
-  slider_container.style.marginLeft = '5px';
-
-  ui_container.appendChild(ctrl_container);
-  ui_container.appendChild(slider_container);
-
-  // ---------------------------------------------------------------------
-  // Matrix actions: Crop/Undo stays above the body-mode toggles so the
-  // selection workflow is visually separate from tile encoding controls.
-  // ---------------------------------------------------------------------
-  const action_container = flex_container('matrix_action_container', 'column');
-  action_container.style.alignItems = 'flex-start';
-  action_container.style.marginTop = '4px';
-  action_container.style.marginLeft = '10px';
-  action_container.style.flexShrink = '0';
-
-  // Body-mode toggles: TILE: PROP|UNIT (dotplot only) and PROP|COUNTS
-  // (composition only). Shown/hidden per `viz_mode`
-  // (see `update_mode_button_visibility`).
   const mode_container = flex_container('mode_container', 'row');
-  // This sits below Crop/Undo in action_container.
-  mode_container.style.alignItems = 'flex-start';
-  mode_container.style.marginTop = '6px';
-  mode_container.style.marginLeft = '0px';
-  mode_container.style.flexShrink = '0';
+  mode_container.style.alignItems = 'center';
 
   // dot_size_encoded: true -> size encodes the fraction/dot matrix ("PROP"),
   // false -> forced to a full, unit-scaled tile ("UNIT").
@@ -458,7 +420,12 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       set_composition_normalized(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
-  normalized_toggle.container.style.marginLeft = '0px';
+  // Drop the toggle group's own offsets so PROP | UNIT shares CROP | UNDO's
+  // baseline.
+  [dot_toggle, normalized_toggle].forEach(({ container }) => {
+    container.style.marginLeft = '0px';
+    container.style.marginTop = '0px';
+  });
 
   viz_state.mode_buttons = {
     dot: dot_toggle,
@@ -466,65 +433,26 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   };
   update_mode_button_visibility(viz_state);
 
-  const crop_container = flex_container('crop_container', 'row');
-  crop_container.style.alignItems = 'flex-start';
-  crop_container.style.marginTop = '0px';
-  crop_container.style.marginLeft = '0px';
-  crop_container.style.flexShrink = '0';
-
-  const crop_button = d3
-    .select(crop_container)
-    .append('div')
-    .text('CROP')
-    .style('display', 'inline-flex')
-    .style('font-size', '9px')
-    .style(
-      'font-family',
-      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    )
-    .on('click', () => {
-      viz_state.crop?.toggle();
-    });
-
-  const undo_button = d3
-    .select(crop_container)
-    .append('div')
-    .text('UNDO')
-    .style('display', 'inline-flex')
-    .style('font-size', '9px')
-    .style('margin-left', '10px')
-    .style(
-      'font-family',
-      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    )
-    .on('click', () => {
-      viz_state.crop?.undo();
-    });
-
-  viz_state.crop?.set_controls({
-    set_active: (active) => {
-      apply_state_button_style(crop_button, active, viz_state);
-    },
-    set_crop_enabled: (enabled) => {
-      crop_button
-        .style('opacity', enabled ? 1 : 0.55)
-        .style('pointer-events', enabled ? 'auto' : 'none');
-    },
-    set_undo_enabled: (enabled) => {
-      apply_state_button_style(undo_button, enabled, viz_state)
-        .style('opacity', enabled ? 1 : 0.55)
-        .style('pointer-events', enabled ? 'auto' : 'none');
-    },
-  });
-
   action_container.appendChild(crop_container);
   action_container.appendChild(mode_container);
-  ui_container.appendChild(action_container);
+  grid.appendChild(action_container);
+  ui_container.appendChild(grid);
+
+  // ROW / COL category bars sit between the controls and the search column.
+  // They are built into a slot so they can still be added after manual
+  // categories load (see matrix_viz's bootstrap_manual_categories).
+  const cat_bars_slot = document.createElement('div');
+  cat_bars_slot.className = 'matrix_cat_bars_slot';
+  cat_bars_slot.style.flexShrink = '0';
+  viz_state.cat_bars_slot = cat_bars_slot;
+  ui_container.appendChild(cat_bars_slot);
+  init_matrix_cat_bars(viz_state, cat_bars_slot);
 
   // Search + gene info stack vertically in one column: ui_container is a flex
   // row, so appending them as siblings would widen the control panel instead.
   const search_container = flex_container('matrix_search_container', 'column');
   search_container.style.flexShrink = '0';
+  search_container.style.marginRight = '6px';
 
   const row_search = set_matrix_row_search(viz_state, (row_index) =>
     viz_state.focus_row?.(row_index)
@@ -540,7 +468,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     // control panel's fixed 100px height.
     const gene_info_box = make_gene_info_box({
       marginLeft: '10px',
-      height: '58px',
+      height: '68px',
+      width: '136px',
     });
     viz_state.gene_info_box = gene_info_box;
     search_container.appendChild(gene_info_box.element);
@@ -568,11 +497,8 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     );
   }
 
-  // Initialize category bar graphs (shown on dendro click)
-  init_matrix_cat_bars(viz_state, ui_container);
-
-  // === Add logo to top right === //
-  ui_container.appendChild(make_logo_button('clustergram'));
+  // The logo shares the search row, sized to the gene info box below it.
+  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '136px');
 
   return ui_container;
 };
@@ -1288,7 +1214,7 @@ export const make_ist_ui_container = (
     ctrl_container.appendChild(gene_container);
   }
 
-  viz_state.genes.gene_search.style.width = '160px';
+  viz_state.genes.gene_search.style.width = '141px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
   // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
@@ -1646,6 +1572,17 @@ export const make_ist_ui_container = (
     : is_orbit_technology(technology)
       ? 'cell-cloud'
       : 'landscape';
-  ui_container.appendChild(make_logo_button(logoDocsPath));
+  // The logo lives in the gene search row (sized to the description box
+  // below it) rather than taking its own column; without a gene search it
+  // falls back to the panel's top-right corner.
+  if (hasGenes && viz_state.genes.gene_search_input?.parentNode) {
+    embed_logo_in_search(
+      viz_state.genes.gene_search_input,
+      logoDocsPath,
+      '141px'
+    );
+  } else {
+    ui_container.appendChild(make_logo_button(logoDocsPath));
+  }
   return ui_container;
 };

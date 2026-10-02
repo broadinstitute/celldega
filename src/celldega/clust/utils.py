@@ -117,9 +117,8 @@ def compute_marker_ranks(
 ) -> pd.DataFrame | None:
     """Run ``scanpy.tl.rank_genes_groups`` and return tidy, rank-annotated results.
 
-    Shared by ``Matrix.downsample_to``/``set_marker_ranks`` and
-    ``SetCollection.calc_signature`` so marker rankings mean the same thing
-    regardless of which one produced them.
+    Used by ``SetCollection.calc_signature`` so marker ranking happens against
+    cell-level data before the signature is aggregated.
 
     Cost is dominated by scanpy: the default ``"wilcoxon"`` test runs at roughly
     30 ms per gene on 200k cells (``"t-test"`` is about 3x faster), scaling

@@ -306,6 +306,9 @@ export const set_mat_constants = (
       typeof model.get === 'function' &&
       model.get('top_gene_percent')) ||
     10;
+  const top_gene_min_value = model?.get?.('top_gene_min_value');
+  viz_state.top_gene_min_value =
+    top_gene_min_value == null ? null : Number(top_gene_min_value);
 
   return viz_state;
 };

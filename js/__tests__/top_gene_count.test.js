@@ -9,6 +9,7 @@ const path = require('path');
 
 describe('resolve_top_gene_count', () => {
   let resolve_top_gene_count;
+  let top_gene_names_for_column;
 
   beforeAll(() => {
     const source = fs
@@ -39,8 +40,23 @@ describe('resolve_top_gene_count', () => {
       const get_axis_display_count = (viz_state) => viz_state.visible_rows;
       const get_axis_label_font_size = () => 10;
       const get_zoomed_axis_label_font_size = () => 10;
-      const is_axis_index_visible = () => true;
-      const buildColAxisSlice = () => null;
+      const is_axis_index_visible = (viz_state, _axis, index) =>
+        !viz_state.hidden_rows?.has(index);
+      const buildColAxisSlice = (viz_state, col_index, max_entries, filter) => ({
+        entries: viz_state.mat.net_mat
+          .map((row, row_index) => ({
+            counterpart_name: viz_state.row_nodes[row_index].name,
+            row_index,
+            value: Number(row[col_index]),
+          }))
+          .filter((entry) =>
+            Number.isFinite(entry.value) &&
+            entry.value !== 0 &&
+            (!filter || filter(entry.row_index))
+          )
+          .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+          .slice(0, max_entries),
+      });
       const emitMatrixSliceRequest = () => {};
       const deselect_reorder_buttons = () => {};
       const apply_composition_hover_col = () => {};
@@ -65,9 +81,9 @@ describe('resolve_top_gene_count', () => {
     const module = { exports: {} };
     new Function(
       'module',
-      `${shims}\n${source}\nmodule.exports = { resolve_top_gene_count };`
+      `${shims}\n${source}\nmodule.exports = { resolve_top_gene_count, top_gene_names_for_column };`
     )(module);
-    ({ resolve_top_gene_count } = module.exports);
+    ({ resolve_top_gene_count, top_gene_names_for_column } = module.exports);
   });
 
   const count = (visible_rows, overrides = {}) =>
@@ -106,5 +122,37 @@ describe('resolve_top_gene_count', () => {
     expect(count(450, { top_n_genes: null, top_gene_percent: undefined })).toBe(
       45
     );
+  });
+
+  test('column genes must be above the minimum value', () => {
+    const viz_state = {
+      visible_rows: 4,
+      top_n_genes: 50,
+      top_gene_percent: 100,
+      top_gene_min_value: 0,
+      mat: { net_mat: [[1], [-0.1], [0.5], [2]] },
+      row_nodes: [
+        { name: 'g0' },
+        { name: 'g1' },
+        { name: 'g2' },
+        { name: 'g3' },
+      ],
+    };
+
+    expect(top_gene_names_for_column(viz_state, 0)).toEqual(['g3', 'g0', 'g2']);
+  });
+
+  test('a null minimum value disables the filter', () => {
+    const viz_state = {
+      visible_rows: 3,
+      top_n_genes: 50,
+      top_gene_percent: 100,
+      top_gene_min_value: null,
+      mat: { net_mat: [[1], [-2], [0.5]] },
+      row_nodes: [{ name: 'g0' }, { name: 'g1' }, { name: 'g2' }],
+    };
+
+    // Unfiltered, the slice ranks by magnitude, so the negative gene leads.
+    expect(top_gene_names_for_column(viz_state, 0)).toEqual(['g1', 'g0', 'g2']);
   });
 });

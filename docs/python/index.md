@@ -25,7 +25,10 @@ precursor to interactive clustergram visualization. It supports:
 import celldega as dega
 
 # Create and cluster a matrix
-mat = dega.clust.Matrix(adata, filter_genes=5000)
+mat = dega.clust.Matrix(adata)
+mat.filter("row", by="var", num=5000)
+mat.norm("col", by="total")
+mat.norm("row", by="zscore")
 mat.cluster()
 
 # Export for visualization

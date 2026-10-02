@@ -4,6 +4,123 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.26.0]
+
+### Breaking
+
+- `Matrix` construction now always preserves supplied values. The bundled
+  `process()` pipeline and the `filter_genes`, `norm_col`, `norm_row`, and
+  `disable_processing` constructor arguments are removed (passing them raises
+  `TypeError`); transform explicitly with `filter()` and `norm()` before
+  clustering.
+- Marker rankings are calculated and persisted only by `SetCollection`; `Matrix`
+  consumes rankings attached to its input. `Matrix.marker_ranks`,
+  `Matrix.set_marker_ranks()`, and the `rank_genes_groups` /
+  `rank_genes_groups_kwargs` arguments of `Matrix.downsample_to()` are removed.
+- `Matrix.cluster()` now returns the `Matrix` itself (for chaining) instead of
+  the documented visualization dict; read `mat.viz` if you need that structure.
+- `SetCollection.calc_signature(rank_genes_groups=True)` no longer lets Scanpy
+  silently rank `adata.raw` when it exists: it ranks the aggregated `layer`, or
+  `adata.X`, with `use_raw=False`. Marker results change for AnnData objects
+  carrying `.raw`; pass `rank_genes_groups_kwargs={"use_raw": True}` to keep the
+  old behavior. By default (`rank_genes_groups_layer=None`) a raw-count source
+  is log-normalized on the fly (`log1p(normalize_total(counts))`, as Scanpy
+  recommends) before ranking; an already-normalized source is ranked as-is.
+- Clustergram/Enrich linking is now entirely browser-side (`jslink`), so live
+  and static (documentation) notebooks behave identically. The Python observers
+  that mirrored selections into `Enrich.gene_list` are gone; a kernel-side
+  change to `Clustergram.selected_genes` no longer updates Enrich.
+- The unimplemented `SetCollection.to_nbhd()` stub (it only raised
+  `NotImplementedError`) is removed; geometry graduation remains planned.
+
+### Added
+
+- `SetCollection.calc_signature` can store fraction expressing as a layer on the
+  expression signature via `fraction_expressing_layer`, and can rank a different
+  expression source via `rank_genes_groups_layer` (including normalized `X`).
+- `calc_signature` prints the expression source used for aggregation, fraction
+  expressing, and marker ranking (`verbose=False` silences it), and warns when
+  the aggregated source has non-integer values, i.e. does not look like raw
+  counts. It also warns when `rank_genes_groups_layer` is passed without
+  `rank_genes_groups=True`.
+- `Matrix(..., size_by_layer=...)` can use a layer on the color modality as its
+  dot-size channel.
+- `calc_signature(rank_genes_groups=True)` also stores each feature's
+  best-scoring set in `var[f"{set_col}_marker"]` (e.g. `leiden_marker`), a
+  gene-level grouping derived from the cell clustering. Select it with
+  `Matrix(..., row_attr=["leiden_marker"])`, alongside `col_attr=["leiden"]`, to
+  color rows and columns with the shared per-set palette.
+- Clustergram column-label clicks send Enrich only genes above
+  `Clustergram.top_gene_min_value` (default `0`, i.e. enriched in that column
+  after row z-scoring; `None` disables).
+- Clustergram category bars (ROW/COL) have a source dropdown listing every
+  categorical attribute passed via `col_attr`/`row_attr`, plus the manual
+  category once it exists; blue marks a clickable picker.
+- Hovering a Clustergram category (tile or control-panel bar) now also outlines
+  the matching tiles and bar in dark gray, so light colors still read.
+- Docs: new Atera breast cancer and Visium HD human colorectal cancer
+  Landscape + Clustergram + Enrich tutorials (SetCollection signatures, marker
+  views, cluster/marker coloring, interactive annotation). The notebook sidebar
+  toggle has a sidebar icon that reflects its direction, and is also available
+  on gallery example pages.
+
+### Changed
+
+- `Matrix.cluster(view=...)` is now the canonical clustering entry point;
+  `clust()` and `views=` remain deprecated compatibility aliases.
+- The secondary quantitative channel is now named `size_matrix` and configured
+  with `set_size_matrix()` / `size_by_layer`. `dot_mat`, `set_dot_matrix()`, and
+  `dot_plot` remain deprecated compatibility aliases.
+- `Matrix.cut_tree()` replaces `Matrix.to_cluster()` (kept as a deprecated
+  alias) and requires exactly one of `n_clusters` or `threshold`.
+- `spatial_clustergram(width=...)` now sizes only the spatial widget. The
+  Clustergram panel fits the Clustergram's canvas (`width` + ~100px for
+  labels), widened to at least 550px so its control bar (including gene search)
+  is never clipped.
+- Clustergram control panel redesign: a compact ROW / COL grid with an order
+  dropdown (CLUST, SUM, VAR, INI; shows CUSTOM after a label reorder) and the
+  dendrogram slider on each axis row, then DIM (precomputed views only),
+  CROP | UNDO and PROP | UNIT. Axes are labeled ROW/COL rather than by entity
+  name. Optional rows drop out without shifting the layout.
+- The Celldega logo now sits inside the gene search bar (Clustergram,
+  Landscape, CellCloud, NeighborhoodCloud), freeing control-panel width; gene
+  info boxes are narrower.
+- Changing the DIM (rank view) level keeps each axis's order (SUM, VAR, INI,
+  attribute and label reorders) instead of resetting to CLUST. A column order
+  keyed on a gene falls back to CLUST only if that gene leaves the view.
+- Clustergram category bars match the Landscape's bar plots (12px headers,
+  15px bars, 13px labels).
+- Enrich: the "View full results on Enrichr" link is blue, and the logo has a
+  little space from the library dropdown.
+- The manual-category dialog closes when you click elsewhere in the
+  Clustergram.
+- Clustergram tooltips appear after a 0.1 s dwell, and control-panel category
+  bar hovers apply after 150 ms (with a short clear delay) to stop flicker.
+
+### Fixed
+
+- `Matrix.write_dega_files()` raised `AttributeError` when called without
+  `name=`; it now falls back to the matrix's name (or data hash).
+- `SetCollection.read()` from `.h5mu` now restores `set_col`, `name`,
+  `element_type`, and `source`.
+- A Clustergram with both static and manual categories failed to render
+  ("error in render function"): the manual-category bar breakdown called
+  methods the manual-category store does not have.
+- Manual categories now appear in the category bars immediately (with their
+  chosen colors) and survive switching the bar's source.
+- The manual-category editor keeps one color for a new category while you type
+  its name, instead of allocating a new color on every keystroke.
+- `calc_signature(layer=..., rank_genes_groups_kwargs={"use_raw": True})`
+  raised instead of ranking `adata.raw`; an explicit `use_raw=True` no longer
+  inherits the aggregation layer (explicit marker layers with `use_raw=True`
+  are still rejected, and a missing `adata.raw` now raises a clear error).
+- Automatic log-normalized marker ranking kept no feature metadata, so options
+  such as `mask_var="highly_variable"` failed; `adata.var` is now preserved.
+- Mouse-wheel gestures over the Clustergram (including the empty corner left of
+  the column labels) and over any widget control panel (Landscape, Clustergram,
+  CellCloud, NeighborhoodCloud) no longer scroll the page; scrollable boxes in
+  the panels (bar plots, gene info) still scroll.
+
 ## [0.25.1]
 
 ### Performance

@@ -40,7 +40,10 @@ until the crop is undone.
 ```python
 import celldega as dega
 
-mat = dega.clust.Matrix(adata, filter_genes=5000)
+mat = dega.clust.Matrix(adata)
+mat.filter("row", by="var", num=5000)
+mat.norm("col", by="total")
+mat.norm("row", by="zscore")
 mat.cluster()
 
 cgm = dega.viz.Clustergram(matrix=mat)

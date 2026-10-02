@@ -314,6 +314,9 @@ class Landscape(CelldegaWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
+    # Browser-linked gene focus (e.g. a click in Enrich). The front end turns
+    # this into the same gene-selection action as a Clustergram row click.
+    focused_gene = traitlets.Unicode("").tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
     # AnnData obs columns (cell attributes)
     cell_attr = traitlets.List(
@@ -1263,6 +1266,13 @@ class Clustergram(CelldegaWidget):
 
     # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    # Gene set intended for enrichment. Unlike selected_genes, a single row
+    # label click does not overwrite this value. Keeping the two concerns
+    # separate makes browser-only widget links match live Python behavior.
+    enrichment_genes = traitlets.List(default_value=[]).tag(sync=True)
+    enrichment_source_label = traitlets.Unicode("").tag(sync=True)
+    row_enrich_enabled = traitlets.Bool(True).tag(sync=True)
+    col_enrich_enabled = traitlets.Bool(False).tag(sync=True)
     # A gene selected in Enrich. The Clustergram front-end centers its matching
     # row without replacing the current enrichment gene set.
     focused_gene = traitlets.Unicode("").tag(sync=True)
@@ -1282,9 +1292,14 @@ class Clustergram(CelldegaWidget):
     #: floor of 5 genes applies so very narrow views still say something.
     top_gene_percent = traitlets.Float(10.0).tag(sync=True)
 
+    #: Column-click marker candidates must be strictly above this matrix value.
+    #: ``0`` is a natural default after row z-scoring: only genes enriched in
+    #: the clicked column are sent to Enrich. Set to ``None`` to disable.
+    top_gene_min_value = traitlets.Float(0.0, allow_none=True).tag(sync=True)
+
     #: Active dimensionality view: the number of rows kept by the RANK slider.
     #: ``0`` (default) means the full matrix. Set to one of the levels
-    #: precomputed by ``Matrix.clust(views=...)`` to open already reduced; the
+    #: precomputed by ``Matrix.cluster(view=...)`` to open already reduced; the
     #: front end snaps to the nearest available level and writes the applied
     #: value back. Has no effect when the matrix carries no views.
     rank_dim = traitlets.Int(0).tag(sync=True)
@@ -1504,7 +1519,7 @@ class Clustergram(CelldegaWidget):
     ) -> pd.Series:
         """Cut the dendrogram into flat cluster labels via the underlying Matrix.
 
-        Thin wrapper over :meth:`celldega.clust.Matrix.to_cluster`. When neither
+        Thin wrapper over :meth:`celldega.clust.Matrix.cut_tree`. When neither
         ``n_clusters`` nor ``threshold`` is passed, the cut is read from the
         front-end dendrogram slider state in ``dendro_cut[axis]`` — a dict of
         ``{"n_clusters": int}`` or ``{"threshold": float}`` that the JS widget
@@ -1535,7 +1550,7 @@ class Clustergram(CelldegaWidget):
                     f"no cut for axis '{axis}': move the dendrogram slider or pass "
                     "n_clusters / threshold explicitly"
                 )
-        return self._matrix.to_cluster(
+        return self._matrix.cut_tree(
             axis=axis, n_clusters=n_clusters, threshold=threshold, criterion=criterion
         )
 
@@ -1840,11 +1855,10 @@ class Composition(Clustergram):
             row_entity={"entity": "cell_population", "attr": "name"},
             col_entity={"entity": "dataset", "attr": "name"},
             global_colors=merged_colors or None,
-            disable_processing=True,
             name=name,
         )
         if cluster:
-            mat.clust()
+            mat.cluster()
         else:
             # Build viz nodes/ranks without hierarchical clustering so export works.
             mat.make_viz()

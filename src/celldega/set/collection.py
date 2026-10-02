@@ -68,10 +68,14 @@ def _log_normalized(adata: AnnData, matrix: Any, groupby: str) -> AnnData:
     """Scanpy's recommended marker-ranking input: ``log1p(normalize_total(counts))``."""
     import scanpy as sc
 
+    # Keep feature metadata so forwarded Scanpy options that name var columns
+    # (e.g. ``mask_var="highly_variable"``) still resolve.
+    var = adata.var.copy()
+    var.index = adata.var_names.copy()
     normalized = AnnData(
         X=matrix.astype(np.float32, copy=True),
         obs=adata.obs[[groupby]].copy(),
-        var=pd.DataFrame(index=adata.var_names.copy()),
+        var=var,
     )
     sc.pp.normalize_total(normalized)
     sc.pp.log1p(normalized)
@@ -548,7 +552,10 @@ class SetCollection(CelldegaCollection):
         if rank_genes_groups:
             marker_kwargs = dict(rank_genes_groups_kwargs or {})
             kwargs_has_layer = "layer" in marker_kwargs
-            marker_layer = marker_kwargs.get("layer", layer)
+            use_raw = marker_kwargs.get("use_raw") is True
+            # An explicit use_raw=True asks for adata.raw, so the signature's
+            # aggregation layer is not inherited in that case.
+            marker_layer = marker_kwargs.get("layer", None if use_raw else layer)
             if rank_genes_groups_layer is not None:
                 requested_marker_layer = (
                     None if rank_genes_groups_layer == "X" else rank_genes_groups_layer
@@ -578,6 +585,8 @@ class SetCollection(CelldegaCollection):
                 # Explicitly select X instead of allowing Scanpy to silently prefer
                 # adata.raw when it exists.
                 marker_kwargs.setdefault("use_raw", False)
+                if use_raw and adata.raw is None:
+                    raise ValueError("rank_genes_groups_kwargs use_raw=True but adata.raw is None")
 
             member_adata = adata[adata_cells.get_indexer(common), :]
             if marker_kwargs.get("use_raw"):

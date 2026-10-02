@@ -61,6 +61,30 @@ import {
   make_text_toggle_group,
 } from './text_buttons';
 
+const can_scroll_vertically = (element, delta_y) => {
+  const { overflowY } = window.getComputedStyle(element);
+  if (overflowY !== 'auto' && overflowY !== 'scroll') return false;
+  if (element.scrollHeight <= element.clientHeight) return false;
+  return delta_y < 0
+    ? element.scrollTop > 0
+    : element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+};
+
+export const block_page_scroll_in_panel = (event) => {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const panel = event.currentTarget;
+  for (
+    let node = event.target;
+    node && node !== panel;
+    node = node.parentElement
+  ) {
+    if (node instanceof Element && can_scroll_vertically(node, event.deltaY)) {
+      return;
+    }
+  }
+  event.preventDefault();
+};
+
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
   ui_container.style.display = 'flex';
@@ -81,6 +105,15 @@ export const make_ui_container = () => {
   // instead of squeezing/overlapping the logo button pinned at the right
   // (see make_logo_button's flex-shrink:0).
   ui_container.style.overflowX = 'auto';
+
+  // Vertical wheel gestures over a control panel never scroll the page. A
+  // scrollable box inside the panel (bar plots, gene info) still scrolls while
+  // it has room in that direction; otherwise the gesture is absorbed.
+  // Horizontal gestures are left alone so the panel itself can still scroll
+  // sideways when it is wider than the page.
+  ui_container.addEventListener('wheel', block_page_scroll_in_panel, {
+    passive: false,
+  });
 
   return ui_container;
 };

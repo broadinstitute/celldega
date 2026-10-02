@@ -469,3 +469,95 @@ def test_calc_signature_assigns_each_gene_its_best_scoring_set(tmp_path):
     )
     assert "leiden" in mat.col_cats
     assert "leiden_marker" in mat.row_cats
+
+
+def test_calc_signature_use_raw_ranks_adata_raw_while_aggregating_a_layer(monkeypatch, capsys):
+    adata = _adata()
+    adata.layers["counts"] = adata.X.copy()
+    adata.raw = AnnData(X=np.log1p(adata.X), obs=adata.obs, var=adata.var)
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    captured = {}
+
+    def capture_marker_ranks(ranked_adata, groupby, kwargs):
+        captured.update(adata=ranked_adata, kwargs=kwargs)
+
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", capture_marker_ranks)
+
+    clust.calc_signature(
+        adata,
+        modality_name="expression",
+        layer="counts",
+        rank_genes_groups=True,
+        rank_genes_groups_kwargs={"use_raw": True},
+    )
+
+    # The aggregation layer is not inherited: ranking reads adata.raw.
+    assert captured["kwargs"] == {"use_raw": True}
+    assert captured["adata"].raw is not None
+    assert "uns['rank_genes_groups']: wilcoxon on adata.raw" in capsys.readouterr().out
+
+
+def test_calc_signature_rejects_explicit_layers_combined_with_use_raw():
+    adata = _adata()
+    adata.layers["counts"] = adata.X.copy()
+    adata.raw = AnnData(X=np.log1p(adata.X), obs=adata.obs, var=adata.var)
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    common = {"modality_name": "expression", "layer": "counts", "rank_genes_groups": True}
+
+    with pytest.raises(ValueError, match="cannot combine a layer with use_raw=True"):
+        clust.calc_signature(
+            adata,
+            **common,
+            rank_genes_groups_kwargs={"layer": "counts", "use_raw": True},
+            verbose=False,
+        )
+    with pytest.raises(ValueError, match="cannot combine a layer with use_raw=True"):
+        clust.calc_signature(
+            adata,
+            **common,
+            rank_genes_groups_layer="counts",
+            rank_genes_groups_kwargs={"use_raw": True},
+            verbose=False,
+        )
+
+
+def test_calc_signature_use_raw_requires_adata_raw():
+    adata = _adata()
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    with pytest.raises(ValueError, match=r"adata\.raw is None"):
+        clust.calc_signature(
+            adata,
+            modality_name="expression",
+            rank_genes_groups=True,
+            rank_genes_groups_kwargs={"use_raw": True},
+            verbose=False,
+        )
+
+
+def test_calc_signature_log_normalized_ranking_keeps_var_metadata(monkeypatch):
+    pytest.importorskip("scanpy")
+    adata = _adata(g=3)
+    adata.var["highly_variable"] = [True, False, True]
+    clust = SetCollection(adata, set_col="leiden", name="leiden")
+    captured = {}
+
+    def capture_marker_ranks(ranked_adata, groupby, kwargs):
+        captured.update(adata=ranked_adata, kwargs=kwargs)
+
+    monkeypatch.setattr("celldega.set.collection.compute_marker_ranks", capture_marker_ranks)
+
+    clust.calc_signature(
+        adata,
+        modality_name="expression",
+        rank_genes_groups=True,
+        rank_genes_groups_kwargs={"mask_var": "highly_variable"},
+        verbose=False,
+    )
+
+    ranked = captured["adata"]
+    # Raw counts were log-normalized before ranking...
+    assert not np.allclose(ranked.X, adata.X)
+    # ...and the mask column survived, aligned to the features.
+    assert list(ranked.var_names) == list(adata.var_names)
+    assert list(ranked.var["highly_variable"]) == [True, False, True]
+    assert captured["kwargs"]["mask_var"] == "highly_variable"

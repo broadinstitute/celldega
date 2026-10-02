@@ -218,11 +218,22 @@ export const initialize_attribute_editor = (
   cancel_button.addEventListener('click', close);
   close_button.addEventListener('click', close);
 
+  const on_outside_pointerdown = (event) => {
+    if (container.style.display === 'none') return;
+    if (container.contains(event.target)) return;
+    close();
+  };
+
   viz_state.attr.editor = {
     open,
     close,
     destroy: () => {
       close();
+      viz_state.el?.removeEventListener(
+        'pointerdown',
+        on_outside_pointerdown,
+        true
+      );
       container.remove();
     },
   };
@@ -231,4 +242,10 @@ export const initialize_attribute_editor = (
     const axis = context?.axis || 'row';
     ensure_color_for_value(value_input.value, axis);
   });
+
+  // Clicking anywhere else in the Clustergram means the user isn't defining a
+  // category, so dismiss the dialog. Pointer-down runs before the click that
+  // may open a fresh dialog (e.g. on another dendrogram cluster), so that
+  // click still opens normally.
+  viz_state.el?.addEventListener('pointerdown', on_outside_pointerdown, true);
 };

@@ -58,9 +58,11 @@ All notable changes to Celldega are documented here. This project follows
   category once it exists; blue marks a clickable picker.
 - Hovering a Clustergram category (tile or control-panel bar) now also outlines
   the matching tiles and bar in dark gray, so light colors still read.
-- Docs: new Atera breast cancer Landscape + Clustergram + Enrich tutorial; the
-  notebook sidebar toggle has a sidebar icon that reflects its direction, and
-  is also available on gallery example pages.
+- Docs: new Atera breast cancer and Visium HD human colorectal cancer
+  Landscape + Clustergram + Enrich tutorials (SetCollection signatures, marker
+  views, cluster/marker coloring, interactive annotation). The notebook sidebar
+  toggle has a sidebar icon that reflects its direction, and is also available
+  on gallery example pages.
 
 ### Changed
 
@@ -83,6 +85,15 @@ All notable changes to Celldega are documented here. This project follows
 - The Celldega logo now sits inside the gene search bar (Clustergram,
   Landscape, CellCloud, NeighborhoodCloud), freeing control-panel width; gene
   info boxes are narrower.
+- Changing the DIM (rank view) level keeps each axis's order (SUM, VAR, INI,
+  attribute and label reorders) instead of resetting to CLUST. A column order
+  keyed on a gene falls back to CLUST only if that gene leaves the view.
+- Clustergram category bars match the Landscape's bar plots (12px headers,
+  15px bars, 13px labels).
+- Enrich: the "View full results on Enrichr" link is blue, and the logo has a
+  little space from the library dropdown.
+- The manual-category dialog closes when you click elsewhere in the
+  Clustergram.
 - Clustergram tooltips appear after a 0.1 s dwell, and control-panel category
   bar hovers apply after 150 ms (with a short clear delay) to stop flicker.
 
@@ -99,8 +110,16 @@ All notable changes to Celldega are documented here. This project follows
   chosen colors) and survive switching the bar's source.
 - The manual-category editor keeps one color for a new category while you type
   its name, instead of allocating a new color on every keystroke.
+- `calc_signature(layer=..., rank_genes_groups_kwargs={"use_raw": True})`
+  raised instead of ranking `adata.raw`; an explicit `use_raw=True` no longer
+  inherits the aggregation layer (explicit marker layers with `use_raw=True`
+  are still rejected, and a missing `adata.raw` now raises a clear error).
+- Automatic log-normalized marker ranking kept no feature metadata, so options
+  such as `mask_var="highly_variable"` failed; `adata.var` is now preserved.
 - Mouse-wheel gestures over the Clustergram (including the empty corner left of
-  the column labels) no longer scroll the page.
+  the column labels) and over any widget control panel (Landscape, Clustergram,
+  CellCloud, NeighborhoodCloud) no longer scroll the page; scrollable boxes in
+  the panels (bar plots, gene info) still scroll.
 
 ## [0.25.1]
 

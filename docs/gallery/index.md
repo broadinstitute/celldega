@@ -2,14 +2,6 @@
 
 This gallery collects project web presentations and visualizations made with the stand-alone [Celldega JavaScript library](../javascript/index.md).
 
-## Web Presentations
-
-<div class="grid cards" markdown>
-
-- [Broad Retreat 2024: Data Visualization Breakout Session ![](../assets/img/Celldega_Broad-Retreat-2024.png)](https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/)
-
-</div>
-
 ## Imaging Spatial Transcriptomics
 
 ### Xenium
@@ -44,5 +36,13 @@ This gallery collects project web presentations and visualizations made with the
 <div class="grid cards" markdown>
 
 - [Visium HD Cell Segmentation Mouse Brain ![](../assets/img/visium_hd_cell_segmentation_mouse_brain.png){ width="300" }](gallery_visium_hd_cell_segmentation_mouse_brain.md)
+
+</div>
+
+## Web Presentations
+
+<div class="grid cards" markdown>
+
+- [Broad Retreat 2024: Data Visualization Breakout Session ![](../assets/img/Celldega_Broad-Retreat-2024.png)](https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/)
 
 </div>

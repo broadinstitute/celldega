@@ -162,7 +162,11 @@ export const render_enrich = async ({ model, el }) => {
   header_row.style.justifyContent = 'space-between';
 
   header_row.appendChild(select);
-  header_row.appendChild(make_logo_button('enrich'));
+  const enrich_logo = make_logo_button('enrich');
+  // A little breathing room between the dropdown (which shrinks to fit) and
+  // the logo.
+  enrich_logo.style.marginLeft = '6px';
+  header_row.appendChild(enrich_logo);
 
   container.appendChild(header_row);
   container.appendChild(layout);
@@ -269,7 +273,8 @@ export const render_enrich = async ({ model, el }) => {
   linkHolder.style.display = 'block';
   linkHolder.style.flex = '0 0 auto';
   linkHolder.style.marginTop = '5px';
-  linkHolder.style.color = '#47515b';
+  // Blue so it reads as a link.
+  linkHolder.style.color = '#2f74ff';
   linkHolder.target = '_blank';
   linkHolder.textContent = '';
 

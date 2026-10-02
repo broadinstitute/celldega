@@ -43,7 +43,9 @@ const make_axis_cat_bar = (axis, entity_name, _on_click) => {
   const title = document.createElement('div');
   title.className = `cat-bar-title-${axis}`;
   title.textContent = entity_name || axis.toUpperCase();
-  title.style.fontSize = '10px';
+  // Sizes match the Landscape's bar plots (12px headers, 15px bars, 13px
+  // text); the bars stay narrower to fit the Clustergram control panel.
+  title.style.fontSize = '12px';
   title.style.fontWeight = 'bold';
   title.style.marginBottom = '2px';
   title.style.whiteSpace = 'nowrap';
@@ -76,7 +78,7 @@ const make_axis_cat_bar = (axis, entity_name, _on_click) => {
     .create('svg')
     .attr('width', 90)
     .attr('font-family', 'sans-serif')
-    .attr('font-size', '11')
+    .attr('font-size', '13')
     .attr('text-anchor', 'end')
     .style('user-select', 'none');
 
@@ -96,7 +98,7 @@ const update_cat_bar_graph = (
   on_hover,
   on_hover_out
 ) => {
-  const bar_height = 14;
+  const bar_height = 15;
   const max_bar_width = 85;
   const svg_height = bar_height * (breakdown_data.length + 1);
 
@@ -538,7 +540,7 @@ const build_bar_title = (viz_state, axis) => {
     flex: '0 1 auto',
     textOverflow: 'ellipsis',
     fontFamily: BAR_FONT_FAMILY,
-    fontSize: '10px',
+    fontSize: '12px',
     fontWeight: 'bold',
     color: viz_state.buttons?.text_active || '#2f74ff',
     cursor: 'pointer',

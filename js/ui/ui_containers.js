@@ -42,6 +42,7 @@ import { make_dataset_dropdown } from './dataset_dropdown';
 import { update_dendro_from_slider } from './dendro_slider';
 import { is_gene_axis, make_gene_info_box } from './gene_info';
 import { set_gene_search, set_matrix_row_search } from './gene_search';
+import { make_image_source_control } from './image_source';
 import { embed_logo_in_search, make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
@@ -767,6 +768,12 @@ export const make_ist_ui_container = (
     });
 
     viz_state.containers.image.appendChild(img_layers_container);
+    make_image_source_control(
+      viz_state,
+      layers_obj,
+      viz_state.containers.image,
+      img_layers_container
+    );
   }
 
   // neighborhood-cloud repurposes this slot: "NBHD" (shapes show/hide)

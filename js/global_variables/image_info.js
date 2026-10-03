@@ -42,6 +42,24 @@ export const get_primary_image_name = (landscape_parameters = {}) => {
 
 export const set_image_info = (img, info) => {
   img.image_info = Array.isArray(info) ? info : [];
+  img.image_source = 'primary';
+};
+
+export const get_aligned_he = (img) => {
+  const he = img.landscape_parameters?.aligned_he;
+  return he && typeof he.name === 'string' && he.name.length > 0 ? he : null;
+};
+
+export const is_rgb_image = (info) =>
+  info.image_source === 'he' || ['h_and_e', 'h&e'].includes(info.name);
+
+export const get_image_sources = (img) => {
+  const primary = img.image_info.map((info) => ({
+    ...info,
+    image_source: 'primary',
+  }));
+  const he = get_aligned_he(img);
+  return he ? [...primary, { ...he, image_source: 'he' }] : primary;
 };
 
 export const set_image_layer_colors = (image_layer_colors, image_info = []) => {

@@ -1,14 +1,16 @@
 import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
+import {
+  get_image_sources,
+  is_rgb_image,
+} from '../../global_variables/image_info';
 import { getModelMatrixProps } from '../../utils/rotation';
 import {
   create_get_tile_data,
   create_render_tile_sublayers,
   create_simple_render_tile_sublayers,
 } from '../utils/tiles';
-
-import { make_simple_image_layer } from './simple_image_layer';
 
 /**
  * Create a getTileData function that uses the parquet row group reader
@@ -67,7 +69,7 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
     getTileData = create_get_tile_data(
       viz_state.global_base_url,
       info.name,
-      viz_state.img.image_format,
+      info.image_format || viz_state.img.image_format,
       max_pyramid_zoom,
       options,
       viz_state.aws
@@ -76,6 +78,10 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
 
   const image_layer = new TileLayer({
     id: layerId,
+    imageSource: info.image_source,
+    imageButtonName: info.button_name,
+    isRgbImage: is_rgb_image(info),
+    visible: info.image_source === (viz_state.img.image_source || 'primary'),
     tileSize: viz_state.dimensions.tileSize,
     refinementStrategy: 'no-overlap',
     minZoom: -7,
@@ -84,34 +90,19 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
     maxRequests: 6, // Limit concurrent tile requests
     extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
     getTileData,
-    renderSubLayers: create_render_tile_sublayers(
-      viz_state.dimensions,
-      info.color,
-      opacity
-    ),
+    renderSubLayers: is_rgb_image(info)
+      ? create_simple_render_tile_sublayers(viz_state.dimensions)
+      : create_render_tile_sublayers(viz_state.dimensions, info.color, opacity),
     ...getModelMatrixProps(viz_state.rotation),
   });
   return image_layer;
 };
 
 export const make_image_layers = async (viz_state, datasetIndex = 0) => {
-  const { image_info } = viz_state.img;
+  const image_info = get_image_sources(viz_state.img);
 
   // Generate a unique cache key to force complete layer recreation
   const cacheKey = Date.now().toString(36);
-
-  if (
-    image_info.length === 1 &&
-    (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
-  ) {
-    const layer = await make_simple_image_layer(
-      viz_state,
-      image_info[0],
-      datasetIndex,
-      cacheKey
-    );
-    return [layer];
-  }
 
   const image_layers = image_info.map((info) =>
     make_image_layer(viz_state, info, datasetIndex, cacheKey)
@@ -119,13 +110,27 @@ export const make_image_layers = async (viz_state, datasetIndex = 0) => {
   return image_layers;
 };
 
-export const toggle_visibility_image_layers = (layers_obj, visible) => {
+export const toggle_visibility_image_layers = (
+  layers_obj,
+  visible,
+  preserve_channels = false
+) => {
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
     layer.clone({
-      visible,
+      channelVisible: preserve_channels ? layer.props.channelVisible : true,
+      visible:
+        visible &&
+        (!preserve_channels || layer.props.channelVisible !== false) &&
+        (layer.props.imageSource || 'primary') ===
+          (layers_obj.image_source || 'primary'),
     })
   );
 };
+
+const matches_image_button = (layer, name) =>
+  layer.props.imageButtonName
+    ? layer.props.imageButtonName === name
+    : layer.id.startsWith(name);
 
 export const toggle_visibility_single_image_layer = (
   layers_obj,
@@ -133,7 +138,15 @@ export const toggle_visibility_single_image_layer = (
   visible
 ) => {
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
-    layer.id.startsWith(name) ? layer.clone({ visible }) : layer
+    matches_image_button(layer, name)
+      ? layer.clone({
+          channelVisible: visible,
+          visible:
+            visible &&
+            (layer.props.imageSource || 'primary') ===
+              (layers_obj.image_source || 'primary'),
+        })
+      : layer
   );
 };
 
@@ -147,14 +160,22 @@ export const update_opacity_single_image_layer = (
   const color = image_layer_colors[name];
 
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
-    layer.id.startsWith(name)
+    matches_image_button(layer, name)
       ? layer.clone({
-          renderSubLayers: create_render_tile_sublayers(
-            viz_state.dimensions,
-            color,
-            opacity
-          ),
-          id: `${name}-${opacity}`,
+          ...(layer.props.isRgbImage
+            ? {
+                opacity: Math.min(1, opacity / 5),
+                renderSubLayers: create_simple_render_tile_sublayers(
+                  viz_state.dimensions
+                ),
+              }
+            : {
+                renderSubLayers: create_render_tile_sublayers(
+                  viz_state.dimensions,
+                  color,
+                  opacity
+                ),
+              }),
         })
       : layer
   );
@@ -177,7 +198,7 @@ export const make_yearbook_image_layers = async (
   portrait_data_size,
   cacheKey = null
 ) => {
-  const { image_info } = viz_state.img;
+  const image_info = get_image_sources(viz_state.img);
   const { max_pyramid_zoom, tile_size } = viz_state.img.landscape_parameters;
   const layerCacheKey = cacheKey || Date.now().toString(36);
 
@@ -185,12 +206,6 @@ export const make_yearbook_image_layers = async (
   const half_size = portrait_data_size / 2;
   // Padding should be generous to cover zoomed-in views and tile boundaries
   const padding = Math.max(tile_size * 3, portrait_data_size * 0.5);
-
-  // Check if this is an H&E image (single image with h_and_e or h&e name)
-  // H&E images should use simple rendering without color channel filtering
-  const isHnE =
-    image_info.length === 1 &&
-    (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e');
 
   portrait_centers.forEach((center, portrait_index) => {
     // Each portrait gets its own extent covering its visible area plus padding
@@ -208,7 +223,7 @@ export const make_yearbook_image_layers = async (
 
       // Use simple rendering for H&E images (no color channel filtering)
       // This preserves the original RGB colors of histology images
-      const renderSubLayers = isHnE
+      const renderSubLayers = is_rgb_image(info)
         ? create_simple_render_tile_sublayers(viz_state.dimensions)
         : create_render_tile_sublayers(
             viz_state.dimensions,
@@ -232,7 +247,7 @@ export const make_yearbook_image_layers = async (
         getTileData = create_get_tile_data(
           viz_state.global_base_url,
           info.name,
-          viz_state.img.image_format,
+          info.image_format || viz_state.img.image_format,
           max_pyramid_zoom,
           options,
           viz_state.aws
@@ -241,6 +256,11 @@ export const make_yearbook_image_layers = async (
 
       const image_layer = new TileLayer({
         id: layerId,
+        imageSource: info.image_source,
+        imageButtonName: info.button_name,
+        isRgbImage: is_rgb_image(info),
+        visible:
+          info.image_source === (viz_state.img.image_source || 'primary'),
         tileSize: viz_state.dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,

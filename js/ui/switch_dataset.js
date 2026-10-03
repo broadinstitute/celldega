@@ -389,6 +389,7 @@ export const switch_dataset = async (
     // Create completely new image layers with unique IDs to force fresh tile fetching
     const new_image_layers = await make_image_layers(viz_state, new_index);
     layers_obj.image_layers = new_image_layers;
+    viz_state.update_image_source_control?.();
 
     // Update background layer extent if needed
     if (viz_state.dimensions) {

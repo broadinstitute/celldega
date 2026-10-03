@@ -348,20 +348,23 @@ def create_cluster_and_meta_cluster(
     return clusters
 
 
-def _process_image_channel(path_dega_files, channel_info, img):
+def _process_image_channel(
+    path_dega_files,
+    channel_info,
+    img,
+    upper_percentile=99,
+    scale_non_dapi=1.0,
+    white_level=100,
+):
     """
-    Process a single image channel for tiling.
-
-    Parameters:
-    - path_dega_files: Landscape files path
-    - channel_info: Dictionary with channel information (name, index)
-    - img: Optional pre-loaded image array
-
-    Returns:
-    - None
+    Process a single image channel for tiling using simple per-channel windowing,
+    similar to Xenium Explorer:
+    - choose a per-channel upper bound from a high percentile
+    - clip to [0, upper_bound]
+    - normalize to 0-1
+    - convert to 8-bit for display
     """
     channel_name = channel_info["name"]
-    channel_index = channel_info.get("index", 0)
 
     print(f"generating {channel_name} image tiles ...")
 
@@ -369,22 +372,51 @@ def _process_image_channel(path_dega_files, channel_info, img):
     if pyramid_path.exists():
         return
 
-    # Extract and process the channel
-    scale = 1 if channel_name.lower() == "dapi" else 2  # Adjust intensity for better visualization
-    if img.ndim == 3:
-        image_data = img[..., channel_index] * scale
-    elif img.ndim == 2:
-        image_data = img * scale
+    if img.ndim != 2:
+        raise ValueError(f"Expected a 2D channel image, got shape {img.shape}")
+
+    channel = img.astype(np.float32)
+
+    # Keep scaling neutral unless you intentionally want a boost
+    scale = 1.0 if channel_name.lower() == "dapi" else scale_non_dapi
+    channel *= scale
+
+    # Per-channel display window (high-percentile upper bound)
+    sample = channel[::10, ::10]
+
+    if not (0 <= upper_percentile <= 100):
+        raise ValueError(
+            f"upper_percentile must be between 0 and 100 (inclusive); got {upper_percentile!r}"
+        )
+
+    hi = np.percentile(sample, upper_percentile)
+
+    print(f"{channel_name}: p{upper_percentile}={hi:.2f}")
+
+    if hi > 0:
+        # Clip to display range and normalize from zero.
+        channel = np.clip(channel, 0.0, hi)
+        channel = channel / hi
+
+        # Clamp white_level to the valid 8-bit display range [0, 255]
+        white_level_safe = float(white_level)
+        if white_level_safe < 0.0 or white_level_safe > 255.0:
+            warnings.warn(
+                f"white_level ({white_level_safe}) is outside [0, 255]; "
+                "clamping to this range for display.",
+                stacklevel=2,
+            )
+            white_level_safe = min(255.0, max(0.0, white_level_safe))
+
+        image_data = (channel * white_level_safe).astype(np.uint8)
     else:
-        raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
+        image_data = np.zeros_like(channel, dtype=np.uint8)
 
     output_path = Path(path_dega_files) / f"{channel_name}_output_regular.tif"
-    imsave(output_path, image_data)
+    imsave(output_path, image_data, check_contrast=False)
 
-    # Convert the image to PNG format
     image_png = _convert_to_png(str(output_path))
 
-    # Create a DeepZoom pyramid for the channel
     make_deepzoom_pyramid(
         image_png,
         str(Path(path_dega_files) / "pyramid_images"),
@@ -393,7 +425,14 @@ def _process_image_channel(path_dega_files, channel_info, img):
     )
 
 
-def create_image_tiles(technology, data_dir, path_dega_files, image_tile_layer="dapi"):
+def create_image_tiles(
+    technology,
+    data_dir,
+    path_dega_files,
+    image_tile_layer="dapi",
+    upper_percentile=99,
+    white_level=100,
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -403,6 +442,12 @@ def create_image_tiles(technology, data_dir, path_dega_files, image_tile_layer="
         path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
         'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
+        upper_percentile (float, optional): Upper intensity percentile used to rescale/clip the image
+            before tile generation. Must be between 0 and 100 (inclusive). Values close to 100 (e.g. 95-99)
+            reduce the influence of very bright outliers while preserving most detail.
+        white_level (float, optional): Factor controlling how intensities are mapped toward white during
+            normalization. Must be non-negative. Higher values produce brighter tiles; typical values are
+            in the range 40-255, with 100 as a balanced default.
 
     Raises:
         ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.
@@ -411,7 +456,13 @@ def create_image_tiles(technology, data_dir, path_dega_files, image_tile_layer="
     print("\n========Generating image tiles========")
     if technology == "Xenium":
         print("------ xenium")
-        create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
+        create_image_tiles_xenium(
+            data_dir,
+            path_dega_files,
+            image_tile_layer=image_tile_layer,
+            upper_percentile=upper_percentile,
+            white_level=white_level,
+        )
     elif technology == "MERSCOPE":
         print("------ merscope")
         create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
@@ -471,40 +522,65 @@ def remove_intermediate_files(path_dega_files):
         file.unlink()
 
 
-def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"):
+def create_image_tiles_xenium(
+    data_dir, path_dega_files, image_tile_layer="dapi", upper_percentile=99, white_level=100
+):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
-    Args:
-        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
-        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
-        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
-    Raises:
-        FileNotFoundError: If the required input image file is not found.
+    This version:
+    - resolves the morphology OME-TIFF via resolve_xenium_morphology_ome_path
+    - avoids loading the full OME-TIFF into memory
+    - reads one channel at a time from CYX images
+    - applies per-channel intensity windowing (upper_percentile / white_level)
     """
+
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
     file_path = resolve_xenium_morphology_ome_path(data_dir)
+    print(f"Using morphology image: {file_path}")
 
-    # Load the morphology image once if processing multiple channels
-    img = imread(file_path)
-
-    if image_tile_layer == "all" and file_path.name == "morphology.ome.tif":
-        raise ValueError(
-            "image_tile_layer='all' needs a multi-channel morphology_focus OME-TIFF; "
-            "this bundle only has morphology.ome.tif. Use image_tile_layer='dapi' or "
-            "supply morphology_focus/*.ome.tif from the instrument output."
+    channel_map = [{"name": "dapi", "index": 0}]
+    if image_tile_layer == "all":
+        channel_map.extend(
+            [
+                {"name": "bound", "index": 1},
+                {"name": "rna", "index": 2},
+                {"name": "prot", "index": 3},
+            ]
         )
 
-    # Process the DAPI channel
-    if image_tile_layer in ["dapi", "all"]:
-        _process_image_channel(path_dega_files, {"name": "dapi", "index": 0}, img)
+    # Use tifffile to safely read OME-TIFF without loading the full image
+    with tifffile.TiffFile(file_path) as tif:
+        series = tif.series[0]
 
-    # Process additional channels if image_tile_layer is 'all'
-    if image_tile_layer == "all":
-        for idx, channel in enumerate(["bound", "rna", "prot"]):
-            _process_image_channel(path_dega_files, {"name": channel, "index": idx + 1}, img)
+        print(f"OME shape: {series.shape}")
+        print(f"OME axes:  {series.axes}")
+        print(f"OME dtype: {series.dtype}")
+
+        # Ensure expected Xenium morphology layout
+        if series.axes != "CYX":
+            raise ValueError(
+                f"Expected Xenium morphology image axes to be 'CYX', got '{series.axes}'"
+            )
+
+        for channel_info in channel_map:
+            channel_name = channel_info["name"]
+            channel_index = channel_info["index"]
+
+            print(f"Reading channel '{channel_name}' (index {channel_index})")
+
+            # Read one channel at a time to avoid large memory usage
+            channel_2d = series.asarray(key=channel_index)
+
+            _process_image_channel(
+                path_dega_files=path_dega_files,
+                channel_info={"name": channel_name, "index": 0},
+                img=channel_2d,
+                upper_percentile=upper_percentile,
+                white_level=white_level,
+            )
 
     remove_intermediate_files(path_dega_files)
 
@@ -1687,6 +1763,7 @@ def _check_required_files(technology, data_dir):
             f"The following required files or directories are missing in directory '{data_dir}' "
             f"for technology '{technology}': {', '.join(missing_files_or_dir)}"
         )
+
     print(
         f"All required files or directories for technology '{technology}' are present in '{data_dir}'."
     )

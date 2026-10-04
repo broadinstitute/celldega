@@ -72,7 +72,8 @@ def download(destination):
             partial.replace(target)
 
 
-def prepare(source, output):
+def prepare(source, output, *, include_he=True):
+    """Build the tutorial ROI; omit H&E to demonstrate its import separately."""
     if output.exists():
         raise FileExistsError(f"Choose a new output directory: {output}")
     output.mkdir(parents=True)
@@ -161,11 +162,12 @@ def prepare(source, output):
         image_info=pre.get_image_info("Xenium", "dapi"),
         image_format=".webp",
     )
-    matrix = np.loadtxt(source / f"{SAMPLE}_he_imagealignment.csv", delimiter=",")
-    translate_crop = np.array([[1, 0, -x0], [0, 1, -y0], [0, 0, 1]])
-    pre.add_aligned_he(
-        output, source / f"{SAMPLE}_he_image.ome.tif", alignment=translate_crop @ matrix
-    )
+    if include_he:
+        matrix = np.loadtxt(source / f"{SAMPLE}_he_imagealignment.csv", delimiter=",")
+        translate_crop = np.array([[1, 0, -x0], [0, 1, -y0], [0, 0, 1]])
+        pre.add_aligned_he(
+            output, source / f"{SAMPLE}_he_image.ome.tif", alignment=translate_crop @ matrix
+        )
     (output / "example.json").write_text(
         json.dumps(
             {

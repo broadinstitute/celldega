@@ -11,9 +11,28 @@ export const make_image_source_control = (
 ) => {
   const select = document.createElement('select');
   select.setAttribute('aria-label', 'Image source');
-  select.style.cssText = 'font-size:11px;max-width:115px;margin-left:4px';
+  select.title = 'Image source';
+  // Match Clustergram's text-only attribute/order selectors.
+  Object.assign(select.style, {
+    appearance: 'none',
+    webkitAppearance: 'none',
+    MozAppearance: 'none',
+    border: 'none',
+    background: 'transparent',
+    padding: '0',
+    margin: '0 0 0 5px',
+    alignSelf: 'flex-start',
+    maxWidth: '115px',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontSize: '9px',
+    fontWeight: 'bold',
+    color: 'blue',
+    cursor: 'pointer',
+    userSelect: 'none',
+  });
   for (const [value, text] of [
-    ['primary', 'Fluorescence'],
+    ['primary', 'FLUORESCENCE'],
     ['he', 'H&E'],
   ]) {
     const option = document.createElement('option');

@@ -62,6 +62,11 @@ apply it again. Landmark-based alignment estimation is outside this workflow.
 
 ## Reproduce the tutorial example
 
+For a step-by-step workflow, open
+[the example notebook](../../notebooks/Xenium_Aligned_HE.ipynb). It prepares
+fluorescence DegaFiles, imports H&E in a separate cell, inspects the saved
+manifest, and displays a Landscape with the image-source toggle.
+
 The [SpatialData Xenium tutorial](https://spatialdata.scverse.org/en/stable/tutorials/notebooks/notebooks/examples/technology_xenium.html)
 uses [10x Genomics' FFPE Human Lung Cancer dataset, Xenium 2.0.0](https://www.10xgenomics.com/datasets/preview-data-ffpe-human-lung-cancer-with-xenium-multimodal-cell-segmentation-1-standard),
 licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

@@ -10,8 +10,7 @@ Comprehensive tutorials that walk through complete workflows:
 - [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Builds a SetCollection from a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
-- [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and builds a SetCollection with expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich
-- [Single-cell Clustergram Chromium](tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb) - Creating clustergram visualizations for single-cell data
+- [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and builds a SetCollection with expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
 
 ## Brief Notebooks
 

@@ -84,6 +84,7 @@ nav:
       - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
+      - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb
       - Atera Viz: examples/brief_notebooks/Atera_viz.ipynb
       - Yearbook-Query: examples/brief_notebooks/Yearbook_Query.ipynb
       - CellCloud Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb

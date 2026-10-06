@@ -18,6 +18,7 @@ Comprehensive tutorials that walk through complete workflows:
 Focused examples demonstrating specific features:
 
 - [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
+- [Landscape from a Local Server](brief_notebooks/Landscape_Local_Server.ipynb) - Viewing locally stored DegaFiles in a Landscape with `dega.viz.get_local_server()`
 - [Atera Viz](brief_notebooks/Atera_viz.ipynb) - Linked Landscape and Clustergram visualization of a Xenium breast cancer dataset
 - [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
 - [CellCloud Thick MERFISH](brief_notebooks/Landscape-3D_thick_MERFISH.ipynb) - 3D orbit-camera CellCloud view of thick-tissue MERFISH data

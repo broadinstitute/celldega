@@ -80,7 +80,7 @@ nav:
       - Visium HD Human CRC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
       - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
-      - Chromium Pre-process: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
       - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb

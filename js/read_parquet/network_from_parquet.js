@@ -30,7 +30,8 @@ export const networkFromParquet = async (
   rowNodesBytes,
   colNodesBytes,
   rowLinkBytes,
-  colLinkBytes
+  colLinkBytes,
+  dotBytes
 ) => {
   const matTable = await arrayBufferToArrowTable(matBytes.buffer);
   const rowNodesTable = await arrayBufferToArrowTable(rowNodesBytes.buffer);
@@ -46,6 +47,12 @@ export const networkFromParquet = async (
     row: tableToMatrix(rowLinkTable),
     col: tableToMatrix(colLinkTable),
   };
+
+  // Optional secondary matrix (aligned to `mat`) driving dot-plot size encoding.
+  if (dotBytes && dotBytes.byteLength > 0) {
+    const dotTable = await arrayBufferToArrowTable(dotBytes.buffer);
+    network.size_mat = tableToMatrix(dotTable);
+  }
 
   return network;
 };

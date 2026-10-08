@@ -85,5 +85,17 @@ export const networkFromDegaFiles = async (
     col: tableToMatrix(colLinkTable),
   };
 
+  // Optional dot-plot size matrix (written only when present on the Python side).
+  try {
+    const dotRes = await fetch(`${cgm_url}/dot_mat.parquet`, options);
+    if (dotRes.ok) {
+      const dotBytes = await dotRes.arrayBuffer();
+      const dotTable = await arrayBufferToArrowTable(dotBytes);
+      network.size_mat = tableToMatrix(dotTable);
+    }
+  } catch {
+    // No dot matrix available; heatmap/size modes still work.
+  }
+
   return network;
 };

@@ -8,6 +8,7 @@ except ImportError:
     pyvips = None
 
 import base64
+import colorsys
 import hashlib
 import json
 from pathlib import Path
@@ -15,8 +16,6 @@ import subprocess
 import warnings
 import xml.etree.ElementTree as ET
 
-from matplotlib.colors import to_hex
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix, issparse
@@ -36,6 +35,17 @@ from .landscape import (
     read_cbg_mtx,
     save_cbg_gene_parquets,
     save_cbg_gene_parquets_row_groups,
+)
+from .nbhd_cloud import (
+    write_cell_clusters_meta,
+    write_gene_cell_scatter,
+    write_gene_shapes,
+    write_gene_shapes_streaming,
+    write_meta_gene_for_nbhd_cloud,
+    write_meta_slice,
+    write_nbhd_cloud_cells,
+    write_nbhd_cloud_dataset,
+    write_nbhd_cloud_shapes_and_features,
 )
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
@@ -82,6 +92,12 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     return default_clustering, clusters, ser_counts
 
 
+def _hsv_to_hex(h: float) -> str:
+    """Convert HSV color to hex string."""
+    r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
 def _create_cluster_colors(clusters):
     """
     Create color mapping for clusters.
@@ -92,13 +108,11 @@ def _create_cluster_colors(clusters):
     Returns:
     - List of colors for clusters
     """
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
+    n = len(clusters)
+    palette = [_hsv_to_hex(i / n) for i in range(n)]
 
     return [
-        (flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in cluster else "#FFFFFF")
-        for i, cluster in enumerate(clusters)
+        (palette[i] if "Blank" not in cluster else "#FFFFFF") for i, cluster in enumerate(clusters)
     ]
 
 
@@ -1097,14 +1111,7 @@ def make_meta_gene(cbg, path_output):
     print("\n========Write meta gene files========")
     genes = cbg.columns.tolist()
 
-    palettes = [plt.get_cmap(name).colors for name in plt.colormaps() if "tab" in name]
-    flat_colors = [color for palette in palettes for color in palette]
-    flat_colors_hex = [to_hex(color) for color in flat_colors]
-
-    colors = [
-        flat_colors_hex[i % len(flat_colors_hex)] if "Blank" not in gene else "#FFFFFF"
-        for i, gene in enumerate(genes)
-    ]
+    colors = _create_cluster_colors(genes)
 
     ser_color = pd.Series(colors, index=genes)
     meta_gene = calc_meta_gene_data(cbg)
@@ -1611,9 +1618,11 @@ def write_xenium_transform(
     # Function to open a Zarr file
     def open_zarr(path: str) -> zarr.Group:
         store = (
-            zarr.ZipStore(path, mode="r") if path.endswith(".zip") else zarr.DirectoryStore(path)
+            zarr.storage.ZipStore(path, mode="r")
+            if path.endswith(".zip")
+            else zarr.storage.LocalStore(path, read_only=True)
         )
-        return zarr.group(store=store)
+        return zarr.open_group(store=store, mode="r")
 
     try:
         # Open the cells Zarr file
@@ -1827,10 +1836,6 @@ def add_clustering_from_adata(
     The Landscape widget can use the custom clustering by setting the
     `segmentation` parameter to match the `segmentation_name`.
     """
-    from contextlib import suppress
-
-    import scanpy as sc
-
     path_lf = Path(path_dega_files)
 
     # Determine output directory
@@ -1854,15 +1859,7 @@ def add_clustering_from_adata(
     clusters = cluster_counts.index.tolist()
 
     color_key = f"{cluster_key}_colors"
-    colors = None
-    if color_key in adata.uns:
-        colors = adata.uns[color_key]
-    else:
-        # Try to generate colors using scanpy
-        with suppress(Exception):
-            sc.pl.umap(adata, color=cluster_key, show=False)
-            plt.close()
-            colors = adata.uns.get(color_key)
+    colors = adata.uns.get(color_key)
 
     # Fallback to generated colors
     if colors is None:
@@ -1892,8 +1889,18 @@ __all__ = [
     "landscape",
     "main",
     "make_trx_tiles",
+    "nbhd_cloud",
     "read_cbg_mtx",
     "resolve_xenium_morphology_ome_path",
     "trx_tile",
+    "write_cell_clusters_meta",
+    "write_gene_cell_scatter",
+    "write_gene_shapes",
+    "write_gene_shapes_streaming",
     "write_identity_transform",
+    "write_meta_gene_for_nbhd_cloud",
+    "write_meta_slice",
+    "write_nbhd_cloud_cells",
+    "write_nbhd_cloud_dataset",
+    "write_nbhd_cloud_shapes_and_features",
 ]

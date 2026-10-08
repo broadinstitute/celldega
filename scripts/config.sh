@@ -16,7 +16,8 @@ readonly KERNEL_DISPLAY_NAME="Python (${VENV_NAME})"
 # =============================================================================
 # Version Requirements
 # =============================================================================
-readonly PYTHON_MIN_VERSION="3.10"
+# Matches requires-python>=3.11 in pyproject.toml (point-cloud dependency stack).
+readonly PYTHON_MIN_VERSION="3.11"
 # Python the uv-managed env is built on. uv fetches a standalone CPython for
 # this version (never Anaconda's), avoiding native-library (GLib/GDAL) clashes.
 readonly PYTHON_VERSION="3.12"
@@ -37,7 +38,7 @@ readonly GIT_DOWNLOAD_URL="https://git-scm.com/"
 # =============================================================================
 readonly PIP_INSTALL_ARGS="--upgrade pip --quiet"
 readonly NPM_INSTALL_ARGS="--silent"
-readonly PYTHON_PACKAGE_SPEC=".[dev]"
+readonly PYTHON_PACKAGE_SPEC=".[dev,pre,multimodal]"
 
 # =============================================================================
 # Test Configuration

@@ -2,10 +2,6 @@ name: Quality
 
 on:
   workflow_call:
-  pull_request:
-    branches: [main, develop]
-  push:
-    branches: [main, develop]
 
 jobs:
   quality:

@@ -1,6 +1,15 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import {
+  refresh_nbhd_cloud_cluster_cells,
+  refresh_nbhd_cloud_gene_cells,
+} from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import {
+  apply_nbhd_cloud_slice_filter,
+  select_nbhd_cloud_gene,
+  toggle_nbhd_cloud_cluster_selection,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
@@ -10,6 +19,41 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 export const make_bar_container = () => {
   return document.createElement('div');
+};
+
+/**
+ * Opacity for a bar given the current selection: full for the selected bar(s)
+ * (and for every bar when nothing is selected), dimmed otherwise. The highlight
+ * is applied via each bar group's opacity rather than the rect fill's own alpha
+ * so a selection change (bar click) and a data re-render can't fight over the
+ * same attribute and leave the bar coloring stale.
+ *
+ * @param {Array<string|number>} selected_names - currently selected bar names
+ * @param {string|number} bar_name - the bar being styled
+ * @returns {number} 1.0 (highlighted) or 0.2 (dimmed)
+ */
+export const get_bar_highlight_opacity = (selected_names, bar_name) => {
+  const names = (Array.isArray(selected_names) ? selected_names : []).map(
+    (name) => String(name)
+  );
+  if (names.length === 0) {
+    return 1.0;
+  }
+  return names.includes(String(bar_name)) ? 1.0 : 0.2;
+};
+
+// The NBHD slider controls cluster-color opacity; the repurposed TRX slider
+// controls gene opacity, for either gene mode (sliders.js) -- only one mode
+// is ever active at a time, so only one slider should ever be enabled.
+// Called after any action that can change `nbhd_cloud.gene_shapes_mode`/
+// `gene_scatter_mode` (cluster select, gene select, shape click).
+export const sync_nbhd_cloud_opacity_sliders = (viz_state) => {
+  const geneMode = Boolean(
+    viz_state.nbhd_cloud.gene_shapes_mode ||
+      viz_state.nbhd_cloud.gene_scatter_mode
+  );
+  toggle_slider(viz_state.sliders.nbhd, !geneMode);
+  toggle_slider(viz_state.sliders.trx, geneMode);
 };
 
 export const bar_callback_cat = (
@@ -65,6 +109,45 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
+  if (_viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    const isReset = d.name === _viz_state.nbhd_cloud.selected_gene;
+    await select_nbhd_cloud_gene(d.name, _viz_state, _layers_obj);
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_shapes_layer');
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_cell_layer');
+    sync_nbhd_cloud_opacity_sliders(_viz_state);
+
+    // A gene with neither a shape nor a cell scatter is a no-op
+    // (select_nbhd_cloud_gene leaves state untouched) -- don't relabel this
+    // bar as "selected" for a click that didn't actually do anything.
+    const isAvailable =
+      _viz_state.nbhd_cloud.available_gene_shapes?.has(d.name) ||
+      _viz_state.nbhd_cloud.available_gene_scatter?.has(d.name);
+    if (!isReset && !isAvailable) {
+      return;
+    }
+
+    // Drives the Uniprot gene-info panel (ui_containers.js's
+    // obs_store.selected_genes subscriber) -- nbhd-cloud's gene selection
+    // is otherwise entirely separate from this shared store, so without
+    // this the panel never updated for a gene picked via the gene bar.
+    update_selected_genes(
+      _viz_state.genes,
+      isReset ? [] : [d.name],
+      _viz_state.obs_store
+    );
+
+    _viz_state.genes.svg_bar_gene
+      .selectAll('rect')
+      .style('opacity', (bar) => (isReset || bar.name === d.name ? 1.0 : 0.2));
+    // Gene mode just cleared any cluster selection (select_nbhd_cloud_gene)
+    // -- the cluster bar's own highlight is this handler's responsibility,
+    // same as the gene bar's above.
+    _viz_state.nbhd_cloud.svg_bar_cluster
+      ?.selectAll('rect')
+      .style('opacity', 1.0);
+    return;
+  }
+
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
 
@@ -219,6 +302,95 @@ export const bar_callback_nbhd = (
   }
 };
 
+// Per-slice bar graph: clicking a slice isolates the 3D view to that
+// slice's shapes (every other slice's neighborhoods disappear entirely,
+// not just dimmed) -- click again to show every slice. A cluster selection
+// (NBHD bar / shape click) stays active across slices, so re-run the cell
+// display against whichever cluster is currently selected, narrowed to the
+// new slice filter.
+export const bar_callback_nbhd_cloud_slice = async (
+  _event,
+  d,
+  _deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  const { nbhd_cloud } = viz_state;
+  nbhd_cloud.selected_slice_ids ??= new Set();
+
+  if (
+    nbhd_cloud.selected_slice_ids.size === 1 &&
+    nbhd_cloud.selected_slice_ids.has(d.name)
+  ) {
+    nbhd_cloud.selected_slice_ids.clear();
+  } else {
+    nbhd_cloud.selected_slice_ids.clear();
+    nbhd_cloud.selected_slice_ids.add(d.name);
+  }
+
+  const hasSelection = nbhd_cloud.selected_slice_ids.size > 0;
+  nbhd_cloud.svg_bar_slice
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection || nbhd_cloud.selected_slice_ids.has(bar.name) ? 1.0 : 0.2
+    );
+
+  // Filters whichever feature set is currently relevant -- cluster shapes,
+  // or the selected gene's own shapes if gene-shapes mode is active -- so
+  // isolating a slice while viewing a gene doesn't silently swap back to
+  // (filtered) cluster shapes while leaving gene-shapes mode's state stuck on.
+  apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+
+  // Same "whichever is currently relevant" split for cells -- gene mode's
+  // cells (peppered, shape-backed, or scatter-only) live in a different
+  // per-gene cache than cluster cells, so re-filtering cluster cells here
+  // would silently do nothing while a gene mode is active (the bug: slice
+  // isolation had no visible effect on gene cells).
+  if (nbhd_cloud.gene_shapes_mode || nbhd_cloud.gene_scatter_mode) {
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+  } else {
+    await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  }
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
+};
+
+// Per-cluster bar graph (one bar per cluster, area summed across every
+// slice's instance of it): click highlights that cluster's shapes across
+// every slice (others dim) and loads its cell centroids on demand -- click
+// again to clear both. Same effect as clicking one of that cluster's shapes
+// directly (nbhd_cloud_shapes_layer.js's onClick).
+export const bar_callback_nbhd_cloud_cluster = async (
+  _event,
+  d,
+  _deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  const clusterId = String(d.name);
+  toggle_nbhd_cloud_cluster_selection(clusterId, viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+  sync_nbhd_cloud_opacity_sliders(viz_state);
+
+  const hasSelection =
+    (viz_state.nbhd_cloud.selected_cluster_ids?.size ?? 0) > 0;
+  viz_state.nbhd_cloud.svg_bar_cluster
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection ||
+      viz_state.nbhd_cloud.selected_cluster_ids.has(String(bar.name))
+        ? 1.0
+        : 0.2
+    );
+  // Cluster selection just cleared gene mode (toggle_nbhd_cloud_cluster_selection)
+  // -- the gene bar's own highlight is this handler's responsibility, same
+  // as the cluster bar's above.
+  viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+
+  await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
+};
+
 export const make_bar_graph = (
   bar_container,
   click_callback,
@@ -269,7 +441,10 @@ export const make_bar_graph = (
 
   const x_new = d3
     .scaleLinear()
-    .domain([0, d3.max(bar_data_values)])
+    // `|| 1` guards an all-zero domain (e.g. no landmarks marked yet) --
+    // otherwise a zero-width domain divides by zero and every bar gets a
+    // NaN width instead of rendering at 0.
+    .domain([0, d3.max(bar_data_values) || 1])
     .range([0, max_bar_width]);
 
   const bar = svg_bar
@@ -284,7 +459,11 @@ export const make_bar_graph = (
   bar
     .append('rect')
     .attr('fill', (d) => {
-      const inst_rgb = color_dict[d.name];
+      // Fall back to a neutral gray instead of throwing when a bar's name has
+      // no entry in color_dict (e.g. a data-source mismatch between what
+      // populates the bar list and what populates its color lookup) --
+      // a missing color shouldn't crash the whole bar graph.
+      const inst_rgb = color_dict[d.name] || [128, 128, 128];
       return `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
     })
     .attr('width', (d) => x_new(d.value))

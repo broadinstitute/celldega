@@ -120,6 +120,38 @@ def _get_gdf_trx(data_dir: str) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(df_trx[["feature_name", "cell_id"]], geometry=geometry)
 
 
+def _stamp_z(
+    geometry: base.BaseGeometry | None,
+    z: float,
+) -> base.BaseGeometry | None:
+    """
+    Stamp a constant Z onto every vertex of a 2D geometry.
+
+    Used to place a 2D alpha-shape polygon (or any other geometry) at a fixed
+    height in a 3D scene, e.g. one alpha shape per (slice, cluster) placed at
+    its slice's Z coordinate. Any desired per-geometry offset (e.g. a small
+    jitter to avoid z-fighting between coplanar overlapping polygons within a
+    slice) should already be folded into `z`.
+
+    Parameters
+    ----------
+    geometry : Shapely geometry object (e.g., Polygon, MultiPolygon), or None.
+    z : float
+        Constant Z value to assign to every vertex.
+
+    Returns
+    -------
+    Shapely geometry with a Z ordinate on every vertex, or None.
+    """
+    if geometry is None:
+        return None
+
+    def add_z(x: float, y: float, _z: float | None = None) -> tuple[float, float, float]:
+        return (x, y, np.full_like(x, z))
+
+    return transform(add_z, geometry)
+
+
 def _round_coordinates(
     geometry: base.BaseGeometry | None, precision: int = 2
 ) -> base.BaseGeometry | None:

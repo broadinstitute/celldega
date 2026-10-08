@@ -1,8 +1,13 @@
-import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
-import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
+import {
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { refresh_row_label_visibility } from '../matrix/composition_data';
+
+import { deselect_reorder_buttons } from './text_buttons';
 
 /**
  * Generates ordering based on category values for an axis.
@@ -109,10 +114,7 @@ const reorder_by_attribute = (
     }
 
     // Deselect all reorder buttons for this axis
-    d3.select(viz_state.el)
-      .selectAll(`.button-${axis}`)
-      .classed('active', false)
-      .style('border-color', viz_state.buttons.gray);
+    deselect_reorder_buttons(viz_state, axis);
 
     // Update layers
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
@@ -144,6 +146,13 @@ const reorder_by_attribute = (
         },
       });
     }
+
+    // Composition mode: row labels are positioned by their actual segment
+    // (which moves on either a row or a column reorder) and filtered by fit,
+    // so refresh on any reorder. No-op outside composition mode. Same for the
+    // row dendrogram, whose leaves come from the rightmost bar's segments.
+    refresh_row_label_visibility(layers_mat, viz_state);
+    refresh_composition_dendro(layers_mat, viz_state);
 
     // Hide dendro when not in clust order
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
@@ -327,7 +336,8 @@ const col_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
     (viz_state.labels.clicks.col_attr || 0) + 1;
 
   if (viz_state.labels.clicks.col_attr === 1) {
-    setTimeout(() => {
+    viz_state.labels.attr_click_timeouts ||= {};
+    viz_state.labels.attr_click_timeouts.col = setTimeout(() => {
       viz_state.labels.clicks.col_attr = 0;
     }, DOUBLE_CLICK_DELAY);
   } else if (viz_state.labels.clicks.col_attr === 2) {
@@ -355,7 +365,8 @@ const row_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
     (viz_state.labels.clicks.row_attr || 0) + 1;
 
   if (viz_state.labels.clicks.row_attr === 1) {
-    setTimeout(() => {
+    viz_state.labels.attr_click_timeouts ||= {};
+    viz_state.labels.attr_click_timeouts.row = setTimeout(() => {
       viz_state.labels.clicks.row_attr = 0;
     }, DOUBLE_CLICK_DELAY);
   } else if (viz_state.labels.clicks.row_attr === 2) {
@@ -476,7 +487,9 @@ export const initialize_attribute_labels = (
         manual_store.subscribe(
           () => {
             // Delay refresh slightly to allow attribute definitions to update
-            setTimeout(() => {
+            clearTimeout(viz_state.labels._attr_refresh_timer);
+            viz_state.labels._attr_refresh_timer = setTimeout(() => {
+              if (viz_state.finalized) return;
               refresh_attr_label_layers(deck_mat, layers_mat, viz_state);
             }, 150);
           },

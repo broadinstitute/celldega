@@ -93,22 +93,33 @@ export const initialize_attribute_editor = (
     context = null;
   };
 
+  // One color per new category name, allocated on the first keystroke and
+  // kept while typing (previously every keystroke allocated a fresh color).
+  // A color the user picks explicitly is never overwritten.
+  let draft_color = null;
+  let color_picked = false;
+  color_input.addEventListener('input', () => {
+    color_picked = true;
+  });
+
   const ensure_color_for_value = (raw_value, axis) => {
     const trimmed = (raw_value || '').trim();
-    if (!trimmed) {
-      color_input.value = DEFAULT_COLORS[axis] || DEFAULT_COLORS.row;
-      return color_input.value;
-    }
-
-    const stored = get_stored_color(trimmed);
+    const stored = trimmed ? get_stored_color(trimmed) : null;
     if (stored) {
+      // Typing an existing category's name adopts its color.
       color_input.value = stored;
       return stored;
     }
+    if (color_picked) return color_input.value;
+    if (!trimmed) {
+      color_input.value =
+        draft_color || DEFAULT_COLORS[axis] || DEFAULT_COLORS.row;
+      return color_input.value;
+    }
 
-    const generated = allocate_color(viz_state);
-    color_input.value = generated;
-    return generated;
+    if (!draft_color) draft_color = allocate_color(viz_state);
+    color_input.value = draft_color;
+    return draft_color;
   };
 
   const position_container = (position) => {
@@ -157,6 +168,8 @@ export const initialize_attribute_editor = (
 
     selection_info.textContent = `${selection.length} ${axis_label} selected`;
     value_input.value = initial_value ? String(initial_value) : '';
+    draft_color = null;
+    color_picked = false;
 
     const stored_color = get_stored_color(value_input.value.trim());
     color_input.value =
@@ -205,13 +218,34 @@ export const initialize_attribute_editor = (
   cancel_button.addEventListener('click', close);
   close_button.addEventListener('click', close);
 
+  const on_outside_pointerdown = (event) => {
+    if (container.style.display === 'none') return;
+    if (container.contains(event.target)) return;
+    close();
+  };
+
   viz_state.attr.editor = {
     open,
     close,
+    destroy: () => {
+      close();
+      viz_state.el?.removeEventListener(
+        'pointerdown',
+        on_outside_pointerdown,
+        true
+      );
+      container.remove();
+    },
   };
 
   value_input.addEventListener('input', () => {
     const axis = context?.axis || 'row';
     ensure_color_for_value(value_input.value, axis);
   });
+
+  // Clicking anywhere else in the Clustergram means the user isn't defining a
+  // category, so dismiss the dialog. Pointer-down runs before the click that
+  // may open a fresh dialog (e.g. on another dendrogram cluster), so that
+  // click still opens normally.
+  viz_state.el?.addEventListener('pointerdown', on_outside_pointerdown, true);
 };

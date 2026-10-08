@@ -1,23 +1,10 @@
-import * as d3 from 'd3';
+import {
+  escape_html,
+  gene_info_tooltip_html,
+  refresh_gene_tooltip_async,
+} from '../../ui/gene_info';
 
-/**
- * Creates tooltips for tile layers showing category information
- * @param {Object} info - Layer interaction info with index and layer data
- * @param {Object} viz_state - Application visualization state
- * @returns {Object|null} Tooltip configuration object or null if invalid
- */
-export const make_tile_tooltip = (info, viz_state) => {
-  if (info.index === -1 || !info.layer) return null;
-
-  const inst_cat = viz_state.cats.tile_cats_array[info.index];
-
-  viz_state.tooltip_cat_cell = inst_cat;
-
-  d3.selectAll('.deck-tooltip').style('margin-top', '75px');
-  return {
-    html: `<div>${inst_cat}</div>`,
-  };
-};
+import { get_point_cloud_source_index } from './point_cloud_indices';
 
 /**
  * Creates tooltips for various layer types with detailed information
@@ -40,10 +27,19 @@ export const make_tooltip = (viz_state, info) => {
     info.layer.id.startsWith('cell-layer') ||
     info.layer.id.startsWith('path-layer')
   ) {
-    inst_name = info.layer.id.startsWith('cell-layer')
-      ? viz_state.cats.cell_names_array[info.index]
-      : viz_state.cats.polygon_cell_names[info.index];
-    inst_cat = viz_state.cats.dict_cell_cats[inst_name];
+    if (info.layer.id.startsWith('cell-layer')) {
+      const sourceIndex = get_point_cloud_source_index(viz_state, info.index);
+      if (sourceIndex < 0) {
+        return null;
+      }
+      inst_name = viz_state.cats.cell_names_array[sourceIndex];
+      inst_cat =
+        viz_state.cats.cell_cats?.[sourceIndex] ??
+        viz_state.cats.dict_cell_cats?.[inst_name];
+    } else {
+      inst_name = viz_state.cats.polygon_cell_names[info.index];
+      inst_cat = viz_state.cats.dict_cell_cats?.[inst_name];
+    }
     inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
 
     viz_state.tooltip_cat_cell = inst_cat;
@@ -55,7 +51,15 @@ export const make_tooltip = (viz_state, info) => {
       geneId === undefined || geneId < 0
         ? ''
         : viz_state.genes.g_nameMapping_inv?.[geneId] || '';
-    inst_html = `<div>transcript: ${inst_name}</div>`;
+
+    // Same UniProt name/description the Clustergram shows on a gene row; the
+    // first hover renders a placeholder and this patches it in on arrival.
+    const build_trx_html = () =>
+      `<div>transcript: ${escape_html(
+        inst_name
+      )}</div>${gene_info_tooltip_html(inst_name)}`;
+    refresh_gene_tooltip_async(viz_state.root, inst_name, build_trx_html);
+    inst_html = build_trx_html();
   }
   // Handle neighborhood layer tooltips
   else if (info.layer.id.startsWith('nbhd-layer')) {
@@ -74,6 +78,24 @@ export const make_tooltip = (viz_state, info) => {
       inst_html = `<div>neighborhood: ${inst_name}</div>`;
     }
   }
+  // Handle neighborhood-cloud shape tooltips -- GeoJsonLayer hands back the
+  // picked feature directly as info.object (not indexed into a separate
+  // array like the layers above), and properties differ by mode: gene-shapes
+  // features carry gene/mean_expression, cluster shapes carry cluster_id.
+  else if (info.layer.id.startsWith('nbhd-cloud-shapes-layer')) {
+    const properties = info.object?.properties;
+    if (properties) {
+      inst_html =
+        properties.gene !== undefined
+          ? `<div>gene: ${properties.gene}</div><div>slice: ${properties.slice_id}</div><div>mean expression: ${Number(properties.mean_expression).toFixed(2)}</div>`
+          : `<div>cluster: ${properties.cluster_id}</div><div>slice: ${properties.slice_id}</div>`;
+    }
+  }
+
+  // No branch above produced content for this layer (e.g. an unhandled or
+  // future layer type) -- return null rather than an empty-but-present
+  // tooltip box, which otherwise renders as a small blank/black square.
+  if (!inst_html) return null;
 
   // Configure tooltip positioning and styling
   const tooltipContainer = viz_state.root.querySelector('.deck-tooltip');

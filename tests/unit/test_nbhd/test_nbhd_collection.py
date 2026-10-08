@@ -95,6 +95,51 @@ def test_neighborhood_collection_calculates_gene_modality_directly():
     np.testing.assert_allclose(expression.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
 
 
+def test_neighborhood_collection_calc_signature_include_variance():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    collection.calc_signature(
+        adata=adata, modality_name="expression", min_cells=1, include_variance=True
+    )
+    expression = collection.mod["expression"]
+
+    assert "variance" in expression.layers
+    np.testing.assert_allclose(expression.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
+    np.testing.assert_allclose(expression.layers["variance"], np.array([[0.25, 1.0], [0.0, 0.0]]))
+
+
+def test_calc_signature_include_variance_rejects_cell_free():
+    gdf, _adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    with pytest.raises(ValueError, match="include_variance"):
+        collection.calc_signature(by="cell-free", data_dir="unused", include_variance=True)
+
+
+def test_calc_signature_include_variance_preserves_layer_when_reindexed():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    collection.calc_signature(
+        adata=adata,
+        modality_name="expression",
+        min_cells=2,
+        include_variance=True,
+        drop_missing=False,
+    )
+    expression = collection.mod["expression"]
+
+    # B has only 1 cell (below min_cells=2) so it's zero-filled, not dropped;
+    # obs_names/modality index mismatch (["A"] vs ["A", "B"]) forces add_mod
+    # down the reindexing path — regression test for a _align_mod_to_obs bug
+    # that silently dropped extra layers (e.g. "variance") when reindexing.
+    assert list(expression.obs_names) == ["A", "B"]
+    assert "variance" in expression.layers
+    np.testing.assert_allclose(expression.layers["variance"][0], [0.25, 1.0])
+    np.testing.assert_allclose(expression.layers["variance"][1], [0.0, 0.0])
+
+
 def test_neighborhood_collection_min_cells_filters_collection_axis():
     gdf, adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")

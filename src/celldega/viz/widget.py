@@ -1,30 +1,28 @@
 """Widget module for interactive visualization components."""
 
+import asyncio
 from collections.abc import Sequence
 import colorsys
-from contextlib import suppress
 from copy import deepcopy
 import importlib.metadata
 import json
 import os
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Literal
 import urllib.error
+from urllib.parse import urlparse
+import uuid
 import warnings
 
-import anywidget
 import geopandas as gpd
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-import scanpy as sc
 from shapely.affinity import affine_transform
 import traitlets
 
+from ._widget_lifecycle import CelldegaWidget
 
-_clustergram_registry = {}  # maps names to widget instances
-_enrich_registry = {}  # maps names to widget instances
 
 _LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
@@ -105,6 +103,23 @@ def _selection_to_payload(selection) -> dict:
 
     payload["ids"] = [str(name) for name in ids]
     return payload
+
+
+def _local_dir_for_url(url: str) -> "Path | None":
+    """Filesystem directory backing a ``base_url`` served by
+    ``celldega.viz.get_local_server()`` (rooted at the caller's cwd), or
+    ``None`` if ``url`` isn't a localhost URL. Used to write a small sidecar
+    file (e.g. centroid overrides) that the same local server can then serve
+    back over HTTP, rather than syncing large per-cell data through the
+    widget's comm channel (which doesn't scale to millions of rows).
+    """
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.hostname not in ("localhost", "127.0.0.1"):
+        return None
+    local_dir = Path(parsed.path.lstrip("/"))
+    return local_dir if local_dir.is_dir() else None
 
 
 def _coerce_transform_matrix(transform: Any) -> np.ndarray:
@@ -202,11 +217,11 @@ def _coerce_nbhd_for_landscape(
     return gdf, meta_nbhd
 
 
-class Landscape(anywidget.AnyWidget):
+class Landscape(CelldegaWidget):
     """
     A widget for interactive visualization of spatial omics data. This widget
-    currently supports iST (Xenium and MERSCOPE) and sST (Visium HD data, with and
-    without cell segmentation).
+    currently supports segmented spatial transcriptomics data (Xenium, MERSCOPE,
+    Visium HD) and H&E image data.
 
     Args:
         ini_x (float): The initial x-coordinate of the view.
@@ -231,6 +246,30 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
             are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
             that should be trimmed when mapping to LandscapeFiles. Default: False.
+        use_adata_3d_centroids (bool, optional): For ``technology="point-cloud"``
+            views given an ``adata``, render that AnnData's
+            ``obsm["spatial"]``/``obs[z_key]`` centroids instead of the geometry
+            baked into ``cell_metadata.parquet`` — no DegaFiles rewrite needed to
+            preview a candidate alignment. Has no effect on 2D (non point-cloud)
+            views, which always use the on-disk x/y. Default: True.
+        z_key (str, optional): ``adata.obs`` column holding the Z coordinate used
+            for ``use_adata_3d_centroids`` (falls back to 0 if absent). Default:
+            "Z".
+
+    ``use_adata_3d_centroids`` writes centroids to a small file next to
+    ``base_url`` and fetches it over HTTP when ``base_url`` is a local
+    ``celldega.viz.get_local_server()`` address (millions of per-cell
+    centroids don't fit through the widget's comm channel); otherwise it
+    falls back to syncing them directly through the widget state, which is
+    fine for smaller datasets.
+
+    A point-cloud (3D) view requires a real, pre-built DegaFiles ``base_url``
+    like any other technology — build one with the ``celldega.pre`` module
+    (e.g. after running an alignment with
+    :func:`~celldega.align.serial_slices.align_serial_slices`, regenerate
+    LandscapeFiles from the aligned ``AnnData`` before visualizing it).
+    ``adata`` here is only ever used for cell attributes/metadata, never for
+    spatial positions.
 
     The AnnData input automatically extracts cell attributes (e.g., ``leiden``
     clusters), the corresponding colors (or derives them when missing), and any
@@ -248,6 +287,7 @@ class Landscape(anywidget.AnyWidget):
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
+
     ini_x = traitlets.Float().tag(sync=True)
     ini_y = traitlets.Float().tag(sync=True)
     ini_z = traitlets.Float().tag(sync=True)
@@ -255,7 +295,6 @@ class Landscape(anywidget.AnyWidget):
     rotation_orbit = traitlets.Float(0).tag(sync=True)
     rotation_x = traitlets.Float(0).tag(sync=True)
     rotate = traitlets.Float(0).tag(sync=True)
-    square_tile_size = traitlets.Float(1.4).tag(sync=True)
     dataset_name = traitlets.Unicode("").tag(sync=True)
     region = traitlets.Dict({}).tag(sync=True)
     scale_bar_microns_per_pixel = traitlets.Float(default_value=None, allow_none=True).tag(
@@ -275,18 +314,32 @@ class Landscape(anywidget.AnyWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
+    # Browser-linked gene focus (e.g. a click in Enrich). The front end turns
+    # this into the same gene-selection action as a Clustergram row click.
+    focused_gene = traitlets.Unicode("").tag(sync=True)
     cell_clusters = traitlets.Dict({}).tag(sync=True)
-
     # AnnData obs columns (cell attributes)
     cell_attr = traitlets.List(
         trait=traitlets.Unicode(),
         default_value=["leiden"],
     ).tag(sync=True)
 
+    # obs column driving the cluster color legend/meta_cluster_parquet key field
+    cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
+
     segmentation = traitlets.Unicode("default").tag(sync=True)
+
+    # Named alignment variant for point-cloud technology. When set, cell
+    # positions are read from cell_metadata_<alignment>.parquet (written by
+    # celldega.align.write_alignment_point_cloud) while clusters/genes keep
+    # loading from their normal (segmentation-driven) paths.
+    alignment = traitlets.Unicode("").tag(sync=True)
 
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(600).tag(sync=True)
+
+    use_adata_3d_centroids = traitlets.Bool(True).tag(sync=True)
+    centroids_url = traitlets.Unicode("").tag(sync=True)
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -294,6 +347,8 @@ class Landscape(anywidget.AnyWidget):
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
         pq_umap = kwargs.pop("umap_parquet", None)
         pq_meta_nbhd = kwargs.pop("meta_nbhd_parquet", None)
+        pq_centroids = kwargs.pop("centroids_parquet", None)
+        centroids_url = kwargs.pop("centroids_url", "")
 
         meta_cell_df = kwargs.pop("meta_cell", None)
         meta_cluster = kwargs.pop("meta_cluster", None)
@@ -303,6 +358,8 @@ class Landscape(anywidget.AnyWidget):
         transform = kwargs.pop("transform", None)
         image_scale = kwargs.pop("image_scale", None)
         nbhd_edit = kwargs.pop("nbhd_edit", False)
+        use_adata_3d_centroids = kwargs.get("use_adata_3d_centroids", True)
+        z_key = kwargs.pop("z_key", "Z")
         meta_cluster_df = None
         # cell_attr = kwargs.pop("cell_attr", ["leiden"])
         cell_attr = list(kwargs.pop("cell_attr", ["leiden"]))
@@ -421,15 +478,23 @@ class Landscape(anywidget.AnyWidget):
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
 
         if adata is not None:
-            if "color" in adata.obs.columns and "color" not in cell_attr:
+            # Never mutate the caller's AnnData. Derive cell metadata from a
+            # copy/view of obs, and never call scanpy plotting (sc.pl.umap
+            # writes `<attr>_colors` back into adata.uns).
+            #
+            # Key cell metadata by adata.obs_names (the canonical AnnData cell
+            # identifier) — that's what matches the DegaFiles cell_metadata
+            # `name` column. A `cell_id` obs *column* is intentionally NOT used
+            # as the key: when its values differ from obs_names (e.g. a
+            # reordered "cell__slice" form) it silently mismatches every cell,
+            # so cluster coloring resolves to "N.A." and point-cloud cells cull.
+            obs = adata.obs
+
+            if "color" in obs.columns and "color" not in cell_attr:
                 cell_attr.append("color")
 
-            # if cell_id is in the adata.obs, use it as index
-            if "cell_id" in adata.obs.columns:
-                adata.obs.set_index("cell_id", inplace=True)
-
-            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
-            meta_cell_df = adata.obs[cell_attr].copy()
+            cell_attr = [c for c in cell_attr if c in obs.columns]
+            meta_cell_df = obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -445,17 +510,12 @@ class Landscape(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if cluster_attr in adata.obs.columns:
-                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+            if cluster_attr in obs.columns:
+                cluster_counts = obs[cluster_attr].value_counts().sort_index()
+                # Use the caller's stored palette if present, else a
+                # deterministic HSV fallback — no scanpy call, so adata is left
+                # untouched.
                 colors = adata.uns.get(f"{cluster_attr}_colors")
-
-                if colors is None:
-                    with suppress(Exception):
-                        sc.pl.umap(adata, color=cluster_attr, show=False)
-                        plt.close()
-                        colors = adata.uns.get(f"{cluster_attr}_colors")
-
-                # backup color definition
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / n) for i in range(n)]
@@ -471,7 +531,7 @@ class Landscape(anywidget.AnyWidget):
                 pq_meta_cluster = _df_to_bytes(meta_cluster_df)
 
             if "X_umap" in adata.obsm:
-                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=adata.obs.index)
+                umap_df = pd.DataFrame(adata.obsm["X_umap"], index=obs.index)
 
                 # If cell_name_prefix is True, trim the prefix from cell names
                 if cell_name_prefix_setting:
@@ -483,6 +543,41 @@ class Landscape(anywidget.AnyWidget):
                     columns={"index": "cell_id", 0: "umap_0", 1: "umap_1"}
                 )
                 pq_umap = _df_to_bytes(umap_df)
+
+            if use_adata_3d_centroids and "spatial" in adata.obsm:
+                spatial_xy = np.asarray(adata.obsm["spatial"])[:, :2]
+                z_values = (
+                    adata.obs[z_key].to_numpy(dtype=float)
+                    if z_key in adata.obs.columns
+                    else np.zeros(adata.n_obs)
+                )
+                centroid_df = pd.DataFrame(
+                    {"x": spatial_xy[:, 0], "y": spatial_xy[:, 1], "z": z_values},
+                    index=adata.obs.index,
+                )
+
+                if cell_name_prefix_setting:
+                    centroid_df.index = centroid_df.index.map(
+                        lambda x: x.split("_", 1)[1] if "_" in str(x) else x
+                    )
+
+                centroid_df = centroid_df.reset_index().rename(columns={"index": "cell_id"})
+
+                # Millions of per-cell centroids don't fit through the widget's
+                # comm channel (it silently fails to open above roughly tens of
+                # MB) — when base_url is a local dev server, write a small
+                # sidecar file next to it instead and let the frontend fetch it
+                # over HTTP, exactly like the base cell_metadata.parquet. Falls
+                # back to the comm-synced bytes trait otherwise (fine for
+                # smaller datasets or non-local base_urls).
+                base_url_str = kwargs.get("base_url") or ""
+                local_dir = _local_dir_for_url(base_url_str)
+                if local_dir is not None:
+                    cache_name = f".celldega_centroids_{uuid.uuid4().hex[:10]}.parquet"
+                    centroid_df.to_parquet(local_dir / cache_name, index=False)
+                    centroids_url = f"{base_url_str.rstrip('/')}/{cache_name}"
+                else:
+                    pq_centroids = _df_to_bytes(centroid_df)
 
         if isinstance(meta_cell_df, pd.DataFrame):
             pq_meta_cell = _df_to_bytes(_reset_index_for_parquet(meta_cell_df))
@@ -506,6 +601,8 @@ class Landscape(anywidget.AnyWidget):
             parquet_traits["umap_parquet"] = traitlets.Bytes(pq_umap).tag(sync=True)
         if pq_meta_nbhd is not None:
             parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
+        if pq_centroids is not None:
+            parquet_traits["centroids_parquet"] = traitlets.Bytes(pq_centroids).tag(sync=True)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)
@@ -513,6 +610,8 @@ class Landscape(anywidget.AnyWidget):
         super().__init__(**kwargs)
 
         self.cell_attr = cell_attr
+        self.cluster_attr = cluster_attr
+        self.centroids_url = centroids_url
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
@@ -578,12 +677,6 @@ class Landscape(anywidget.AnyWidget):
 
         self.nbhd = gdf
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
-
 
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
@@ -602,7 +695,7 @@ class ManualAttributeTrait(traitlets.Unicode):
         return super().validate(obj, str(value).strip())
 
 
-class Enrich(anywidget.AnyWidget):
+class Enrich(CelldegaWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
 
@@ -620,6 +713,9 @@ class Enrich(anywidget.AnyWidget):
     component = traitlets.Unicode("Enrich").tag(sync=True)
 
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
+    # Short provenance string shown above the Enrichr link (for example,
+    # ``"Clustergram row crop"``). Empty means the gene list was supplied directly.
+    source_label = traitlets.Unicode("").tag(sync=True)
     background_list = traitlets.List(allow_none=True, default_value=None).tag(sync=True)
 
     available_libs = traitlets.List(
@@ -648,23 +744,164 @@ class Enrich(anywidget.AnyWidget):
     focused_gene = traitlets.Unicode("").tag(sync=True)
 
     def __init__(self, **kwargs):
-        name = kwargs.pop("name", "default")
-        old_widget = _enrich_registry.get(name)
-        if old_widget:
-            with suppress(Exception):
-                old_widget.close()
-
-        kwargs["name"] = name
-        super().__init__(**kwargs)
-        _enrich_registry[name] = self
-
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
+        name = kwargs.pop("name", None)
+        registry_key = kwargs.pop("registry_key", None)
+        if name is None and registry_key is None:
+            registry_key = "default"
+        super().__init__(name=name, registry_key=registry_key, **kwargs)
 
 
-class Yearbook(anywidget.AnyWidget):
+def _colors_from_adata(
+    adata: Any,
+    category: str | None,
+    categories: list[str],
+) -> dict[str, str]:
+    """Map populations to colors from ``adata.uns[f"{category}_colors"]``.
+
+    Colors are aligned to the categorical's ``categories`` order (scanpy
+    convention) so they stay correct even for >9 categories where a string sort
+    would not. Returns ``{}`` when no palette is available.
+    """
+    if adata is None or not category:
+        return {}
+    uns = getattr(adata, "uns", None)
+    obs = getattr(adata, "obs", None)
+    if uns is None or obs is None:
+        return {}
+    palette = uns.get(f"{category}_colors")
+    if palette is None or category not in obs:
+        return {}
+    series = obs[category]
+    source = (
+        list(series.cat.categories.astype(str))
+        if hasattr(series, "cat")
+        else list(pd.unique(series.astype(str)))
+    )
+    mapping = {str(cat): palette[i] for i, cat in enumerate(source) if i < len(palette)}
+    return {cat: mapping[cat] for cat in categories if cat in mapping}
+
+
+def _composition_matrix_inputs(
+    data: Any,
+    modality: str = "population",
+    category: str | None = None,
+    color_adata: Any = None,
+    group_attrs: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build Matrix inputs for a composition Clustergram.
+
+    Accepts a Celldega collection / ``MuData`` (reads ``modality``), an
+    ``AnnData`` (obs = groups, var = populations), or a ``DataFrame``
+    (rows = groups, columns = populations). Returns a dict with:
+
+    * ``df`` - populations x groups DataFrame (Clustergram row/col orientation)
+    * ``meta_col`` - optional group (column) attribute table
+    * ``colors`` - ``{population: hex}`` palette
+    * ``normalized`` - default for ``composition_normalized``
+    * ``category`` - resolved population category name
+    * ``col_weights`` - optional ``{group: n_cells}`` true per-group magnitude,
+      used to scale bar height in non-normalized ("counts") mode even when
+      the displayed matrix itself holds proportions
+    """
+    meta_col: pd.DataFrame | None = None
+    collection_obs: pd.DataFrame | None = None
+    col_weights: dict[str, float] = {}
+
+    if isinstance(data, pd.DataFrame):
+        groups_x_pops = data.copy()
+        groups_x_pops.index = groups_x_pops.index.astype(str)
+        groups_x_pops.columns = groups_x_pops.columns.astype(str)
+        categories = list(groups_x_pops.columns)
+        colors = _colors_from_adata(color_adata, category, categories)
+        output = "proportion"
+        resolved_category = category
+    else:
+        if hasattr(data, "mod"):  # CelldegaCollection or MuData
+            available = list(data.mod)
+            if modality not in available:
+                raise KeyError(
+                    f"modality '{modality}' not found; available modalities: {available}"
+                )
+            adata = data.mod[modality]
+            collection_obs = getattr(data, "obs", None)
+        elif hasattr(data, "X") and hasattr(data, "var_names"):  # AnnData
+            adata = data
+        else:
+            raise TypeError("data must be a Celldega collection, MuData, AnnData, or DataFrame")
+
+        matrix = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+        groups_x_pops = pd.DataFrame(
+            np.nan_to_num(matrix.astype(float), nan=0.0),
+            index=pd.Index(adata.obs_names.astype(str), name=adata.obs.index.name),
+            columns=pd.Index(adata.var_names.astype(str), name=adata.var.index.name),
+        )
+        categories = list(groups_x_pops.columns)
+        resolved_category = category or adata.uns.get("category")
+
+        colors: dict[str, str] = {}
+        if "color" in adata.var.columns:
+            colors = {
+                cat: str(col)
+                for cat, col in zip(categories, adata.var["color"].astype(str), strict=False)
+            }
+        else:
+            color_key = f"{resolved_category}_colors" if resolved_category else None
+            if color_key and color_key in adata.uns:
+                colors = {
+                    cat: str(col)
+                    for cat, col in zip(categories, list(adata.uns[color_key]), strict=False)
+                }
+        if not colors:
+            colors = _colors_from_adata(color_adata, resolved_category, categories)
+        output = str(adata.uns.get("output", "proportion"))
+
+        # True per-group cell count, independent of `output`: `calc_population`
+        # always stores this on the modality's own obs (collection.py), so
+        # "counts" mode can scale bar height correctly even when `df` itself
+        # holds proportions (every group's proportions sum to ~1.0 otherwise,
+        # making non-normalized mode indistinguishable from normalized mode).
+        n_cells_source = None
+        if "n_cells" in adata.obs.columns:
+            n_cells_source = adata.obs["n_cells"]
+        elif collection_obs is not None and "n_cells" in collection_obs.columns:
+            n_cells_source = collection_obs.reindex(adata.obs_names)["n_cells"]
+        if n_cells_source is not None:
+            col_weights = {
+                str(name): float(n)
+                for name, n in zip(adata.obs_names.astype(str), n_cells_source, strict=False)
+                if pd.notna(n)
+            }
+
+    # Clustergram composition body: rows = populations, cols = groups.
+    df = groups_x_pops.T.copy()
+    df.index = df.index.astype(str)
+    df.columns = df.columns.astype(str)
+
+    if group_attrs:
+        # Prefer the collection's dataset/set obs (richer metadata) over the
+        # modality's obs, which is usually just n_cells.
+        source_obs = collection_obs if collection_obs is not None else None
+        if source_obs is None and not isinstance(data, pd.DataFrame):
+            source_obs = getattr(adata, "obs", None)  # type: ignore[name-defined]
+        if source_obs is not None:
+            missing = [c for c in group_attrs if c not in source_obs.columns]
+            if missing:
+                raise KeyError(f"group_attrs not found on obs: {missing}")
+            meta_col = source_obs.loc[df.columns, list(group_attrs)].copy()
+            meta_col.index = meta_col.index.astype(str)
+
+    return {
+        "df": df,
+        "meta_col": meta_col,
+        "col_attr": list(group_attrs) if group_attrs else [],
+        "colors": colors,
+        "normalized": output != "counts",
+        "category": resolved_category,
+        "col_weights": col_weights,
+    }
+
+
+class Yearbook(CelldegaWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
 
@@ -797,6 +1034,9 @@ class Yearbook(anywidget.AnyWidget):
         default_value=["leiden"],
     ).tag(sync=True)
 
+    # obs column driving the cluster color legend/meta_cluster_parquet key field
+    cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
+
     # Stateless front-end query, evaluated in the browser against LandscapeFiles
     # (no Python/AnnData required). Distinct from the Python-side
     # ``celldega.select`` query module. Supports:
@@ -869,12 +1109,13 @@ class Yearbook(anywidget.AnyWidget):
             return buf.getvalue()
 
         if adata is not None:
-            # if cell_id is in the adata.obs, use it as index
-            if "cell_id" in adata.obs.columns:
-                adata.obs.set_index("cell_id", inplace=True)
+            # Never mutate the caller's AnnData, and key cell metadata by
+            # obs_names (not a `cell_id` column) so it matches the DegaFiles
+            # cell_metadata `name` column — see Landscape for the full rationale.
+            obs = adata.obs
 
-            cell_attr = [c for c in cell_attr if c in adata.obs.columns]
-            meta_cell_df = adata.obs[cell_attr].copy()
+            cell_attr = [c for c in cell_attr if c in obs.columns]
+            meta_cell_df = obs[cell_attr].copy()
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -890,17 +1131,11 @@ class Yearbook(anywidget.AnyWidget):
 
             pq_meta_cell = _df_to_bytes(meta_cell_df)
 
-            if cluster_attr in adata.obs.columns:
-                cluster_counts = adata.obs[cluster_attr].value_counts().sort_index()
+            if cluster_attr in obs.columns:
+                cluster_counts = obs[cluster_attr].value_counts().sort_index()
                 colors = adata.uns.get(f"{cluster_attr}_colors")
 
-                if colors is None:
-                    with suppress(Exception):
-                        sc.pl.umap(adata, color=cluster_attr, show=False)
-                        plt.close()
-                        colors = adata.uns.get(f"{cluster_attr}_colors")
-
-                # backup color definition
+                # backup color definition (deterministic HSV; no scanpy call)
                 if colors is None:
                     n = len(cluster_counts)
                     colors = [_hsv_to_hex(i / n) for i in range(n)]
@@ -934,6 +1169,8 @@ class Yearbook(anywidget.AnyWidget):
 
         super().__init__(**kwargs)
 
+        self.cluster_attr = cluster_attr
+
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df
         if meta_cluster_df is not None:
@@ -959,14 +1196,8 @@ class Yearbook(anywidget.AnyWidget):
         """Navigate to a specific page."""
         self.current_page = max(0, min(page, self.total_pages - 1))
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
 
-
-class Clustergram(anywidget.AnyWidget):
+class Clustergram(CelldegaWidget):
     """
     Minimal version of the Clustergram widget.
 
@@ -974,9 +1205,29 @@ class Clustergram(anywidget.AnyWidget):
       manual_cat_config, etc.
     - Manual categories are treated as a simple JSON string.
     - All the old DataFrame-based manual_cat plumbing is removed.
+
+    Matrix slices (browser is source of truth for ``net_mat``)
+        On row/column label and matrix-cell clicks, the front-end first updates
+        ``click_info`` (interaction only), then emits :attr:`matrix_slice_request` so
+        the handler fills :attr:`matrix_slice_result` with axis or cell data
+        (``slice_kind``, ``entries``, ``matrix_convention``, etc.). Link another
+        widget's trait with ``jslink((cgm, "matrix_slice_result"), ...)`` to consume
+        slices without a Python round-trip.
+
+        Use :meth:`request_matrix_slice` to dispatch a non-blocking request, or
+        ``await`` :meth:`request_matrix_slice_async` when you need the response in
+        Python (both require a **live kernel**).
+
+        **jslink:** Only traits sync between models. For linked custom widgets, mirror
+        ``matrix_slice_result``; Python does not run in standalone exported HTML.
+
+    Python access to the same matrix
+        If constructed with ``matrix=``, use :meth:`matrix_dataframe` for the underlying
+        ``pandas.DataFrame``.
     """
 
     _esm = _WIDGET_ESM
+    _registry_namespace = "matrix"
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
@@ -988,7 +1239,21 @@ class Clustergram(anywidget.AnyWidget):
     width = traitlets.Int(500).tag(sync=True)
     height = traitlets.Int(500).tag(sync=True)
 
+    # Multipliers for the row/column label text. Column labels default a
+    # little smaller so longer category names remain readable when zoomed in.
+    row_label_scale = traitlets.Float(1.0).tag(sync=True)
+    col_label_scale = traitlets.Float(0.8).tag(sync=True)
+
     click_info = traitlets.Dict({}).tag(sync=True)
+
+    #: Set by Python (or another front-end) to request ``{req_id, op, ...}``:
+    #: ``row``/``col`` use ``index``; ``cell`` uses ``row``/``col``; ``row_col``
+    #: uses ``row_index``/``col_index`` and optional ``max_entries``. The Matrix
+    #: front-end writes the slice into :attr:`matrix_slice_result`.
+    matrix_slice_request = traitlets.Dict(default_value={}).tag(sync=True)
+
+    #: Populated by the Matrix front-end in response to :attr:`matrix_slice_request`.
+    matrix_slice_result = traitlets.Dict(default_value={}).tag(sync=True)
 
     # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
     # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
@@ -1001,7 +1266,43 @@ class Clustergram(anywidget.AnyWidget):
 
     # Legacy traitlet for gene selection (copied from selected_rows when row entity is 'gene')
     selected_genes = traitlets.List(default_value=[]).tag(sync=True)
+    # Gene set intended for enrichment. Unlike selected_genes, a single row
+    # label click does not overwrite this value. Keeping the two concerns
+    # separate makes browser-only widget links match live Python behavior.
+    enrichment_genes = traitlets.List(default_value=[]).tag(sync=True)
+    enrichment_source_label = traitlets.Unicode("").tag(sync=True)
+    row_enrich_enabled = traitlets.Bool(True).tag(sync=True)
+    col_enrich_enabled = traitlets.Bool(False).tag(sync=True)
+    # A gene selected in Enrich. The Clustergram front-end centers its matching
+    # row without replacing the current enrichment gene set.
+    focused_gene = traitlets.Unicode("").tag(sync=True)
+    # Genes to visually highlight (blue row labels), e.g. the members of an
+    # enriched term selected in a linked Enrich widget. Matched
+    # case-insensitively against row names. Deliberately separate from
+    # ``selected_genes``, which *feeds* enrichment input — reusing it would
+    # loop the linkage.
+    highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
+    #: Upper bound on the gene set a column click sends to enrichment.
     top_n_genes = traitlets.Int(50).tag(sync=True)
+
+    #: Share of the *visible* rows a column click sends to enrichment, as a
+    #: percentage, capped by :attr:`top_n_genes`. Percentage rather than a flat
+    #: count because under a reduced :attr:`rank_dim` view a fixed "top 50"
+    #: can be the entire view, which enriches a gene set against itself. A
+    #: floor of 5 genes applies so very narrow views still say something.
+    top_gene_percent = traitlets.Float(10.0).tag(sync=True)
+
+    #: Column-click marker candidates must be strictly above this matrix value.
+    #: ``0`` is a natural default after row z-scoring: only genes enriched in
+    #: the clicked column are sent to Enrich. Set to ``None`` to disable.
+    top_gene_min_value = traitlets.Float(0.0, allow_none=True).tag(sync=True)
+
+    #: Active dimensionality view: the number of rows kept by the RANK slider.
+    #: ``0`` (default) means the full matrix. Set to one of the levels
+    #: precomputed by ``Matrix.cluster(view=...)`` to open already reduced; the
+    #: front end snaps to the nearest available level and writes the applied
+    #: value back. Has no effect when the matrix carries no views.
+    rank_dim = traitlets.Int(0).tag(sync=True)
 
     row_names = traitlets.List(default_value=[]).tag(sync=True)
     col_names = traitlets.List(default_value=[]).tag(sync=True)
@@ -1036,6 +1337,60 @@ class Clustergram(anywidget.AnyWidget):
     # categories, etc.
     manual_cat_config = traitlets.Unicode("{}").tag(sync=True)
 
+    # How each matrix cell encodes its value / how the body is drawn:
+    #   "heatmap"     - color + opacity by value (classic; default)
+    #   "dotplot"     - color/opacity by the main matrix (e.g. mean expression),
+    #                   square/dot size by the secondary `dot_mat` (e.g. fraction of
+    #                   cells expressing). Falls back to "heatmap" if no dot matrix.
+    #   "composition" - column-wise stacked bars (rows = populations, cols = groups).
+    #                   Only settable on a `Composition` instance; see
+    #                   `_validate_viz_mode` below.
+    # Changing this trait live re-encodes / rebuilds the body with a transition.
+    viz_mode = traitlets.Unicode("heatmap").tag(sync=True)
+
+    # Dotplot-only: whether dot size encodes the secondary `dot_mat` (True,
+    # default) or is forced to a full tile, independent of color/opacity.
+    dot_size_encoded = traitlets.Bool(True).tag(sync=True)
+
+    # Composition body options (used when viz_mode == "composition").
+    # Normalize each column to 100% (True) or keep raw counts (False).
+    composition_normalized = traitlets.Bool(True).tag(sync=True)
+    # Optional {population_name: hex} palette for stacked segments.
+    composition_colors = traitlets.Dict(default_value={}).tag(sync=True)
+    # Optional {group_name: n_cells} true per-group magnitude. Scales bar
+    # height in non-normalized ("counts") mode even when the displayed matrix
+    # holds proportions (e.g. from `DatasetCollection.calc_population`, whose
+    # default output already normalizes each group to sum to 1).
+    composition_col_weights = traitlets.Dict(default_value={}).tag(sync=True)
+
+    #: Supported `viz_mode` values. "size" (square size ∝ value alone, full
+    #: opacity) isn't supported — use "dotplot" instead, which covers the
+    #: same "size encodes a value" idea via a proper secondary matrix.
+    _VALID_VIZ_MODES = ("heatmap", "dotplot", "composition")
+
+    @traitlets.validate("viz_mode")
+    def _validate_viz_mode(self, proposal):
+        """Composition mode is only supported through :class:`Composition`.
+
+        The composition-specific traits above still have to live on
+        `Clustergram` (the front end has no notion of a Python subclass, it
+        only reads whatever traits are synced), but a plain `Clustergram`
+        instance isn't a supported way to reach that body — use
+        :class:`Composition`, which handles building the right `Matrix` shape
+        and reorder semantics for it.
+        """
+        value = proposal["value"]
+        if value not in self._VALID_VIZ_MODES:
+            raise traitlets.TraitError(
+                f"viz_mode={value!r} is not supported; use one of {self._VALID_VIZ_MODES}."
+            )
+        if value == "composition" and not isinstance(self, Composition):
+            raise traitlets.TraitError(
+                "viz_mode='composition' is only supported via celldega.viz.Composition, "
+                "not a plain Clustergram."
+            )
+        return value
+
     def __init__(self, **kwargs):
         """
         Parameters
@@ -1048,6 +1403,8 @@ class Clustergram(anywidget.AnyWidget):
             Deprecated path, kept only for backwards-compatibility.
         """
         pq_data = kwargs.pop("parquet_data", None)
+        explicit_name = kwargs.pop("name", None)
+        explicit_registry_key = kwargs.pop("registry_key", None)
 
         if "network" in kwargs:
             warnings.warn(
@@ -1090,6 +1447,8 @@ class Clustergram(anywidget.AnyWidget):
 
             parquet_traits = {
                 "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
+                # Optional secondary matrix for dot-plot size encoding (may be empty)
+                "dot_mat_parquet": traitlets.Bytes(pq_data.get("dot_mat", b"")).tag(sync=True),
                 "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
                 "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
                 "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
@@ -1104,17 +1463,19 @@ class Clustergram(anywidget.AnyWidget):
             }
             self.add_traits(**parquet_traits)
 
-        old_widget = _clustergram_registry.get(name)
-        if old_widget:
-            with suppress(Exception):
-                old_widget.close()
-
-        kwargs["name"] = name
+        if explicit_registry_key is not None:
+            name = explicit_registry_key
+        elif explicit_name is not None:
+            name = explicit_name
         kwargs["manual_row_cat"] = manual_row_flag
         kwargs["manual_col_cat"] = manual_col_flag
 
-        super().__init__(**kwargs)
-        _clustergram_registry[name] = self
+        # If a dot-size matrix came through and the caller didn't pick a mode,
+        # default to the dot-plot encoding so the extra channel is shown.
+        if pq_data is not None and pq_data.get("dot_mat") and "viz_mode" not in kwargs:
+            kwargs["viz_mode"] = "dotplot"
+
+        super().__init__(name=name, **kwargs)
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user
@@ -1158,7 +1519,7 @@ class Clustergram(anywidget.AnyWidget):
     ) -> pd.Series:
         """Cut the dendrogram into flat cluster labels via the underlying Matrix.
 
-        Thin wrapper over :meth:`celldega.clust.Matrix.to_cluster`. When neither
+        Thin wrapper over :meth:`celldega.clust.Matrix.cut_tree`. When neither
         ``n_clusters`` nor ``threshold`` is passed, the cut is read from the
         front-end dendrogram slider state in ``dendro_cut[axis]`` — a dict of
         ``{"n_clusters": int}`` or ``{"threshold": float}`` that the JS widget
@@ -1189,7 +1550,7 @@ class Clustergram(anywidget.AnyWidget):
                     f"no cut for axis '{axis}': move the dendrogram slider or pass "
                     "n_clusters / threshold explicitly"
                 )
-        return self._matrix.to_cluster(
+        return self._matrix.cut_tree(
             axis=axis, n_clusters=n_clusters, threshold=threshold, criterion=criterion
         )
 
@@ -1274,8 +1635,246 @@ class Clustergram(anywidget.AnyWidget):
             setattr(self, f"{axis}_manual_df", manual_df)
             setattr(self, f"{axis}_manual_colors_df", colors_df)
 
-    def close(self):  # pragma: no cover - cleanup depends on JS
-        """Close the widget and notify the frontend to release resources."""
-        with suppress(Exception):
-            self.send({"event": "finalize"})
-        super().close()
+    def request_matrix_slice(
+        self,
+        op: Literal["row", "col", "cell", "row_col"],
+        *,
+        index: int | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        row_index: int | None = None,
+        col_index: int | None = None,
+        max_entries: int | None = None,
+    ) -> str:
+        """
+        Request a slice from the browser Matrix and return its request ID.
+
+        This method deliberately does not wait for ``matrix_slice_result``: blocking
+        the executing kernel thread prevents inbound widget comm messages from being
+        processed. Observe ``matrix_slice_result`` using the returned ID, or use
+        ``await request_matrix_slice_async(...)`` in an async notebook cell.
+
+        Parameters
+        ----------
+        op
+            ``row`` or ``col``: pass ``index`` (matrix axis index). ``cell``: pass
+            ``row`` and ``col`` matrix indices. ``row_col``: pass ``row_index`` and
+            ``col_index`` to get both axis slices in one result; optional
+            ``max_entries`` (negative means all, subject to a browser-side cap).
+
+        Returns
+        -------
+        str
+            Request ID that will be included in :attr:`matrix_slice_result`.
+        """
+        if op not in ("row", "col", "cell", "row_col"):
+            raise ValueError("op must be 'row', 'col', 'cell', or 'row_col'")
+
+        req_id = str(uuid.uuid4())
+        payload: dict[str, Any] = {"req_id": req_id, "op": op}
+        if op in ("row", "col"):
+            if index is None:
+                raise ValueError("index is required when op is 'row' or 'col'")
+            payload["index"] = int(index)
+        elif op == "cell":
+            if row is None or col is None:
+                raise ValueError("row and col are required when op is 'cell'")
+            payload["row"] = int(row)
+            payload["col"] = int(col)
+        else:
+            if row_index is None or col_index is None:
+                raise ValueError("row_index and col_index are required when op is 'row_col'")
+            payload["row_index"] = int(row_index)
+            payload["col_index"] = int(col_index)
+        if max_entries is not None:
+            payload["max_entries"] = int(max_entries)
+
+        # Deliberately do not blank matrix_slice_result here: it is a shared
+        # mailbox that click-driven front-end slices also write, and clearing
+        # it would destroy a concurrent caller's not-yet-read response. The
+        # per-request UUID makes stale reads impossible for req_id-checking
+        # consumers.
+        self.matrix_slice_request = {}
+        self.matrix_slice_request = payload
+        return req_id
+
+    async def request_matrix_slice_async(
+        self,
+        op: Literal["row", "col", "cell", "row_col"],
+        *,
+        index: int | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        row_index: int | None = None,
+        col_index: int | None = None,
+        max_entries: int | None = None,
+        timeout: float = 5.0,
+    ) -> dict | None:
+        """Request a browser matrix slice and asynchronously wait for its result.
+
+        ``await`` this method from an async notebook cell (awaiting yields to the
+        kernel event loop so it can process the front-end comm message). Resolution
+        is observer-driven: a temporary ``matrix_slice_result`` observer fulfills
+        the wait the moment the response with this request's ID arrives, so the
+        response cannot be missed even if a click-driven slice overwrites the
+        shared ``matrix_slice_result`` mailbox immediately afterwards.
+        """
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        expected: dict[str, str] = {}
+
+        def _on_result(change: dict) -> None:
+            res = dict(change["new"] or {})
+            if res.get("req_id") == expected.get("req_id") and not future.done():
+                future.set_result(res)
+
+        self.observe(_on_result, names="matrix_slice_result")
+        try:
+            expected["req_id"] = self.request_matrix_slice(
+                op,
+                index=index,
+                row=row,
+                col=col,
+                row_index=row_index,
+                col_index=col_index,
+                max_entries=max_entries,
+            )
+            # A synchronous in-process responder can fill the result during
+            # request_matrix_slice, before `expected` was populated — check once.
+            res = dict(self.matrix_slice_result or {})
+            if res.get("req_id") == expected["req_id"]:
+                return res
+            return await asyncio.wait_for(future, timeout)
+        except TimeoutError:
+            return None
+        finally:
+            self.unobserve(_on_result, names="matrix_slice_result")
+
+    def matrix_dataframe(self) -> pd.DataFrame | None:
+        """Return a copy of the Matrix ``data`` when this widget was created with ``matrix=``."""
+        m = getattr(self, "_matrix", None)
+        if m is None:
+            return None
+        data = getattr(m, "data", None)
+        return data.copy() if data is not None else None
+
+
+class Composition(Clustergram):
+    """Composition view: count/proportion of categories compared across groups.
+
+    A `Clustergram` subclass with ``viz_mode="composition"``. The body draws
+    each group (dataset/sample) as a stacked bar whose segments are
+    populations (cell types), reusing the Clustergram's column-attribute
+    tracks, reorder buttons (``ini`` / ``sum`` / ``clust``), and the
+    control-panel ``PROP``/``COUNTS`` normalization toggle.
+
+    "Composition shows the count or relative proportion of categories within
+    each group, and compares those compositions across groups."
+
+    Example::
+
+        dset = dega.DatasetCollection(adata, dataset_col="sample_id",
+                                       obs_columns=["condition"])
+        dset.calc_population(adata, category="cell_type")
+        dega.viz.Composition(
+            dset, category="cell_type", group_attrs=["condition"]
+        )
+
+    Note: ``calc_population`` already copies ``adata.uns[f"{category}_colors"]``
+    onto the population modality it builds, so ``Composition`` picks up the
+    same colors from ``dset`` alone — passing ``adata=`` is only needed as a
+    fallback (e.g. a plain ``DataFrame`` input, or an ``AnnData``/modality that
+    has no color palette of its own).
+    """
+
+    def __init__(
+        self,
+        data: Any,
+        modality: str = "population",
+        *,
+        category: str | None = None,
+        colors: dict[str, str] | None = None,
+        adata: Any = None,
+        group_attrs: list[str] | None = None,
+        normalized: bool | None = None,
+        col_weights: dict[str, float] | None = None,
+        cluster: bool = True,
+        name: str = "composition",
+        width: int = 700,
+        height: int = 450,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Args:
+            data: A Celldega collection (``DatasetCollection`` / ``SetCollection``),
+                a ``MuData``, an ``AnnData`` (obs = groups, var = populations), or a
+                ``DataFrame`` (rows = groups, columns = populations) — typically the
+                output of ``calc_population``.
+            modality: Modality key on a collection/MuData (default ``"population"``).
+            category: Population ``obs`` column name used to resolve colors from
+                ``adata.uns[f"{category}_colors"]`` when the modality has none.
+            colors: Optional ``{population: hex}`` overrides.
+            adata: Optional source cell-level ``AnnData`` to fall back to for
+                its color palette. Usually unnecessary: ``calc_population``
+                already copies the category's colors onto the modality it
+                builds, so a ``DatasetCollection``/``SetCollection`` that has
+                already run it carries its own colors.
+            group_attrs: Dataset/set ``obs`` columns to show as Clustergram column
+                attribute tracks (e.g. ``["condition", "timepoint"]``).
+            normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
+                proportion matrices and ``False`` for count matrices.
+            col_weights: Optional ``{group: n_cells}`` true per-group magnitude,
+                used to scale bar height in non-normalized ("counts") mode.
+                Defaults to `DatasetCollection`/`calc_population`'s own
+                ``n_cells`` obs column when available — pass explicitly to
+                override, e.g. for a plain ``DataFrame`` input.
+            cluster: Run hierarchical clustering before display (default ``True``).
+            name: Clustergram registry name.
+            width / height: Widget size in pixels.
+            **kwargs: Forwarded to :class:`Clustergram`.
+        """
+        from celldega.clust.matrix import Matrix
+
+        payload = _composition_matrix_inputs(
+            data,
+            modality=modality,
+            category=category,
+            color_adata=adata,
+            group_attrs=group_attrs,
+        )
+        merged_colors = dict(payload["colors"])
+        if colors:
+            merged_colors.update(colors)
+
+        resolved_col_weights = col_weights if col_weights is not None else payload["col_weights"]
+
+        mat = Matrix(
+            payload["df"],
+            meta_col=payload["meta_col"],
+            col_attr=payload["col_attr"] or None,
+            row_entity={"entity": "cell_population", "attr": "name"},
+            col_entity={"entity": "dataset", "attr": "name"},
+            global_colors=merged_colors or None,
+            name=name,
+        )
+        if cluster:
+            mat.cluster()
+        else:
+            # Build viz nodes/ranks without hierarchical clustering so export works.
+            mat.make_viz()
+            mat._clustered = True
+
+        if normalized is None:
+            normalized = payload["normalized"]
+
+        kwargs.setdefault("viz_mode", "composition")
+        kwargs.setdefault("composition_normalized", bool(normalized))
+        if resolved_col_weights:
+            kwargs.setdefault("composition_col_weights", resolved_col_weights)
+        if merged_colors:
+            kwargs.setdefault("composition_colors", merged_colors)
+            kwargs.setdefault("category_colors", merged_colors)
+        kwargs.setdefault("width", width)
+        kwargs.setdefault("height", height)
+        kwargs.setdefault("name", name)
+        super().__init__(matrix=mat, **kwargs)

@@ -25,7 +25,10 @@ precursor to interactive clustergram visualization. It supports:
 import celldega as dega
 
 # Create and cluster a matrix
-mat = dega.clust.Matrix(adata, filter_genes=5000)
+mat = dega.clust.Matrix(adata)
+mat.filter("row", by="var", num=5000)
+mat.norm("col", by="total")
+mat.norm("row", by="zscore")
 mat.cluster()
 
 # Export for visualization
@@ -156,13 +159,18 @@ selection = selector.select(
 
 ### [Viz Module](viz/api.md)
 
-The `viz` module provides Jupyter Widget classes for interactive visualization:
+The `viz` module provides Jupyter Widget classes for interactive
+visualization. See the [Visualizations](../visualizations/index.md) section
+for what each one shows and how it works:
 
 | Widget | Description |
 |--------|-------------|
-| `Landscape` | Main spatial visualization for IST/SST data |
+| `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
+| `CellCloud` | 3D orbit view of cell centroids |
+| `NeighborhoodCloud` | 3D orbit view of tissue neighborhoods |
+| `Composition` | Category composition across groups (`Clustergram` variant) |
 | `Enrich` | Gene enrichment analysis |
 
 ```python

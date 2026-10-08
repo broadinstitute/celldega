@@ -9,46 +9,81 @@ import {
   sync_region_to_model,
 } from '../deck-gl/layers/edit_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import { build_nbhd_cloud_gene_bar_data } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { update_path_pickable_state } from '../deck-gl/layers/path_layer';
 import { update_trx_pickable_state } from '../deck-gl/layers/trx_layer';
-import { update_dendro_layer_data } from '../deck-gl/matrix/dendro_layers';
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { set_composition_normalized } from '../deck-gl/matrix/composition_layer';
+import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
+import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
   uniprot_data,
   uniprot_get_request,
 } from '../external_apis/uniprot_api';
 import {
-  calc_dendro_triangles,
-  calc_dendro_polygons,
-  alt_slice_linkage,
-} from '../matrix/dendro';
+  is_orbit_technology,
+  is_neighborhood_cloud_technology,
+} from '../global_variables/image_info';
+import { get_rank_view_stops, has_rank_views } from '../matrix/rank_views';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
   bar_callback_nbhd,
+  bar_callback_nbhd_cloud_cluster,
+  bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
 import { make_dataset_dropdown } from './dataset_dropdown';
-import { set_gene_search } from './gene_search';
-import { logo } from './logo';
+import { update_dendro_from_slider } from './dendro_slider';
+import { is_gene_axis, make_gene_info_box } from './gene_info';
+import { set_gene_search, set_matrix_row_search } from './gene_search';
+import { embed_logo_in_search, make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
 import {
   make_img_layer_slider_callback,
+  make_slider,
   toggle_slider,
+  set_slider_value,
+  ini_discrete_slider_params,
   ini_slider,
   ini_slider_params,
 } from './sliders';
 import {
+  apply_state_button_style,
   make_button,
   make_edit_button,
-  make_reorder_button,
+  make_reorder_dropdown,
+  make_text_toggle_group,
 } from './text_buttons';
+
+const can_scroll_vertically = (element, delta_y) => {
+  const { overflowY } = window.getComputedStyle(element);
+  if (overflowY !== 'auto' && overflowY !== 'scroll') return false;
+  if (element.scrollHeight <= element.clientHeight) return false;
+  return delta_y < 0
+    ? element.scrollTop > 0
+    : element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+};
+
+export const block_page_scroll_in_panel = (event) => {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const panel = event.currentTarget;
+  for (
+    let node = event.target;
+    node && node !== panel;
+    node = node.parentElement
+  ) {
+    if (node instanceof Element && can_scroll_vertically(node, event.deltaY)) {
+      return;
+    }
+  }
+  event.preventDefault();
+};
 
 export const make_ui_container = () => {
   const ui_container = document.createElement('div');
@@ -64,6 +99,22 @@ export const make_ui_container = () => {
   ui_container.style.maxWidth = '100%';
   ui_container.style.margin = '0 auto';
 
+  // The control panel's columns (IMG/CELL/TRX/etc.) have fixed pixel widths
+  // and don't wrap. When the host page is narrower than their combined
+  // width (e.g. embedded in a docs article column), scroll horizontally
+  // instead of squeezing/overlapping the logo button pinned at the right
+  // (see make_logo_button's flex-shrink:0).
+  ui_container.style.overflowX = 'auto';
+
+  // Vertical wheel gestures over a control panel never scroll the page. A
+  // scrollable box inside the panel (bar plots, gene info) still scrolls while
+  // it has room in that direction; otherwise the gesture is absorbed.
+  // Horizontal gestures are left alone so the panel itself can still scroll
+  // sideways when it is wider than the page.
+  ui_container.addEventListener('wheel', block_page_scroll_in_panel, {
+    passive: false,
+  });
+
   return ui_container;
 };
 
@@ -72,7 +123,12 @@ export const make_ctrl_container = () => {
   ctrl_container.style.display = 'flex';
   ctrl_container.style.flexDirection = 'row';
   ctrl_container.className = 'ctrl_container';
-  ctrl_container.style.width = '100%'; // '535px'
+  // flex (not a hard width:100%) so it shares ui_container's width with the
+  // non-shrinking logo button instead of competing with it for space.
+  // min-width:0 lets it shrink below its content size so the *row* (not the
+  // logo) is what scrolls when content is wider than the available space.
+  ctrl_container.style.flex = '1 1 auto';
+  ctrl_container.style.minWidth = '0';
   return ctrl_container;
 };
 
@@ -100,254 +156,349 @@ export const make_slider_container = (class_name) => {
   return slider_container;
 };
 
+const MATRIX_UI_FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
 /**
- * Get a short display name for an axis entity.
- * Returns "Row" or "Col" if no entity is specified or if entity is "N.A.".
+ * Show/hide viz_mode-dependent control-panel chrome: the "TILE: PROP|UNIT"
+ * and "PROP|COUNTS" toggles, and the row Dendro slider (never meaningful in
+ * composition mode, since rows aren't equal height once stacked). Call after
+ * any change to `viz_state.mat.viz_mode`.
+ *
+ * @param {object} viz_state - Visualization state.
  */
-const get_axis_display_name = (viz_state, axis) => {
-  const entity_info =
-    axis === 'row' ? viz_state.row_entity : viz_state.col_entity;
+export const update_mode_button_visibility = (viz_state) => {
+  const buttons = viz_state.mode_buttons;
+  if (!buttons) return;
 
-  // Default to "Row" or "Col" if no entity or if entity is "N.A."
-  const default_name = axis === 'row' ? 'Row' : 'Col';
+  const is_dotplot = viz_state.mat.viz_mode === 'dotplot';
+  const is_composition = viz_state.mat.viz_mode === 'composition';
 
-  if (entity_info && entity_info.entity) {
-    const { entity } = entity_info;
+  buttons.dot.container.style.display = is_dotplot ? 'inline-flex' : 'none';
+  buttons.normalized.container.style.display = is_composition
+    ? 'inline-flex'
+    : 'none';
 
-    // If entity is "N.A." or empty, use default axis name
-    if (!entity || entity === 'N.A.' || entity === 'n.a.') {
-      return default_name;
-    }
-
-    // Use abbreviated entity name for known types
-    const abbrev = {
-      gene: 'Gene',
-      cell: 'Cell',
-      nbhd: 'Nbhd',
-      cluster: 'Clust',
-      hextile: 'Hex',
-    };
-    return abbrev[entity] || entity.substring(0, 4).toUpperCase();
+  if (viz_state.dendro?.sliders?.row) {
+    viz_state.dendro.sliders.row.style.display = is_composition ? 'none' : '';
   }
-
-  return default_name;
 };
 
 export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const ui_container = make_ui_container();
-  const ctrl_container = flex_container('button_container', 'column');
 
-  const slider_container = flex_container('slider_container', 'column');
+  // Left control block: a fixed-column grid (label | order/readout | slider)
+  // so optional rows -- DIM (only with precomputed views) and the body-mode
+  // toggles (only for dot plots / compositions) -- drop out without shifting
+  // the columns of the rows that remain.
+  const grid = document.createElement('div');
+  grid.className = 'matrix_controls';
+  Object.assign(grid.style, {
+    display: 'grid',
+    gridTemplateColumns: '28px 40px 80px',
+    columnGap: '6px',
+    rowGap: '5px',
+    alignItems: 'center',
+    alignContent: 'start',
+    margin: '3px 6px 0 6px',
+    flexShrink: '0',
+  });
 
-  // Button widths for reorder controls (compact sizing)
-  const button_width = 34;
-  const label_width = 28;
-
-  const axes = ['col', 'row'];
-
-  const inst_orders = ['clust', 'sum', 'var', 'ini'];
-
-  axes.forEach((axis) => {
-    const inst_container = flex_container(axis, 'row');
-
-    // Use entity name if available
-    const axis_label = get_axis_display_name(viz_state, axis);
-
-    d3.select(inst_container)
+  const append_label = (text) =>
+    d3
+      .select(grid)
       .append('div')
-      .text(axis_label)
-      .style('width', `${label_width}px`)
-      .style('height', '16px')
-      .style('display', 'inline-flex')
-      .style('align-items', 'center')
-      .style('justify-content', 'center')
-      .style('text-align', 'center')
-      .style('cursor', 'pointer')
+      .text(text)
+      .style('white-space', 'nowrap')
       .style('font-size', '9px')
       .style('font-weight', 'bold')
-      .style('color', '#47515b')
-      .style('border', '2px solid')
-      .style('border-color', 'white')
-      .style('border-radius', '8px')
-      .style('margin-top', '4px')
-      .style('margin-left', '3px')
-      .style('padding', '2px 2px')
+      .style('color', 'black')
       .style('user-select', 'none')
-      .style(
-        'font-family',
-        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-      );
+      .style('font-family', MATRIX_UI_FONT_FAMILY);
 
-    inst_orders.forEach((label) => {
-      const isClust = label === 'clust';
-      make_reorder_button(
-        inst_container,
-        label,
-        isClust,
-        button_width,
-        axis,
-        deck_mat,
-        layers_mat,
-        viz_state
-      );
-    });
-
-    ctrl_container.appendChild(inst_container);
-  });
-
+  // ROW / COL rows: order dropdown + dendrogram slider per axis.
   viz_state.dendro.sliders = {};
+  ['row', 'col'].forEach((axis) => {
+    append_label(axis === 'row' ? 'ROW:' : 'COL:');
 
-  const dendro_slider_callback = (_deck_mat, _viz_state, axis, event) => {
-    // Update the dendrogram layer
-    _viz_state.dendro.sliders[`${axis}_value`] =
-      (_viz_state.dendro.max_linkage_dist[axis] * event.target.value) / 100;
+    make_reorder_dropdown(grid, axis, deck_mat, layers_mat, viz_state);
 
-    alt_slice_linkage(
-      _viz_state,
-      axis,
-      _viz_state.dendro.sliders[`${axis}_value`]
-    );
-    calc_dendro_triangles(_viz_state, axis);
-    calc_dendro_polygons(_viz_state, axis);
-    update_dendro_layer_data(layers_mat, _viz_state, axis);
-
-    _deck_mat.setProps({
-      layers: get_mat_layers_list(layers_mat),
-    });
-  };
-
-  axes.forEach((axis) => {
     const slider = document.createElement('input');
     viz_state.dendro.sliders[axis] = slider;
-
     const ini_dendro_value = 50;
-
+    viz_state.dendro.sliders[`${axis}_percent`] = ini_dendro_value;
     ini_slider_params(slider, ini_dendro_value, (event) =>
-      dendro_slider_callback(deck_mat, viz_state, axis, event)
+      update_dendro_from_slider(deck_mat, layers_mat, viz_state, axis, event)
     );
+    slider.title = 'Dendrogram';
+    slider.style.width = '80px';
+    slider.style.margin = '0';
+    grid.appendChild(slider);
   });
 
-  viz_state.dendro.sliders.col.style.marginTop = '3px';
-  viz_state.dendro.sliders.row.style.marginTop = '10px';
-
-  d3.select(slider_container)
+  // Light gray rule between the ordering controls (top) and the view/action
+  // controls (bottom); present whether or not the DIM row is.
+  d3.select(grid)
     .append('div')
-    .text('Dendro')
-    .style('width', '40px')
-    .style('height', '16px')
-    .style('display', 'inline-flex')
-    .style('align-items', 'center')
-    .style('justify-content', 'center')
-    .style('text-align', 'center')
-    .style('cursor', 'pointer')
-    .style('font-size', '10px')
-    .style('font-weight', 'bold')
-    .style('color', '#47515b')
-    .style('border', '2px solid')
-    .style('border-color', 'white')
-    .style('border-radius', '8px')
-    .style('margin-left', '10px')
-    .style('user-select', 'none')
-    .style(
-      'font-family',
-      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
+    .style('grid-column', '1 / -1')
+    .style('height', '1px')
+    .style('background', '#d3d3d3');
+
+  // -------------------------------------------------------------------------
+  // DIM: reduced-dimensionality views. Each stop is a filter level precomputed
+  // and independently re-biclustered by `Matrix.cluster(view=...)`, with the
+  // last stop being the full matrix -- the slider loads a level, it never
+  // computes one. The whole row is omitted for matrices exported without views.
+  // -------------------------------------------------------------------------
+  if (has_rank_views(viz_state)) {
+    append_label('DIM:');
+
+    const stops = get_rank_view_stops(viz_state);
+    const total_rows = viz_state.mat.num_rows;
+    const view_type = viz_state.rank_view?.view_type || 'rank';
+    const per_cluster = viz_state.rank_view?.level_unit === 'per_cluster';
+    const by_level = viz_state.rank_view?.by_level;
+
+    const readout = d3
+      .select(grid)
+      .append('div')
+      .style('font-size', '9px')
+      .style('white-space', 'nowrap')
+      .style('color', '#47515b')
+      .style('user-select', 'none')
+      .style('font-family', MATRIX_UI_FONT_FAMILY);
+
+    // The readout stays compact ("5/clust"); the ranking is named in the
+    // tooltip because it changes what a level *means*: RANK counts markers
+    // per cluster (5 = each cluster's top 5), while SUM/VAR/MEAN cap total
+    // rows outright.
+    const RANKING_LABELS = {
+      rank_genes_groups: 'RANK',
+      var: 'VAR',
+      sum: 'SUM',
+      mean: 'MEAN',
+    };
+    const ranking_label = RANKING_LABELS[view_type] || view_type.toUpperCase();
+
+    const describe_stop = (stop) => {
+      if (stop == null) return 'all';
+      return per_cluster ? `${stop}/clust` : `${stop}`;
+    };
+
+    const describe_title = (stop) => {
+      if (stop == null) return `${ranking_label}: all ${total_rows} rows`;
+      if (per_cluster) {
+        const rows = by_level?.get(stop)?.n_rows;
+        return `${ranking_label}: top ${stop} markers per cluster (rank_genes_groups) — ${rows} of ${total_rows} rows`;
+      }
+      return `${ranking_label}: top ${stop} of ${total_rows} rows by ${view_type}`;
+    };
+
+    const update_readout = (stop) => {
+      readout.text(describe_stop(stop)).attr('title', describe_title(stop));
+    };
+
+    const rank_slider = make_slider();
+    viz_state.rank_view.slider = rank_slider;
+
+    const ini_index = Math.max(
+      0,
+      stops.indexOf(viz_state.rank_view.current ?? null)
     );
 
-  slider_container.appendChild(viz_state.dendro.sliders.col);
-  slider_container.appendChild(viz_state.dendro.sliders.row);
+    ini_discrete_slider_params(rank_slider, {
+      min: 0,
+      max: stops.length - 1,
+      step: 1,
+      value: ini_index,
+      callback: (event) => {
+        const stop = stops[Number(event.target.value)] ?? null;
+        update_readout(stop);
+        apply_rank_view(deck_mat, layers_mat, viz_state, stop);
+      },
+    });
+    rank_slider.style.width = '80px';
+    rank_slider.style.margin = '0';
 
-  // add top margin to ctrl_container and slider_container
-  ctrl_container.style.marginTop = '10px';
-  slider_container.style.marginTop = '0px';
-  slider_container.style.marginLeft = '5px';
+    update_readout(stops[ini_index] ?? null);
 
-  ui_container.appendChild(ctrl_container);
-  ui_container.appendChild(slider_container);
+    // Lets a Python-driven `rank_dim` change move the control, which otherwise
+    // only ever moves through direct user input.
+    viz_state.rank_view.sync_control = (stop) => {
+      const index = stops.indexOf(stop ?? null);
+      if (index < 0) return;
 
-  // Initialize category bar graphs (shown on dendro click)
-  init_matrix_cat_bars(viz_state, ui_container);
+      set_slider_value(rank_slider, index);
+      update_readout(stop ?? null);
+    };
 
-  return ui_container;
-};
+    grid.appendChild(rank_slider);
+  }
 
-export const make_sst_ui_container = (deck_sst, layers_sst, viz_state) => {
-  const ui_container = make_ui_container();
-  const ctrl_container = make_ctrl_container();
-  const image_container = flex_container('image_container', 'row');
-  const tile_container = flex_container('tile_container', 'row');
-  const tile_slider_container = make_slider_container('tile_slider_container');
+  // ---------------------------------------------------------------------
+  // Actions row: CROP | UNDO, then the body-mode toggles -- PROP|UNIT
+  // (dotplot only) or PROP|COUNTS (composition only), shown/hidden per
+  // `viz_mode` (see `update_mode_button_visibility`).
+  // ---------------------------------------------------------------------
+  const action_container = flex_container('matrix_action_container', 'row');
+  action_container.style.gridColumn = '1 / -1';
+  action_container.style.alignItems = 'center';
+  action_container.style.gap = '16px';
+  // Sit a little closer to the DIM/COL row above.
+  action_container.style.marginTop = '-2px';
 
-  make_button(
-    image_container,
-    'sst',
-    'IMG',
-    'blue',
-    50,
-    'button',
-    deck_sst,
-    layers_sst,
+  const crop_container = flex_container('crop_container', 'row');
+  crop_container.style.alignItems = 'center';
+
+  const action_text = (selection, text) =>
+    selection
+      .append('div')
+      .text(text)
+      .style('display', 'inline-flex')
+      .style('font-size', '9px')
+      .style('font-family', MATRIX_UI_FONT_FAMILY);
+
+  const crop_button = action_text(d3.select(crop_container), 'CROP').on(
+    'click',
+    () => {
+      viz_state.crop?.toggle();
+    }
+  );
+  // Same spacer as make_text_toggle_group's PROP | UNIT.
+  action_text(d3.select(crop_container), '|')
+    .style('margin', '0 3px')
+    .style('font-weight', 'bold')
+    .style('color', 'black')
+    .style('user-select', 'none');
+  const undo_button = action_text(d3.select(crop_container), 'UNDO').on(
+    'click',
+    () => {
+      viz_state.crop?.undo();
+    }
+  );
+
+  viz_state.crop?.set_controls({
+    set_active: (active) => {
+      apply_state_button_style(crop_button, active, viz_state);
+    },
+    set_crop_enabled: (enabled) => {
+      crop_button
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+    set_undo_enabled: (enabled) => {
+      apply_state_button_style(undo_button, enabled, viz_state)
+        .style('opacity', enabled ? 1 : 0.55)
+        .style('pointer-events', enabled ? 'auto' : 'none');
+    },
+  });
+
+  const mode_container = flex_container('mode_container', 'row');
+  mode_container.style.alignItems = 'center';
+
+  // dot_size_encoded: true -> size encodes the fraction/dot matrix ("PROP"),
+  // false -> forced to a full, unit-scaled tile ("UNIT").
+  const dot_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'prop', value: true },
+      { label: 'unit', value: false },
+    ],
+    viz_state.mat.dot_size_encoded,
+    (value) => set_dot_size_encoded(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
-  make_button(
-    tile_container,
-    'sst',
-    'TILE',
-    'blue',
-    50,
-    'button',
-    deck_sst,
-    layers_sst,
+
+  const normalized_toggle = make_text_toggle_group(
+    mode_container,
+    [
+      { label: 'prop', value: true },
+      { label: 'counts', value: false },
+    ],
+    viz_state.mat.composition_normalized,
+    (value) =>
+      set_composition_normalized(deck_mat, layers_mat, viz_state, value),
     viz_state
   );
+  // Drop the toggle group's own offsets so PROP | UNIT shares CROP | UNDO's
+  // baseline.
+  [dot_toggle, normalized_toggle].forEach(({ container }) => {
+    container.style.marginLeft = '0px';
+    container.style.marginTop = '0px';
+  });
 
-  viz_state.sliders = {};
+  viz_state.mode_buttons = {
+    dot: dot_toggle,
+    normalized: normalized_toggle,
+  };
+  update_mode_button_visibility(viz_state);
 
-  ini_slider('tile', deck_sst, layers_sst, viz_state);
+  action_container.appendChild(crop_container);
+  action_container.appendChild(mode_container);
+  grid.appendChild(action_container);
+  ui_container.appendChild(grid);
 
-  tile_slider_container.appendChild(viz_state.sliders.tile);
+  // ROW / COL category bars sit between the controls and the search column.
+  // They are built into a slot so they can still be added after manual
+  // categories load (see matrix_viz's bootstrap_manual_categories).
+  const cat_bars_slot = document.createElement('div');
+  cat_bars_slot.className = 'matrix_cat_bars_slot';
+  cat_bars_slot.style.flexShrink = '0';
+  viz_state.cat_bars_slot = cat_bars_slot;
+  ui_container.appendChild(cat_bars_slot);
+  init_matrix_cat_bars(viz_state, cat_bars_slot);
 
-  ui_container.appendChild(ctrl_container);
+  // Search + gene info stack vertically in one column: ui_container is a flex
+  // row, so appending them as siblings would widen the control panel instead.
+  const search_container = flex_container('matrix_search_container', 'column');
+  search_container.style.flexShrink = '0';
+  search_container.style.marginRight = '6px';
 
-  tile_container.appendChild(tile_slider_container);
+  const row_search = set_matrix_row_search(viz_state, (row_index) =>
+    viz_state.focus_row?.(row_index)
+  );
+  search_container.appendChild(row_search);
+  ui_container.appendChild(search_container);
 
-  set_gene_search('sst', deck_sst, layers_sst, viz_state);
+  // Gene name/description panel (same one Landscape shows under its gene
+  // search). Stateful by design: it tracks the *selected* gene only, while
+  // hover information goes to the row-label tooltip.
+  if (is_gene_axis(viz_state, 'row')) {
+    // Height fits the remaining room under the search input inside the
+    // control panel's fixed 100px height.
+    const gene_info_box = make_gene_info_box({
+      marginLeft: '10px',
+      height: '68px',
+      width: '136px',
+    });
+    viz_state.gene_info_box = gene_info_box;
+    search_container.appendChild(gene_info_box.element);
 
-  // add subscriber for gene search and gene_text_box
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
+    // Selecting a gene (row-label click, search, or an Enrich link) pins its
+    // description and echoes it into the search box, which doubles as a
+    // state viewer for "which gene am I on" — same as Landscape's gene bar.
+    // Assigning `.value` doesn't fire an `input` event, so this can't
+    // re-trigger the search's focus zoom.
+    viz_state.obs_store?.selected_genes?.subscribe(
+      (selected_genes) => {
+        if (selected_genes?.length === 1) {
+          gene_info_box.show(selected_genes[0]);
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = selected_genes[0];
+          }
+        } else if (!selected_genes?.length) {
+          gene_info_box.clear();
+          if (viz_state.row_search?.input) {
+            viz_state.row_search.input.value = '';
           }
         }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
+      },
+      { immediate: false }
+    );
+  }
 
-      viz_state.genes.gene_text_box.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
-
-  ctrl_container.appendChild(image_container);
-  ctrl_container.appendChild(tile_container);
-  ctrl_container.appendChild(viz_state.genes.gene_search);
+  // The logo shares the search row, sized to the gene info box below it.
+  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '136px');
 
   return ui_container;
 };
@@ -397,6 +548,12 @@ export const make_ist_ui_container = (
   gene_container.style.width = bar_container_width;
   const trx_container = flex_container('trx_container', 'row');
 
+  // neighborhood-cloud repurposes the CELL slot itself (button relabeled
+  // "NBHD", radius slider dropped in favor of the opacity slider) rather
+  // than building a separate NBHD section -- see the cell_ctrl_container
+  // block below. The legacy 2D nbhd feature still gets its own section.
+  const nbhdControlsEnabled = viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit;
+
   let nbhd_container;
   let nbhd_ctrl_container;
   if (viz_state.nbhd.is_nbhd) {
@@ -407,16 +564,42 @@ export const make_ist_ui_container = (
     nbhd_ctrl_container.style.height = '22.5px';
   }
 
+  let nbhd_cloud_slice_container;
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    nbhd_cloud_slice_container = flex_container(
+      'nbhd_cloud_slice_container',
+      'column'
+    );
+    nbhd_cloud_slice_container.style.width = bar_container_width;
+  }
+
   const cell_slider_container = make_slider_container('cell_slider_container');
   const trx_slider_container = make_slider_container('trx_slider_container');
   let nbhd_slider_container;
-  if (viz_state.nbhd.is_nbhd) {
+  if (nbhdControlsEnabled) {
     nbhd_slider_container = make_slider_container('nbhd_slider_container');
   }
 
   const { technology } = viz_state.img.landscape_parameters;
   const isChromium = technology === 'Chromium';
-  const isPointCloud = technology === 'point-cloud';
+  const isPointCloud = is_orbit_technology(technology);
+
+  // Registered unconditionally (not just for non-orbit technologies) so that
+  // `viz_state.obs_store.viz_background_layer.set(false)` (set early in
+  // landscape_ist.js for any technology without an image layer, including
+  // point-cloud/neighborhood-cloud) actually takes effect. Without this, the
+  // background layer's default `visible: true` stands, and its solid black
+  // fill polygon (background_layer.js) never gets hidden for orbit
+  // technologies.
+  viz_state.obs_store.viz_background_layer.subscribe((visible) => {
+    toggle_background_layer_visibility(layers_obj, visible);
+    refresh_layer(viz_state, layers_obj, 'background_layer');
+  });
+
+  // Hide the gene panel (gene bar graph + gene search) for gene-less datasets
+  // (e.g. a point-cloud DegaFiles written without cbg data). set_meta_gene has
+  // already run, so an empty gene_names array reliably signals "no genes".
+  const hasGenes = (viz_state.genes.gene_names?.length || 0) > 0;
 
   if (!isPointCloud) {
     const spatial_toggle_container = flex_container(
@@ -578,11 +761,6 @@ export const make_ist_ui_container = (
       }
     });
 
-    viz_state.obs_store.viz_background_layer.subscribe((visible) => {
-      toggle_background_layer_visibility(layers_obj, visible);
-      refresh_layer(viz_state, layers_obj, 'background_layer');
-    });
-
     viz_state.obs_store.viz_nbhd_layer.subscribe((visible) => {
       toggle_nbhd_layer_visibility(layers_obj, visible);
       refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -591,10 +769,15 @@ export const make_ist_ui_container = (
     viz_state.containers.image.appendChild(img_layers_container);
   }
 
+  // neighborhood-cloud repurposes this slot: "NBHD" (shapes show/hide)
+  // instead of "CELL" (per-cell radius, meaningless here -- cells only ever
+  // appear on demand for one selected neighborhood, via nbhd_cloud_cell_layer).
+  // Starts blue/active either way, matching each layer's actual starting
+  // visibility (shapes visible by default, same as the legacy CELL layer).
   make_button(
     cell_ctrl_container,
     'ist',
-    'CELL',
+    viz_state.nbhd_cloud?.is_nbhd_cloud ? 'NBHD' : 'CELL',
     'blue',
     40,
     'button',
@@ -603,7 +786,7 @@ export const make_ist_ui_container = (
     viz_state
   );
 
-  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+  if (nbhdControlsEnabled) {
     make_button(
       nbhd_ctrl_container,
       'ist',
@@ -631,20 +814,34 @@ export const make_ist_ui_container = (
 
   viz_state.sliders = {};
 
-  ini_slider('cell', deck_ist, layers_obj, viz_state);
-
-  cell_slider_container.appendChild(viz_state.sliders.cell);
-  cell_ctrl_container.appendChild(cell_slider_container);
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // No per-cell radius control here (cells only appear on demand, per
+    // selected neighborhood, via nbhd_cloud_cell_layer) -- the opacity
+    // slider takes this slot instead.
+    ini_slider('nbhd', deck_ist, layers_obj, viz_state);
+    cell_slider_container.appendChild(viz_state.sliders.nbhd);
+    cell_ctrl_container.appendChild(cell_slider_container);
+    toggle_slider(viz_state.sliders.nbhd, true);
+  } else {
+    ini_slider('cell', deck_ist, layers_obj, viz_state);
+    cell_slider_container.appendChild(viz_state.sliders.cell);
+    cell_ctrl_container.appendChild(cell_slider_container);
+  }
 
   // Only add the regular nbhd slider when NOT in edit mode
   // For edit mode, we'll add a separate opacity slider later (after buttons)
-  if (viz_state.nbhd.is_nbhd && !viz_state.nbhd.edit) {
+  if (nbhdControlsEnabled) {
     ini_slider('nbhd', deck_ist, layers_obj, viz_state);
     nbhd_slider_container.appendChild(viz_state.sliders.nbhd);
     nbhd_ctrl_container.appendChild(nbhd_slider_container);
+    // neighborhood-cloud has no "exclusive active layer" concept (shapes and
+    // cells coexist via the continuous zoom crossfade) -- the slider should
+    // just start enabled, not tied to the legacy viz_nbhd_layer toggle.
     toggle_slider(
       viz_state.sliders.nbhd,
-      viz_state.obs_store.viz_nbhd_layer.get()
+      viz_state.nbhd_cloud?.is_nbhd_cloud
+        ? true
+        : viz_state.obs_store.viz_nbhd_layer.get()
     );
   }
 
@@ -657,16 +854,51 @@ export const make_ist_ui_container = (
     viz_state.nbhd.svg_bar_nbhd = d3.create('svg');
   }
 
-  make_bar_graph(
-    viz_state.containers.bar_cluster,
-    bar_callback_cat,
-    viz_state.cats.svg_bar_cluster,
-    viz_state.cats.cluster_counts,
-    viz_state.cats.color_dict_cluster,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Repurposes the CELL slot's bar graph (the per-cell cluster-count bar
+    // makes no sense here -- there's no per-cell data loaded up front) into
+    // a per-cluster bar: one bar per cluster, area summed across every
+    // slice's instance of it, colored by that cluster's real color.
+    // Selecting a cluster (bar click or shape click) applies across every
+    // slice at once, not just one (slice, cluster) instance.
+    viz_state.nbhd_cloud.svg_bar_cluster = d3.create('svg');
+
+    const areaByCluster = new Map();
+    viz_state.nbhd_cloud.meta_neighborhood.forEach((nb) => {
+      const clusterId = String(nb.cluster_id);
+      areaByCluster.set(
+        clusterId,
+        (areaByCluster.get(clusterId) ?? 0) + nb.area
+      );
+    });
+    const clusterBarData = Array.from(areaByCluster, ([clusterId, area]) => ({
+      name: clusterId,
+      value: area,
+    }));
+    const clusterColorDict = viz_state.cats.color_dict_cluster;
+
+    make_bar_graph(
+      viz_state.containers.bar_cluster,
+      bar_callback_nbhd_cloud_cluster,
+      viz_state.nbhd_cloud.svg_bar_cluster,
+      clusterBarData,
+      clusterColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  } else {
+    make_bar_graph(
+      viz_state.containers.bar_cluster,
+      bar_callback_cat,
+      viz_state.cats.svg_bar_cluster,
+      viz_state.cats.cluster_counts,
+      viz_state.cats.color_dict_cluster,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   viz_state.containers.bar_gene = make_bar_container();
 
@@ -676,16 +908,65 @@ export const make_ist_ui_container = (
     .sort((a, b) => b.value - a.value)
     .slice(0, max_num_gene_bars);
 
-  make_bar_graph(
-    viz_state.containers.bar_gene,
-    bar_callback_gene,
-    viz_state.genes.svg_bar_gene,
-    viz_state.genes.top_gene_counts,
-    viz_state.genes.color_dict_gene,
-    deck_ist,
-    layers_obj,
-    viz_state
-  );
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Only genes with a shape (available_gene_shapes) or cell scatter
+    // (available_gene_scatter) actually do anything when selected
+    // (select_nbhd_cloud_gene) -- listing the generic top-gene panel here
+    // would give ~100 bars that are all silent no-ops. Both kinds render
+    // the same flat red in the bar itself (see build_nbhd_cloud_gene_bar_data).
+    const geneColorDict = Object.fromEntries(
+      [
+        ...(viz_state.nbhd_cloud.available_gene_scatter ?? new Map()),
+        ...(viz_state.nbhd_cloud.available_gene_shapes ?? new Map()),
+      ].map(([gene]) => [gene, [255, 0, 0]])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_gene,
+      bar_callback_gene,
+      viz_state.genes.svg_bar_gene,
+      build_nbhd_cloud_gene_bar_data(viz_state.nbhd_cloud),
+      geneColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  } else {
+    make_bar_graph(
+      viz_state.containers.bar_gene,
+      bar_callback_gene,
+      viz_state.genes.svg_bar_gene,
+      viz_state.genes.top_gene_counts,
+      viz_state.genes.color_dict_gene,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    viz_state.nbhd_cloud.svg_bar_slice = d3.create('svg');
+    viz_state.containers.bar_slice = make_bar_container();
+
+    const sliceBarData = viz_state.nbhd_cloud.meta_slice.map((s) => ({
+      name: s.slice_id,
+      value: s.cell_count,
+    }));
+    const sliceColorDict = Object.fromEntries(
+      sliceBarData.map((bar) => [bar.name, [136, 136, 136]])
+    );
+
+    make_bar_graph(
+      viz_state.containers.bar_slice,
+      bar_callback_nbhd_cloud_slice,
+      viz_state.nbhd_cloud.svg_bar_slice,
+      sliceBarData,
+      sliceColorDict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
@@ -874,6 +1155,14 @@ export const make_ist_ui_container = (
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Cluster-color mode is the initial state -- the repurposed TRX slider
+    // (gene-shapes opacity) has nothing to control until a gene is
+    // selected, so it starts disabled (sync_nbhd_cloud_opacity_sliders,
+    // bar_plot.js, flips this once a gene is picked).
+    toggle_slider(viz_state.sliders.trx, false);
+  }
+
   gene_container.appendChild(trx_container);
   gene_container.appendChild(viz_state.containers.bar_gene);
 
@@ -921,9 +1210,11 @@ export const make_ist_ui_container = (
     ctrl_container.appendChild(viz_state.containers.image);
   }
   ctrl_container.appendChild(cell_container);
-  ctrl_container.appendChild(gene_container);
+  if (hasGenes) {
+    ctrl_container.appendChild(gene_container);
+  }
 
-  viz_state.genes.gene_search.style.width = '160px';
+  viz_state.genes.gene_search.style.width = '141px';
   viz_state.genes.gene_search.style.marginLeft = '5px';
 
   // const sketch_callback = (event, _deck_ist, _layers_obj, _viz_state) => {
@@ -1038,7 +1329,11 @@ export const make_ist_ui_container = (
       selectedFeatureIndexes: [],
     });
 
-    const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+    const layers_list = get_layers_list(
+      _layers_obj,
+      _viz_state.close_up,
+      _viz_state
+    );
     _deck_ist.setProps({ layers: layers_list });
 
     // hide the DEL button
@@ -1161,7 +1456,11 @@ export const make_ist_ui_container = (
         update_trx_pickable_state(_layers_obj, true);
       }
 
-      const layers_list = get_layers_list(_layers_obj, _viz_state.close_up);
+      const layers_list = get_layers_list(
+        _layers_obj,
+        _viz_state.close_up,
+        _viz_state
+      );
       _deck_ist.setProps({ layers: layers_list });
     };
 
@@ -1221,44 +1520,69 @@ export const make_ist_ui_container = (
 
     ctrl_container.appendChild(nbhd_container);
 
-    if (viz_state.nbhd.is_nbhd) {
-      make_bar_graph(
-        viz_state.containers.bar_nbhd,
-        bar_callback_nbhd,
-        viz_state.nbhd.svg_bar_nbhd,
-        viz_state.nbhd.bar_data,
-        viz_state.nbhd.color_dict,
-        deck_ist,
-        layers_obj,
-        viz_state
-      );
+    make_bar_graph(
+      viz_state.containers.bar_nbhd,
+      bar_callback_nbhd,
+      viz_state.nbhd.svg_bar_nbhd,
+      viz_state.nbhd.bar_data,
+      viz_state.nbhd.color_dict,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
 
-      viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
-    }
+    viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
   }
 
-  ctrl_container.appendChild(viz_state.genes.gene_search);
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // Plain black text, not a button -- there's no on/off toggle for the
+    // slice bar graph the way CELL/TRX/NBHD toggle their layers.
+    const slice_label_container = flex_container(
+      'nbhd_cloud_slice_label_container',
+      'row'
+    );
+    slice_label_container.style.marginLeft = '0px';
+    slice_label_container.style.height = '22.5px';
+
+    d3.select(slice_label_container)
+      .append('div')
+      .text('SLICE')
+      .style('width', '40px')
+      .style('text-align', 'left')
+      .style('font-size', '12px')
+      .style('font-weight', 'bold')
+      .style('color', 'black');
+
+    nbhd_cloud_slice_container.appendChild(slice_label_container);
+    nbhd_cloud_slice_container.appendChild(viz_state.containers.bar_slice);
+    ctrl_container.appendChild(nbhd_cloud_slice_container);
+  }
+
+  if (hasGenes) {
+    ctrl_container.appendChild(viz_state.genes.gene_search);
+  }
 
   // === Add logo to top right === //
-  const logo_button = document.createElement('div');
-  logo_button.className = 'logo_button';
-  logo_button.style.marginTop = '5px';
-  logo_button.style.marginRight = '5px';
-  logo_button.style.cursor = 'pointer';
-
-  // Create <img> element
-  const logo_img = document.createElement('img');
-  logo_img.src = `data:image/png;base64,${logo}`;
-  logo_img.alt = 'Celldega logo';
-  logo_img.style.height = '17px';
-  logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';
-
-  // Click to navigate to docs
-  logo_button.onclick = () => {
-    window.open('https://broadinstitute.github.io/celldega/', '_blank');
-  };
-
-  logo_button.appendChild(logo_img);
-  ui_container.appendChild(logo_button);
+  // This render path is shared with the CellCloud/NeighborhoodCloud 3D-orbit
+  // widgets (see celldega.js's render_landscape), so the docs link needs to
+  // follow which one is actually showing rather than always pointing at
+  // Landscape's page.
+  const logoDocsPath = is_neighborhood_cloud_technology(technology)
+    ? 'neighborhood-cloud'
+    : is_orbit_technology(technology)
+      ? 'cell-cloud'
+      : 'landscape';
+  // The logo lives in the gene search row (sized to the description box
+  // below it) rather than taking its own column; without a gene search it
+  // falls back to the panel's top-right corner.
+  if (hasGenes && viz_state.genes.gene_search_input?.parentNode) {
+    embed_logo_in_search(
+      viz_state.genes.gene_search_input,
+      logoDocsPath,
+      '141px'
+    );
+  } else {
+    ui_container.appendChild(make_logo_button(logoDocsPath));
+  }
   return ui_container;
 };

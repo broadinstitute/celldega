@@ -51,7 +51,7 @@ You can include Celldega in any HTML page by importing the bundled JavaScript mo
 
 ### Using with ObservableHQ
 
-Celldega can be used in ObservableHQ notebooks. See the [Celldega Landscape Xenium example](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq) for a working demo.
+Celldega can be used in ObservableHQ notebooks. See the [Celldega Landscape Xenium example](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs) for a working demo.
 
 ## Available Functions
 
@@ -60,7 +60,6 @@ Celldega exports the following main visualization functions:
 | Function | Description |
 |----------|-------------|
 | `landscape_ist` | Create an interactive spatial transcriptomics (IST) landscape visualization |
-| `landscape_sst` | Create a spatial spot transcriptomics (SST) visualization for Visium HD |
 | `landscape_h_e` | Create an H&E image visualization |
 | `matrix_viz` | Create a Clustergrammer-style matrix/heatmap visualization |
 | `yearbook` | Create a yearbook-style grid of cell portraits |

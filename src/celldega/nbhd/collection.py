@@ -451,6 +451,7 @@ class NeighborhoodCollection(CelldegaCollection):
         min_cells: int = 1,
         data_dir: str | None = None,
         drop_missing: bool = True,
+        include_variance: bool = False,
     ) -> None:
         """Calculate a neighborhood-by-gene modality and attach it to ``self.mod``.
 
@@ -472,13 +473,18 @@ class NeighborhoodCollection(CelldegaCollection):
                 collection entirely. When ``False``, the collection keeps all
                 neighborhoods and the modality is attached with zero-filled rows
                 for those that fall below ``min_cells``.
+            include_variance: When ``by="cell"``, also compute per-neighborhood,
+                per-gene expression variance and store it in the modality's
+                ``layers["variance"]`` (same shape as ``X``). Not supported for
+                ``by="cell-free"``.
 
         Returns:
             ``None`` — the modality is attached to ``self.mod``.
 
         Raises:
             ValueError: If ``adata`` is missing for ``by="cell"``, or ``data_dir``
-                is missing for ``by="cell-free"``.
+                is missing for ``by="cell-free"``, or ``include_variance=True``
+                is combined with ``by="cell-free"``.
         """
         from celldega.nbhd.neighborhoods import (
             _calc_nbhd_by_gene,
@@ -501,6 +507,7 @@ class NeighborhoodCollection(CelldegaCollection):
             data_dir=resolved_data_dir,
             nbhd_col=self.nbhd_col,
             min_cells=min_cells,
+            include_variance=include_variance,
         )
         if drop_missing:
             _subset_neighborhood_collection_to_obs(self, pd.Index(modality.obs_names.astype(str)))

@@ -176,7 +176,7 @@ class TestMatrix:
 
         try:
             # Create Matrix object and reproduce notebook workflow
-            mat = Matrix(df, disable_processing=True)  # Disable auto-processing
+            mat = Matrix(df)
             mat.load_df(df, meta_col=meta_col, meta_row=meta_row, col_attr=["experiment"])
             mat.set_global_cat_colors(df_colors)
             _ = mat.cluster()
@@ -202,7 +202,7 @@ class TestMatrix:
                 warnings.warn(f"Visualization structure differences: {differences}", stacklevel=2)
 
             # Verify viz attribute is populated after clustering
-            # Note: cluster() no longer returns a value, but mat.viz should be populated
+            # cluster() returns self for chaining and populates mat.viz.
             assert mat.viz is not None, "viz attribute should be populated after clustering"
 
             # Check essential structure elements
@@ -266,7 +266,9 @@ class TestMatrix:
 
         try:
             # Create Matrix object with Xenium data
-            mat = Matrix(xenium_data)  # Use default processing
+            mat = Matrix(xenium_data)
+            mat.norm("col", by="total")
+            mat.norm("row", by="zscore")
             mat.cluster()
 
             # Validate Matrix properties
@@ -291,7 +293,6 @@ class TestMatrix:
                 )
 
             # Verify viz attribute is populated after clustering
-            # Note: cluster() no longer returns a value, but mat.viz should be populated
             assert mat.viz is not None, "viz attribute should be populated after clustering"
 
             # Check essential structure elements
@@ -300,13 +301,12 @@ class TestMatrix:
             assert "mat" in mat.viz, "viz should contain mat"
             assert "linkage" in mat.viz, "viz should contain linkage"
 
-            # Check data was processed (should have fewer genes due to filtering)
+            # Normalization preserves the number of genes.
             original_genes = len(xenium_data.index)
             processed_genes = len(mat.viz["row_nodes"])
             print(f"Original genes: {original_genes}, Processed genes: {processed_genes}")
 
-            # With default processing, genes should be filtered
-            assert processed_genes <= original_genes, "Processing should filter genes"
+            assert processed_genes == original_genes
 
             # Check clustering was performed
             assert "row" in mat.viz["linkage"], "Should have row linkage"
@@ -352,7 +352,7 @@ class TestMatrix:
         assert isinstance(mat.data, pd.DataFrame), "Matrix data should be DataFrame"
 
         # Test clustering
-        mat.cluster()
+        assert mat.cluster() is mat
         assert mat._clustered, "Matrix should be marked as clustered"
 
         # Test export methods (deprecated JSON)
@@ -368,18 +368,185 @@ class TestMatrix:
         exported_df = mat.to_df()
         assert isinstance(exported_df, pd.DataFrame), "to_df() should return DataFrame"
 
+    def test_preprocessing_operations_are_explicit(self) -> None:
+        """Construction preserves values; filtering and normalization are explicit."""
+        df = pd.DataFrame(
+            [[1.0, 2.0], [3.0, 8.0], [9.0, 4.0]],
+            index=["g0", "g1", "g2"],
+            columns=["s0", "s1"],
+        )
+
+        preserved = Matrix(df)
+        pd.testing.assert_frame_equal(preserved.data, df)
+
+        processed = Matrix(df)
+        processed.filter("row", by="var", num=2)
+        assert processed.data.shape == (2, 2)
+
+        processed.norm("col", by="total")
+        np.testing.assert_allclose(processed.data.sum(axis=0), 1.0)
+
     def test_numeric_attributes_in_viz(self) -> None:
         """Numeric attributes should be exported as num-* keys."""
         df = pd.DataFrame(
             np.random.rand(3, 3), index=["r1", "r2", "r3"], columns=["c1", "c2", "c3"]
         )
         meta_row = pd.DataFrame({"score": [0.2, -0.5, 1.0]}, index=df.index)
-        mat = Matrix(df, meta_row=meta_row, row_attr=["score"], disable_processing=True)
+        mat = Matrix(df, meta_row=meta_row, row_attr=["score"])
         mat.cluster()
         assert "row_attr" in mat.viz and mat.viz["row_attr"] == ["score"]
         assert "row_attr_maxabs" in mat.viz and mat.viz["row_attr_maxabs"][0] == 1.0
         for node in mat.viz["row_nodes"]:
             assert "num-0" in node
+
+    def test_set_size_matrix_aligns_anndata_by_name(self) -> None:
+        """`set_size_matrix` must transpose AnnData input like `load_adata` does,
+        so the size matrix lines up with the main matrix's row/col names instead
+        of silently aligning to nothing."""
+        from anndata import AnnData
+
+        genes = ["g0", "g1", "g2"]
+        sets = ["s0", "s1"]
+        mean = AnnData(
+            X=np.arange(6).reshape(2, 3).astype(float),
+            obs=pd.DataFrame(index=sets),
+            var=pd.DataFrame(index=genes),
+        )
+        frac = AnnData(
+            X=np.arange(6).reshape(2, 3).astype(float) / 10 + 0.5,
+            obs=pd.DataFrame(index=sets),
+            var=pd.DataFrame(index=genes),
+        )
+
+        mat = Matrix(mean, row_entity="gene", col_entity="cell_cluster")
+        mat.set_size_matrix(frac)
+        assert list(mat.size_matrix.index) == genes
+        assert list(mat.size_matrix.columns) == sets
+
+        mat.cluster()
+        out = mat.export_viz_parquet()
+
+        import io
+
+        import pyarrow.parquet as pq
+
+        dot_df = pq.read_table(io.BytesIO(out["dot_mat"])).to_pandas().set_index("row")
+        assert not np.allclose(dot_df.to_numpy(), 0.0)
+        np.testing.assert_allclose(
+            dot_df.loc[genes, sets].to_numpy(), frac.X.T, rtol=1e-5, atol=1e-6
+        )
+
+    def test_set_size_matrix_accepts_arrays_and_legacy_aliases(self) -> None:
+        df = pd.DataFrame(
+            [[1.0, 2.0], [3.0, 4.0]],
+            index=["g0", "g1"],
+            columns=["s0", "s1"],
+        )
+        size = np.array([[0.1, 0.2], [0.3, 0.4]])
+        mat = Matrix(df)
+
+        assert mat.set_size_matrix(size) is mat
+        pd.testing.assert_frame_equal(
+            mat.size_matrix,
+            pd.DataFrame(size, index=df.index, columns=df.columns),
+        )
+
+        with pytest.deprecated_call(match="set_size_matrix"):
+            mat.set_dot_matrix(size)
+        with pytest.deprecated_call(match="size_matrix"):
+            legacy_size = mat.dot_mat
+        pd.testing.assert_frame_equal(legacy_size, mat.size_matrix)
+
+    def test_write_dega_files_uses_generated_name(self, tmp_path: Path) -> None:
+        df = pd.DataFrame(
+            [[1.0, 2.0], [3.0, 4.0]],
+            index=["g0", "g1"],
+            columns=["s0", "s1"],
+        )
+        mat = Matrix(df)
+        mat.cluster()
+        mat.write_dega_files(tmp_path)
+
+        output_dir = tmp_path / "cgm" / mat._data_hash_name
+        assert (output_dir / "mat.parquet").is_file()
+        assert (output_dir / "meta.json").is_file()
+
+    def test_matrix_from_collection_color_by_size_by(self) -> None:
+        """`Matrix(collection=..., color_by=..., size_by=...)` should build the
+        main matrix and attach the named size-channel modality, with no manual
+        DataFrame wrangling. `dot_plot=` is an alias for `size_by=`."""
+        from anndata import AnnData
+
+        from celldega.set import SetCollection
+
+        rng = np.random.default_rng(0)
+        n = 40
+        adata = AnnData(X=rng.random((n, 5)))
+        adata.var_names = [f"g{i}" for i in range(5)]
+        adata.obs["leiden"] = rng.choice(["0", "1", "2"], n)
+
+        setc = SetCollection(adata, set_col="leiden", name="leiden")
+        setc.calc_signature(adata, modality_name="expression")
+        setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
+
+        mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
+        assert mat.data.shape == (5, 3)
+        assert mat.size_matrix is not None
+        assert list(mat.size_matrix.index) == list(mat.data.index)
+        assert list(mat.size_matrix.columns) == list(mat.data.columns)
+
+        # dot_plot= remains a deprecated compatibility alias for size_by=
+        with pytest.deprecated_call(match="dot_plot"):
+            mat_alias = Matrix(
+                collection=setc,
+                color_by="expression",
+                dot_plot="fraction_expressing",
+            )
+        assert mat_alias.size_matrix is not None
+
+        # The compact form keeps the fraction matrix with expression when both
+        # share the same axes.
+        compact = SetCollection(adata, set_col="leiden", name="leiden")
+        compact.calc_signature(
+            adata,
+            modality_name="expression",
+            fraction_expressing_layer="fraction_expressing",
+        )
+        mat_layer = Matrix(
+            collection=compact,
+            color_by="expression",
+            size_by_layer="fraction_expressing",
+        )
+        assert mat_layer.size_matrix is not None
+        np.testing.assert_allclose(mat_layer.size_matrix, mat.size_matrix)
+
+        # size_by/dot_plot are mutually exclusive
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(
+                collection=setc,
+                color_by="expression",
+                size_by="fraction_expressing",
+                dot_plot="fraction_expressing",
+            )
+
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(
+                collection=compact,
+                color_by="expression",
+                size_by="fraction_expressing",
+                size_by_layer="fraction_expressing",
+            )
+
+        # data/collection are mutually exclusive
+        with pytest.raises(ValueError, match="not both"):
+            Matrix(data=adata, collection=setc, color_by="expression")
+
+        # unknown size_by modality raises a clear error
+        with pytest.raises(KeyError, match="size_by"):
+            Matrix(collection=setc, color_by="expression", size_by="nope")
+
+        with pytest.raises(KeyError, match="size_by_layer"):
+            Matrix(collection=compact, color_by="expression", size_by_layer="nope")
 
     def test_matrix_error_handling(self) -> None:
         """Test Matrix error handling and edge cases."""
@@ -389,11 +556,11 @@ class TestMatrix:
 
         # Test clustering empty matrix should raise error
         with pytest.raises(ValueError, match="No data loaded"):
-            empty_mat.clust()
+            empty_mat.cluster()
 
         # Test invalid normalization
         df = pd.DataFrame(np.random.rand(5, 3))
-        mat = Matrix(df, disable_processing=True)
+        mat = Matrix(df)
 
         with pytest.raises(ValueError):
             mat.norm(axis="row", by="invalid_norm")
@@ -401,38 +568,6 @@ class TestMatrix:
         # Test invalid filter
         with pytest.raises(ValueError):
             mat.filter(axis="row", by="invalid_metric", num=3)
-
-    # @pytest.mark.parametrize(
-    #     "processing_config",
-    #     [
-    #         {"filter_genes": None, "norm_col": "total", "norm_row": "zscore"},
-    #         {"filter_genes": 100, "norm_col": None, "norm_row": "qn"},
-    #         {"filter_genes": 50, "norm_col": "zscore", "norm_row": None},
-    #     ],
-    # )
-    # def test_matrix_processing_configurations(self, processing_config: dict[str, Any]) -> None:
-    #     """Test different Matrix processing configurations."""
-    #     np.random.seed(42)
-    #     df = pd.DataFrame(
-    #         np.random.rand(200, 20),  # Larger matrix for filtering tests
-    #         columns=[f"col_{i}" for i in range(20)],
-    #         index=[f"row_{i}" for i in range(200)],
-    #     )
-
-    #     try:
-    #         mat = Matrix(df, **processing_config)
-    #         mat.cluster()
-
-    #         assert mat._clustered, "Matrix should be marked as clustered"
-
-    #         # Check if filtering was applied
-    #         if processing_config.get("filter_genes"):
-    #             expected_genes = min(processing_config["filter_genes"], len(df.index))
-    #             actual_genes = len(mat.data.index) if mat.data is not None else 0
-    #             assert actual_genes <= expected_genes, "Gene filtering should reduce gene count"
-
-    #     except Exception as e:
-    #         pytest.fail(f"Processing configuration failed: {processing_config}, Error: {e}")
 
 
 if __name__ == "__main__":

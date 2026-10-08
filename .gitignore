@@ -117,6 +117,8 @@ venv/
 env/
 ENV/
 
+uv.lock
+
 # Hatch environments
 .hatch/
 

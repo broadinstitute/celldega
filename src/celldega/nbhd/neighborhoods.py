@@ -34,6 +34,7 @@ def _calc_nbhd_by_gene(
     data_dir: str | None = None,
     nbhd_col: str = "name",
     min_cells: int = 1,
+    include_variance: bool = False,
 ) -> AnnData:
     """
     Calculate neighborhood-by-gene expression matrix.
@@ -65,6 +66,11 @@ def _calc_nbhd_by_gene(
     min_cells : int, default 1
         Minimum number of cells/transcripts required within a neighborhood to
         include it in the output. Only applies when `by="cell"`.
+    include_variance : bool, default False
+        When `by="cell"`, also compute the per-neighborhood, per-gene variance
+        of cell expression and store it in `adata_nbg.layers["variance"]`
+        (same shape as `X`). Not supported for `by="cell-free"` (raises
+        `ValueError`) since transcript counts have no per-cell mean/variance.
 
     Returns
     -------
@@ -74,6 +80,8 @@ def _calc_nbhd_by_gene(
         - `obs`: DataFrame indexed by neighborhood names
         - `var`: DataFrame indexed by gene names
         - `obs["n_cells"]`: Cell count per neighborhood (when `by="cell"`)
+        - `layers["variance"]`: Per-gene variance per neighborhood, when
+          `include_variance=True` (only for `by="cell"`)
         - `uns["by"]`: Method used ("cell" or "cell-free")
 
     Notes
@@ -81,6 +89,9 @@ def _calc_nbhd_by_gene(
     For cluster-specific gene expression analysis, filter your AnnData object
     to include only cells from the desired cluster before calling this function.
     """
+    if include_variance and by != "cell":
+        raise ValueError("include_variance is only supported when by='cell'")
+
     if by == "cell":
         if adata is None:
             raise ValueError("adata is required when by='cell'")
@@ -121,12 +132,19 @@ def _calc_nbhd_by_gene(
         # Reindex to preserve order
         df_result = df_result.reindex(filtered_gdf[nbhd_col]).fillna(0)
 
+        df_variance: pd.DataFrame | None = None
+        if include_variance:
+            df_variance = joined.groupby(nbhd_col)[list(gene_list)].var(ddof=0)
+            df_variance = df_variance.reindex(filtered_gdf[nbhd_col]).fillna(0)
+
         # Build AnnData
         adata_nbg = AnnData(
             X=df_result.values,
             obs=pd.DataFrame(index=df_result.index),
             var=pd.DataFrame(index=df_result.columns),
         )
+        if df_variance is not None:
+            adata_nbg.layers["variance"] = df_variance.values
 
         # Add cell counts
         adata_nbg.obs["n_cells"] = [cell_counts.get(n, 0) for n in adata_nbg.obs.index]
@@ -731,6 +749,11 @@ def _calc_nbhd_bordering(
         raise ValueError(f"metric must be one of {valid_metrics}, got '{metric}'")
 
     gdf_nbhd = gdf_nbhd.copy()
+    # Drop the index before the self-join: gdf_nbhd is keyed off name_col (a
+    # column), and a named index (e.g. one named "name" mirroring name_col)
+    # collides with that column during geopandas' internal reset_index in
+    # newer geopandas, raising "cannot insert <name>, already exists".
+    gdf_nbhd = gdf_nbhd.reset_index(drop=True)
     gdf_nbhd["geometry"] = gdf_nbhd["geometry"].buffer(0)
 
     names = gdf_nbhd[name_col].tolist()

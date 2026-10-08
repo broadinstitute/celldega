@@ -1,5 +1,8 @@
 # Viz Module API Reference
 
+For a conceptual overview of what each widget shows and how to use it, see
+the [Visualizations](../../visualizations/index.md) section.
+
 ## Widget Classes
 
 The `Clustergram` widget accepts a `parquet_data` argument for efficient

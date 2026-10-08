@@ -176,9 +176,11 @@ def save_cbg_gene_parquets(
         # Save to Parquet if DataFrame is not empty
         if not inst_df.empty:
             output_path = output_dir / f"{gene}.parquet"
-            inst_df.to_parquet(output_path)
 
-    print("All gene-specific parquet files are succesfully saved.")
+            inst_df.index.name = None
+            inst_df.to_parquet(output_path, index=True)
+
+    print("All gene-specific parquet files are successfully saved.")
 
 
 def save_cbg_gene_parquets_row_groups(

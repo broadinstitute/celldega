@@ -184,6 +184,28 @@ export const get_portraits_per_page = (num_rows, num_cols) => {
 };
 
 /**
+ * Total pixel height of the portrait grid: the rows plus the inter-row gaps.
+ * This matches create_yearbook_views' layout (row y = row * (size + gap)), so
+ * sizing the deck canvas / root container to it leaves no dead space below the
+ * last row when the grid is width-limited (portrait size capped by columns).
+ *
+ * @param {number} num_rows - Number of rows
+ * @param {number} portrait_pixel_size - Portrait side length in pixels
+ * @param {number} portrait_gap - Gap between portraits in pixels
+ * @returns {number} Grid height in pixels
+ */
+export const get_grid_pixel_height = (
+  num_rows,
+  portrait_pixel_size,
+  portrait_gap
+) => {
+  if (num_rows <= 0) {
+    return 0;
+  }
+  return num_rows * portrait_pixel_size + (num_rows - 1) * portrait_gap;
+};
+
+/**
  * Calculate total pages needed.
  *
  * @param {number} total_cells - Total number of cells

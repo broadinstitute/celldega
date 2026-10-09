@@ -2,7 +2,6 @@
 
 [![PyPI version](https://badge.fury.io/py/celldega.svg)](https://badge.fury.io/py/celldega)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://broadinstitute.github.io/celldega/)
 
 > **Interactive spatial‑omics analysis & visualisation toolkit for single‑cell and spatial transcriptomics data**

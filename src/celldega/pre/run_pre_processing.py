@@ -155,6 +155,7 @@ def main(
     max_workers=1,
     use_row_groups=False,
     max_row_groups_per_file=400,
+    lut_max_scale=1.0,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -168,11 +169,16 @@ def main(
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_dega_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
+        max_workers (int): Maximum number of worker processes to use when generating
+             tiles. Defaults to 1 (no parallelism).
         use_row_groups (bool): If True, save tiles as row groups in chunked parquet files
             instead of individual tile files. Defaults to False.
         max_row_groups_per_file (int): Maximum row groups per parquet file when using
             row groups mode. Lower values create more files but avoid parquet-wasm memory
             issues with dense datasets. Defaults to 400.
+        lut_max_scale (float): Xenium only. Multiplier on the instrument's per-channel display
+            max used to scale image tiles. 1.0 matches Xenium Explorer; raise it (e.g. 1.3) if
+            tiles look saturated. Defaults to 1.0.
 
     Example:
         change directory to celldega, and run:
@@ -310,8 +316,12 @@ def main(
     # Xenium and MERSCOPE
     if technology in ["MERSCOPE", "Xenium"]:
         print("\n======== Image Tiles========")
-        dega.pre.create_image_tiles(
-            technology, str(data_dir), path_dega_files, image_tile_layer=image_tile_layer
+        image_scaling = dega.pre.create_image_tiles(
+            technology,
+            str(data_dir),
+            path_dega_files,
+            image_tile_layer=image_tile_layer,
+            lut_max_scale=lut_max_scale,
         )
 
         # Optionally pack image tiles into parquet row groups
@@ -464,6 +474,7 @@ def main(
         trx_chunk_info=trx_chunk_info,
         cell_chunk_info=cell_chunk_info,
         cbg_chunk_info=cbg_chunk_info,
+        image_scaling=image_scaling,
     )
 
     print("Preprocessing completed successfully.")

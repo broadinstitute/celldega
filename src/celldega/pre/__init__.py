@@ -348,23 +348,86 @@ def create_cluster_and_meta_cluster(
     return clusters
 
 
-def _process_image_channel(
-    path_dega_files,
-    channel_info,
-    img,
-    upper_percentile=99,
-    scale_non_dapi=1.0,
-    white_level=100,
-):
+def _parse_xenium_lut_max(ome_xml):
     """
-    Process a single image channel for tiling using simple per-channel windowing,
-    similar to Xenium Explorer:
-    - choose a per-channel upper bound from a high percentile
-    - clip to [0, upper_bound]
-    - normalize to 0-1
-    - convert to 8-bit for display
+    Read the per-channel "Suggested LUT max" display calibration from Xenium OME-XML.
+
+    Newer Xenium bundles embed this value (one MapAnnotation per channel) so viewers can
+    scale 16-bit intensities for display. Returns an empty dict if the XML is missing,
+    malformed, or carries no calibration (e.g. older Xenium bundles).
+
+    Parameters:
+    - ome_xml: OME-XML string (``tifffile.TiffFile.ome_metadata``) or None
+
+    Returns:
+    - dict mapping channel index (int) to LUT max (float)
+    """
+    if not ome_xml:
+        print("LUT: no OME-XML metadata found in image")
+        return {}
+
+    try:
+        root = ET.fromstring(ome_xml)
+    except ET.ParseError as err:
+        print(f"LUT: could not parse OME-XML ({err})")
+        return {}
+
+    def local(tag):
+        return tag.rsplit("}", 1)[-1]
+
+    lut_max_by_name = {}
+    for annotation in root.iter():
+        if local(annotation.tag) != "MapAnnotation":
+            continue
+        pairs = {m.get("K"): m.text for m in annotation.iter() if local(m.tag) == "M"}
+        name, lut_max = pairs.get("Long name"), pairs.get("Suggested LUT max")
+        if name and lut_max:
+            try:
+                lut_max_by_name[name] = float(lut_max)
+            except ValueError:
+                continue
+
+    lut_max_by_index = {}
+    for channel in root.iter():
+        if local(channel.tag) != "Channel":
+            continue
+        channel_id = channel.get("ID", "")
+        name = channel.get("Name")
+        if channel_id.startswith("Channel:") and name in lut_max_by_name:
+            try:
+                lut_max_by_index[int(channel_id.split(":")[-1])] = lut_max_by_name[name]
+            except ValueError:
+                continue
+
+    print(
+        f"LUT: found 'Suggested LUT max' for {len(lut_max_by_name)} annotation(s); "
+        f"matched to channel indices: {lut_max_by_index}"
+    )
+    return lut_max_by_index
+
+
+def _process_image_channel(path_dega_files, channel_info, img, lut_max=None, lut_max_scale=1.0):
+    """
+    Process a single image channel for tiling.
+
+    If ``lut_max`` is given (the instrument's "Suggested LUT max" for this channel), the
+    channel is clipped to [0, lut_max] and stretched linearly to 8-bit, matching how
+    Xenium Explorer displays it. Otherwise the legacy fixed scaling is used (1x for DAPI,
+    2x for other channels), which is fine for older datasets with brighter raw intensities.
+
+    Parameters:
+    - path_dega_files: Landscape files path
+    - channel_info: Dictionary with channel information (name, index)
+    - img: Pre-loaded image array
+    - lut_max: Optional display maximum for this channel
+    - lut_max_scale: Multiplier on ``lut_max`` (default 1.0 matches Xenium Explorer). Values
+      above 1 add headroom and dim the tiles; values below 1 brighten them.
+
+    Returns:
+    - None
     """
     channel_name = channel_info["name"]
+    channel_index = channel_info.get("index", 0)
 
     print(f"generating {channel_name} image tiles ...")
 
@@ -372,51 +435,31 @@ def _process_image_channel(
     if pyramid_path.exists():
         return
 
-    if img.ndim != 2:
-        raise ValueError(f"Expected a 2D channel image, got shape {img.shape}")
-
-    channel = img.astype(np.float32)
-
-    # Keep scaling neutral unless you intentionally want a boost
-    scale = 1.0 if channel_name.lower() == "dapi" else scale_non_dapi
-    channel *= scale
-
-    # Per-channel display window (high-percentile upper bound)
-    sample = channel[::10, ::10]
-
-    if not (0 <= upper_percentile <= 100):
-        raise ValueError(
-            f"upper_percentile must be between 0 and 100 (inclusive); got {upper_percentile!r}"
-        )
-
-    hi = np.percentile(sample, upper_percentile)
-
-    print(f"{channel_name}: p{upper_percentile}={hi:.2f}")
-
-    if hi > 0:
-        # Clip to display range and normalize from zero.
-        channel = np.clip(channel, 0.0, hi)
-        channel = channel / hi
-
-        # Clamp white_level to the valid 8-bit display range [0, 255]
-        white_level_safe = float(white_level)
-        if white_level_safe < 0.0 or white_level_safe > 255.0:
-            warnings.warn(
-                f"white_level ({white_level_safe}) is outside [0, 255]; "
-                "clamping to this range for display.",
-                stacklevel=2,
-            )
-            white_level_safe = min(255.0, max(0.0, white_level_safe))
-
-        image_data = (channel * white_level_safe).astype(np.uint8)
+    # Extract the channel
+    if img.ndim == 3:
+        channel = img[..., channel_index]
+    elif img.ndim == 2:
+        channel = img
     else:
-        image_data = np.zeros_like(channel, dtype=np.uint8)
+        raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
+
+    if lut_max is not None and lut_max > 0:
+        lut_max = lut_max * lut_max_scale
+        print(f"{channel_name}: scaling to instrument display max (LUT max={lut_max:g})")
+        image_data = (np.clip(channel.astype(np.float32), 0, lut_max) / lut_max * 255).astype(
+            np.uint8
+        )
+    else:
+        scale = 1 if channel_name.lower() == "dapi" else 2  # legacy brightness adjustment
+        image_data = channel * scale
 
     output_path = Path(path_dega_files) / f"{channel_name}_output_regular.tif"
     imsave(output_path, image_data, check_contrast=False)
 
+    # Convert the image to PNG format
     image_png = _convert_to_png(str(output_path))
 
+    # Create a DeepZoom pyramid for the channel
     make_deepzoom_pyramid(
         image_png,
         str(Path(path_dega_files) / "pyramid_images"),
@@ -430,8 +473,7 @@ def create_image_tiles(
     data_dir,
     path_dega_files,
     image_tile_layer="dapi",
-    upper_percentile=99,
-    white_level=100,
+    lut_max_scale=1.0,
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -442,26 +484,28 @@ def create_image_tiles(
         path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
         'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
-        upper_percentile (float, optional): Upper intensity percentile used to rescale/clip the image
-            before tile generation. Must be between 0 and 100 (inclusive). Values close to 100 (e.g. 95-99)
-            reduce the influence of very bright outliers while preserving most detail.
-        white_level (float, optional): Factor controlling how intensities are mapped toward white during
-            normalization. Must be non-negative. Higher values produce brighter tiles; typical values are
-            in the range 40-255, with 100 as a balanced default.
+        lut_max_scale (float, optional): Xenium only. Multiplier on the instrument's per-channel
+            "Suggested LUT max" used to scale tiles to 8-bit. 1.0 (default) matches Xenium Explorer;
+            use e.g. 1.2-1.5 if tiles look saturated, or <1 to brighten. Ignored for bundles
+            without LUT metadata (older Xenium data), which keep the legacy scaling.
+
+    Returns:
+        dict or None: For Xenium, how each channel was scaled (see create_image_tiles_xenium);
+            None for other technologies.
 
     Raises:
         ValueError: If the specified technology is not supported or if the image_tile_layer is invalid.
         FileNotFoundError: If the required input image file is not found.
     """
     print("\n========Generating image tiles========")
+    image_scaling = None
     if technology == "Xenium":
         print("------ xenium")
-        create_image_tiles_xenium(
+        image_scaling = create_image_tiles_xenium(
             data_dir,
             path_dega_files,
             image_tile_layer=image_tile_layer,
-            upper_percentile=upper_percentile,
-            white_level=white_level,
+            lut_max_scale=lut_max_scale,
         )
     elif technology == "MERSCOPE":
         print("------ merscope")
@@ -471,6 +515,7 @@ def create_image_tiles(
         create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer=image_tile_layer)
 
     print("Image tiles created successfully.")
+    return image_scaling
 
 
 def create_image_tiles_h_and_e(data_dir, path_dega_files, image_tile_layer):
@@ -523,23 +568,44 @@ def remove_intermediate_files(path_dega_files):
 
 
 def create_image_tiles_xenium(
-    data_dir, path_dega_files, image_tile_layer="dapi", upper_percentile=99, white_level=100
+    data_dir, path_dega_files, image_tile_layer="dapi", lut_max_scale=1.0
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
-    This version:
-    - resolves the morphology OME-TIFF via resolve_xenium_morphology_ome_path
-    - avoids loading the full OME-TIFF into memory
-    - reads one channel at a time from CYX images
-    - applies per-channel intensity windowing (upper_percentile / white_level)
-    """
+    Channels are read one at a time (CYX OME-TIFF) to limit memory use. When the OME-XML
+    carries the instrument's per-channel "Suggested LUT max", each channel is scaled to it
+    (fixes dim tiles from newer Xenium bundles); otherwise the legacy scaling is used.
 
+    Args:
+        data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
+        path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
+        image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
+        lut_max_scale (float, optional): Multiplier on the instrument LUT max (see create_image_tiles).
+            Must be positive.
+    Returns:
+        dict: How each channel was scaled (method, lut_max, lut_max_scale), for recording in
+            landscape_parameters.json.
+
+    Raises:
+        FileNotFoundError: If the required input image file is not found.
+        ValueError: If lut_max_scale is not positive, the image layout is unexpected or 'all' is requested for an image
+            without multiple channels.
+    """
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+    if lut_max_scale <= 0:
+        raise ValueError(f"lut_max_scale must be positive; got {lut_max_scale!r}")
 
     file_path = resolve_xenium_morphology_ome_path(data_dir)
     print(f"Using morphology image: {file_path}")
+
+    if image_tile_layer == "all" and file_path.name == "morphology.ome.tif":
+        raise ValueError(
+            "image_tile_layer='all' needs a multi-channel morphology_focus OME-TIFF; "
+            "this bundle only has morphology.ome.tif. Use image_tile_layer='dapi' or "
+            "supply morphology_focus/*.ome.tif from the instrument output."
+        )
 
     channel_map = [{"name": "dapi", "index": 0}]
     if image_tile_layer == "all":
@@ -551,38 +617,52 @@ def create_image_tiles_xenium(
             ]
         )
 
-    # Use tifffile to safely read OME-TIFF without loading the full image
     with tifffile.TiffFile(file_path) as tif:
         series = tif.series[0]
 
-        print(f"OME shape: {series.shape}")
-        print(f"OME axes:  {series.axes}")
-        print(f"OME dtype: {series.dtype}")
-
-        # Ensure expected Xenium morphology layout
-        if series.axes != "CYX":
+        # tifffile squeezes single-channel images to YX
+        if series.axes not in ("CYX", "YX"):
             raise ValueError(
-                f"Expected Xenium morphology image axes to be 'CYX', got '{series.axes}'"
+                f"Expected Xenium morphology image axes to be 'CYX' or 'YX', got '{series.axes}'"
             )
+
+        n_channels = series.shape[0] if series.axes == "CYX" else 1
+        if image_tile_layer == "all" and n_channels < len(channel_map):
+            raise ValueError(
+                f"image_tile_layer='all' needs {len(channel_map)} channels but "
+                f"{file_path.name} has {n_channels}. Use image_tile_layer='dapi'."
+            )
+
+        lut_max_by_index = _parse_xenium_lut_max(tif.ome_metadata)
+        if not lut_max_by_index:
+            print("No 'Suggested LUT max' in OME metadata; using legacy intensity scaling.")
+        else:
+            print(f"Using instrument LUT max scaling (lut_max_scale={lut_max_scale:g})")
+
+        scaling_record = {}
 
         for channel_info in channel_map:
-            channel_name = channel_info["name"]
             channel_index = channel_info["index"]
-
-            print(f"Reading channel '{channel_name}' (index {channel_index})")
+            print(f"Reading channel '{channel_info['name']}' (index {channel_index})")
 
             # Read one channel at a time to avoid large memory usage
-            channel_2d = series.asarray(key=channel_index)
-
+            lut_max = lut_max_by_index.get(channel_index)
             _process_image_channel(
-                path_dega_files=path_dega_files,
-                channel_info={"name": channel_name, "index": 0},
-                img=channel_2d,
-                upper_percentile=upper_percentile,
-                white_level=white_level,
+                path_dega_files,
+                {"name": channel_info["name"], "index": 0},
+                series.asarray(key=channel_index),
+                lut_max=lut_max,
+                lut_max_scale=lut_max_scale,
             )
+            scaling_record[channel_info["name"]] = {
+                "method": "lut_max" if lut_max else "legacy",
+                "lut_max": lut_max,
+                "lut_max_scale": lut_max_scale if lut_max else None,
+            }
 
     remove_intermediate_files(path_dega_files)
+
+    return {"source_image": file_path.name, "channels": scaling_record}
 
 
 def create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer="dapi"):
@@ -1208,6 +1288,7 @@ def save_landscape_parameters(
     trx_chunk_info=None,
     cell_chunk_info=None,
     cbg_chunk_info=None,
+    image_scaling=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -1225,6 +1306,8 @@ def save_landscape_parameters(
         trx_chunk_info (dict, optional): Chunk info for transcript parquet files.
         cell_chunk_info (dict, optional): Chunk info for cell segmentation parquet files.
         cbg_chunk_info (dict, optional): Chunk info for CBG parquet files.
+        image_scaling (dict, optional): How image tiles were scaled (Xenium), as returned by
+            create_image_tiles. Saved under "image_scaling" so a landscape can be audited later.
 
     Returns:
         None
@@ -1275,6 +1358,9 @@ def save_landscape_parameters(
             "use_int_index": use_int_index,
             "use_row_groups": use_row_groups,
         }
+
+        if image_scaling:
+            landscape_parameters["image_scaling"] = image_scaling
 
         # Add row group specific metadata
         if use_row_groups and tile_grid_info:

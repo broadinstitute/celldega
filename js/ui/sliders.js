@@ -1,4 +1,7 @@
-import { update_cell_layer_radius } from '../deck-gl/layers/cell_layer';
+import {
+  get_point_cloud_cell_radius,
+  update_cell_layer_radius,
+} from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
 import {
   update_nbhd_cloud_gene_fill_opacity,
@@ -6,6 +9,7 @@ import {
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
+import { is_orbit_technology } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
 
 const clamp_to_byte = (value) => {
@@ -204,11 +208,15 @@ export const set_image_layer_sliders = (img) => {
 };
 
 const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
-  const scale_down_cell_radius = 5;
+  const is_point_cloud = is_orbit_technology(
+    viz_state.img?.landscape_parameters?.technology
+  );
 
   update_cell_layer_radius(
     layers_obj,
-    viz_state.sliders.cell.value / scale_down_cell_radius,
+    is_point_cloud
+      ? get_point_cloud_cell_radius(viz_state)
+      : viz_state.sliders.cell.value / 5,
     viz_state
   );
 
@@ -313,7 +321,11 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
 
   switch (slider_type) {
     case 'cell':
-      ini_value = viz_state.genes.trx_ini_raidus * 100;
+      ini_value = is_orbit_technology(
+        viz_state.img?.landscape_parameters?.technology
+      )
+        ? 50
+        : layers_obj.cell_layer.props.getRadius * 5;
       callback = () => cell_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'trx':

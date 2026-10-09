@@ -116,6 +116,12 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
 const is_point_cloud_viz = (viz_state) =>
   is_orbit_technology(viz_state.img?.landscape_parameters?.technology);
 
+// PointCloudLayer's pointSize is a radius in coordinate units. CellCloud's
+// cell_size is a diameter in microns; the slider's midpoint is a 1× multiplier.
+export const get_point_cloud_cell_radius = (viz_state) =>
+  ((viz_state.spatial?.cell_size ?? 10) / 2) *
+  (Number(viz_state.sliders?.cell?.value ?? 50) / 50);
+
 export const set_spatial_bounds_from_flat_coordinates = (
   viz_state,
   flatCoordinateArray,
@@ -1025,7 +1031,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     cell_layer = new PointCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',
-      pointSize: 5,
+      pointSize: get_point_cloud_cell_radius(viz_state),
       pickable: true,
       data: pointCloudData,
       transitions,
@@ -1068,12 +1074,10 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
   });
 };
 
-const POINT_SIZE_SCALE_FACTOR = 2;
-
 export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
   if (is_point_cloud_viz(viz_state)) {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      pointSize: radius / POINT_SIZE_SCALE_FACTOR,
+      pointSize: radius,
     });
   } else {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({

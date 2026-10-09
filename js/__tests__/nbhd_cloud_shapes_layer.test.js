@@ -762,6 +762,28 @@ describe('camera-side reordering for the beneath-view transparency artifact', ()
     expect(get_nbhd_cloud_camera_side(-45, 'above')).toBe('below');
   });
 
+  test.each([
+    [135, 'above'],
+    [225, 'below'],
+    [405, 'above'],
+    [-225, 'above'],
+    [-405, 'below'],
+    [1125, 'above'],
+  ])(
+    'get_nbhd_cloud_camera_side: continuous pitch %s selects %s',
+    (pitch, side) => {
+      expect(get_nbhd_cloud_camera_side(pitch)).toBe(side);
+    }
+  );
+
+  test.each([179, 181, -179, -181, 359, 361, 719, 721])(
+    'get_nbhd_cloud_camera_side: keeps the previous side near horizon %s',
+    (pitch) => {
+      expect(get_nbhd_cloud_camera_side(pitch, 'above')).toBe('above');
+      expect(get_nbhd_cloud_camera_side(pitch, 'below')).toBe('below');
+    }
+  );
+
   test('get_nbhd_cloud_camera_side: a deadband around the horizon keeps the previous side (no flicker)', () => {
     expect(get_nbhd_cloud_camera_side(0.5, 'above')).toBe('above');
     expect(get_nbhd_cloud_camera_side(-0.5, 'above')).toBe('above');

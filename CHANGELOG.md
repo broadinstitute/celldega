@@ -4,6 +4,18 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.26.1]
+
+### Fixed
+
+- `CellCloud` now accepts `cell_size` in Python to set the default cell
+  diameter in microns (10 by default). The CELL slider multiplies it from
+  0–2×, starting at 1×; Python changes preserve the slider's multiplier.
+- CellCloud and NeighborhoodCloud can rotate continuously past the OrbitView
+  poles; neighborhood shape ordering follows the camera through full turns.
+- Updated the thick MERFISH notebook to demonstrate the corrected controls
+  and load the rebuilt frontend in the documentation preview.
+
 ## [0.26.0]
 
 ### Breaking

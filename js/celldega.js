@@ -35,6 +35,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const height = model.get('height');
   const rotation_orbit = model.get('rotation_orbit') ?? 0;
   const rotation_x = model.get('rotation_x') ?? 0;
+  const cell_size = model.get('cell_size') ?? 10;
   const rotate = model.get('rotate') ?? 0;
   const nbhd = model.get('nbhd_geojson');
   const max_tiles_to_view = model.get('max_tiles_to_view');
@@ -124,7 +125,8 @@ const render_landscape_ist = async ({ model, el }) => {
     base_urls,
     cell_name_prefix,
     centroids_data,
-    use_adata_3d_centroids
+    use_adata_3d_centroids,
+    cell_size
   );
 };
 

@@ -1,31 +1,9 @@
-import importlib.util
-from pathlib import Path
-import sys
-import types
-
 import numpy as np
 import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix
 
-
-ROOT_DIR = Path(__file__).resolve().parents[3]
-PRE_ROOT = ROOT_DIR / "src" / "celldega" / "pre"
-
-CELLPKG = types.ModuleType("celldega")
-CELLPKG.__path__ = [str(ROOT_DIR / "src" / "celldega")]
-sys.modules.setdefault("celldega", CELLPKG)
-PREPKG = types.ModuleType("celldega.pre")
-PREPKG.__path__ = [str(PRE_ROOT)]
-sys.modules.setdefault("celldega.pre", PREPKG)
-
-spec = importlib.util.spec_from_file_location("celldega.pre.sbg_tile", PRE_ROOT / "sbg_tile.py")
-sbg_tile = importlib.util.module_from_spec(spec)
-sbg_tile.__package__ = "celldega.pre"
-sys.modules["celldega.pre.sbg_tile"] = sbg_tile
-spec.loader.exec_module(sbg_tile)
-
-write_pseudotranscripts_from_sbg = sbg_tile.write_pseudotranscripts_from_sbg
+from celldega.pre.sbg_tile import write_pseudotranscripts_from_sbg
 
 
 @pytest.fixture

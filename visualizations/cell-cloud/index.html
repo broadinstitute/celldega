@@ -2799,10 +2799,17 @@ replaces <code>Landscape</code>'s older <code>technology="point-cloud"</code> mo
 cell_cloud = dega.viz.CellCloud(
     base_url=&quot;https://your-landscape-files-url&quot;,
     adata=adata,
+    cell_size=10,  # Default cell diameter in microns
     rotation_x=90,
 )
 cell_cloud
 </code></pre>
+<p><code>cell_size</code> sets the default cell diameter (10 µm by default), assuming the
+centroid coordinates are in microns. The <strong>CELL</strong> slider scales this diameter
+from 0× to 2×; its initial midpoint is 1×. You can also update
+<code>cell_cloud.cell_size</code> after displaying the widget, preserving the slider's
+current multiplier.</p>
+<p>Drag to rotate continuously around both orbit axes, including past the poles.</p>
 <p>Build the underlying point-cloud DegaFiles with
 <a href="../../python/align/api/"><code>celldega.align.write_alignment_point_cloud</code></a>.
 <code>CellCloud</code> can also be linked to a <code>Clustergram</code>, exactly like <code>Landscape</code>

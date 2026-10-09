@@ -24,7 +24,7 @@ import traitlets
 from ._widget_lifecycle import CelldegaWidget
 
 
-_LOCAL_ESM = Path(__file__).parent / "../static" / "celldega.js"
+_LOCAL_ESM = (Path(__file__).parent / "../static" / "celldega.js").resolve()
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
 
 

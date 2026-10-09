@@ -374,7 +374,7 @@ def make_cell_boundary_tiles(
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.replace("/cell_segmentation", ""),
+            path_output.replace("/cell_segmentation", "").replace("\\cell_segmentation", ""),
             layer="boundary",
         )
 

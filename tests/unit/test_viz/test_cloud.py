@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from traitlets import TraitError
 
 
 try:
@@ -40,6 +41,31 @@ def test_cell_cloud_component_technology_manifest() -> None:
     assert cc.component == "CellCloud"
     assert cc.technology == "point-cloud"
     assert cc.manifest_name == "cell_cloud.json"
+
+
+def test_cell_cloud_cell_size_default_and_sync() -> None:
+    cc = CellCloud(base_url="https://example.com/data")
+    assert cc.cell_size == 10.0
+    assert cc.traits()["cell_size"].metadata["sync"] is True
+    assert cc.get_state()["cell_size"] == 10.0
+
+
+def test_cell_cloud_cell_size_constructor_and_update() -> None:
+    cc = CellCloud(base_url="https://example.com/data", cell_size=16.0)
+    assert cc.get_state()["cell_size"] == 16.0
+    cc.cell_size = 8.5
+    assert cc.get_state()["cell_size"] == 8.5
+    cc.cell_size = 0
+    assert cc.cell_size == 0.0
+
+
+@pytest.mark.parametrize("cell_size", [-1, np.nan, np.inf, -np.inf])
+def test_cell_cloud_cell_size_rejects_invalid_values(cell_size) -> None:
+    with pytest.raises(TraitError):
+        CellCloud(base_url="https://example.com/data", cell_size=cell_size)
+    cc = CellCloud(base_url="https://example.com/data")
+    with pytest.raises(TraitError):
+        cc.cell_size = cell_size
 
 
 def test_neighborhood_cloud_component_technology_manifest() -> None:

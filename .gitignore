@@ -13,6 +13,7 @@ dist
 site
 secret_*
 data
+analysis
 cache
 *.code-workspace
 

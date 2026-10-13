@@ -11,6 +11,7 @@ from scipy.spatial.distance import pdist, squareform
 
 from celldega.dataset import DatasetCollection
 
+from .features import stacked_feature_id
 from .prepare import apply_modality_colors, inherit_annotation_colors
 
 
@@ -202,7 +203,7 @@ def stack_selected_features(
         metadata = selection.set_index("feature_id").reindex(feature_ids).drop(columns="modality", errors="ignore").copy()
         metadata.insert(0, "modality", modality)
         metadata.insert(0, "original_feature_id", feature_ids)
-        metadata.index = [f"{modality}:{feature}" for feature in feature_ids]
+        metadata.index = [stacked_feature_id(feature, modality) for feature in feature_ids]
         feature_tables.append(metadata)
 
     stacked = AnnData(

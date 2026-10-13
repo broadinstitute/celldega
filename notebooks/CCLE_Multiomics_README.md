@@ -19,16 +19,22 @@ Run in this order:
 4. `CCLE_Multiomics_03_Tissue_Gene_Programs.py` cuts the RNA row tree into gene
    programs, analyzes each sufficiently represented tissue lineage, and finds
    repeated top-marker sets across lineages.
-5. `CCLE_Multiomics_04_Lung_Multiomic_Concordance.py` tests a focused SCLC/NSCLC example
+5. `CCLE_Multiomics_04_Lung_Multiomic_Subclustering.py` tests a focused SCLC/NSCLC example
    across independent RNA/RPPA/metabolite trees and an equal-feature stacked
    multi-omic Clustergram.
-6. `CCLE_Multiomics_05_Nearest_Neighbor_Coincidence.py` finds cell-line pairs
+6. `CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.py` finds cell-line pairs
    that recur as nearest neighbors across assays, tests the recurrence against
    permuted assay labels, then stacks the `rank_genes_groups` dimensions of
    the resulting consensus neighborhoods.
-7. `CCLE_Multiomics_06_Hematologic_Neighbor_Coincidence.py` applies the same
+7. `CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.py` applies the same
    workflow to the combined Lymphoid/Myeloid cohort, where consensus groups
    can reveal hematologic subtypes and cross-lineage relationships.
+8. `CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.py` prioritizes
+   recurrent cross-lineage model relationships for biological interpretation
+   and provenance review without inferring a label correction.
+9. `CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.py` defines
+   primary groups from RNA alone, then calls RPPA and metabolite markers for
+   those fixed RNA-derived groups.
 
 All raw data, the H5MU archive, and generated result tables reside in ignored
 `data/ccle_multiomics/`. The reusable preparation and clustering helpers live
@@ -57,9 +63,9 @@ run the notebook itself.
 
 ## Follow-up work
 
-1. Add CCLE mass-spectrometry proteomics as a distinct `proteomics_ms`
-   modality, then compare its matched-cohort tree with RPPA rather than merging
-   the two assays.
+1. Download the optional CCLE mass-spectrometry proteomics source file to
+   activate the prepared `proteomics_ms` modality, then compare its
+   matched-cohort tree with RPPA rather than merging the two assays.
 2. Prioritize cross-lineage programs that recur in independent tissue trees,
    annotate them with pathway enrichment, and retain the supporting effect-size
    tables alongside each biological claim.

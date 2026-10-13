@@ -9,8 +9,9 @@
 # Raw files are expected in `data/ccle_multiomics/raw/`, which is ignored by
 # git.  The required inputs are the DepMap 24Q2 `Model.csv`, batch-corrected
 # protein-coding RNA expression, Chronos gene effects, and the CCLE RPPA and
-# metabolomics CSV files.  See `ccle_multiomics/README.md` for filenames and
-# sources.
+# metabolomics CSV files. The CCLE MS proteomics file is detected and added as
+# a separate modality when present. See `ccle_multiomics/README.md` for
+# filenames and sources.
 
 # %%
 from __future__ import annotations
@@ -38,7 +39,13 @@ ARCHIVE = PROJECT / "data/ccle_multiomics/processed/ccle_multiomics.h5mu"
 REBUILD = False
 
 if REBUILD or not ARCHIVE.exists():
-    collection = build_collection(RAW, ARCHIVE, include_crispr=True, overwrite=REBUILD)
+    collection = build_collection(
+        RAW,
+        ARCHIVE,
+        include_crispr=True,
+        include_proteomics_ms=None,
+        overwrite=REBUILD,
+    )
 else:
     collection = load_collection(ARCHIVE)
 

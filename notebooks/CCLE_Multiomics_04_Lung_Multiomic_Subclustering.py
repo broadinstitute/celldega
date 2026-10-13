@@ -1,5 +1,5 @@
 # %% [markdown]
-# # CCLE lung cancer: concordance across RNA, RPPA, and metabolomics
+# # CCLE lung cancer: multi-omic subclustering
 #
 # This is a matched-cohort follow-up to the global and within-tissue trees. It
 # builds independent Ward trees for each assay, evaluates the agreement of their
@@ -32,6 +32,7 @@ from notebooks.ccle_multiomics import (
     marker_clustergram,
     rank_cluster_markers,
     shared_model_ids,
+    split_stacked_feature_id,
     stack_modalities,
 )
 from notebooks.ccle_multiomics.coincidence import stack_selected_features
@@ -139,9 +140,10 @@ print(agreement)
 # %% [markdown]
 # ## A stacked multi-omic Clustergram
 #
-# `stack_modalities` retains the matched cohort and prefixes feature IDs only to
-# keep them unique. Its `modality` row annotation distinguishes RNA genes, RPPA
-# antibodies, and metabolites while the row z-score gives their patterns a
+# `stack_modalities` retains the matched cohort and appends a parseable
+# ``::modality`` suffix only to keep feature IDs unique. Its `modality` row
+# annotation distinguishes RNA genes, RPPA antibodies, and metabolites while
+# the row z-score gives their patterns a
 # common display scale. Equal feature counts prevent RNA from winning simply
 # because it has a much larger measured feature space.
 
@@ -198,6 +200,7 @@ pd.DataFrame(stacked_agreement).to_csv(RESULTS / "stacked_branch_agreement.csv",
 SCLC_SUBTYPE = "Small Cell Lung Cancer"
 SCLC_SIGNATURE_GENES = ("INSM1", "ASCL1", "CHGA", "CHGB", "SYP", "NCAM1", "HES6")
 GENE_PROTEIN_PAIRS = (
+    ("CDH1", "E-Cadherin"),
     ("BCL2", "Bcl-2"),
     ("IGFBP2", "IGFBP2"),
     ("KIT", "c-Kit"),
@@ -261,14 +264,16 @@ sclc_signature = signature_z.mean(axis=1)
 metabolite_markers = (
     stacked_markers.loc[
         stacked_markers["group"].astype(str).eq(sclc_branch)
-        & stacked_markers["names"].str.startswith("metabolomics:")
+        & stacked_markers["names"].str.endswith("::metabolomics")
         & stacked_markers["pvals_adj"].le(0.05)
     ]
     .sort_values("rank")
     .head(8)
     .copy()
 )
-metabolite_markers["metabolite"] = metabolite_markers["names"].str.removeprefix("metabolomics:")
+metabolite_markers["metabolite"] = metabolite_markers["names"].map(
+    lambda feature_id: split_stacked_feature_id(feature_id)[0]
+)
 metabolite_values = assay_frame("metabolomics", metabolite_markers["metabolite"].tolist())
 
 metabolite_rows: list[dict[str, object]] = []
@@ -302,6 +307,16 @@ print("\nDirect RNA--RPPA target pairs")
 print(gene_protein_pairs.round(3).to_string(index=False))
 print("\nCandidate metabolite associations")
 print(metabolite_associations.round(3).to_string(index=False))
+
+# %% [markdown]
+# The direct-pair table includes a useful epithelial anchor: RNA `CDH1` and the
+# RPPA `E-Cadherin` target. They can be adjacent in the focused stacked view
+# because their profiles agree across the lung panel. The row label is written
+# as `CDH1::rna` or `E-Cadherin::rppa` so its assay origin remains visible;
+# Celldega strips that explicit suffix before a gene-oriented UniProt lookup.
+# The RPPA measurement remains an antibody target, so this is a cross-assay
+# concordance observation rather than an independent protein-identification
+# claim.
 
 # %% [markdown]
 # In this dataset the SCLC-enriched branch is supported strongly by the RNA and

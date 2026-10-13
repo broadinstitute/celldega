@@ -12,8 +12,25 @@ const uniprot_pending = new Map();
 
 const is_mock_gene = (gene_symbol) => /^MockGene\d+$/i.test(gene_symbol);
 
+/**
+ * Strip Celldega's display-only multi-omic modality suffix before lookup.
+ *
+ * Feature-stacked matrices use IDs such as ``CDH1::rna`` so same-named
+ * measurements remain distinct. UniProt expects the base symbol, while the
+ * full ID remains the visual label and cache key. Single colons are left alone
+ * because metabolite names can legitimately contain them (for example,
+ * ``C38:5 PC``).
+ */
+export const uniprot_query_symbol = (display_label) =>
+  String(display_label ?? '')
+    .split('::', 1)[0]
+    .trim();
+
 export const uniprot_get_request = async (gene_symbol) => {
-  if (is_mock_gene(gene_symbol)) {
+  const query_symbol = uniprot_query_symbol(gene_symbol);
+  if (!query_symbol) return;
+
+  if (is_mock_gene(query_symbol)) {
     uniprot_data[gene_symbol] = {
       name: '',
       description: '',
@@ -29,7 +46,7 @@ export const uniprot_get_request = async (gene_symbol) => {
 
     const organism = 'human';
     const num_matches = 100;
-    const url_accession = `https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=${num_matches}&exact_gene=${gene_symbol}&organism=${organism}`;
+    const url_accession = `https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=${num_matches}&exact_gene=${query_symbol}&organism=${organism}`;
 
     try {
       const response = await fetch(url_accession, {
@@ -46,7 +63,7 @@ export const uniprot_get_request = async (gene_symbol) => {
         .filter((d) => 'gene' in d)
         .filter(
           (d) =>
-            d.gene[0].name.value.toLowerCase() === gene_symbol.toLowerCase()
+            d.gene[0].name.value.toLowerCase() === query_symbol.toLowerCase()
         )
         .sort((a, b) => b.comments.length - a.comments.length);
 
@@ -71,7 +88,7 @@ export const uniprot_get_request = async (gene_symbol) => {
           };
         } catch (error) {
           handleAsyncError(error, {
-            context: `fetching detailed info for ${gene_symbol}`,
+            context: `fetching detailed info for ${query_symbol}`,
             url: base_url_info,
             logUnexpected: true,
             throwOnAuth: false,
@@ -80,7 +97,7 @@ export const uniprot_get_request = async (gene_symbol) => {
       }
     } catch (error) {
       handleAsyncError(error, {
-        context: `searching for gene ${gene_symbol}`,
+        context: `searching for gene ${query_symbol}`,
         url: url_accession,
         logUnexpected: true,
         throwOnAuth: false,

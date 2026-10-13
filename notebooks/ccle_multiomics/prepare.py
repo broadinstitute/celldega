@@ -29,6 +29,7 @@ MODEL_FILE = "Model.csv"
 METABOLOMICS_FILE = "CCLE_metabolomics_20190502.csv"
 RPPA_FILE = "CCLE_RPPA_20181003.csv"
 CRISPR_FILE = "CRISPRGeneEffect.csv"
+PROTEOMICS_MS_FILE = "protein_quant_current_normalized.csv"
 
 METADATA_COLUMNS = [
     "PatientID", "CellLineName", "StrippedCellLineName", "DepmapModelType",
@@ -45,6 +46,7 @@ MODALITY_COLORS = {
     "rppa": "#F58518",
     "metabolomics": "#54A24B",
     "crispr": "#B279A2",
+    "proteomics_ms": "#E45756",
 }
 
 SOURCES = {
@@ -63,6 +65,10 @@ SOURCES = {
     "crispr": {
         "name": "DepMap 24Q2 Chronos CRISPR gene effect",
         "url": "https://plus.figshare.com/articles/dataset/DepMap_24Q2_Public/25880521",
+    },
+    "proteomics_ms": {
+        "name": "CCLE mass-spectrometry proteomics (Nusinow et al.)",
+        "url": "https://depmap.org/portal/download/all/?releasename=Proteomics&filename=protein_quant_current_normalized.csv",
     },
 }
 
@@ -215,6 +221,55 @@ def read_crispr(raw_dir: Path) -> pd.DataFrame:
     return values.dropna(axis=0, how="all").dropna(axis=1, how="all")
 
 
+def read_proteomics_ms(raw_dir: Path, metadata: pd.DataFrame) -> pd.DataFrame:
+    """Read CCLE MS protein abundance and map its TenPx samples to ModelID.
+
+    The CCLE ``protein_quant_current_normalized.csv`` table contains a
+    ``Gene_Symbol`` column, peptide-level duplicate protein rows, and
+    ``<stripped-cell-line>_TenPxNN`` bridge-sample columns.  Gene duplicates
+    and technical bridge samples are median-collapsed, but the resulting
+    modality remains separate from the targeted RPPA panel.
+    """
+    if "StrippedCellLineName" not in metadata:
+        raise ValueError("Model metadata has no StrippedCellLineName column")
+    raw = pd.read_csv(raw_dir / PROTEOMICS_MS_FILE)
+    if "Gene_Symbol" not in raw:
+        raise ValueError(f"{PROTEOMICS_MS_FILE} has no Gene_Symbol column")
+    sample_columns = [
+        column for column in raw.columns if re.search(r"_TenPx\d+$", str(column))
+    ]
+    if not sample_columns:
+        raise ValueError(
+            f"{PROTEOMICS_MS_FILE} has no <stripped-cell-line>_TenPxNN columns"
+        )
+
+    stripped_names = metadata["StrippedCellLineName"].replace("unknown", np.nan).dropna()
+    stripped_names = stripped_names.astype(str)
+    if stripped_names.duplicated().any():
+        raise ValueError("StrippedCellLineName is not a unique map to ModelID")
+    name_to_id = pd.Series(stripped_names.index.astype(str), index=stripped_names)
+    source_names = pd.Index(
+        [re.sub(r"_TenPx\d+$", "", str(column)) for column in sample_columns]
+    )
+    mapped_models = name_to_id.reindex(source_names)
+    keep_columns = mapped_models.notna().to_numpy()
+    if not keep_columns.any():
+        raise ValueError("No MS proteomics TenPx columns map to Model.csv StrippedCellLineName")
+
+    values = raw.loc[:, sample_columns].apply(pd.to_numeric, errors="coerce")
+    feature_ids = raw["Gene_Symbol"].astype("string").str.strip()
+    keep_features = feature_ids.notna() & feature_ids.ne("") & feature_ids.ne("unknown")
+    values = values.loc[keep_features, np.asarray(keep_columns)]
+    values.index = pd.Index(feature_ids.loc[keep_features].astype(str), name="feature_id")
+    values = values.groupby(level=0, sort=False).median()
+
+    by_model = values.T
+    by_model.index = _model_ids(mapped_models.loc[keep_columns])
+    result = by_model.groupby(level=0, sort=False).median().T.astype(np.float32)
+    result.index.name, result.columns.name = "feature_id", "ModelID"
+    return result.dropna(axis=0, how="all").dropna(axis=1, how="all")
+
+
 def _feature_metadata(feature_ids: pd.Index, modality: str) -> pd.DataFrame:
     """Describe the assay faithfully without inferring protein targets."""
     index = pd.Index(feature_ids.astype(str), name="feature_id")
@@ -223,6 +278,9 @@ def _feature_metadata(feature_ids: pd.Index, modality: str) -> pd.DataFrame:
         var["is_phospho"] = index.str.contains(r"(?:^|_)p[STY]\\d", regex=True)
         var["is_caution"] = index.str.endswith("_Caution")
         var["assay_type"] = np.where(var["is_phospho"], "phospho", "antibody")
+    if modality == "proteomics_ms":
+        var["assay_type"] = "mass_spectrometry"
+        var["feature_namespace"] = "source Gene_Symbol"
     return var
 
 
@@ -241,6 +299,7 @@ def _make_modality(values: pd.DataFrame, metadata: pd.DataFrame, modality: str) 
         "rna": "DepMap batch-corrected log2(TPM + 1)",
         "metabolomics": "CCLE calibrated log10 metabolite peak area",
         "rppa": "CCLE RPPA normalized antibody measurement",
+        "proteomics_ms": "CCLE normalized log2 relative mass-spectrometry protein abundance",
         "crispr": "DepMap Chronos gene effect; more negative is stronger dependency",
     }[modality]
     adata.uns["ccle_multiomics"] = {
@@ -277,6 +336,7 @@ def build_collection(
     output: str | Path = DEFAULT_OUTPUT,
     *,
     include_crispr: bool = True,
+    include_proteomics_ms: bool | None = None,
     overwrite: bool = False,
 ) -> DatasetCollection:
     """Build and write the first CCLE multi-omic DatasetCollection.
@@ -289,6 +349,13 @@ def build_collection(
     required = [MODEL_FILE, EXPRESSION_FILE, METABOLOMICS_FILE, RPPA_FILE]
     if include_crispr:
         required.append(CRISPR_FILE)
+    add_proteomics_ms = (
+        (raw_path / PROTEOMICS_MS_FILE).exists()
+        if include_proteomics_ms is None
+        else include_proteomics_ms
+    )
+    if add_proteomics_ms:
+        required.append(PROTEOMICS_MS_FILE)
     missing = [name for name in required if not (raw_path / name).exists()]
     if missing:
         raise FileNotFoundError(f"Missing raw CCLE inputs in {raw_path}: {', '.join(missing)}")
@@ -298,6 +365,8 @@ def build_collection(
     metadata = read_metadata(raw_path)
     tables = {"rna": read_expression(raw_path), "metabolomics": read_metabolomics(raw_path)}
     tables["rppa"] = read_rppa(raw_path, metadata)
+    if add_proteomics_ms:
+        tables["proteomics_ms"] = read_proteomics_ms(raw_path, metadata)
     if include_crispr:
         tables["crispr"] = read_crispr(raw_path)
     modalities = {name: _make_modality(table, metadata, name) for name, table in tables.items()}
@@ -368,11 +437,18 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--exclude-crispr", action="store_true")
+    parser.add_argument("--include-proteomics-ms", action="store_true")
+    parser.add_argument("--exclude-proteomics-ms", action="store_true")
     args = parser.parse_args()
+    if args.include_proteomics_ms and args.exclude_proteomics_ms:
+        parser.error("choose at most one of --include-proteomics-ms and --exclude-proteomics-ms")
     collection = build_collection(
         args.raw_dir,
         args.output,
         include_crispr=not args.exclude_crispr,
+        include_proteomics_ms=(
+            True if args.include_proteomics_ms else False if args.exclude_proteomics_ms else None
+        ),
         overwrite=args.overwrite,
     )
     print(f"Wrote {args.output}")

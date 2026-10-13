@@ -71,6 +71,7 @@ def hierarchical_clustergram(
         "OncotreePrimaryDisease",
         "OncotreeSubtype",
     ),
+    row_attributes: tuple[str, ...] = ("modality",),
 ) -> tuple[AnnData, Matrix]:
     """Build the primary Ward Clustergram and cut its own column dendrogram.
 
@@ -87,7 +88,12 @@ def hierarchical_clustergram(
     result.var["used_for_hierarchical_clustering"] = mask
     discovery = _clustergram_input(result[:, mask], col_attributes)
     selected_col_attributes = [key for key in col_attributes if key in discovery.obs]
-    matrix = Matrix(discovery, col_attr=selected_col_attributes, row_attr=["modality"])
+    selected_row_attributes = [key for key in row_attributes if key in discovery.var]
+    matrix = Matrix(
+        discovery,
+        col_attr=selected_col_attributes,
+        row_attr=selected_row_attributes,
+    )
     matrix.norm("row", by="zscore")
     matrix.cluster(dist_type="euclidean", linkage_type="ward")
     key = f"hierarchical_k{config.n_meta_clusters}"

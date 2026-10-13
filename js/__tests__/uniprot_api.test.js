@@ -12,7 +12,11 @@ describe('UniProt multi-omic display-label parsing', () => {
       .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
       .replace(/^export const /gm, 'const ');
     const module = { exports: {} };
-    const code = `${source}\nmodule.exports = { uniprot_query_symbol };`;
+    const shims = `
+      const base_display_label = (value) =>
+        String(value ?? '').split('::', 1)[0].trim();
+    `;
+    const code = `${shims}\n${source}\nmodule.exports = { uniprot_query_symbol };`;
     new Function('module', 'exports', code)(module, module.exports);
 
     expect(module.exports.uniprot_query_symbol('CDH1::rna')).toBe('CDH1');

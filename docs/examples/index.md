@@ -2,7 +2,7 @@
 
 These example notebooks demonstrate how to use Celldega for spatial transcriptomics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
 
-## Tutorials
+## Spatial Transcriptomics Tutorials
 
 Comprehensive tutorials that walk through complete workflows:
 
@@ -47,6 +47,7 @@ spaces, then examines recurring programs and a lung SCLC/NSCLC example.
 - [06: Hematologic multi-omic subclustering](tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb)
 - [07: Tissue mixing and provenance review](tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb)
 - [08: RNA-anchored multi-omic characterization](tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb)
+- [09: CST lung TMT PTM integration](tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb)
 
 ## Running the Notebooks
 

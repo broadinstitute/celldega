@@ -21,6 +21,7 @@ instead of treating an unmeasured assay as zero.
 | 06 | Hematologic Lymphoid/Myeloid multi-omic subclustering, contextual RNA--RPPA/RNA--metabolite checks, and selected-marker stacks |
 | 07 | Cross-lineage recurrence densities, three-assay examples, and a provenance-review Clustergram that does not infer label corrections |
 | 08 | RNA-defined primary hierarchy with RPPA and metabolite rank_genes_groups characterizations and a balanced, RNA-ordered explanatory stack |
+| 09 | Published CST lung TMT PTM subset mapped to current DepMap models, with independent RNA/PTM hierarchies and a balanced marker stack |
 
 The notebooks shown here are rendered as source and are not executed during a
 documentation build. Download the raw CCLE/DepMap files locally, run chapter

@@ -35,6 +35,9 @@ Run in this order:
 9. `CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.py` defines
    primary groups from RNA alone, then calls RPPA and metabolite markers for
    those fixed RNA-derived groups.
+10. `CCLE_Multiomics_09_CST_Lung_PTM_Integration.py` builds a distinct,
+    37-model MuData from the published CST TMT PTM case study and current
+    CCLE/DepMap measurements, then examines SCLC/NSCLC PTM--RNA patterns.
 
 All raw data, the H5MU archive, and generated result tables reside in ignored
 `data/ccle_multiomics/`. The reusable preparation and clustering helpers live

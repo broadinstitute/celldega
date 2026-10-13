@@ -13,6 +13,7 @@ source-scale assays and wraps it in a `DatasetCollection`:
 | `proteomics_ms` | CCLE normalized MS relative protein abundance | broad protein-level comparison with RNA and RPPA |
 | `metabolomics` | CCLE calibrated log10 peak areas | metabolic structure and enzyme/metabolite concordance |
 | `crispr` | DepMap Chronos gene effect | dependency structure, kept separate from abundance |
+| `cst_ptm` | Published CST TMT site-resolved PTM ratios | dedicated 37-model lung SCLC/NSCLC case study |
 
 All data remain beneath the ignored `data/ccle_multiomics/` directory:
 
@@ -21,6 +22,7 @@ data/ccle_multiomics/
   raw/                         # source CSVs (not tracked)
   processed/ccle_multiomics.h5mu
   processed/ccle_multiomics.qc.json
+  processed/cst_lung_ptm_multiomics.h5mu # separate 37-model lung subset
   results/                     # generated tables (not tracked)
 ```
 
@@ -40,6 +42,15 @@ median-collapsed, and the result remains the separate `proteomics_ms` modality.
 It is intentionally not combined with RPPA in a multi-assay consensus graph:
 the two technologies should first be compared, rather than counted as two
 independent votes for the same broad protein layer.
+
+`cst_lung_ptm.py` separately loads the processed
+`cst_lung_ptm/CST_CCLE_ptm.txt` matrix from the published
+[Clustergrammer lung PTM case study](https://doi.org/10.6084/m9.figshare.5339689).
+It maps the 37 historical CCLE cell-line labels to current ModelIDs, preserves
+the original TMT phospho/methyl/acetyl feature names and source normalization,
+and writes `cst_lung_ptm_multiomics.h5mu`. This focused subset is intentionally
+not appended to the pan-CCLE archive because its PTM values are ratios to a
+normal-lung reference and have coverage only in that study.
 
 RNA, model metadata, and CRISPR values come from the [DepMap 24Q2 public
 release](https://plus.figshare.com/articles/dataset/DepMap_24Q2_Public/25880521).

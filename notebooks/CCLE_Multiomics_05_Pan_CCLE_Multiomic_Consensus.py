@@ -1,5 +1,5 @@
 # %% [markdown]
-# # CCLE multi-omics: coincident nearest neighbors and marker-selected fusion
+# # CCLE multi-omics: consensus groups and marker-selected fusion
 #
 # This chapter adapts the multi-assay nearest-neighbor analysis from the
 # smoldering-myeloma study to CCLE cell lines. Independent assay spaces first

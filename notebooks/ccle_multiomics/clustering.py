@@ -13,6 +13,7 @@ import scanpy as sc
 from celldega.clust import Matrix
 from celldega.dataset import DatasetCollection
 
+from .features import stacked_feature_id
 from .prepare import apply_modality_colors, inherit_annotation_colors
 
 
@@ -279,7 +280,7 @@ def stack_modalities(
                     "original_feature_id": feature_ids,
                     "modality": modality,
                 },
-                index=[f"{modality}:{feature}" for feature in feature_ids],
+                index=[stacked_feature_id(feature, modality) for feature in feature_ids],
             )
         )
 

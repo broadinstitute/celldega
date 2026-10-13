@@ -101,9 +101,11 @@ nav:
       - "01: Global hierarchy": examples/tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb
       - "02: Cross-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb
       - "03: Tissue gene programs": examples/tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb
-      - "04: Lung multi-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Concordance.ipynb
-      - "05: Nearest-neighbor coincidence": examples/tutorial_notebooks/CCLE_Multiomics_05_Nearest_Neighbor_Coincidence.ipynb
-      - "06: Hematologic neighbor coincidence": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Neighbor_Coincidence.ipynb
+      - "04: Lung multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb
+      - "05: Pan-CCLE multi-omic consensus": examples/tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb
+      - "06: Hematologic multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb
+      - "07: Tissue mixing and provenance review": examples/tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb
+      - "08: RNA-anchored multi-omic characterization": examples/tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb
 
 markdown_extensions:
   - toc

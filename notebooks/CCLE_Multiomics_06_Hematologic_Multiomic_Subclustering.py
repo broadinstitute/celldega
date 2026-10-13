@@ -1,5 +1,5 @@
 # %% [markdown]
-# # CCLE hematologic cancers: multi-omic coincident neighbors
+# # CCLE hematologic cancers: multi-omic subclustering
 #
 # This focused follow-up asks whether local cell-line relationships recur across
 # RNA, RPPA, and metabolomics *within* a combined Lymphoid/Myeloid cohort. It

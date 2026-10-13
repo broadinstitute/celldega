@@ -451,6 +451,10 @@ class Matrix:
         # Visualization structure. Deep copy so each Matrix gets its own nested
         # ``linkage``/node dicts — a shallow copy would share them across instances.
         self.viz: dict[str, Any] = copy.deepcopy(DEFAULT_VIZ)
+        # AnnData category palettes are collected in ``load_adata`` and take
+        # precedence over auto-generated Matrix colors. This preserves a
+        # DatasetCollection's shared annotation colors across separate views.
+        self._source_global_cat_colors: dict[str, str] = {}
 
         # if name is None, generate a quick hash-based name from the data content
         if name is None:
@@ -618,6 +622,22 @@ class Matrix:
         # Copy metadata to avoid mutating the original AnnData object
         meta_col = adata.obs.copy()
         meta_row = adata.var.copy()
+
+        for metadata, attributes in ((adata.obs, col_attr or []), (adata.var, row_attr or [])):
+            for category in attributes:
+                color_key = f"{category}_colors"
+                if category not in metadata or color_key not in adata.uns:
+                    continue
+                source_colors = adata.uns[color_key]
+                if isinstance(metadata[category].dtype, pd.CategoricalDtype):
+                    categories = metadata[category].cat.categories.astype(str)
+                else:
+                    categories = pd.Index(metadata[category].dropna().astype(str).unique())
+                for index, category_value in enumerate(categories):
+                    if index < len(source_colors):
+                        self._source_global_cat_colors.setdefault(
+                            str(category_value), str(source_colors[index])
+                        )
 
         # convert categorical columns to string
         for col in meta_col.select_dtypes(include=["category"]).columns:
@@ -1734,7 +1754,7 @@ class Matrix:
 
         if color_mapping is None:
             # First, try to extract colors from metadata 'color' columns
-            color_mapping = {}
+            color_mapping = dict(self._source_global_cat_colors)
 
             for meta_df, cat_list in (
                 (self.meta_row, self.row_cats),
@@ -1744,7 +1764,7 @@ class Matrix:
                     # If metadata has a 'color' column, use index -> color mapping
                     if "color" in meta_df.columns:
                         for idx, color in zip(meta_df.index, meta_df["color"], strict=False):
-                            color_mapping[str(idx)] = color
+                            color_mapping.setdefault(str(idx), color)
 
                     # Also check each categorical column for matching color columns
                     for cat_col in cat_list:

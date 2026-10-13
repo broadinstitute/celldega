@@ -1,4 +1,5 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import { base_display_label } from '../utils/display_label';
 
 /**
  * Gene symbol -> `{ name, description }`. Module-level, so every widget in the
@@ -21,10 +22,7 @@ const is_mock_gene = (gene_symbol) => /^MockGene\d+$/i.test(gene_symbol);
  * because metabolite names can legitimately contain them (for example,
  * ``C38:5 PC``).
  */
-export const uniprot_query_symbol = (display_label) =>
-  String(display_label ?? '')
-    .split('::', 1)[0]
-    .trim();
+export const uniprot_query_symbol = base_display_label;
 
 export const uniprot_get_request = async (gene_symbol) => {
   const query_symbol = uniprot_query_symbol(gene_symbol);

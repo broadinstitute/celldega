@@ -30,6 +30,22 @@ Focused examples demonstrating specific features:
 - [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
 - [SetCollection Cluster Space](brief_notebooks/SetCollection_Cluster_Space.ipynb) - Building a SetCollection from a Xenium clustering and clustering its per-set gene-expression signature
 
+## CCLE Multi-omics Tutorials
+
+This numbered series demonstrates coverage-preserving `MuData` and
+`DatasetCollection` workflows for bulk cancer cell lines. It begins with a
+global hierarchical map, compares independent RNA, RPPA, and metabolomics
+spaces, then examines recurring programs and a lung SCLC/NSCLC example.
+
+- [CCLE multi-omics overview](ccle_multiomics.md)
+- [00: Prepare archive](tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb)
+- [01: Global hierarchy](tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb)
+- [02: Cross-omic concordance](tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb)
+- [03: Tissue gene programs](tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb)
+- [04: Lung multi-omic concordance](tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Concordance.ipynb)
+- [05: Nearest-neighbor coincidence](tutorial_notebooks/CCLE_Multiomics_05_Nearest_Neighbor_Coincidence.ipynb)
+- [06: Hematologic neighbor coincidence](tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Neighbor_Coincidence.ipynb)
+
 ## Running the Notebooks
 
 ### Prerequisites

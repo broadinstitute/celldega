@@ -95,6 +95,15 @@ nav:
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
       - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
+    - CCLE Multi-omics Tutorials:
+      - Overview: examples/ccle_multiomics.md
+      - "00: Prepare archive": examples/tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb
+      - "01: Global hierarchy": examples/tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb
+      - "02: Cross-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb
+      - "03: Tissue gene programs": examples/tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb
+      - "04: Lung multi-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Concordance.ipynb
+      - "05: Nearest-neighbor coincidence": examples/tutorial_notebooks/CCLE_Multiomics_05_Nearest_Neighbor_Coincidence.ipynb
+      - "06: Hematologic neighbor coincidence": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Neighbor_Coincidence.ipynb
 
 markdown_extensions:
   - toc

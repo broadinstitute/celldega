@@ -15,9 +15,9 @@ explicit shared model cohort instead of treating an unmeasured assay as zero.
 | 01 | Independent global Ward Clustergrams plus an equal-feature RNA/RPPA/metabolomics stack |
 | 02 | Pan-CCLE agreement among the independent spaces and an equal-feature stacked Clustergram |
 | 03 | Tissue-specific hierarchies and recurring RNA programs |
-| 04 | Lung SCLC/NSCLC concordance across RNA, RPPA, metabolomics, and a stacked view |
+| 04 | Lung SCLC/NSCLC concordance, direct RNA--RPPA checks, candidate metabolite associations, and stacked views |
 | 05 | Coincident nearest-neighbor graph, empirical null, and a marker-selected stacked Clustergram |
-| 06 | Hematologic Lymphoid/Myeloid coincident neighbors and assay-specific selected-marker stack |
+| 06 | Hematologic Lymphoid/Myeloid coincident neighbors, contextual RNA--RPPA/RNA--metabolite checks, and selected-marker stacks |
 
 The notebooks shown here are rendered as source and are not executed during a
 documentation build. Download the raw CCLE/DepMap files locally, run chapter

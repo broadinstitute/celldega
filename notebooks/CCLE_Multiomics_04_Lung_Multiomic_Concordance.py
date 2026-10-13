@@ -23,6 +23,7 @@ PROJECT = next(parent for parent in (Path.cwd(), *Path.cwd().parents) if (parent
 if str(PROJECT) not in sys.path:
     sys.path.insert(0, str(PROJECT))
 
+from celldega.clust import Matrix
 from celldega.viz import Clustergram
 from notebooks.ccle_multiomics import (
     HierarchicalConfig,
@@ -33,6 +34,7 @@ from notebooks.ccle_multiomics import (
     shared_model_ids,
     stack_modalities,
 )
+from notebooks.ccle_multiomics.coincidence import stack_selected_features
 
 
 DATA = PROJECT / "data/ccle_multiomics"
@@ -308,6 +310,41 @@ print(metabolite_associations.round(3).to_string(index=False))
 # is reported separately from metabolite covariation with the RNA signature.
 # In particular, the metabolite panel is a compact readout for follow-up, not a
 # marker set used to name the branch.
+
+# %% [markdown]
+# ## Focused SCLC cross-omic readout
+#
+# This small view stacks only the RNA neuroendocrine signature, the direct
+# RNA--RPPA target pairs, and the rank-derived metabolite candidates above.
+# It is a post-clustering explanatory panel: it is not used to discover the
+# primary Ward tree or to calculate agreement. A row z-score is used solely to
+# put the three assay scales on a common display scale.
+
+# %%
+sclc_focus = stack_selected_features(
+    collection,
+    {
+        "rna": pd.DataFrame({"feature_id": signature_genes}),
+        "rppa": pd.DataFrame({"feature_id": gene_protein_pairs["rppa_target"].tolist()}),
+        "metabolomics": pd.DataFrame({"feature_id": metabolite_associations["metabolite"].tolist()}),
+    },
+    lung_models,
+)
+sclc_focus.obs["SCLC_neuroendocrine_branch"] = pd.Categorical(
+    np.where(branch_mask, "SCLC-enriched branch", "Other lung branches"),
+    categories=["SCLC-enriched branch", "Other lung branches"],
+)
+sclc_focus.uns["SCLC_neuroendocrine_branch_colors"] = ["#E45756", "#BAB0AC"]
+sclc_focus_matrix = Matrix(
+    sclc_focus,
+    col_attr=("SCLC_neuroendocrine_branch", "OncotreePrimaryDisease", "OncotreeSubtype"),
+    row_attr=("modality",),
+    name="CCLE lung SCLC candidate cross-omic readout",
+)
+sclc_focus_matrix.norm("row", by="zscore")
+sclc_focus_matrix.cluster(dist_type="euclidean", linkage_type="ward")
+
+Clustergram(matrix=sclc_focus_matrix, width=1_100, height=700)
 
 # %% [markdown]
 # ## Interactive lung stacked Clustergram

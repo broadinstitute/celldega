@@ -6,6 +6,10 @@ site_name: Celldega Documentation
 exclude_docs: |
   examples/**/data/
   **/*.h5ad
+  # CCLE multi-omics tutorials temporarily hidden; remove these two lines and
+  # uncomment their nav entries below to restore them.
+  examples/ccle_multiomics.md
+  examples/tutorial_notebooks/CCLE_Multiomics_*.ipynb
 
 theme:
   name: material
@@ -97,18 +101,19 @@ nav:
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
       - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
-    - CCLE Multi-omics Tutorials:
-      - Overview: examples/ccle_multiomics.md
-      - "00: Prepare archive": examples/tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb
-      - "01: Global hierarchy": examples/tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb
-      - "02: Cross-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb
-      - "03: Tissue gene programs": examples/tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb
-      - "04: Lung multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb
-      - "05: Pan-CCLE multi-omic consensus": examples/tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb
-      - "06: Hematologic multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb
-      - "07: Tissue mixing and provenance review": examples/tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb
-      - "08: RNA-anchored multi-omic characterization": examples/tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb
-      - "09: CST lung TMT PTM integration": examples/tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb
+    # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
+    # - CCLE Multi-omics Tutorials:
+    #   - Overview: examples/ccle_multiomics.md
+    #   - "00: Prepare archive": examples/tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb
+    #   - "01: Global hierarchy": examples/tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb
+    #   - "02: Cross-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb
+    #   - "03: Tissue gene programs": examples/tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb
+    #   - "04: Lung multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb
+    #   - "05: Pan-CCLE multi-omic consensus": examples/tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb
+    #   - "06: Hematologic multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb
+    #   - "07: Tissue mixing and provenance review": examples/tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb
+    #   - "08: RNA-anchored multi-omic characterization": examples/tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb
+    #   - "09: CST lung TMT PTM integration": examples/tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb
 
 markdown_extensions:
   - toc

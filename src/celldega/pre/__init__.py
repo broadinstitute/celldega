@@ -574,8 +574,8 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
 
     Raises:
         FileNotFoundError: If the required input image file is not found.
-        ValueError: If the image layout is unexpected or 'all' is requested for an image
-            without multiple channels.
+        ValueError: If the image layout is unexpected or 'all' is requested for a bundle
+            that only has morphology.ome.tif.
     """
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
@@ -607,13 +607,6 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
         if series.axes not in ("CYX", "YX"):
             raise ValueError(
                 f"Expected Xenium morphology image axes to be 'CYX' or 'YX', got '{series.axes}'"
-            )
-
-        n_channels = series.shape[0] if series.axes == "CYX" else 1
-        if image_tile_layer == "all" and n_channels < len(channel_map):
-            raise ValueError(
-                f"image_tile_layer='all' needs {len(channel_map)} channels but "
-                f"{file_path.name} has {n_channels}. Use image_tile_layer='dapi'."
             )
 
         lut_max_by_index = _parse_xenium_lut_max(tif.ome_metadata)

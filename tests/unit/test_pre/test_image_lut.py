@@ -85,14 +85,6 @@ def _write_ome(path, data, description=None):
         tifffile.tiffcomment(path, description)
 
 
-def test_all_layers_rejected_for_single_channel_image(tmp_path):
-    focus = tmp_path / "morphology_focus"
-    focus.mkdir()
-    _write_ome(focus / "morphology_focus_0000.ome.tif", np.ones((1, 8, 8), dtype=np.uint16))
-    with pytest.raises(ValueError, match="needs 4 channels"):
-        pre.create_image_tiles_xenium(str(tmp_path), str(tmp_path / "out"), image_tile_layer="all")
-
-
 def test_all_layers_rejected_for_root_morphology(tmp_path):
     _write_ome(tmp_path / "morphology.ome.tif", np.ones((4, 8, 8), dtype=np.uint16))
     with pytest.raises(ValueError, match=r"morphology\.ome\.tif"):

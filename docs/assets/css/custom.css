@@ -98,3 +98,17 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
 .celldega-notebook-nav-toggle svg {
     display: block;
 }
+
+/* Gallery example pages (a title followed by a full-width viewer): a smaller
+   title leaves more of the screen for the visualization. */
+.md-content__inner:has(> div[id$="-container"]) > h1 {
+    font-size: 1.4em;
+    margin: 0 0 0.6em;
+}
+
+/* Extra-compact titles for the Broad-Allen developing mouse brain gallery pages */
+.md-content__inner.md-typeset > h1.gallery-title-compact {
+    font-size: 1.15em;
+    line-height: 1.2;
+    margin: 0 0 0.4em;
+}

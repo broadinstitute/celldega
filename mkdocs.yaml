@@ -70,6 +70,8 @@ nav:
           - Xenium:
               - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
               - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
+              - Broad-Allen Dev Mouse Brain E15.5 3D: gallery/gallery_broad_allen_mouse_brain_3d.md
+              - Broad-Allen Dev Mouse Brain E15.5 Slice 35: gallery/gallery_broad_allen_mouse_brain_2d.md
           - Atera:
               - Atera Xenium Breast Cancer: gallery/gallery_atera.md
           - CosMx:
@@ -153,6 +155,10 @@ extra_javascript:
   - path: assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js
     type: module
   - path: assets/js/gallery_atera.js
+    type: module
+  - path: assets/js/gallery_broad_allen_mouse_brain_3d.js
+    type: module
+  - path: assets/js/gallery_broad_allen_mouse_brain_2d.js
     type: module
 
 extra_css:

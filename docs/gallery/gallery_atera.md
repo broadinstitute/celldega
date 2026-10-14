@@ -1,7 +1,7 @@
 # Atera Xenium Breast Cancer
 
-<div id="landscape-container" style="position: relative; display: flex; width: 100%; height: 800px; overflow: hidden; border: 1px solid #ccc;">
-    <div id="landscape-atera" style="height: 800px; width: 100%;"></div>
+<div id="landscape-container" style="position: relative; display: flex; width: 100%; height: 700px; overflow: hidden; border: 1px solid #ccc;">
+    <div id="landscape-atera" style="height: 700px; width: 100%;"></div>
 </div>
 
 <div style="text-align: justify; font-size: 0.9em; color: gray; margin-top: 10px;">

@@ -12,6 +12,8 @@ Comprehensive tutorials that walk through complete workflows:
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
 - [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and builds a SetCollection with expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
+- [Broad-Allen Dev Mouse Brain E15.5 Align](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) - Aligns 43 Xenium sections of an E15.5 mouse brain (3.8M cells, 480 genes) into a 3D stack in two steps, Leiden cluster centroids then neighborhood (alpha-shape) overlap, and shows how to write CellCloud DegaFiles
+- [Broad-Allen Dev Mouse Brain E15.5 Viz](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) - Visualizes the aligned E15.5 brain as a 3D CellCloud linked to the cluster composition of every slice and to a gene-expression Clustergram
 
 ## Brief Notebooks
 

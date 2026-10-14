@@ -406,7 +406,7 @@ def _parse_xenium_lut_max(ome_xml):
     return lut_max_by_index
 
 
-def _process_image_channel(path_dega_files, channel_info, img, lut_max=None, lut_max_scale=1.0):
+def _process_image_channel(path_dega_files, channel_info, img, lut_max=None):
     """
     Process a single image channel for tiling.
 
@@ -420,8 +420,6 @@ def _process_image_channel(path_dega_files, channel_info, img, lut_max=None, lut
     - channel_info: Dictionary with channel information (name, index)
     - img: Pre-loaded image array
     - lut_max: Optional display maximum for this channel
-    - lut_max_scale: Multiplier on ``lut_max`` (default 1.0 matches Xenium Explorer). Values
-      above 1 add headroom and dim the tiles; values below 1 brighten them.
 
     Returns:
     - None
@@ -444,7 +442,6 @@ def _process_image_channel(path_dega_files, channel_info, img, lut_max=None, lut
         raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
 
     if lut_max is not None and lut_max > 0:
-        lut_max = lut_max * lut_max_scale
         print(f"{channel_name}: scaling to instrument display max (LUT max={lut_max:g})")
         image_data = (np.clip(channel.astype(np.float32), 0, lut_max) / lut_max * 255).astype(
             np.uint8
@@ -473,7 +470,6 @@ def create_image_tiles(
     data_dir,
     path_dega_files,
     image_tile_layer="dapi",
-    lut_max_scale=1.0,
 ):
     """
     Creates image tiles for visualization from the Xenium morphology image.
@@ -484,10 +480,6 @@ def create_image_tiles(
         path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options for Xenium are
         'dapi' (default) or 'all'. Use the filename of the .scn file for h&e Landscapes.
-        lut_max_scale (float, optional): Xenium only. Multiplier on the instrument's per-channel
-            "Suggested LUT max" used to scale tiles to 8-bit. 1.0 (default) matches Xenium Explorer;
-            use e.g. 1.2-1.5 if tiles look saturated, or <1 to brighten. Ignored for bundles
-            without LUT metadata (older Xenium data), which keep the legacy scaling.
 
     Returns:
         dict or None: For Xenium, how each channel was scaled (see create_image_tiles_xenium);
@@ -502,10 +494,7 @@ def create_image_tiles(
     if technology == "Xenium":
         print("------ xenium")
         image_scaling = create_image_tiles_xenium(
-            data_dir,
-            path_dega_files,
-            image_tile_layer=image_tile_layer,
-            lut_max_scale=lut_max_scale,
+            data_dir, path_dega_files, image_tile_layer=image_tile_layer
         )
     elif technology == "MERSCOPE":
         print("------ merscope")
@@ -567,9 +556,7 @@ def remove_intermediate_files(path_dega_files):
         file.unlink()
 
 
-def create_image_tiles_xenium(
-    data_dir, path_dega_files, image_tile_layer="dapi", lut_max_scale=1.0
-):
+def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"):
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
@@ -581,21 +568,17 @@ def create_image_tiles_xenium(
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
         path_dega_files (str): Path to the directory where the image tiles and pyramid will be saved.
         image_tile_layer (str, optional): Specifies which image layers to process. Options are 'dapi' (default) or 'all'.
-        lut_max_scale (float, optional): Multiplier on the instrument LUT max (see create_image_tiles).
-            Must be positive.
     Returns:
-        dict: How each channel was scaled (method, lut_max, lut_max_scale), for recording in
+        dict: How each channel was scaled (method, lut_max), for recording in
             landscape_parameters.json.
 
     Raises:
         FileNotFoundError: If the required input image file is not found.
-        ValueError: If lut_max_scale is not positive, the image layout is unexpected or 'all' is requested for an image
+        ValueError: If the image layout is unexpected or 'all' is requested for an image
             without multiple channels.
     """
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
-    if lut_max_scale <= 0:
-        raise ValueError(f"lut_max_scale must be positive; got {lut_max_scale!r}")
 
     file_path = resolve_xenium_morphology_ome_path(data_dir)
     print(f"Using morphology image: {file_path}")
@@ -637,7 +620,7 @@ def create_image_tiles_xenium(
         if not lut_max_by_index:
             print("No 'Suggested LUT max' in OME metadata; using legacy intensity scaling.")
         else:
-            print(f"Using instrument LUT max scaling (lut_max_scale={lut_max_scale:g})")
+            print("Using instrument LUT max scaling")
 
         scaling_record = {}
 
@@ -652,12 +635,10 @@ def create_image_tiles_xenium(
                 {"name": channel_info["name"], "index": 0},
                 series.asarray(key=channel_index),
                 lut_max=lut_max,
-                lut_max_scale=lut_max_scale,
             )
             scaling_record[channel_info["name"]] = {
                 "method": "lut_max" if lut_max else "legacy",
                 "lut_max": lut_max,
-                "lut_max_scale": lut_max_scale if lut_max else None,
             }
 
     remove_intermediate_files(path_dega_files)

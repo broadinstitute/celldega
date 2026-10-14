@@ -155,7 +155,6 @@ def main(
     max_workers=1,
     use_row_groups=False,
     max_row_groups_per_file=400,
-    lut_max_scale=1.0,
 ):
     """
     Main function to preprocess Xenium or MERSCOPE data and generate landscape files.
@@ -176,9 +175,6 @@ def main(
         max_row_groups_per_file (int): Maximum row groups per parquet file when using
             row groups mode. Lower values create more files but avoid parquet-wasm memory
             issues with dense datasets. Defaults to 400.
-        lut_max_scale (float): Xenium only. Multiplier on the instrument's per-channel display
-            max used to scale image tiles. 1.0 matches Xenium Explorer; raise it (e.g. 1.3) if
-            tiles look saturated. Defaults to 1.0.
 
     Example:
         change directory to celldega, and run:
@@ -321,7 +317,6 @@ def main(
             str(data_dir),
             path_dega_files,
             image_tile_layer=image_tile_layer,
-            lut_max_scale=lut_max_scale,
         )
 
         # Optionally pack image tiles into parquet row groups

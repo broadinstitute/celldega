@@ -46,7 +46,7 @@ def test_parse_lut_max_missing_or_invalid(xml):
     assert pre._parse_xenium_lut_max(xml) == {}
 
 
-def _run_channel(tmp_path, img, lut_max, lut_max_scale=1.0):
+def _run_channel(tmp_path, img, lut_max):
     captured = {}
 
     def fake_pyramid(image_png, *_args, **_kwargs):
@@ -61,7 +61,6 @@ def _run_channel(tmp_path, img, lut_max, lut_max_scale=1.0):
             {"name": "dapi", "index": 0},
             img,
             lut_max=lut_max,
-            lut_max_scale=lut_max_scale,
         )
     return captured["tif"]
 
@@ -100,17 +99,6 @@ def test_all_layers_rejected_for_root_morphology(tmp_path):
         pre.create_image_tiles_xenium(str(tmp_path), str(tmp_path / "out"), image_tile_layer="all")
 
 
-def test_process_channel_lut_max_scale_adds_headroom(tmp_path):
-    img = np.array([[0, 2500, 5000]], dtype=np.uint16)
-    out = _run_channel(tmp_path, img, lut_max=5000, lut_max_scale=2.0)
-    assert out.tolist() == [[0, 63, 127]]
-
-
-def test_invalid_lut_max_scale_rejected(tmp_path):
-    with pytest.raises(ValueError, match="lut_max_scale"):
-        pre.create_image_tiles_xenium(str(tmp_path), str(tmp_path), lut_max_scale=0)
-
-
 def test_xenium_tiles_return_scaling_record(tmp_path):
     focus = tmp_path / "morphology_focus"
     focus.mkdir()
@@ -123,12 +111,11 @@ def test_xenium_tiles_return_scaling_record(tmp_path):
         patch.object(pre, "_convert_to_png", return_value="x.png"),
         patch.object(pre, "make_deepzoom_pyramid"),
     ):
-        record = pre.create_image_tiles_xenium(str(tmp_path), str(out), lut_max_scale=1.5)
+        record = pre.create_image_tiles_xenium(str(tmp_path), str(out))
     assert record["source_image"] == "morphology_focus_0000.ome.tif"
     assert record["channels"]["dapi"] == {
         "method": "lut_max",
         "lut_max": 5000.0,
-        "lut_max_scale": 1.5,
     }
     assert not list(out.glob("*.json"))
 

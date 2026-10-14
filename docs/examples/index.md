@@ -32,6 +32,8 @@ Focused examples demonstrating specific features:
 - [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
 - [SetCollection Cluster Space](brief_notebooks/SetCollection_Cluster_Space.ipynb) - Building a SetCollection from a Xenium clustering and clustering its per-set gene-expression signature
 
+<!-- CCLE multi-omics tutorials temporarily hidden
+
 ## CCLE Multi-omics Tutorials
 
 This numbered series demonstrates coverage-preserving `MuData` and
@@ -50,6 +52,8 @@ spaces, then examines recurring programs and a lung SCLC/NSCLC example.
 - [07: Tissue mixing and provenance review](tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb)
 - [08: RNA-anchored multi-omic characterization](tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb)
 - [09: CST lung TMT PTM integration](tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb)
+
+-->
 
 ## Running the Notebooks
 

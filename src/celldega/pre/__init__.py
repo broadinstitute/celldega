@@ -25,6 +25,8 @@ import tifffile
 import zarr
 
 from .atera import (
+    ATERA_FALLBACK_PERCENTILE,
+    ATERA_MORPHOLOGY_DIR,
     atera_cluster_signatures,
     atera_paths,
     check_atera_files,
@@ -606,8 +608,7 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
     if is_atera_bundle(data_dir):
-        _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer)
-        return
+        return _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer)
 
     file_path = resolve_xenium_morphology_ome_path(data_dir)
     print(f"Using morphology image: {file_path}")
@@ -672,6 +673,14 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
     """
     Tile Atera morphology images, which ship one 2D OME-TIFF per channel in the same order
     as the Xenium multi-channel morphology_focus image (DAPI, boundary, RNA, protein).
+
+    Atera raw intensities are dim, so every channel is stretched to 8-bit. Channels with an
+    instrument "Suggested LUT max" in the OME-XML use it (as for Xenium); the rest use the
+    ``ATERA_FALLBACK_PERCENTILE`` of tissue (non-zero) pixels, which is where the instrument
+    places the DAPI LUT max.
+
+    Returns:
+        dict: How each channel was scaled, for recording in landscape_parameters.json.
     """
     channel_paths = resolve_atera_morphology_paths(data_dir)
     channel_names = ["dapi"] if image_tile_layer == "dapi" else ["dapi", "bound", "rna", "prot"]
@@ -681,16 +690,43 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
             f"found {len(channel_paths)}."
         )
 
-    for channel_name, channel_path in zip(channel_names, channel_paths, strict=False):
+    # Every file carries the OME-XML for the whole multi-file channel set
+    with tifffile.TiffFile(channel_paths[0]) as tif:
+        lut_max_by_index = _parse_xenium_lut_max(tif.ome_metadata)
+
+    scaling_record = {}
+    for channel_index, (channel_name, channel_path) in enumerate(
+        zip(channel_names, channel_paths, strict=False)
+    ):
         print(f"{channel_name}: {channel_path.name}")
         # Each file is one channel of a multi-file OME set; opening it as an OME series would
         # load every channel, so read this file's own full-resolution page.
         with tifffile.TiffFile(channel_path) as tif:
             img = tif.pages[0].asarray()
-        _process_image_channel(path_dega_files, {"name": channel_name, "index": 0}, img)
+
+        lut_max = lut_max_by_index.get(channel_index)
+        if lut_max:
+            method = "lut_max"
+        else:
+            method = f"percentile_{ATERA_FALLBACK_PERCENTILE:g}"
+            lut_max = _tissue_percentile(img, ATERA_FALLBACK_PERCENTILE)
+
+        _process_image_channel(
+            path_dega_files, {"name": channel_name, "index": 0}, img, lut_max=lut_max
+        )
+        scaling_record[channel_name] = {"method": method, "lut_max": lut_max}
         del img
 
     remove_intermediate_files(path_dega_files)
+
+    return {"source_image": f"{ATERA_MORPHOLOGY_DIR}/", "channels": scaling_record}
+
+
+def _tissue_percentile(img, percentile, subsample=8):
+    """Percentile of non-zero (tissue) pixels, estimated on a strided subsample."""
+    sample = img[::subsample, ::subsample]
+    tissue = sample[sample > 0]
+    return float(np.percentile(tissue, percentile)) if tissue.size else None
 
 
 def create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer="dapi"):

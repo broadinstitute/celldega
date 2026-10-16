@@ -9,7 +9,7 @@ from socketserver import ThreadingMixIn
 import threading as thr
 from typing import ClassVar
 from urllib.parse import unquote, urlparse
-
+from pathlib import Path
 import requests
 
 
@@ -327,14 +327,28 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         """Override log_message to prevent logging to the console."""
 
 
-def get_local_server() -> int:
+def get_local_server(file_server_root: str|Path|None = None) -> int:
     """
     Start a local HTTP server with CORS support and return the port number.
+
+    Args:
+        file_server_root (Optional): by default, files will be served from
+        the current working directory.  If this argument is provided, the
+        given path will serve as the root path for the server instead.
 
     Returns:
         int: The port number on which the server is running.
     """
-    server = ThreadedHTTPServer(("", 0), CORSHTTPRequestHandler)
+    if file_server_root is not None:
+        file_server_root = Path(file_server_root)
+        class CORSHTTPRequestHandlerForDirectory(CORSHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=str(file_server_root), **kwargs)
+        RequestHandlerClass = CORSHTTPRequestHandlerForDirectory
+    else:
+        RequestHandlerClass = CORSHTTPRequestHandler
+
+    server = ThreadedHTTPServer(("", 0), RequestHandlerClass)
 
     service = thr.Thread(target=server.serve_forever, daemon=True)
     service.start()

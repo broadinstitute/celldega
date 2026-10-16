@@ -5,6 +5,24 @@ import wasmPlugin from './wasm-plugin.mjs';
 
 const isWatchMode = process.argv.includes('--watch');
 
+// Plugin that prints on the console when a build is starting, errors, and completed.
+const watchPlugin = {
+  name: 'watch-plugin',
+  setup(build) {
+    build.onStart(() => {
+      console.log((new Date).toString() + ': Build starting...');
+    });
+    build.onEnd((result) => {
+      if (result.errors.length > 0) {
+        console.error((new Date).toString() + ': Build failed with errors.');
+      } else {
+        console.log((new Date).toString() + ': Build successful.');
+      }
+    });
+    console.log((new Date).toString() + ': Watch plugin has been setup.');
+  },
+};
+
 async function main() {
   try {
     const srcPath = path.resolve('src/celldega/static/celldega.js');
@@ -15,13 +33,15 @@ async function main() {
       bundle: true,
       minify: true,
       target: ['es2020'],
-      plugins: [wasmPlugin],
+      plugins: [wasmPlugin, watchPlugin],
       outdir: 'src/celldega/static',
       format: 'esm',
       define: {
         'define.amd': 'false',
       },
       metafile: true,
+      sourcemap: 'inline',
+      sourcesContent: true,
     });
 
     if (isWatchMode) {

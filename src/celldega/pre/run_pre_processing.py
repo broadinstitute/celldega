@@ -12,6 +12,7 @@ import spatialdata as sd
 from spatialdata_io import xenium
 
 import celldega as dega
+from celldega.pre.atera import atera_paths, is_atera_bundle, read_atera_cbg
 
 
 def _create_directories(directories):
@@ -65,7 +66,8 @@ def _determine_technology(data_dir):
     data_path = Path(data_dir)
 
     # Determine technology based on characteristic files
-    if (data_path / "experiment.xenium").exists():
+    # Atera bundles are Xenium-class and are processed as Xenium
+    if (data_path / "experiment.xenium").exists() or is_atera_bundle(data_path):
         return "Xenium"
     if (data_path / "detected_transcripts.csv").exists():
         return "MERSCOPE"
@@ -88,6 +90,15 @@ def _setup_preprocessing_paths(technology, path_dega_files, data_dir, sample=Non
     """
     landscape_path = Path(path_dega_files)
     data_path = Path(data_dir)
+    if technology == "Xenium" and is_atera_bundle(data_path):
+        return {
+            "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
+            "meta_cell_image": landscape_path / "cell_metadata.parquet",
+            "meta_gene": landscape_path / "meta_gene.parquet",
+            "transcript_tiles": landscape_path / "transcript_tiles",
+            "cell_segmentation": landscape_path / "cell_segmentation",
+            **atera_paths(data_path),
+        }
     if technology == "Xenium":
         return {
             "transformation_matrix": landscape_path / "micron_to_image_transform.csv",
@@ -204,7 +215,8 @@ def main(
 
     if not transform_out.exists():
         if technology == "Xenium":
-            dega.pre._xenium_unzipper(str(data_dir))
+            if not is_atera_bundle(data_dir):
+                dega.pre._xenium_unzipper(str(data_dir))
             dega.pre.write_xenium_transform(str(data_dir), path_dega_files)
         elif technology == "MERSCOPE":
             source_path = Path(paths["transformation_matrix"])
@@ -229,7 +241,9 @@ def main(
         print(f"Skipping meta cell generation, found {paths['meta_cell_image']}")
 
     # Load CBG matrix
-    if technology == "Xenium":
+    if technology == "Xenium" and is_atera_bundle(data_dir):
+        cbg = read_atera_cbg(paths["cbg_matrix"])
+    elif technology == "Xenium":
         cbg = dega.pre.read_cbg_mtx(str(paths["cbg_matrix"]), technology=technology)
     elif technology == "MERSCOPE":
         cbg = pd.read_csv(str(paths["cbg_csv"]), index_col=0)

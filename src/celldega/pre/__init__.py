@@ -24,6 +24,17 @@ from skimage.io import imread, imsave
 import tifffile
 import zarr
 
+from .atera import (
+    atera_cluster_signatures,
+    atera_paths,
+    check_atera_files,
+    is_atera_bundle,
+    is_atera_store,
+    read_atera_cbg,
+    read_atera_clusters,
+    read_atera_meta_cell,
+    resolve_atera_morphology_paths,
+)
 from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
@@ -69,10 +80,18 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     - Tuple of (default_clustering, clusters)
     """
     # Load the default clustering data
-    default_clustering = pd.read_csv(
-        Path(data_dir) / "analysis" / "clustering" / "gene_expression_graphclust" / "clusters.csv",
-        index_col=0,
-    )
+    if is_atera_bundle(data_dir):
+        default_clustering = read_atera_clusters(atera_paths(data_dir)["cbg_matrix"])
+        default_clustering = default_clustering.dropna().to_frame("cluster")
+    else:
+        default_clustering = pd.read_csv(
+            Path(data_dir)
+            / "analysis"
+            / "clustering"
+            / "gene_expression_graphclust"
+            / "clusters.csv",
+            index_col=0,
+        )
     default_clustering.columns = default_clustering.columns.str.lower()
 
     # Prepare the clustering data
@@ -168,7 +187,13 @@ def cluster_gene_expression(
             f"Unsupported technology: {technology}. Currently, only 'Xenium' and 'Custom' is supported."
         )
 
-    if technology == "Xenium":
+    if technology == "Xenium" and is_atera_bundle(data_dir):
+        clusters_ser = read_atera_clusters(atera_paths(data_dir)["cbg_matrix"])
+        df_sig_atera = atera_cluster_signatures(cbg, clusters_ser)
+        clusters = df_sig_atera.columns.tolist()
+        list_ser = [df_sig_atera[inst_cat] for inst_cat in clusters]
+
+    elif technology == "Xenium":
         cells_csv_path = Path(data_dir) / "cells.csv.gz"
         clusters_csv_path = (
             Path(data_dir)
@@ -485,6 +510,10 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
 
+    if is_atera_bundle(data_dir):
+        _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer)
+        return
+
     file_path = resolve_xenium_morphology_ome_path(data_dir)
 
     # Load the morphology image once if processing multiple channels
@@ -505,6 +534,28 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
     if image_tile_layer == "all":
         for idx, channel in enumerate(["bound", "rna", "prot"]):
             _process_image_channel(path_dega_files, {"name": channel, "index": idx + 1}, img)
+
+    remove_intermediate_files(path_dega_files)
+
+
+def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"):
+    """
+    Tile Atera morphology images, which ship one 2D OME-TIFF per channel in the same order
+    as the Xenium multi-channel morphology_focus image (DAPI, boundary, RNA, protein).
+    """
+    channel_paths = resolve_atera_morphology_paths(data_dir)
+    channel_names = ["dapi"] if image_tile_layer == "dapi" else ["dapi", "bound", "rna", "prot"]
+    if len(channel_paths) < len(channel_names):
+        raise FileNotFoundError(
+            f"Expected {len(channel_names)} morphology_2d channels in '{data_dir}', "
+            f"found {len(channel_paths)}."
+        )
+
+    for channel_name, channel_path in zip(channel_names, channel_paths, strict=False):
+        print(f"{channel_name}: {channel_path.name}")
+        img = imread(channel_path)
+        _process_image_channel(path_dega_files, {"name": channel_name, "index": 0}, img)
+        del img
 
     remove_intermediate_files(path_dega_files)
 
@@ -908,6 +959,8 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=None,
         meta_cell["cell_id"] = meta_cell["EntityID"]
         meta_cell["name"] = meta_cell["cell_id"]
         meta_cell = meta_cell.set_index("cell_id")
+    elif technology == "Xenium" and is_atera_store(path_meta_cell_micron):
+        meta_cell = read_atera_meta_cell(path_meta_cell_micron)
     elif technology == "Xenium":
         usecols = ["cell_id", "x_centroid", "y_centroid"]
         meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
@@ -1671,10 +1724,13 @@ def _check_required_files(technology, data_dir):
     required_files_or_dir = required_files_mapping[technology]
     data_path = Path(data_dir)
 
-    missing_files_or_dir = [
-        file for file in required_files_or_dir if not (data_path / file).exists()
-    ]
-    if technology == "Xenium":
+    if technology == "Xenium" and is_atera_bundle(data_dir):
+        missing_files_or_dir = check_atera_files(data_dir)
+    else:
+        missing_files_or_dir = [
+            file for file in required_files_or_dir if not (data_path / file).exists()
+        ]
+    if technology == "Xenium" and not is_atera_bundle(data_dir):
         try:
             resolve_xenium_morphology_ome_path(data_path)
         except FileNotFoundError:

@@ -34,6 +34,10 @@ DEFAULT_MIN_QV = 20
 # Display max for morphology channels without an instrument "Suggested LUT max"
 ATERA_FALLBACK_PERCENTILE = 99.9
 
+# Multiplier on each channel's display max (LUT max or percentile). At 1x, tiles look
+# overexposed at the viewer's default slider settings; 2x halves the brightness.
+ATERA_DISPLAY_MAX_FACTOR = 2.0
+
 
 def is_atera_bundle(data_dir):
     """Return True if ``data_dir`` is an Atera output bundle."""

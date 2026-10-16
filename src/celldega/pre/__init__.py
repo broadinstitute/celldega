@@ -25,6 +25,7 @@ import tifffile
 import zarr
 
 from .atera import (
+    ATERA_DISPLAY_MAX_FACTOR,
     ATERA_FALLBACK_PERCENTILE,
     ATERA_MORPHOLOGY_DIR,
     atera_cluster_signatures,
@@ -677,7 +678,8 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
     Atera raw intensities are dim, so every channel is stretched to 8-bit. Channels with an
     instrument "Suggested LUT max" in the OME-XML use it (as for Xenium); the rest use the
     ``ATERA_FALLBACK_PERCENTILE`` of tissue (non-zero) pixels, which is where the instrument
-    places the DAPI LUT max.
+    places the DAPI LUT max. Either value is multiplied by ``ATERA_DISPLAY_MAX_FACTOR`` so
+    tiles are not overexposed at the viewer's default slider settings.
 
     Returns:
         dict: How each channel was scaled, for recording in landscape_parameters.json.
@@ -710,11 +712,17 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
         else:
             method = f"percentile_{ATERA_FALLBACK_PERCENTILE:g}"
             lut_max = _tissue_percentile(img, ATERA_FALLBACK_PERCENTILE)
+        display_max = lut_max * ATERA_DISPLAY_MAX_FACTOR if lut_max else None
 
         _process_image_channel(
-            path_dega_files, {"name": channel_name, "index": 0}, img, lut_max=lut_max
+            path_dega_files, {"name": channel_name, "index": 0}, img, lut_max=display_max
         )
-        scaling_record[channel_name] = {"method": method, "lut_max": lut_max}
+        scaling_record[channel_name] = {
+            "method": method,
+            "lut_max": lut_max,
+            "display_max_factor": ATERA_DISPLAY_MAX_FACTOR,
+            "display_max": display_max,
+        }
         del img
 
     remove_intermediate_files(path_dega_files)

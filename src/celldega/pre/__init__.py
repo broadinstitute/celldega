@@ -553,7 +553,10 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
 
     for channel_name, channel_path in zip(channel_names, channel_paths, strict=False):
         print(f"{channel_name}: {channel_path.name}")
-        img = imread(channel_path)
+        # Each file is one channel of a multi-file OME set; opening it as an OME series would
+        # load every channel, so read this file's own full-resolution page.
+        with tifffile.TiffFile(channel_path) as tif:
+            img = tif.pages[0].asarray()
         _process_image_channel(path_dega_files, {"name": channel_name, "index": 0}, img)
         del img
 

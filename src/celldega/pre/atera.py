@@ -187,6 +187,8 @@ def iter_atera_transcript_chunks(path_trx, gene_str_to_int_mapping, min_qv=DEFAU
         keep = name >= 0
         if min_qv is not None:
             keep &= chunk["quality_score"][:].reshape(-1) >= min_qv
+        if not keep.any():
+            continue
         location = chunk["location"][:, :2]
         yield pl.DataFrame({"name": name[keep], "x": location[keep, 0], "y": location[keep, 1]})
 

@@ -21,6 +21,7 @@ from scipy.sparse import csr_matrix
 from shapely.geometry import Polygon
 import zarr
 
+
 ATERA_EXPERIMENT_FILE = "experiment.spatial"
 ATERA_CELLS = "cells.zarr.zip"
 ATERA_TRANSCRIPTS = "transcripts.zarr.zip"

@@ -1,47 +1,15 @@
-import importlib.util
 import math
 from pathlib import Path
-import sys
-import types
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
+from shapely.geometry import Polygon
 
-
-try:
-    import geopandas as gpd
-    import polars as pl
-    from shapely.geometry import Polygon
-except (ImportError, ModuleNotFoundError) as e:  # pragma: no cover - skip if deps missing
-    pytest.skip(f"Required libraries missing: {e}", allow_module_level=True)
-
-# Dynamically load modules to avoid heavy imports
-ROOT_DIR = Path(__file__).resolve().parents[3]
-PRE_ROOT = ROOT_DIR / "src" / "celldega" / "pre"
-CELLPKG = types.ModuleType("celldega")
-CELLPKG.__path__ = [str(ROOT_DIR / "src" / "celldega")]
-sys.modules.setdefault("celldega", CELLPKG)
-PREPKG = types.ModuleType("celldega.pre")
-PREPKG.__path__ = [str(PRE_ROOT)]
-sys.modules.setdefault("celldega.pre", PREPKG)
-
-spec_b = importlib.util.spec_from_file_location(
-    "celldega.pre.boundary_tile", PRE_ROOT / "boundary_tile.py"
-)
-boundary_tile = importlib.util.module_from_spec(spec_b)
-boundary_tile.__package__ = "celldega.pre"
-sys.modules["celldega.pre.boundary_tile"] = boundary_tile
-spec_b.loader.exec_module(boundary_tile)
-
-spec_t = importlib.util.spec_from_file_location("celldega.pre.trx_tile", PRE_ROOT / "trx_tile.py")
-trx_tile = importlib.util.module_from_spec(spec_t)
-trx_tile.__package__ = "celldega.pre"
-sys.modules["celldega.pre.trx_tile"] = trx_tile
-spec_t.loader.exec_module(trx_tile)
-
-make_trx_tiles = trx_tile.make_trx_tiles
-make_cell_boundary_tiles = boundary_tile.make_cell_boundary_tiles
+from celldega.pre.boundary_tile import make_cell_boundary_tiles
+from celldega.pre.trx_tile import make_trx_tiles
 
 
 N_CELLS = 10

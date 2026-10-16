@@ -40,6 +40,11 @@ dependencies = [
     "imagecodecs",
     "tifffile",
 
+    # celldega.pre.deepzoom builds the DeepZoom image pyramid with Pillow, so libvips is
+    # no longer required for pre-processing. Declared explicitly rather than relying on
+    # matplotlib to pull it in.
+    "Pillow>=10",
+
     "anywidget~=0.9.18",
     "ipywidgets>=8.0.0",
     "matplotlib",
@@ -88,7 +93,10 @@ scanpy = [
     "scanpy>=1.11.5,<1.12"
 ]
 
-# Optional dependencies for pre-processing
+# Optional: the pyvips DeepZoom engine. Pre-processing no longer needs this -- Pillow is
+# the default engine and is a hard dependency. Install this only for
+# make_deepzoom_pyramid(..., engine="pyvips"), which streams the source instead of decoding
+# it whole and so still suits multi-gigabyte morphology images. Requires libvips on the host.
 pre = [
     "pyvips~=2.2.2",
 ]

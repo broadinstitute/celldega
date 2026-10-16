@@ -18,6 +18,7 @@ import {
   get_bar_highlight_opacity,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
+import { make_image_source_control } from './image_source';
 import { make_logo_button } from './logo';
 import {
   make_img_layer_slider_callback,
@@ -671,6 +672,12 @@ export const make_yearbook_ui_container = (
   });
 
   viz_state.containers.image.appendChild(img_layers_container);
+  make_image_source_control(
+    viz_state,
+    layers_obj,
+    viz_state.containers.image,
+    img_layers_container
+  );
 
   // Cell button
   make_button(

@@ -34,9 +34,12 @@ DEFAULT_MIN_QV = 20
 # Display max for morphology channels without an instrument "Suggested LUT max"
 ATERA_FALLBACK_PERCENTILE = 99.9
 
-# Multiplier on each channel's display max (LUT max or percentile). At 1x, tiles look
-# overexposed at the viewer's default slider settings; 2x halves the brightness.
-ATERA_DISPLAY_MAX_FACTOR = 2.0
+# Multiplier on each channel's display max (LUT max or percentile). The viewer multiplies
+# tile intensity by its default image opacity scale (5, see CustomBitmapLayer), so a tile
+# value of 255/5 is already fully saturated at the default slider. Matching that gain means
+# only the brightest ~0.1% of tissue pixels (above the 99.9th percentile / LUT max) saturate
+# by default, and everything below stays in the linear range.
+ATERA_DISPLAY_MAX_FACTOR = 5.0
 
 
 def is_atera_bundle(data_dir):

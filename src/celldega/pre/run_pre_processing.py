@@ -179,6 +179,8 @@ def main(
         image_tile_layer (str): Image layers to be tiled. 'dapi' or 'all'.
         path_dega_files (str): Directory to save the landscape files.
         use_int_index (bool): Use integer index for smaller files and faster rendering.
+        max_workers (int): Maximum number of worker processes to use when generating
+             tiles. Defaults to 1 (no parallelism).
         use_row_groups (bool): If True, save tiles as row groups in chunked parquet files
             instead of individual tile files. Defaults to False.
         max_row_groups_per_file (int): Maximum row groups per parquet file when using
@@ -324,8 +326,11 @@ def main(
     # Xenium and MERSCOPE
     if technology in ["MERSCOPE", "Xenium"]:
         print("\n======== Image Tiles========")
-        dega.pre.create_image_tiles(
-            technology, str(data_dir), path_dega_files, image_tile_layer=image_tile_layer
+        image_scaling = dega.pre.create_image_tiles(
+            technology,
+            str(data_dir),
+            path_dega_files,
+            image_tile_layer=image_tile_layer,
         )
 
         # Optionally pack image tiles into parquet row groups
@@ -478,6 +483,7 @@ def main(
         trx_chunk_info=trx_chunk_info,
         cell_chunk_info=cell_chunk_info,
         cbg_chunk_info=cbg_chunk_info,
+        image_scaling=image_scaling,
     )
 
     print("Preprocessing completed successfully.")

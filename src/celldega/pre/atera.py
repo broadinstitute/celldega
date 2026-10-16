@@ -9,7 +9,9 @@ Explorer reads. They do not ship the flat Xenium files (``cells.csv.gz``,
 Xenium loaders return. Pre-processing treats an Atera bundle as technology ``"Xenium"``.
 """
 
+import json
 from pathlib import Path
+import warnings
 
 import geopandas as gpd
 import numpy as np
@@ -28,6 +30,10 @@ ATERA_MORPHOLOGY_DIR = "morphology_2d"
 # Polygon set index for cell (vs nucleus) boundaries in cells.zarr
 CELL_POLYGON_SET = "1"
 
+# Atera morphology image pixel size (microns per pixel), same as Xenium. Each bundle's
+# experiment.spatial "pixel_size" is used when present; this is the fallback.
+ATERA_PIXEL_SIZE_MICRONS = 0.2125
+
 # Xenium's default "high quality" transcript threshold
 DEFAULT_MIN_QV = 20
 
@@ -40,6 +46,28 @@ ATERA_FALLBACK_PERCENTILE = 99.9
 # only the brightest ~0.1% of tissue pixels (above the 99.9th percentile / LUT max) saturate
 # by default, and everything below stays in the linear range.
 ATERA_DISPLAY_MAX_FACTOR = 5.0
+
+
+def atera_microns_per_pixel(data_dir):
+    """
+    Image pixel size in microns, from the bundle's ``experiment.spatial``.
+
+    Falls back to ``ATERA_PIXEL_SIZE_MICRONS`` if the field is missing, and warns if a
+    bundle reports a different value.
+    """
+    experiment_path = Path(data_dir) / ATERA_EXPERIMENT_FILE
+    pixel_size = json.loads(experiment_path.read_text()).get("pixel_size")
+    if not pixel_size:
+        return ATERA_PIXEL_SIZE_MICRONS
+    pixel_size = float(pixel_size)
+    if abs(pixel_size - ATERA_PIXEL_SIZE_MICRONS) > 1e-3:
+        warnings.warn(
+            f"{experiment_path} reports pixel_size {pixel_size} µm, not the usual Atera "
+            f"{ATERA_PIXEL_SIZE_MICRONS} µm; using the bundle's value.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return pixel_size
 
 
 def is_atera_bundle(data_dir):

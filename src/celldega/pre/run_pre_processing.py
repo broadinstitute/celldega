@@ -12,7 +12,12 @@ import spatialdata as sd
 from spatialdata_io import xenium
 
 import celldega as dega
-from celldega.pre.atera import atera_paths, is_atera_bundle, read_atera_cbg
+from celldega.pre.atera import (
+    atera_microns_per_pixel,
+    atera_paths,
+    is_atera_bundle,
+    read_atera_cbg,
+)
 
 
 def _create_directories(directories):
@@ -484,6 +489,7 @@ def main(
         cell_chunk_info=cell_chunk_info,
         cbg_chunk_info=cbg_chunk_info,
         image_scaling=image_scaling,
+        microns_per_pixel=atera_microns_per_pixel(data_dir) if is_atera_bundle(data_dir) else None,
     )
 
     print("Preprocessing completed successfully.")

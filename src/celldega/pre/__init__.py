@@ -1363,6 +1363,7 @@ def save_landscape_parameters(
     cell_chunk_info=None,
     cbg_chunk_info=None,
     image_scaling=None,
+    microns_per_pixel=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -1382,6 +1383,9 @@ def save_landscape_parameters(
         cbg_chunk_info (dict, optional): Chunk info for CBG parquet files.
         image_scaling (dict, optional): How image tiles were scaled (Xenium), as returned by
             create_image_tiles. Saved under "image_scaling" so a landscape can be audited later.
+        microns_per_pixel (float, optional): Image pixel size, saved under
+            "microns_per_pixel" so the front end can size the scale bar without a
+            per-technology lookup.
 
     Returns:
         None
@@ -1435,6 +1439,9 @@ def save_landscape_parameters(
 
         if image_scaling:
             landscape_parameters["image_scaling"] = image_scaling
+
+        if microns_per_pixel:
+            landscape_parameters["microns_per_pixel"] = microns_per_pixel
 
         # Add row group specific metadata
         if use_row_groups and tile_grid_info:

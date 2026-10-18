@@ -2,7 +2,7 @@
 
 These example notebooks demonstrate how to use Celldega for spatial transcriptomics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
 
-## Tutorials
+## Spatial Transcriptomics Tutorials
 
 Comprehensive tutorials that walk through complete workflows:
 
@@ -12,6 +12,8 @@ Comprehensive tutorials that walk through complete workflows:
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
 - [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and builds a SetCollection with expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
+- [Broad-Allen Dev Mouse Brain E15.5 Align](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) - Aligns 43 Xenium sections of an E15.5 mouse brain (3.8M cells, 480 genes) into a 3D stack in two steps, Leiden cluster centroids then neighborhood (alpha-shape) overlap, and shows how to write CellCloud DegaFiles
+- [Broad-Allen Dev Mouse Brain E15.5 Viz](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) - Visualizes the aligned E15.5 brain as a 3D CellCloud linked to the cluster composition of every slice and to a gene-expression Clustergram
 
 ## Brief Notebooks
 
@@ -29,6 +31,29 @@ Focused examples demonstrating specific features:
 - [Gradient Neighborhood Pancreas Islets](brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb) - Building inward/outward gradient rings around pancreatic islets and profiling cell-type proportion and hormone expression with distance from the islet edge
 - [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
 - [SetCollection Cluster Space](brief_notebooks/SetCollection_Cluster_Space.ipynb) - Building a SetCollection from a Xenium clustering and clustering its per-set gene-expression signature
+
+<!-- CCLE multi-omics tutorials temporarily hidden
+
+## CCLE Multi-omics Tutorials
+
+This numbered series demonstrates coverage-preserving `MuData` and
+`DatasetCollection` workflows for bulk cancer cell lines. It begins with a
+global hierarchical map, compares independent RNA, RPPA, and metabolomics
+spaces, then examines recurring programs and a lung SCLC/NSCLC example.
+
+- [CCLE multi-omics overview](ccle_multiomics.md)
+- [00: Prepare archive](tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb)
+- [01: Global hierarchy](tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb)
+- [02: Cross-omic concordance](tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb)
+- [03: Tissue gene programs](tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb)
+- [04: Lung multi-omic subclustering](tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb)
+- [05: Pan-CCLE multi-omic consensus](tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb)
+- [06: Hematologic multi-omic subclustering](tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb)
+- [07: Tissue mixing and provenance review](tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb)
+- [08: RNA-anchored multi-omic characterization](tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb)
+- [09: CST lung TMT PTM integration](tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb)
+
+-->
 
 ## Running the Notebooks
 

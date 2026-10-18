@@ -6,6 +6,10 @@ site_name: Celldega Documentation
 exclude_docs: |
   examples/**/data/
   **/*.h5ad
+  # CCLE multi-omics tutorials temporarily hidden; remove these two lines and
+  # uncomment their nav entries below to restore them.
+  examples/ccle_multiomics.md
+  examples/tutorial_notebooks/CCLE_Multiomics_*.ipynb
 
 theme:
   name: material
@@ -69,6 +73,8 @@ nav:
           - Xenium:
               - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
               - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
+              - Broad-Allen Dev Mouse Brain E15.5 3D: gallery/gallery_broad_allen_mouse_brain_3d.md
+              - Broad-Allen Dev Mouse Brain E15.5 Slice 35: gallery/gallery_broad_allen_mouse_brain_2d.md
           - CosMx:
               - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
       - Sequencing Spatial Transcriptomics:
@@ -76,7 +82,7 @@ nav:
               - Visium HD Cell Segmentation Mouse Brain: gallery/gallery_visium_hd_cell_segmentation_mouse_brain.md
   - Example Notebooks:
     - examples/index.md
-    - Tutorials:
+    - Spatial Transcriptomics Tutorials:
       - Atera Kidney Landscape-Clustergram: examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
       - Atera Breast Cancer Landscape-Clustergram: examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb
       - Atera Breast Cancer Neighborhood Exploration: examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb
@@ -84,6 +90,8 @@ nav:
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
       - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
       - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      - Broad-Allen Dev Mouse Brain E15.5 Align: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
+      - Broad-Allen Dev Mouse Brain E15.5 Viz: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb
@@ -98,6 +106,19 @@ nav:
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
       - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
+    # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
+    # - CCLE Multi-omics Tutorials:
+    #   - Overview: examples/ccle_multiomics.md
+    #   - "00: Prepare archive": examples/tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb
+    #   - "01: Global hierarchy": examples/tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb
+    #   - "02: Cross-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb
+    #   - "03: Tissue gene programs": examples/tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb
+    #   - "04: Lung multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb
+    #   - "05: Pan-CCLE multi-omic consensus": examples/tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb
+    #   - "06: Hematologic multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb
+    #   - "07: Tissue mixing and provenance review": examples/tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb
+    #   - "08: RNA-anchored multi-omic characterization": examples/tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb
+    #   - "09: CST lung TMT PTM integration": examples/tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb
 
 markdown_extensions:
   - toc
@@ -139,6 +160,10 @@ extra_javascript:
   - path: assets/js/gallery_atera.js
     type: module
   - path: assets/js/gallery_atera_kidney.js
+    type: module
+  - path: assets/js/gallery_broad_allen_mouse_brain_3d.js
+    type: module
+  - path: assets/js/gallery_broad_allen_mouse_brain_2d.js
     type: module
 
 extra_css:

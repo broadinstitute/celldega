@@ -1,5 +1,6 @@
 const WIDE_CLASS = 'celldega-wide-notebook';
 const TOGGLE_CLASS = 'celldega-notebook-nav-toggle';
+const NAV_OPEN_CLASS = 'celldega-nav-open';
 
 // Sidebar-toggle icon: a window outline with a left panel. The panel is filled
 // while the navigation sidebar is shown and hollow while hidden, and the
@@ -29,13 +30,13 @@ function initializeNotebookLayout() {
     const isNotebookPage = Boolean(document.querySelector('.jupyter-wrapper'));
     const isGalleryExample = /\/gallery\/gallery_[^/]+\/?$/.test(window.location.pathname);
     if (!isNotebookPage && !isGalleryExample) {
-        document.body.classList.remove(WIDE_CLASS);
+        document.body.classList.remove(WIDE_CLASS, NAV_OPEN_CLASS);
         return;
     }
 
-    const storageKey = `celldega-wide-notebook:${window.location.pathname}`;
-    const savedPreference = window.sessionStorage.getItem(storageKey);
-    let wide = savedPreference !== 'false';
+    // Every load starts with the sidebar hidden, including pages reached by
+    // navigating from the sidebar itself, so the preference is not persisted.
+    let wide = true;
 
     const header = document.querySelector('.md-header__inner');
     if (!header) return;
@@ -46,6 +47,9 @@ function initializeNotebookLayout() {
 
     const applyLayout = () => {
         document.body.classList.toggle(WIDE_CLASS, wide);
+        // Overrides the first-paint `:has(.jupyter-wrapper)` CSS that hides
+        // the sidebar before this script runs.
+        document.body.classList.toggle(NAV_OPEN_CLASS, !wide);
         const action = wide ? 'Show navigation sidebar' : 'Hide navigation sidebar';
         // `wide` means the sidebar is hidden.
         button.innerHTML = sidebarIcon(!wide);
@@ -56,7 +60,6 @@ function initializeNotebookLayout() {
 
     button.addEventListener('click', () => {
         wide = !wide;
-        window.sessionStorage.setItem(storageKey, String(wide));
         applyLayout();
     });
 

@@ -399,6 +399,30 @@ class TestMatrix:
         for node in mat.viz["row_nodes"]:
             assert "num-0" in node
 
+    def test_adata_category_colors_are_preserved(self) -> None:
+        """AnnData's ordered category palette should reach Clustergram metadata."""
+        from anndata import AnnData
+
+        adata = AnnData(
+            X=np.array([[1.0, 0.0], [0.5, 1.0], [0.0, 0.5]]),
+            obs=pd.DataFrame(
+                {
+                    "lineage": pd.Categorical(
+                        ["Lung", "Myeloid", "Lung"], categories=["Lung", "Myeloid"]
+                    )
+                },
+                index=["model_a", "model_b", "model_c"],
+            ),
+            var=pd.DataFrame(index=["feature_a", "feature_b"]),
+        )
+        adata.uns["lineage_colors"] = ["#112233", "#445566"]
+
+        mat = Matrix(adata, col_attr=["lineage"])
+        mat.cluster()
+
+        assert mat.viz["global_cat_colors"]["Lung"] == "#112233"
+        assert mat.viz["global_cat_colors"]["Myeloid"] == "#445566"
+
     def test_set_size_matrix_aligns_anndata_by_name(self) -> None:
         """`set_size_matrix` must transpose AnnData input like `load_adata` does,
         so the size matrix lines up with the main matrix's row/col names instead

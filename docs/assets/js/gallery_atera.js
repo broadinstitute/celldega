@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             '',
             0.25,
             0,    // width (0 = 100%)
-            800   // height in pixels
+            700   // height in pixels
         );
 
     }

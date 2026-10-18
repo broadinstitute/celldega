@@ -19,6 +19,8 @@ This gallery collects project web presentations and visualizations made with the
 
 - [Xenium Mouse Brain ![](../assets/img/xenium_mouse_brain.jpg)](gallery_xenium_mouse_brain.md)
 - [Xenium Human Skin Cancer ![](../assets/img/xenium_human_skin_cancer.jpg)](gallery_xenium_skin_cancer.md)
+- [Broad-Allen Developing Mouse Brain E15.5: 3D ![](../assets/img/Broad-Allen_Dev-Mouse-Brain_3D.png)](gallery_broad_allen_mouse_brain_3d.md)
+- [Broad-Allen Developing Mouse Brain E15.5: Slice 35 ![](../assets/img/Broad-Allen_Dev-Mouse-Brain_2D.png)](gallery_broad_allen_mouse_brain_2d.md)
 
 </div>
 

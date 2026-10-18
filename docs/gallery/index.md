@@ -9,7 +9,7 @@ This gallery collects project web presentations and visualizations made with the
 <div class="grid cards" markdown>
 
 - [Atera Kidney non-diseased FFPE ![Default cell clusters in Atera kidney](../assets/img/atera_kidney_default_clusters.png)](gallery_atera_kidney.md)
-- [Atera Xenium Breast Cancer](gallery_atera.md)
+- [Atera Xenium Breast Cancer ![Default cell clusters in Atera breast cancer](../assets/img/atera_breast_default_clusters.png)](gallery_atera.md)
 
 </div>
 

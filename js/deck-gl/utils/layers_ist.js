@@ -2,7 +2,12 @@ import { is_orbit_technology } from '../../global_variables/image_info';
 
 export const get_layers_list = (layers_obj, close_up, viz_state) => {
   let layers_list;
-  const image_layers = layers_obj.image_layers || [];
+  // Omit the inactive source so TileLayer does not fetch its hidden tiles.
+  const image_layers = (layers_obj.image_layers || []).filter(
+    (layer) =>
+      !layer.props.imageSource ||
+      layer.props.imageSource === (layers_obj.image_source || 'primary')
+  );
   const isPointCloud = is_orbit_technology(
     viz_state?.img?.landscape_parameters?.technology
   );

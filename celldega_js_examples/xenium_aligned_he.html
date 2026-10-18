@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Celldega · Aligned H&E</title>
+    <style>
+      body { margin: 20px; font: 14px system-ui, sans-serif; color: #253047; }
+      h1 { font-size: 22px; }
+      p { max-width: 850px; }
+      #landscape, #yearbook { position: relative; width: 100%; }
+      section { margin: 24px 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Xenium with aligned H&E</h1>
+    <p>10x Genomics human lung cancer (CC BY 4.0), using the SpatialData tutorial region.
+      Switch the image source between Fluorescence and H&E in either view.
+      Cell boundaries and transcripts stay in the same coordinates. Select a gene to highlight its transcripts.</p>
+    <p id="status">Loading example DegaFiles…</p>
+    <section><h2>Landscape</h2><div id="landscape"></div></section>
+    <section><h2>Yearbook</h2><div id="yearbook"></div></section>
+    <script type="module">
+      import celldega from '../src/celldega/static/celldega.js';
+      const base = '../data/xenium_he_dega';
+      try {
+        const example = await fetch(`${base}/example.json`).then(r => {
+          if (!r.ok) throw new Error('Run scripts/prepare_xenium_he_example.py first.');
+          return r.json();
+        });
+        await celldega.landscape_ist(
+          document.querySelector('#landscape'), {}, '', 1000, 250, 0, -1,
+          base, 'Lung cancer · tutorial region', 0.25, 0, 450
+        );
+        await celldega.yearbook(
+          document.querySelector('#yearbook'), {}, '', base, 'Lung cancer',
+          example.cells, 2, 3, 35, 4, 0, 550
+        );
+        document.querySelector('#status').textContent =
+          `${example.cell_count} cells · ${example.transcript_count.toLocaleString()} transcripts · one display group (no cell-type assignments)`;
+      } catch (error) {
+        document.querySelector('#status').textContent = error.message;
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>

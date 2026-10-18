@@ -37,7 +37,8 @@ dependencies = [
     "libpysal",
     "shapely>=2.0,<2.2",
     "rasterio",
-    "imagecodecs",
+    # NumPy 2 support begins with imagecodecs 2024.6.1 (needed for morphology TIFFs).
+    "imagecodecs>=2024.6.1",
     "tifffile",
 
     "anywidget~=0.9.18",

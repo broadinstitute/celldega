@@ -98,7 +98,7 @@ def _encode_cell_ids(cell_id):
 
 def _decode_categorical(group):
     codes = group["codes"][:]
-    categories = np.asarray(group["categories"][:]).astype(str)
+    categories = np.asarray(group["categories"][:], dtype=object).astype(str)
     values = np.where(codes >= 0, categories[np.clip(codes, 0, None)], None)
     return pd.Series(values, dtype="string")
 
@@ -159,8 +159,10 @@ def read_atera_cbg(path_cbg):
     matrix = csr_matrix(
         (x["data"][:], x["indices"][:].astype(np.int32), x["indptr"][:]), shape=shape
     ).tocsc()
-    barcodes = np.asarray(root["obs"]["barcode"][:]).astype(str)
-    features = np.asarray(root["var"]["feature_name"][:]).astype(str)
+    # Zarr can return NumPy StringDType arrays, which cannot infer a fixed-width
+    # string size with astype(str); converting through object handles both formats.
+    barcodes = np.asarray(root["obs"]["barcode"][:], dtype=object).astype(str)
+    features = np.asarray(root["var"]["feature_name"][:], dtype=object).astype(str)
     cbg = pd.DataFrame.sparse.from_spmatrix(matrix, index=barcodes, columns=features)
     return cbg.rename_axis("__index_level_0__", axis="columns")
 
@@ -169,7 +171,7 @@ def read_atera_clusters(path_cbg, clustering="leiden_res_1.0"):
     """Load the default graph-based clustering from ``cell_feature_matrix.zarr.zip``."""
     obs = _open_zarr_zip(path_cbg)["obs"]
     clusters = _decode_categorical(obs[clustering])
-    clusters.index = np.asarray(obs["barcode"][:]).astype(str)
+    clusters.index = np.asarray(obs["barcode"][:], dtype=object).astype(str)
     return clusters
 
 

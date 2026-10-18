@@ -52,7 +52,7 @@ def calc_meta_gene_data(cbg):
         raise TypeError("cbg must be a pandas DataFrame")
 
     # Determine if cbg is sparse
-    if pd.api.types.is_sparse(cbg):
+    if any(isinstance(dtype, pd.SparseDtype) for dtype in cbg.dtypes):
         # Ensure cbg has SparseDtype with float and fill_value=0
         cbg = cbg.astype(pd.SparseDtype("float", fill_value=0))
         print("cbg is a sparse DataFrame. Proceeding with sparse operations.")
@@ -65,15 +65,17 @@ def calc_meta_gene_data(cbg):
 
     # Calculate variance as the average of the squared deviations
     print("Calculating variance")
-    num_tiles = cbg.shape[1]
-    variance = cbg.apply(lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_tiles, axis=0)
+    num_rows = cbg.shape[0]
+    variance = cbg.apply(lambda x: ((x - mean_expression[x.name]) ** 2).sum() / num_rows, axis=0)
     std_deviation = np.sqrt(variance)
 
     # Calculate maximum expression
     max_expression = cbg.max(axis=0)
 
     # Calculate proportion of tiles with non-zero expression
-    proportion_nonzero = (cbg != 0).sum(axis=0) / len(cbg)
+    # DataFrame reductions can coerce sparse boolean sums back to bool. Reduce
+    # each Series separately so the result preserves the integer cell counts.
+    proportion_nonzero = cbg.apply(lambda x: (x != 0).sum(), axis=0) / num_rows
 
     # Create a DataFrame to hold all these metrics
     meta_gene = pd.DataFrame(

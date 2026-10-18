@@ -4,20 +4,21 @@ This gallery collects project web presentations and visualizations made with the
 
 ## Imaging Spatial Transcriptomics
 
+### Atera
+
+<div class="grid cards" markdown>
+
+- [Atera Kidney non-diseased FFPE ![Default cell clusters in Atera kidney](../assets/img/atera_kidney_default_clusters.png)](gallery_atera_kidney.md)
+- [Atera Xenium Breast Cancer](gallery_atera.md)
+
+</div>
+
 ### Xenium
 
 <div class="grid cards" markdown>
 
 - [Xenium Mouse Brain ![](../assets/img/xenium_mouse_brain.jpg)](gallery_xenium_mouse_brain.md)
 - [Xenium Human Skin Cancer ![](../assets/img/xenium_human_skin_cancer.jpg)](gallery_xenium_skin_cancer.md)
-
-</div>
-
-### Atera
-
-<div class="grid cards" markdown>
-
-- [Atera Xenium Breast Cancer](gallery_atera.md)
 
 </div>
 

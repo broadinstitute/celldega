@@ -16,17 +16,29 @@ Celldega is a spatial analysis and visualization library that is being developed
 
 ## What's New
 
-Our new preprint, <a href="https://www.biorxiv.org/content/10.64898/2026.08.13.744672v2" target="_blank" rel="noopener noreferrer" style="color:var(--md-typeset-a-color); text-decoration:none;"><strong>Celldega: Integrated Toolkit for Visualization and Analysis of Spatial Data</strong></a>, is now available on bioRxiv.
+### Atera Pre-processing
+
+Celldega now pre-processes 10x Atera bundles directly from their Zarr stores. The [Atera Kidney Landscape-Clustergram](examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) tutorial explores 399,120 cells in a whole-transcriptome human kidney section, including cell-type composition around glomeruli.
+
+<a href="examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/">
+    <img src="assets/img/atera_kidney_default_clusters.png" alt="Default cell clusters in an Atera human kidney section" style="display:block; margin:1rem auto; width:75%; border:1px solid lightgray; border-radius:5px;">
+</a>
+
+### 3D Developing Mouse Brain
+
+Explore 3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain as a 3D CellCloud. See the [Broad-Allen Dev Mouse Brain E15.5 Viz](examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) tutorial.
+
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+    <iframe src="https://www.youtube.com/embed/a9fSskh1A1g" title="Broad-Allen Developing Mouse Brain E15.5 in 3D" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
+</div>
+
+## bioRxiv Preprint
+
+Our preprint, <a href="https://www.biorxiv.org/content/10.64898/2026.08.13.744672v2" target="_blank" rel="noopener noreferrer" style="color:var(--md-typeset-a-color); text-decoration:none;"><strong>Celldega: Integrated Toolkit for Visualization and Analysis of Spatial Data</strong></a>, is available on bioRxiv.
 
 <a href="https://www.biorxiv.org/content/10.64898/2026.08.13.744672v2" target="_blank" rel="noopener noreferrer">
     <img src="assets/img/Celldega_Preprint_Fig1.png" alt="Figure 1 from the Celldega preprint" style="display:block; margin:1rem auto; width:75%; border:1px solid lightgray; border-radius:5px;">
 </a>
-
-## Intro Video
-
-<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
-    <iframe src="https://www.youtube.com/embed/8C72vGHHyM0" title="Celldega Intro Video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
-</div>
 
 
 ## About

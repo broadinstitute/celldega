@@ -1799,6 +1799,8 @@ class Composition(Clustergram):
         normalized: bool | None = None,
         col_weights: dict[str, float] | None = None,
         cluster: bool = True,
+        row_entity: str | dict[str, str] | None = None,
+        col_entity: str | dict[str, str] | None = None,
         name: str = "composition",
         width: int = 700,
         height: int = 450,
@@ -1829,6 +1831,13 @@ class Composition(Clustergram):
                 ``n_cells`` obs column when available — pass explicitly to
                 override, e.g. for a plain ``DataFrame`` input.
             cluster: Run hierarchical clustering before display (default ``True``).
+            row_entity: Population selection identity. Defaults to
+                ``{"entity": "cell_population", "attr": "name"}``. To link
+                cell types to a Landscape, use ``{"entity": "cell",
+                "attr": "cell_type"}`` with the Landscape's cluster attribute.
+            col_entity: Group selection identity. Defaults to
+                ``{"entity": "dataset", "attr": "name"}``. Use ``"nbhd"``
+                to link band names to a Landscape's neighborhood geometries.
             name: Clustergram registry name.
             width / height: Widget size in pixels.
             **kwargs: Forwarded to :class:`Clustergram`.
@@ -1852,8 +1861,12 @@ class Composition(Clustergram):
             payload["df"],
             meta_col=payload["meta_col"],
             col_attr=payload["col_attr"] or None,
-            row_entity={"entity": "cell_population", "attr": "name"},
-            col_entity={"entity": "dataset", "attr": "name"},
+            row_entity=row_entity
+            if row_entity is not None
+            else {"entity": "cell_population", "attr": "name"},
+            col_entity=col_entity
+            if col_entity is not None
+            else {"entity": "dataset", "attr": "name"},
             global_colors=merged_colors or None,
             name=name,
         )

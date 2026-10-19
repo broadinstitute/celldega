@@ -24,6 +24,18 @@ from skimage.io import imread, imsave
 import tifffile
 import zarr
 
+from .atera import (
+    ATERA_MORPHOLOGY_DIR,
+    atera_cluster_signatures,
+    atera_paths,
+    check_atera_files,
+    is_atera_bundle,
+    is_atera_store,
+    read_atera_cbg,
+    read_atera_clusters,
+    read_atera_meta_cell,
+    resolve_atera_morphology_paths,
+)
 from .boundary_tile import (
     _round_nested_coord_list,
     make_cell_boundary_tiles,
@@ -51,6 +63,17 @@ from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
 
 
+# Display max for Xenium/Atera morphology channels without an instrument "Suggested LUT max"
+IMAGE_FALLBACK_PERCENTILE = 99.9
+
+# Multiplier on each channel's display max (LUT max or percentile). The viewer multiplies
+# tile intensity by its default image opacity scale (5, see CustomBitmapLayer), so a tile
+# value of 255/5 is already fully saturated at the default slider. Matching that gain means
+# the default slider shows each channel at its LUT max (as Xenium Explorer does), only
+# pixels above it saturate, and lowering the slider reveals up to 5x that range.
+IMAGE_DISPLAY_MAX_FACTOR = 5.0
+
+
 def main(*args, **kwargs):
     from .run_pre_processing import main as _main
 
@@ -69,10 +92,18 @@ def _load_xenium_cluster_data(data_dir, meta_cell):
     - Tuple of (default_clustering, clusters)
     """
     # Load the default clustering data
-    default_clustering = pd.read_csv(
-        Path(data_dir) / "analysis" / "clustering" / "gene_expression_graphclust" / "clusters.csv",
-        index_col=0,
-    )
+    if is_atera_bundle(data_dir):
+        default_clustering = read_atera_clusters(atera_paths(data_dir)["cbg_matrix"])
+        default_clustering = default_clustering.dropna().to_frame("cluster")
+    else:
+        default_clustering = pd.read_csv(
+            Path(data_dir)
+            / "analysis"
+            / "clustering"
+            / "gene_expression_graphclust"
+            / "clusters.csv",
+            index_col=0,
+        )
     default_clustering.columns = default_clustering.columns.str.lower()
 
     # Prepare the clustering data
@@ -168,7 +199,13 @@ def cluster_gene_expression(
             f"Unsupported technology: {technology}. Currently, only 'Xenium' and 'Custom' is supported."
         )
 
-    if technology == "Xenium":
+    if technology == "Xenium" and is_atera_bundle(data_dir):
+        clusters_ser = read_atera_clusters(atera_paths(data_dir)["cbg_matrix"])
+        df_sig_atera = atera_cluster_signatures(cbg, clusters_ser)
+        clusters = df_sig_atera.columns.tolist()
+        list_ser = [df_sig_atera[inst_cat] for inst_cat in clusters]
+
+    elif technology == "Xenium":
         cells_csv_path = Path(data_dir) / "cells.csv.gz"
         clusters_csv_path = (
             Path(data_dir)
@@ -410,10 +447,10 @@ def _process_image_channel(path_dega_files, channel_info, img, lut_max=None):
     """
     Process a single image channel for tiling.
 
-    If ``lut_max`` is given (the instrument's "Suggested LUT max" for this channel), the
-    channel is clipped to [0, lut_max] and stretched linearly to 8-bit, matching how
-    Xenium Explorer displays it. Otherwise the legacy fixed scaling is used (1x for DAPI,
-    2x for other channels), which is fine for older datasets with brighter raw intensities.
+    If ``lut_max`` is given (the channel's display max, see ``_tile_morphology_channel``),
+    the channel is clipped to [0, lut_max] and stretched linearly to 8-bit. Otherwise
+    (e.g. an all-zero channel) the legacy fixed scaling is used (1x for DAPI, 2x for other
+    channels).
 
     Parameters:
     - path_dega_files: Landscape files path
@@ -442,7 +479,7 @@ def _process_image_channel(path_dega_files, channel_info, img, lut_max=None):
         raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
 
     if lut_max is not None and lut_max > 0:
-        print(f"{channel_name}: scaling to instrument display max (LUT max={lut_max:g})")
+        print(f"{channel_name}: scaling to display max {lut_max:g}")
         image_data = (np.clip(channel.astype(np.float32), 0, lut_max) / lut_max * 255).astype(
             np.uint8
         )
@@ -560,9 +597,9 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
-    Channels are read one at a time (CYX OME-TIFF) to limit memory use. When the OME-XML
-    carries the instrument's per-channel "Suggested LUT max", each channel is scaled to it
-    (fixes dim tiles from newer Xenium bundles); otherwise the legacy scaling is used.
+    Channels are read one at a time (CYX OME-TIFF) to limit memory use. Each channel is
+    stretched to its instrument "Suggested LUT max" from the OME-XML, or to a tissue
+    percentile when the bundle has none (see ``_tile_morphology_channel``).
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
@@ -579,6 +616,9 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
     """
     if image_tile_layer not in ["dapi", "all"]:
         raise ValueError(f"Invalid image_tile_layer: {image_tile_layer}. Must be 'dapi' or 'all'.")
+
+    if is_atera_bundle(data_dir):
+        return _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer)
 
     file_path = resolve_xenium_morphology_ome_path(data_dir)
     print(f"Using morphology image: {file_path}")
@@ -611,7 +651,10 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
 
         lut_max_by_index = _parse_xenium_lut_max(tif.ome_metadata)
         if not lut_max_by_index:
-            print("No 'Suggested LUT max' in OME metadata; using legacy intensity scaling.")
+            print(
+                "No 'Suggested LUT max' in OME metadata; using the "
+                f"{IMAGE_FALLBACK_PERCENTILE:g}th percentile of tissue pixels."
+            )
         else:
             print("Using instrument LUT max scaling")
 
@@ -622,21 +665,95 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
             print(f"Reading channel '{channel_info['name']}' (index {channel_index})")
 
             # Read one channel at a time to avoid large memory usage
-            lut_max = lut_max_by_index.get(channel_index)
-            _process_image_channel(
+            scaling_record[channel_info["name"]] = _tile_morphology_channel(
                 path_dega_files,
-                {"name": channel_info["name"], "index": 0},
+                channel_info["name"],
                 series.asarray(key=channel_index),
-                lut_max=lut_max,
+                lut_max_by_index.get(channel_index),
             )
-            scaling_record[channel_info["name"]] = {
-                "method": "lut_max" if lut_max else "legacy",
-                "lut_max": lut_max,
-            }
 
     remove_intermediate_files(path_dega_files)
 
     return {"source_image": file_path.name, "channels": scaling_record}
+
+
+def _tile_morphology_channel(path_dega_files, channel_name, img, lut_max):
+    """
+    Tile one Xenium/Atera morphology channel, stretched to 8-bit at its display max.
+
+    The display max is the instrument "Suggested LUT max" when available, otherwise the
+    ``IMAGE_FALLBACK_PERCENTILE`` of tissue (non-zero) pixels, multiplied by
+    ``IMAGE_DISPLAY_MAX_FACTOR`` so the viewer's default slider shows the channel at that
+    level.
+
+    Returns:
+        dict: How the channel was scaled, for recording in landscape_parameters.json.
+    """
+    if lut_max:
+        method = "lut_max"
+    else:
+        method = f"percentile_{IMAGE_FALLBACK_PERCENTILE:g}"
+        lut_max = _tissue_percentile(img, IMAGE_FALLBACK_PERCENTILE)
+    display_max = lut_max * IMAGE_DISPLAY_MAX_FACTOR if lut_max else None
+
+    _process_image_channel(
+        path_dega_files, {"name": channel_name, "index": 0}, img, lut_max=display_max
+    )
+    return {
+        "method": method,
+        "lut_max": lut_max,
+        "display_max_factor": IMAGE_DISPLAY_MAX_FACTOR,
+        "display_max": display_max,
+    }
+
+
+def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"):
+    """
+    Tile Atera morphology images, which ship one 2D OME-TIFF per channel in the same order
+    as the Xenium multi-channel morphology_focus image (DAPI, boundary, RNA, protein).
+
+    Channels are scaled as for Xenium (see ``_tile_morphology_channel``).
+
+    Returns:
+        dict: How each channel was scaled, for recording in landscape_parameters.json.
+    """
+    channel_paths = resolve_atera_morphology_paths(data_dir)
+    channel_names = ["dapi"] if image_tile_layer == "dapi" else ["dapi", "bound", "rna", "prot"]
+    if len(channel_paths) < len(channel_names):
+        raise FileNotFoundError(
+            f"Expected {len(channel_names)} morphology_2d channels in '{data_dir}', "
+            f"found {len(channel_paths)}."
+        )
+
+    # Every file carries the OME-XML for the whole multi-file channel set
+    with tifffile.TiffFile(channel_paths[0]) as tif:
+        lut_max_by_index = _parse_xenium_lut_max(tif.ome_metadata)
+
+    scaling_record = {}
+    for channel_index, (channel_name, channel_path) in enumerate(
+        zip(channel_names, channel_paths, strict=False)
+    ):
+        print(f"{channel_name}: {channel_path.name}")
+        # Each file is one channel of a multi-file OME set; opening it as an OME series would
+        # load every channel, so read this file's own full-resolution page.
+        with tifffile.TiffFile(channel_path) as tif:
+            img = tif.pages[0].asarray()
+
+        scaling_record[channel_name] = _tile_morphology_channel(
+            path_dega_files, channel_name, img, lut_max_by_index.get(channel_index)
+        )
+        del img
+
+    remove_intermediate_files(path_dega_files)
+
+    return {"source_image": f"{ATERA_MORPHOLOGY_DIR}/", "channels": scaling_record}
+
+
+def _tissue_percentile(img, percentile, subsample=8):
+    """Percentile of non-zero (tissue) pixels, estimated on a strided subsample."""
+    sample = img[::subsample, ::subsample]
+    tissue = sample[sample > 0]
+    return float(np.percentile(tissue, percentile)) if tissue.size else None
 
 
 def create_image_tiles_merscope(data_dir, path_dega_files, image_tile_layer="dapi"):
@@ -1038,6 +1155,8 @@ def _load_meta_cell_by_technology(technology, path_meta_cell_micron, paths=None,
         meta_cell["cell_id"] = meta_cell["EntityID"]
         meta_cell["name"] = meta_cell["cell_id"]
         meta_cell = meta_cell.set_index("cell_id")
+    elif technology == "Xenium" and is_atera_store(path_meta_cell_micron):
+        meta_cell = read_atera_meta_cell(path_meta_cell_micron)
     elif technology == "Xenium":
         usecols = ["cell_id", "x_centroid", "y_centroid"]
         meta_cell = pd.read_csv(path_meta_cell_micron, index_col=0, usecols=usecols)
@@ -1263,6 +1382,7 @@ def save_landscape_parameters(
     cell_chunk_info=None,
     cbg_chunk_info=None,
     image_scaling=None,
+    microns_per_pixel=None,
 ):
     """Saves the landscape parameters to a JSON file.
 
@@ -1282,6 +1402,9 @@ def save_landscape_parameters(
         cbg_chunk_info (dict, optional): Chunk info for CBG parquet files.
         image_scaling (dict, optional): How image tiles were scaled (Xenium), as returned by
             create_image_tiles. Saved under "image_scaling" so a landscape can be audited later.
+        microns_per_pixel (float, optional): Image pixel size, saved under
+            "microns_per_pixel" so the front end can size the scale bar without a
+            per-technology lookup.
 
     Returns:
         None
@@ -1335,6 +1458,9 @@ def save_landscape_parameters(
 
         if image_scaling:
             landscape_parameters["image_scaling"] = image_scaling
+
+        if microns_per_pixel:
+            landscape_parameters["microns_per_pixel"] = microns_per_pixel
 
         # Add row group specific metadata
         if use_row_groups and tile_grid_info:
@@ -1807,10 +1933,13 @@ def _check_required_files(technology, data_dir):
     required_files_or_dir = required_files_mapping[technology]
     data_path = Path(data_dir)
 
-    missing_files_or_dir = [
-        file for file in required_files_or_dir if not (data_path / file).exists()
-    ]
-    if technology == "Xenium":
+    if technology == "Xenium" and is_atera_bundle(data_dir):
+        missing_files_or_dir = check_atera_files(data_dir)
+    else:
+        missing_files_or_dir = [
+            file for file in required_files_or_dir if not (data_path / file).exists()
+        ]
+    if technology == "Xenium" and not is_atera_bundle(data_dir):
         try:
             resolve_xenium_morphology_ome_path(data_path)
         except FileNotFoundError:

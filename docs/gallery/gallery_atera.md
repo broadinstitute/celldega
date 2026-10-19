@@ -6,5 +6,5 @@
 
 <div style="text-align: justify; font-size: 0.9em; color: gray; margin-top: 10px;">
     Celldega Landscape visualization of a Xenium WTA Preview FFPE human breast cancer dataset. See the
-    <a href="../../examples/brief_notebooks/Atera_viz/">Atera Viz notebook</a> for the linked Landscape-Clustergram example built from this dataset, from the <a href="https://github.com/cornhundred/DegaFiles_WTA_Preview_FFPE_Breast_Cancer_outs" target="_blank">DegaFiles_WTA_Preview_FFPE_Breast_Cancer_outs</a> dataset repository.
+    <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram/">Atera breast cancer tutorial</a> for the linked Landscape-Clustergram example built from this dataset, from the <a href="https://github.com/cornhundred/DegaFiles_WTA_Preview_FFPE_Breast_Cancer_outs" target="_blank">DegaFiles_WTA_Preview_FFPE_Breast_Cancer_outs</a> dataset repository.
 </div>

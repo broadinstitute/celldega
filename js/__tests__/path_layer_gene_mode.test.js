@@ -40,6 +40,19 @@ describe('get_path_color polygon visibility', () => {
 
   const alphaFor = (cats, index) => get_path_color(cats, index, { index })[3];
 
+  test.each(['cluster', 'GAPDH'])(
+    'keeps boundaries inside the AnnData subset in %s mode',
+    (cat) => {
+      const cats = makeCats({ cat, meta_cell_id_set: new Set(['cellB']) });
+      expect([0, 1, 2].map((i) => alphaFor(cats, i))).toEqual([0, 255, 0]);
+    }
+  );
+
+  it('shows no boundaries for an empty metadata subset', () => {
+    const cats = makeCats({ meta_cell_id_set: new Set() });
+    expect([0, 1, 2].map((i) => alphaFor(cats, i))).toEqual([0, 0, 0]);
+  });
+
   it('shows every polygon in cluster mode with no selection', () => {
     const cats = makeCats();
     expect(alphaFor(cats, 0)).toBe(255);

@@ -95,10 +95,8 @@ export const update_cell_exp_array = async (
   const new_exp_array = ensureExpressionArray(cats);
   const max_exp = Number(genes.meta_gene[inst_gene].max);
 
-  const allowedCellIds =
-    cats.meta_cell_id_set && cats.meta_cell_id_set.size > 0
-      ? cats.meta_cell_id_set
-      : null;
+  // An empty metadata selection means no cells, not an unrestricted view.
+  const allowedCellIds = cats.meta_cell_id_set ?? null;
 
   // Use Sets to track missing names (automatically keeps them unique)
   const missingCellNames1 = new Set(); // For cell_name_to_index_map

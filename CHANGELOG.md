@@ -4,6 +4,53 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.27.0]
+
+### Added
+
+- Pre-processing supports 10x Atera output bundles, detected by
+  `experiment.spatial` and processed as technology `"Xenium"`. Cells,
+  centroids, boundaries, the cell-by-gene matrix, the default
+  `leiden_res_1.0` clustering, and transcripts are read directly from
+  `cells.zarr.zip`, `cell_feature_matrix.zarr.zip`, and
+  `transcripts.zarr.zip`; no flat-file export or unzipping step is needed.
+  Transcripts are streamed one spatial grid chunk at a time (QV ≥ 20) into
+  the disk-backed tiler, so they are never fully loaded into memory.
+- Atera morphology images are tiled from the per-channel
+  `morphology_2d/ch*.ome.tif` files, with the same scaling as Xenium.
+- `landscape_parameters.json` records `microns_per_pixel` for Atera
+  landscapes, read from `experiment.spatial`.
+- `dega.nbhd.calc_gradient` is public: it builds gradient bands as a
+  `GeoDataFrame` directly from geometries, without a `NeighborhoodCollection`.
+- `Composition` accepts `row_entity` and `col_entity` so populations and
+  groups can link to a Landscape's cell attributes or neighborhoods.
+- Atera kidney and breast cancer gallery entries and tutorial notebooks, and
+  an Atera pre-processing brief notebook.
+
+### Fixed
+
+- Xenium and Atera morphology image tiles are no longer too dim. Every channel
+  is stretched to 8-bit at its instrument "Suggested LUT max" from the
+  OME-XML, or, for bundles without one, the 99.9th percentile of tissue pixels.
+  Either value is multiplied by the viewer's default image gain (5×), so the
+  default slider shows each channel at that level and lowering the slider
+  reveals brighter structure. The per-channel scaling is recorded under
+  `image_scaling` in `landscape_parameters.json`. Newer
+  `morphology_focus/*0000*.ome.tif` naming is detected. Re-run pre-processing
+  into a fresh directory (or delete `pyramid_images/`) to regenerate tiles.
+- `meta_gene.parquet` standard deviations were divided by the number of genes
+  instead of the number of cells; `std` values now match NumPy for every
+  technology. Sparse non-zero proportions are also computed correctly.
+- Landscape: cells outside an AnnData subset are hidden in boundary and
+  expression views, and an empty metadata selection shows no cells instead of
+  all of them.
+- Landscape: switching datasets keeps the rebuilt cell data, so the zoomed-in
+  cell bars update for the new dataset.
+
+### Changed
+
+- `imagecodecs>=2024.6.1` is required (NumPy 2 support for morphology TIFFs).
+
 ## [0.26.1]
 
 ### Fixed

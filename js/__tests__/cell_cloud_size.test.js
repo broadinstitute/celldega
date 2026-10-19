@@ -64,6 +64,21 @@ const makeState = (cell_size) => ({
 });
 
 describe('CellCloud cell diameter and slider', () => {
+  test('retains only metadata-matched cell IDs for expression and boundaries', async () => {
+    const state = makeState(10);
+    state.cats.meta_cell = { a: ['A'] };
+    await controls.ini_cell_layer('/data', state);
+    expect([...state.cats.meta_cell_id_set]).toEqual(['a']);
+    expect(state.cats.cell_cats).toEqual(['A', 'N.A.']);
+  });
+
+  test('keeps an empty metadata subset empty', async () => {
+    const state = makeState(10);
+    state.cats.meta_cell = {};
+    await controls.ini_cell_layer('/data', state);
+    expect(state.cats.meta_cell_id_set.size).toBe(0);
+  });
+
   test.each([
     [undefined, 5],
     [10, 5],

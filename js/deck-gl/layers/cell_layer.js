@@ -859,6 +859,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     // Use helper to handle cell_name_prefix matching
     const cell_name_prefix = viz_state.cell_name_prefix || false;
+    // Preserve the AnnData subset when expression or boundaries are displayed.
+    // Store the on-disk IDs after resolving any metadata name prefix.
+    viz_state.cats.meta_cell_id_set = new Set();
 
     viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
       const attrs = get_meta_cell_attrs(
@@ -866,9 +869,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         viz_state.cats.meta_cell,
         cell_name_prefix
       );
+      if (attrs !== undefined) {
+        viz_state.cats.meta_cell_id_set.add(String(name));
+      }
       return attrs?.[inst_index] ?? 'N.A.';
     });
   } else {
+    viz_state.cats.meta_cell_id_set = null;
     const cluster_url = `${base_url}/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? `_${viz_state.seg.version}` : ''}/cluster.parquet`;
     const cluster_arrow_table = await get_arrow_table(
       cluster_url,

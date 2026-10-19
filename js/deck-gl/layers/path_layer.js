@@ -9,6 +9,12 @@ import { is_cluster_color_mode } from './cell_color';
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
+  if (
+    cats.meta_cell_id_set &&
+    !cats.meta_cell_id_set.has(String(inst_cell_id))
+  ) {
+    return [0, 0, 0, 0];
+  }
   const inst_cat = cats.dict_cell_cats[inst_cell_id];
 
   let inst_color;

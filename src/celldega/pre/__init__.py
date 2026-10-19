@@ -25,8 +25,6 @@ import tifffile
 import zarr
 
 from .atera import (
-    ATERA_DISPLAY_MAX_FACTOR,
-    ATERA_FALLBACK_PERCENTILE,
     ATERA_MORPHOLOGY_DIR,
     atera_cluster_signatures,
     atera_paths,
@@ -63,6 +61,17 @@ from .nbhd_cloud import (
 )
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
+
+
+# Display max for Xenium/Atera morphology channels without an instrument "Suggested LUT max"
+IMAGE_FALLBACK_PERCENTILE = 99.9
+
+# Multiplier on each channel's display max (LUT max or percentile). The viewer multiplies
+# tile intensity by its default image opacity scale (5, see CustomBitmapLayer), so a tile
+# value of 255/5 is already fully saturated at the default slider. Matching that gain means
+# the default slider shows each channel at its LUT max (as Xenium Explorer does), only
+# pixels above it saturate, and lowering the slider reveals up to 5x that range.
+IMAGE_DISPLAY_MAX_FACTOR = 5.0
 
 
 def main(*args, **kwargs):
@@ -438,10 +447,10 @@ def _process_image_channel(path_dega_files, channel_info, img, lut_max=None):
     """
     Process a single image channel for tiling.
 
-    If ``lut_max`` is given (the instrument's "Suggested LUT max" for this channel), the
-    channel is clipped to [0, lut_max] and stretched linearly to 8-bit, matching how
-    Xenium Explorer displays it. Otherwise the legacy fixed scaling is used (1x for DAPI,
-    2x for other channels), which is fine for older datasets with brighter raw intensities.
+    If ``lut_max`` is given (the channel's display max, see ``_tile_morphology_channel``),
+    the channel is clipped to [0, lut_max] and stretched linearly to 8-bit. Otherwise
+    (e.g. an all-zero channel) the legacy fixed scaling is used (1x for DAPI, 2x for other
+    channels).
 
     Parameters:
     - path_dega_files: Landscape files path
@@ -470,7 +479,7 @@ def _process_image_channel(path_dega_files, channel_info, img, lut_max=None):
         raise ValueError(f"Unsupported image dimensions: {img.ndim}. Expected 2D or 3D image.")
 
     if lut_max is not None and lut_max > 0:
-        print(f"{channel_name}: scaling to instrument display max (LUT max={lut_max:g})")
+        print(f"{channel_name}: scaling to display max {lut_max:g}")
         image_data = (np.clip(channel.astype(np.float32), 0, lut_max) / lut_max * 255).astype(
             np.uint8
         )
@@ -588,9 +597,9 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
     """
     Creates image tiles for visualization from the Xenium morphology image.
 
-    Channels are read one at a time (CYX OME-TIFF) to limit memory use. When the OME-XML
-    carries the instrument's per-channel "Suggested LUT max", each channel is scaled to it
-    (fixes dim tiles from newer Xenium bundles); otherwise the legacy scaling is used.
+    Channels are read one at a time (CYX OME-TIFF) to limit memory use. Each channel is
+    stretched to its instrument "Suggested LUT max" from the OME-XML, or to a tissue
+    percentile when the bundle has none (see ``_tile_morphology_channel``).
 
     Args:
         data_dir (str): Path to the directory containing the data (e.g., morphology_focus_0000.ome.tif).
@@ -642,7 +651,10 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
 
         lut_max_by_index = _parse_xenium_lut_max(tif.ome_metadata)
         if not lut_max_by_index:
-            print("No 'Suggested LUT max' in OME metadata; using legacy intensity scaling.")
+            print(
+                "No 'Suggested LUT max' in OME metadata; using the "
+                f"{IMAGE_FALLBACK_PERCENTILE:g}th percentile of tissue pixels."
+            )
         else:
             print("Using instrument LUT max scaling")
 
@@ -653,21 +665,46 @@ def create_image_tiles_xenium(data_dir, path_dega_files, image_tile_layer="dapi"
             print(f"Reading channel '{channel_info['name']}' (index {channel_index})")
 
             # Read one channel at a time to avoid large memory usage
-            lut_max = lut_max_by_index.get(channel_index)
-            _process_image_channel(
+            scaling_record[channel_info["name"]] = _tile_morphology_channel(
                 path_dega_files,
-                {"name": channel_info["name"], "index": 0},
+                channel_info["name"],
                 series.asarray(key=channel_index),
-                lut_max=lut_max,
+                lut_max_by_index.get(channel_index),
             )
-            scaling_record[channel_info["name"]] = {
-                "method": "lut_max" if lut_max else "legacy",
-                "lut_max": lut_max,
-            }
 
     remove_intermediate_files(path_dega_files)
 
     return {"source_image": file_path.name, "channels": scaling_record}
+
+
+def _tile_morphology_channel(path_dega_files, channel_name, img, lut_max):
+    """
+    Tile one Xenium/Atera morphology channel, stretched to 8-bit at its display max.
+
+    The display max is the instrument "Suggested LUT max" when available, otherwise the
+    ``IMAGE_FALLBACK_PERCENTILE`` of tissue (non-zero) pixels, multiplied by
+    ``IMAGE_DISPLAY_MAX_FACTOR`` so the viewer's default slider shows the channel at that
+    level.
+
+    Returns:
+        dict: How the channel was scaled, for recording in landscape_parameters.json.
+    """
+    if lut_max:
+        method = "lut_max"
+    else:
+        method = f"percentile_{IMAGE_FALLBACK_PERCENTILE:g}"
+        lut_max = _tissue_percentile(img, IMAGE_FALLBACK_PERCENTILE)
+    display_max = lut_max * IMAGE_DISPLAY_MAX_FACTOR if lut_max else None
+
+    _process_image_channel(
+        path_dega_files, {"name": channel_name, "index": 0}, img, lut_max=display_max
+    )
+    return {
+        "method": method,
+        "lut_max": lut_max,
+        "display_max_factor": IMAGE_DISPLAY_MAX_FACTOR,
+        "display_max": display_max,
+    }
 
 
 def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"):
@@ -675,11 +712,7 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
     Tile Atera morphology images, which ship one 2D OME-TIFF per channel in the same order
     as the Xenium multi-channel morphology_focus image (DAPI, boundary, RNA, protein).
 
-    Atera raw intensities are dim, so every channel is stretched to 8-bit. Channels with an
-    instrument "Suggested LUT max" in the OME-XML use it (as for Xenium); the rest use the
-    ``ATERA_FALLBACK_PERCENTILE`` of tissue (non-zero) pixels, which is where the instrument
-    places the DAPI LUT max. Either value is multiplied by ``ATERA_DISPLAY_MAX_FACTOR`` so
-    tiles are not overexposed at the viewer's default slider settings.
+    Channels are scaled as for Xenium (see ``_tile_morphology_channel``).
 
     Returns:
         dict: How each channel was scaled, for recording in landscape_parameters.json.
@@ -706,23 +739,9 @@ def _create_image_tiles_atera(data_dir, path_dega_files, image_tile_layer="dapi"
         with tifffile.TiffFile(channel_path) as tif:
             img = tif.pages[0].asarray()
 
-        lut_max = lut_max_by_index.get(channel_index)
-        if lut_max:
-            method = "lut_max"
-        else:
-            method = f"percentile_{ATERA_FALLBACK_PERCENTILE:g}"
-            lut_max = _tissue_percentile(img, ATERA_FALLBACK_PERCENTILE)
-        display_max = lut_max * ATERA_DISPLAY_MAX_FACTOR if lut_max else None
-
-        _process_image_channel(
-            path_dega_files, {"name": channel_name, "index": 0}, img, lut_max=display_max
+        scaling_record[channel_name] = _tile_morphology_channel(
+            path_dega_files, channel_name, img, lut_max_by_index.get(channel_index)
         )
-        scaling_record[channel_name] = {
-            "method": method,
-            "lut_max": lut_max,
-            "display_max_factor": ATERA_DISPLAY_MAX_FACTOR,
-            "display_max": display_max,
-        }
         del img
 
     remove_intermediate_files(path_dega_files)

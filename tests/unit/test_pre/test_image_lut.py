@@ -108,8 +108,29 @@ def test_xenium_tiles_return_scaling_record(tmp_path):
     assert record["channels"]["dapi"] == {
         "method": "lut_max",
         "lut_max": 5000.0,
+        "display_max_factor": pre.IMAGE_DISPLAY_MAX_FACTOR,
+        "display_max": 5000.0 * pre.IMAGE_DISPLAY_MAX_FACTOR,
     }
     assert not list(out.glob("*.json"))
+
+
+def test_xenium_tiles_fall_back_to_tissue_percentile(tmp_path):
+    focus = tmp_path / "morphology_focus"
+    focus.mkdir()
+    img = np.zeros((1, 64, 64), dtype=np.uint16)
+    img[0, :32] = 1000
+    tifffile.imwrite(focus / "morphology_focus_0000.ome.tif", img, metadata={"axes": "CYX"})
+    out = tmp_path / "out"
+    out.mkdir()
+    with (
+        patch.object(pre, "_convert_to_png", return_value="x.png"),
+        patch.object(pre, "make_deepzoom_pyramid"),
+    ):
+        record = pre.create_image_tiles_xenium(str(tmp_path), str(out))
+    # Zero (background) pixels are excluded from the percentile
+    assert record["channels"]["dapi"]["method"] == "percentile_99.9"
+    assert record["channels"]["dapi"]["lut_max"] == 1000.0
+    assert record["channels"]["dapi"]["display_max"] == 1000.0 * pre.IMAGE_DISPLAY_MAX_FACTOR
 
 
 def test_landscape_parameters_include_image_scaling(tmp_path):

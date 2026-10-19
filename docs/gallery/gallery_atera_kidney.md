@@ -9,9 +9,10 @@ boundaries, and gene expression from the published DegaFiles.
 </div>
 
 Open the [Landscape–Clustergram tutorial](../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb)
-to compare cluster signatures and sub-cluster the predominantly endothelial
-default cluster 13. The tutorial uses Scanpy marker ranking and plain AnnData
-dotplot Clustergrams linked to filtered tissue views.
+to compare default cluster signatures and explore cell-type composition by
+distance from podocyte-defined glomerular footprints. The tutorial uses plain
+AnnData for dotplot Clustergrams and a distance-band Composition linked to a
+Landscape, with alpha shapes and gradient bands stored as GeoDataFrames.
 
 [DegaFiles on GitHub](https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE)
 · [Annotated counts on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Atera_v1_WTA_Kidney_non_diseased_FFPE.h5ad)

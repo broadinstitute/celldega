@@ -6,7 +6,7 @@ These example notebooks demonstrate how to use Celldega for spatial transcriptom
 
 Comprehensive tutorials that walk through complete workflows:
 
-- [Atera Kidney Landscape-Clustergram](tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) - Direct Scanpy and AnnData steps for default clusters, endothelial sub-clustering, and linked dotplot Clustergrams with manual categories disabled
+- [Atera Kidney Landscape-Clustergram](tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) - Direct Scanpy and AnnData steps for default clusters, linked dotplot Clustergrams, and cell-type composition across podocyte-defined glomerular gradients
 - [Atera Breast Cancer Landscape-Clustergram](tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb) - Loads a precomputed Scanpy clustering (or optionally recomputes it) and creates linked Landscape, Clustergram, and Enrich widgets
 - [Atera Breast Cancer Neighborhood Exploration](tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb) - Continues the Atera tutorial with hextile niches linked to cell-type composition and alpha-shape overlap linked to a separate Landscape
 - [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Uses Scanpy and plain AnnData to summarize a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation

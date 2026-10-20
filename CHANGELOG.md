@@ -29,6 +29,11 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Cell segmentation validates polygon offsets and uses logical Arrow lengths
+  instead of buffer capacity, preventing padded data from connecting unrelated
+  cells. Tile changes rebuild the path buffers together, stale requests cannot
+  replace newer boundaries, and reported rendering errors trigger one automatic
+  rebuild. Failed geometry loads clear cached cell data so they can be retried.
 - Xenium and Atera morphology image tiles are no longer too dim. Every channel
   is stretched to 8-bit at its instrument "Suggested LUT max" from the
   OME-XML, or, for bundles without one, the 99.9th percentile of tissue pixels.

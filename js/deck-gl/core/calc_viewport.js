@@ -224,6 +224,11 @@ export const calc_viewport = async (
   layers_obj,
   viz_state
 ) => {
+  if (viz_state.disposed) return;
+  const requestId = (viz_state.viewport_request_id || 0) + 1;
+  viz_state.viewport_request_id = requestId;
+  const isCurrentRequest = () =>
+    !viz_state.disposed && viz_state.viewport_request_id === requestId;
   const wasCloseUp = viz_state.close_up;
   const { tile_size } = viz_state.img.landscape_parameters;
   const isPointCloud = is_orbit_technology(
@@ -319,6 +324,9 @@ export const calc_viewport = async (
     viz_state.obs_store.close_up.set(true);
 
     if (viewportCache.visibleTileKey !== visibleTileKey) {
+      // The layer may be cleared if loading fails. Invalidate the old key now
+      // so returning to that viewport also reloads, even during this request.
+      viewportCache.visibleTileKey = null;
       if (!isPointCloud) {
         viz_state.obs_store.deck_check.set({
           ...viz_state.obs_store.deck_check.get(),
@@ -332,13 +340,17 @@ export const calc_viewport = async (
           layers_obj,
           viz_state
         );
+        // A slower previous viewport must not start a path load after the
+        // latest viewport has already installed its segmentation.
+        if (!isCurrentRequest()) return;
 
-        await update_path_layer_data(
+        const pathsUpdated = await update_path_layer_data(
           viz_state.global_base_url,
           tiles_in_view,
           layers_obj,
           viz_state
         );
+        if (!isCurrentRequest() || !pathsUpdated) return;
       }
 
       viewportCache.visibleTileKey = visibleTileKey;

@@ -12,7 +12,7 @@ import {
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
+import { select_genes } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
 import { toggle_slider } from '../ui/sliders';
@@ -101,7 +101,13 @@ export const attach_bar_tooltip = (bars, kind, viz_state) => {
       const tooltip = viz_state.bar_tooltip;
       if (!tooltip || !d) return;
       if (kind === 'gene') {
-        tooltip.show(String(d.name), event);
+        tooltip.show(
+          String(d.name),
+          event,
+          viz_state.nbhd_cloud?.is_nbhd_cloud
+            ? ''
+            : '<br><i>Shift-click to select multiple genes</i>'
+        );
       } else {
         tooltip.show_html(
           cluster_bar_tooltip_html(d, {
@@ -276,39 +282,20 @@ export const bar_callback_gene = async (
     }
   }
 
-  const inst_gene = d.name;
-  const reset_gene = inst_gene === _viz_state.cats.cat;
-  const new_cat = reset_gene ? 'cluster' : inst_gene;
+  // Shift-click adds/removes a gene (cells show the summed expression); a
+  // plain click selects just this gene, or clears it if it's the only one.
+  const current_genes = _viz_state.genes.selected_genes ?? [];
+  const new_genes = _event?.shiftKey
+    ? toggle_bar_name(current_genes, d.name)
+    : current_genes.length === 1 && current_genes[0] === d.name
+      ? []
+      : [d.name];
 
-  if (reset_gene) {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-  } else {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-  }
+  _viz_state.cats.svg_bar_cluster
+    .selectAll('rect')
+    .style('opacity', new_genes.length === 0 ? 1.0 : 0.2);
 
-  update_cat(_viz_state.cats, new_cat);
-
-  _viz_state.obs_store.deck_check.set({
-    ..._viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    trx_layer: false,
-  });
-
-  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
-  await update_cell_exp_array(
-    _viz_state.cats,
-    _viz_state.genes,
-    _viz_state.global_base_url,
-    inst_gene,
-    _viz_state.seg.version,
-    _viz_state.vector_name_integer,
-    _viz_state.aws,
-    _viz_state.row_group_readers?.cbg
-  );
-
-  // update selected_cats after update_cell_exp_array has been run
-  // can clean up and move more logic to observability
-  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
+  await select_genes(_viz_state, new_genes);
 };
 
 export const bar_callback_nbhd = (

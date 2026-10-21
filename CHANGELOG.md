@@ -11,20 +11,35 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape: shift-click cluster bars to select several clusters at once;
   shift-click a selected cluster again to remove it. A plain click still
   selects a single cluster.
+- Landscape and Yearbook: select several genes by shift-clicking gene bars or
+  typing a comma-separated list in the gene search, which autocompletes the
+  gene after the last comma; the bars and the search box stay in sync. Cells
+  show the summed raw expression of the selected genes, and at close zoom each
+  gene's transcripts are shown in its own color. Up to 20 genes are shown at
+  once: a larger selection (e.g. a Clustergram row dendrogram cut) shows its
+  20 highest-expressed genes, with a note in the gene panel. Clustergram row
+  dendrogram selections of several genes now use this view instead of
+  falling back to cluster colors.
 - Landscape and Yearbook: hovering a gene bar shows the gene's UniProt name
   and description, and hovering a cluster bar shows its name and cell count.
 - Landscape and Yearbook: selecting a gene (bar, search, transcript click, or
   a linked Clustergram) smoothly enlarges transcripts to full size, and
-  clearing the selection restores the previous TRX slider size. Dragging the
-  slider during the transition keeps the user's value.
+  clearing the selection snaps back to the previous TRX slider size. Dragging
+  the slider during the transition keeps the user's value.
 
 ### Fixed
 
 - Landscape and Yearbook bar plots no longer clip the last bars (the least
   abundant clusters or genes) when a list has more than about 14 entries.
+- Landscape: clicking a transcript no longer leaves cell colors from the
+  previous gene, and a Clustergram row dendrogram selection no longer leaves
+  the transcript filter on the previously selected gene.
+- The gene search no longer selects a shorter gene while typing a longer one
+  (e.g. "ACE" on the way to "ACE2").
 - Landscape gene tooltips wrap at a fixed width and stay inside the widget,
   flipping to the left of or above the cursor near the right and bottom
-  edges.
+  edges. Transcript tooltips appear once their UniProt text has loaded, at
+  their final position, instead of jumping as they resize.
 
 ## [0.27.0]
 

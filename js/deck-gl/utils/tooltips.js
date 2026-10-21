@@ -1,3 +1,4 @@
+import { has_uniprot_info } from '../../external_apis/uniprot_api';
 import {
   escape_html,
   gene_info_tooltip_html,
@@ -56,22 +57,22 @@ export const fit_tooltip_in_bounds = (tooltip, x, y, bounds) => {
   }px)`;
 };
 
+const fit_and_reveal = (viz_state, x, y, reveal) => {
+  const tooltip = viz_state.root?.querySelector('.deck-tooltip');
+  fit_tooltip_in_bounds(tooltip, x, y, viz_state.root);
+  if (reveal && tooltip) tooltip.style.visibility = 'visible';
+};
+
 /**
- * Fit the tooltip once deck.gl has rendered it (deck applies the returned
- * html/style after getTooltip returns), at most once per frame.
+ * Fit the tooltip right after deck.gl renders it. deck applies the returned
+ * html/style synchronously after getTooltip returns, from inside its own
+ * animation frame, so a microtask runs after that and before the browser
+ * paints: the tooltip's first painted position is already the fitted one. (A
+ * requestAnimationFrame here would paint one frame at deck's default position,
+ * then jump.)
  */
 const schedule_tooltip_fit = (viz_state, x, y) => {
-  if (typeof requestAnimationFrame !== 'function') return;
-  cancelAnimationFrame(viz_state.tooltip_fit_frame);
-  viz_state.tooltip_fit_frame = requestAnimationFrame(() => {
-    viz_state.tooltip_fit_frame = null;
-    fit_tooltip_in_bounds(
-      viz_state.root?.querySelector('.deck-tooltip'),
-      x,
-      y,
-      viz_state.root
-    );
-  });
+  queueMicrotask(() => fit_and_reveal(viz_state, x, y, false));
 };
 
 /**
@@ -89,6 +90,7 @@ export const make_tooltip = (viz_state, info) => {
   let inst_html = '';
   let inst_name = '';
   let inst_cat = '';
+  let tooltip_visibility = 'visible';
 
   // Handle cell and path layer tooltips
   if (
@@ -120,17 +122,19 @@ export const make_tooltip = (viz_state, info) => {
         ? ''
         : viz_state.genes.g_nameMapping_inv?.[geneId] || '';
 
-    // Same UniProt name/description the Clustergram shows on a gene row; the
-    // first hover renders a placeholder and this patches it in on arrival.
+    // Same UniProt name/description the Clustergram shows on a gene row.
+    // Until the lookup lands the tooltip stays hidden, so it first appears at
+    // its final size and position instead of growing (and flipping) in place.
     const build_trx_html = () =>
       `<div>transcript: ${escape_html(
         inst_name
       )}</div>${gene_info_tooltip_html(inst_name)}`;
-    // The lookup can grow the tooltip, so re-fit it after the patch lands.
     refresh_gene_tooltip_async(viz_state.root, inst_name, build_trx_html, () =>
-      schedule_tooltip_fit(viz_state, info.x, info.y)
+      fit_and_reveal(viz_state, info.x, info.y, true)
     );
     inst_html = build_trx_html();
+    tooltip_visibility =
+      !inst_name || has_uniprot_info(inst_name) ? 'visible' : 'hidden';
   }
   // Handle neighborhood layer tooltips
   else if (info.layer.id.startsWith('nbhd-layer')) {
@@ -185,6 +189,7 @@ export const make_tooltip = (viz_state, info) => {
     style: {
       maxWidth: TOOLTIP_MAX_WIDTH,
       overflowWrap: 'break-word',
+      visibility: tooltip_visibility,
     },
   };
 };

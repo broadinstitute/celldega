@@ -437,8 +437,10 @@ const ease_in_out = (t) =>
  * Enlarge transcripts while a gene is selected, then restore the previous
  * size when the selection clears. Selecting a gene (bar, search, transcript
  * click, or a linked Clustergram) animates the TRX slider to full size;
- * clearing it animates back to wherever the slider was before. Dragging the
- * slider during the animation stops it, and the user's value wins.
+ * clearing it jumps straight back to wherever the slider was before, since
+ * every gene's transcripts reappear at that moment and shrinking them all in
+ * an animation reads as a glitch. Dragging the slider during the animation
+ * stops it, and the user's value wins.
  *
  * Neighborhood-cloud repurposes the TRX slider as an opacity control, so it is
  * left alone there.
@@ -496,7 +498,8 @@ export const ini_selected_gene_trx_focus = (
       } else if (!focused && restore_value !== null) {
         const target = restore_value;
         restore_value = null;
-        animate_to(target);
+        cancel_animation();
+        apply_value(target);
       }
     },
     { immediate: false }

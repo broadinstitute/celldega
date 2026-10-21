@@ -3,10 +3,6 @@ import * as d3 from 'd3';
 import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -978,34 +974,6 @@ export const make_yearbook_ui_container = (
   // Gene search
   set_gene_search('ist', deck_yearbook, layers_obj, viz_state);
   viz_state.genes.gene_search.style.marginLeft = '0px';
-
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
-          }
-        }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
-
-      viz_state.genes.gene_text_box.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
 
   ui_container.appendChild(ctrl_container);
 

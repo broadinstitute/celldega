@@ -18,10 +18,6 @@ import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
-import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
@@ -1180,40 +1176,6 @@ export const make_ist_ui_container = (
   set_gene_search('ist', deck_ist, layers_obj, viz_state);
 
   viz_state.genes.gene_search.style.marginLeft = '0px';
-
-  // add subscriber for gene search and gene_text_box
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    // if selected_genes has a length of 1, update the gene search input
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
-          }
-        }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
-
-      viz_state.genes.gene_text_box.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
 
   ui_container.appendChild(ctrl_container);
 

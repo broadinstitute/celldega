@@ -174,6 +174,7 @@ describe('fit_tooltip_in_bounds', () => {
       const gene_info_tooltip_html = () => '';
       const refresh_gene_tooltip_async = () => {};
       const get_point_cloud_source_index = () => -1;
+      const has_uniprot_info = () => true;
     `;
     ({ fit_tooltip_in_bounds } = load('../deck-gl/utils/tooltips.js', shims, [
       'fit_tooltip_in_bounds',
@@ -308,10 +309,14 @@ describe('ini_selected_gene_trx_focus', () => {
     jest.advanceTimersByTime(500);
     expect(Number(slider.value)).toBe(sliders.TRX_FOCUS_SLIDER_VALUE);
 
+    // Clearing jumps straight back: no frames needed, no intermediate sizes.
+    const calls_before_clear = radius_calls.length;
     viz_state.obs_store.selected_genes.set([]);
-    jest.advanceTimersByTime(500);
     expect(Number(slider.value)).toBe(30);
+    expect(radius_calls.length).toBe(calls_before_clear + 1);
     expect(radius_calls.at(-1)).toBeCloseTo(0.3);
+    jest.advanceTimersByTime(500);
+    expect(radius_calls.length).toBe(calls_before_clear + 1);
   });
 
   it('animates through intermediate sizes', () => {

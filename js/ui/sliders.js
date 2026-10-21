@@ -11,6 +11,7 @@ import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
 import { is_orbit_technology } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
+import { register_ui_cleanup } from '../utils/ui_cleanup';
 
 const clamp_to_byte = (value) => {
   return Math.max(0, Math.min(255, Math.round(value)));
@@ -422,4 +423,88 @@ export const toggle_slider = (slider, state) => {
   }
 
   slider.disabled = !state;
+};
+
+/** TRX slider position used while a gene is selected (full transcript size). */
+export const TRX_FOCUS_SLIDER_VALUE = 100;
+const TRX_FOCUS_DURATION_MS = 300;
+
+/** Ease-in-out cubic on t in [0, 1]. */
+const ease_in_out = (t) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+/**
+ * Enlarge transcripts while a gene is selected, then restore the previous
+ * size when the selection clears. Selecting a gene (bar, search, transcript
+ * click, or a linked Clustergram) animates the TRX slider to full size;
+ * clearing it animates back to wherever the slider was before. Dragging the
+ * slider during the animation stops it, and the user's value wins.
+ *
+ * Neighborhood-cloud repurposes the TRX slider as an opacity control, so it is
+ * left alone there.
+ */
+export const ini_selected_gene_trx_focus = (
+  inst_deck,
+  layers_obj,
+  viz_state
+) => {
+  const slider = viz_state.sliders?.trx;
+  if (!slider || viz_state.nbhd_cloud?.is_nbhd_cloud) return;
+
+  // Slider value from before the gene was selected; null when not focused.
+  let restore_value = null;
+  let frame_id = null;
+
+  const cancel_animation = () => {
+    if (frame_id !== null) cancelAnimationFrame(frame_id);
+    frame_id = null;
+  };
+
+  const apply_value = (value) => {
+    if (!layers_obj.trx_layer) return;
+    set_slider_value(slider, value);
+    trx_slider_callback(inst_deck, layers_obj, viz_state);
+  };
+
+  const animate_to = (target) => {
+    cancel_animation();
+    const start = Number(slider.value);
+    if (!Number.isFinite(start) || start === target) {
+      apply_value(target);
+      return;
+    }
+    const start_time = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start_time) / TRX_FOCUS_DURATION_MS);
+      apply_value(start + (target - start) * ease_in_out(t));
+      frame_id = t < 1 ? requestAnimationFrame(step) : null;
+    };
+    frame_id = requestAnimationFrame(step);
+  };
+
+  // Programmatic value changes don't fire 'input', so this is the user dragging.
+  const on_user_input = () => cancel_animation();
+  slider.addEventListener('input', on_user_input);
+
+  const unsubscribe = viz_state.obs_store.selected_genes.subscribe(
+    (selected_genes) => {
+      const focused =
+        Array.isArray(selected_genes) && selected_genes.length > 0;
+      if (focused && restore_value === null) {
+        restore_value = Number(slider.value);
+        animate_to(TRX_FOCUS_SLIDER_VALUE);
+      } else if (!focused && restore_value !== null) {
+        const target = restore_value;
+        restore_value = null;
+        animate_to(target);
+      }
+    },
+    { immediate: false }
+  );
+
+  register_ui_cleanup(viz_state, () => {
+    cancel_animation();
+    slider.removeEventListener('input', on_user_input);
+    unsubscribe?.();
+  });
 };

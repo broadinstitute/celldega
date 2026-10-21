@@ -12,7 +12,10 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
+  attach_bar_tooltip,
   bar_callback_cat,
+  bar_svg_height,
+  BAR_HEIGHT,
   make_bar_container,
   bar_callback_gene,
   get_bar_highlight_opacity,
@@ -22,6 +25,7 @@ import { make_logo_button } from './logo';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
+  ini_selected_gene_trx_focus,
   ini_slider,
   ini_slider_params,
 } from './sliders';
@@ -717,7 +721,8 @@ export const make_yearbook_ui_container = (
     viz_state.cats.color_dict_cluster,
     deck_yearbook,
     layers_obj,
-    viz_state
+    viz_state,
+    { tooltip: 'cluster' }
   );
 
   viz_state.containers.bar_gene = make_bar_container();
@@ -735,7 +740,8 @@ export const make_yearbook_ui_container = (
     viz_state.genes.color_dict_gene,
     deck_yearbook,
     layers_obj,
-    viz_state
+    viz_state,
+    { tooltip: 'gene' }
   );
 
   // Apply the current selection highlight to a set of bar groups: full opacity +
@@ -812,10 +818,17 @@ export const make_yearbook_ui_container = (
 
   // New bar data subscriber (updates bars based on viewport)
   const subscriber_new_bar_data =
-    ({ svg, color_dict, get_selected_array, bar_callback, container }) =>
+    ({
+      svg,
+      color_dict,
+      get_selected_array,
+      bar_callback,
+      container,
+      tooltip,
+    }) =>
     (bar_data) => {
-      const bar_height = 15;
-      const svg_height = bar_height * (bar_data.length + 1);
+      const bar_height = BAR_HEIGHT;
+      const svg_height = bar_svg_height(bar_data.length);
       svg.attr('height', svg_height);
 
       const max_bar_width = 90;
@@ -840,6 +853,8 @@ export const make_yearbook_ui_container = (
         .on('click', (event, d) =>
           bar_callback(event, d, deck_yearbook, layers_obj, viz_state)
         );
+
+      attach_bar_tooltip(bars_enter, tooltip, viz_state);
 
       bars_enter
         .append('rect')
@@ -932,6 +947,7 @@ export const make_yearbook_ui_container = (
       get_selected_array: () => viz_state.cats.selected_cats || [],
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
+      tooltip: 'cluster',
     }),
     { immediate: false }
   );
@@ -943,6 +959,7 @@ export const make_yearbook_ui_container = (
       get_selected_array: () => viz_state.genes.selected_genes || [],
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
+      tooltip: 'gene',
     }),
     { immediate: false }
   );
@@ -951,6 +968,7 @@ export const make_yearbook_ui_container = (
   cell_container.appendChild(viz_state.containers.bar_cluster);
 
   ini_slider('trx', deck_yearbook, layers_obj, viz_state);
+  ini_selected_gene_trx_focus(deck_yearbook, layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 

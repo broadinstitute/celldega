@@ -6,6 +6,74 @@ import {
 
 import { get_point_cloud_source_index } from './point_cloud_indices';
 
+/** Same cap as the Enrich/bar-plot gene tooltips, so descriptions wrap. */
+const TOOLTIP_MAX_WIDTH = '260px';
+const TOOLTIP_EDGE_PAD_PX = 4;
+const TOOLTIP_CURSOR_GAP_PX = 12;
+
+/**
+ * Keep a deck.gl tooltip inside `bounds`: flip it left of the cursor when it
+ * would run off the right edge, above the cursor when it would run off the
+ * bottom, then clamp. deck.gl positions the tooltip with
+ * `translate(x, y)` (plus the downward `margin-top` set below), so this
+ * rewrites that transform.
+ *
+ * @param {HTMLElement} tooltip - The `.deck-tooltip` element.
+ * @param {number} x - Pointer x passed to deck's setTooltip.
+ * @param {number} y - Pointer y passed to deck's setTooltip.
+ * @param {HTMLElement} bounds - Element the tooltip must stay inside.
+ */
+export const fit_tooltip_in_bounds = (tooltip, x, y, bounds) => {
+  if (!tooltip || !bounds || tooltip.style.display === 'none') return;
+
+  tooltip.style.transform = `translate(${x}px, ${y}px)`;
+  const rect = tooltip.getBoundingClientRect();
+  const box = bounds.getBoundingClientRect();
+  if (!rect.width || !box.width) return;
+
+  const margin_top = parseFloat(tooltip.style.marginTop) || 0;
+  const cursor_left = rect.left;
+  const cursor_top = rect.top - margin_top;
+  let { left, top } = rect;
+
+  if (rect.right > box.right - TOOLTIP_EDGE_PAD_PX) {
+    left = cursor_left - rect.width - TOOLTIP_CURSOR_GAP_PX;
+  }
+  if (rect.bottom > box.bottom - TOOLTIP_EDGE_PAD_PX) {
+    top = cursor_top - rect.height - TOOLTIP_CURSOR_GAP_PX;
+  }
+  left = Math.max(
+    box.left + TOOLTIP_EDGE_PAD_PX,
+    Math.min(left, box.right - TOOLTIP_EDGE_PAD_PX - rect.width)
+  );
+  top = Math.max(
+    box.top + TOOLTIP_EDGE_PAD_PX,
+    Math.min(top, box.bottom - TOOLTIP_EDGE_PAD_PX - rect.height)
+  );
+
+  tooltip.style.transform = `translate(${x + left - rect.left}px, ${
+    y + top - rect.top
+  }px)`;
+};
+
+/**
+ * Fit the tooltip once deck.gl has rendered it (deck applies the returned
+ * html/style after getTooltip returns), at most once per frame.
+ */
+const schedule_tooltip_fit = (viz_state, x, y) => {
+  if (typeof requestAnimationFrame !== 'function') return;
+  cancelAnimationFrame(viz_state.tooltip_fit_frame);
+  viz_state.tooltip_fit_frame = requestAnimationFrame(() => {
+    viz_state.tooltip_fit_frame = null;
+    fit_tooltip_in_bounds(
+      viz_state.root?.querySelector('.deck-tooltip'),
+      x,
+      y,
+      viz_state.root
+    );
+  });
+};
+
 /**
  * Creates tooltips for various layer types with detailed information
  * @param {Object} viz_state - Application visualization state
@@ -58,7 +126,10 @@ export const make_tooltip = (viz_state, info) => {
       `<div>transcript: ${escape_html(
         inst_name
       )}</div>${gene_info_tooltip_html(inst_name)}`;
-    refresh_gene_tooltip_async(viz_state.root, inst_name, build_trx_html);
+    // The lookup can grow the tooltip, so re-fit it after the patch lands.
+    refresh_gene_tooltip_async(viz_state.root, inst_name, build_trx_html, () =>
+      schedule_tooltip_fit(viz_state, info.x, info.y)
+    );
     inst_html = build_trx_html();
   }
   // Handle neighborhood layer tooltips
@@ -107,7 +178,13 @@ export const make_tooltip = (viz_state, info) => {
     }
   }
 
+  schedule_tooltip_fit(viz_state, info.x, info.y);
+
   return {
     html: inst_html,
+    style: {
+      maxWidth: TOOLTIP_MAX_WIDTH,
+      overflowWrap: 'break-word',
+    },
   };
 };

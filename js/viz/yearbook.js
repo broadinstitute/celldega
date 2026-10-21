@@ -65,6 +65,7 @@ import {
 } from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+import { run_ui_cleanups } from '../utils/ui_cleanup';
 
 import { compute_portrait_centers } from './yearbook_portrait_centers';
 
@@ -1307,6 +1308,7 @@ export const yearbook = async (
       return viz_state.yearbook.query || {};
     },
     finalize: () => {
+      run_ui_cleanups(viz_state);
       viz_state.cache?.cell?.clear?.();
       viz_state.cache?.trx?.clear?.();
 

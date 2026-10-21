@@ -107,6 +107,7 @@ import {
 import { refresh_layer } from '../utils/refresh_layer';
 import { build_rotation_state } from '../utils/rotation';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+import { run_ui_cleanups } from '../utils/ui_cleanup';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import {
   sync_focused_gene_to_landscape,
@@ -1326,6 +1327,7 @@ export const landscape_ist = async (
       pending_animation_frames.clear();
 
       cleanup_callbacks.splice(0).forEach((cleanup) => cleanup?.());
+      run_ui_cleanups(viz_state);
       viz_state.update_viz_image_layers?.dispose?.();
 
       viz_state.cache?.cell?.clear?.();

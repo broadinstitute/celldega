@@ -4,6 +4,28 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Landscape: shift-click cluster bars to select several clusters at once;
+  shift-click a selected cluster again to remove it. A plain click still
+  selects a single cluster.
+- Landscape and Yearbook: hovering a gene bar shows the gene's UniProt name
+  and description, and hovering a cluster bar shows its name and cell count.
+- Landscape and Yearbook: selecting a gene (bar, search, transcript click, or
+  a linked Clustergram) smoothly enlarges transcripts to full size, and
+  clearing the selection restores the previous TRX slider size. Dragging the
+  slider during the transition keeps the user's value.
+
+### Fixed
+
+- Landscape and Yearbook bar plots no longer clip the last bars (the least
+  abundant clusters or genes) when a list has more than about 14 entries.
+- Landscape gene tooltips wrap at a fixed width and stay inside the widget,
+  flipping to the left of or above the cursor near the right and bottom
+  edges.
+
 ## [0.27.0]
 
 ### Added

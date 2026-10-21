@@ -31,10 +31,13 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
+  attach_bar_tooltip,
   bar_callback_nbhd,
   bar_callback_nbhd_cloud_cluster,
   bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
+  bar_svg_height,
+  BAR_HEIGHT,
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
@@ -50,6 +53,7 @@ import {
   toggle_slider,
   set_slider_value,
   ini_discrete_slider_params,
+  ini_selected_gene_trx_focus,
   ini_slider,
   ini_slider_params,
 } from './sliders';
@@ -896,7 +900,8 @@ export const make_ist_ui_container = (
       viz_state.cats.color_dict_cluster,
       deck_ist,
       layers_obj,
-      viz_state
+      viz_state,
+      { tooltip: 'cluster' }
     );
   }
 
@@ -940,7 +945,8 @@ export const make_ist_ui_container = (
       viz_state.genes.color_dict_gene,
       deck_ist,
       layers_obj,
-      viz_state
+      viz_state,
+      { tooltip: 'gene' }
     );
   }
 
@@ -1040,10 +1046,10 @@ export const make_ist_ui_container = (
   );
 
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    ({ svg, color_dict, selected_array, bar_callback, container, tooltip }) =>
     (bar_data) => {
-      const bar_height = 15;
-      const svg_height = bar_height * (bar_data.length + 1);
+      const bar_height = BAR_HEIGHT;
+      const svg_height = bar_svg_height(bar_data.length);
       svg.attr('height', svg_height);
 
       const max_bar_width = 90;
@@ -1069,6 +1075,8 @@ export const make_ist_ui_container = (
         .on('click', (event, d) =>
           bar_callback(event, d, deck_ist, layers_obj, viz_state)
         );
+
+      attach_bar_tooltip(bars_enter, tooltip, viz_state);
 
       bars_enter
         .append('rect')
@@ -1133,6 +1141,7 @@ export const make_ist_ui_container = (
       selected_array: viz_state.cats.selected_cats,
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
+      tooltip: 'cluster',
     }),
     { immediate: false }
   );
@@ -1144,6 +1153,7 @@ export const make_ist_ui_container = (
       selected_array: viz_state.genes.selected_genes,
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
+      tooltip: 'gene',
     }),
     { immediate: false }
   );
@@ -1152,6 +1162,7 @@ export const make_ist_ui_container = (
   cell_container.appendChild(viz_state.containers.bar_cluster);
 
   ini_slider('trx', deck_ist, layers_obj, viz_state);
+  ini_selected_gene_trx_focus(deck_ist, layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 

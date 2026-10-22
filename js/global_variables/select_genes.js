@@ -46,6 +46,16 @@ export const gene_selection_cat = (genes) =>
   genes.length === 0 ? 'cluster' : genes.join(' + ');
 
 /**
+ * Whether a gene selection that set `cats.cat` to `cat` is still the current
+ * selection once its expression has loaded: no newer load replaced it
+ * (`applied`, from update_cell_exp_array), and no cluster click or cleared
+ * selection, which load nothing, changed `cats.cat`. Every path that loads
+ * expression before setting the selection checks this first.
+ */
+export const is_current_gene_load = (cats, applied, cat) =>
+  Boolean(applied) && cats.cat === cat;
+
+/**
  * Show `genes` in a Landscape or Yearbook: the transcripts of every listed
  * gene, and cells colored by their summed expression. An empty list returns
  * to cluster coloring.
@@ -80,10 +90,10 @@ export const select_genes = async (viz_state, genes) => {
       viz_state.aws,
       viz_state.row_group_readers?.cbg
     );
-    // A newer selection replaced this one while its expression loaded: another
-    // gene load, or a cluster click or cleared selection, which load nothing
-    // but change cats.cat.
-    if (!applied || cats.cat !== gene_selection_cat(selected)) return;
+    // A newer selection replaced this one while its expression loaded.
+    if (!is_current_gene_load(cats, applied, gene_selection_cat(selected))) {
+      return;
+    }
   }
 
   // Set after the expression loads: this is what refreshes the cell colors.

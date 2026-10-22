@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx jest)",
+      "Bash(npm run lint:js)",
+      "Bash(npm run format:js:check)"
+    ]
+  }
+}

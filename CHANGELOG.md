@@ -85,7 +85,9 @@ All notable changes to Celldega are documented here. This project follows
   clearing a gene selection) no longer jumps transcripts to a larger size.
 - Landscape and Yearbook: a gene whose expression is still loading no longer
   overrides a cluster clicked, or a selection cleared, in the meantime, which
-  could hide every cell and cell outline.
+  could hide every cell and cell outline. This holds wherever the gene comes
+  from: a bar, the gene search, a transcript, a linked Clustergram or Enrich,
+  the Yearbook query box, or restoring the selection after switching datasets.
 - Landscape and Yearbook: the gene panel shows a gene's UniProt name and
   description as text instead of inserting them as HTML.
 

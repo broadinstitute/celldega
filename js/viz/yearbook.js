@@ -50,6 +50,7 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
+import { is_current_gene_load } from '../global_variables/select_genes';
 import { force_set_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
@@ -1057,7 +1058,7 @@ export const yearbook = async (
         );
 
         // Load gene expression data for cell coloring
-        await update_cell_exp_array(
+        const applied = await update_cell_exp_array(
           viz_state.cats,
           viz_state.genes,
           viz_state.global_base_url,
@@ -1068,13 +1069,17 @@ export const yearbook = async (
           viz_state.row_group_readers?.cbg
         );
 
-        // Force-set selected_cats (bypass toggle behavior)
-        viz_state.cats.selected_cats = [inst_gene];
-        viz_state.obs_store.selected_cats.set([inst_gene]);
+        // Unless a newer selection replaced this one while its expression
+        // loaded (the query's cells below still update).
+        if (is_current_gene_load(viz_state.cats, applied, inst_gene)) {
+          // Force-set selected_cats (bypass toggle behavior)
+          viz_state.cats.selected_cats = [inst_gene];
+          viz_state.obs_store.selected_cats.set([inst_gene]);
 
-        // Refresh layers to apply gene filtering/coloring
-        refresh_layer(viz_state, layers_obj, 'cell_layer');
-        refresh_layer(viz_state, layers_obj, 'trx_layer');
+          // Refresh layers to apply gene filtering/coloring
+          refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'trx_layer');
+        }
       } else {
         // No gene - reset to cluster mode
         update_cat(viz_state.cats, 'cluster');
@@ -1195,7 +1200,7 @@ export const yearbook = async (
           );
 
           // Load gene expression data for cell coloring
-          await update_cell_exp_array(
+          const applied = await update_cell_exp_array(
             viz_state.cats,
             viz_state.genes,
             viz_state.global_base_url,
@@ -1205,13 +1210,17 @@ export const yearbook = async (
             viz_state.aws
           );
 
-          // Force-set selected_cats (bypass toggle behavior)
-          viz_state.cats.selected_cats = [inst_gene];
-          viz_state.obs_store.selected_cats.set([inst_gene]);
+          // Unless a newer selection replaced this one while its expression
+          // loaded (the query's cells below still update).
+          if (is_current_gene_load(viz_state.cats, applied, inst_gene)) {
+            // Force-set selected_cats (bypass toggle behavior)
+            viz_state.cats.selected_cats = [inst_gene];
+            viz_state.obs_store.selected_cats.set([inst_gene]);
 
-          // Refresh layers to apply gene filtering/coloring
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
+            // Refresh layers to apply gene filtering/coloring
+            refresh_layer(viz_state, layers_obj, 'cell_layer');
+            refresh_layer(viz_state, layers_obj, 'trx_layer');
+          }
         } else {
           // No gene - reset to cluster mode
           update_cat(viz_state.cats, 'cluster');

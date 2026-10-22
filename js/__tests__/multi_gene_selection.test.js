@@ -64,7 +64,12 @@ describe('select_genes', () => {
     mod = load(
       '../global_variables/select_genes.js',
       shims,
-      ['MAX_SELECTED_GENES', 'limit_gene_selection', 'select_genes'],
+      [
+        'MAX_SELECTED_GENES',
+        'limit_gene_selection',
+        'is_current_gene_load',
+        'select_genes',
+      ],
       { expression_calls, control }
     );
   });
@@ -164,6 +169,16 @@ describe('select_genes', () => {
     await loading;
     expect(viz_state.cats.cat).toBe('cluster');
     expect(viz_state.cats.selected_cats).toEqual(['3']);
+  });
+
+  it('treats a load as current only while nothing replaced it', () => {
+    expect(mod.is_current_gene_load({ cat: 'G1' }, true, 'G1')).toBe(true);
+    // A newer load replaced it.
+    expect(mod.is_current_gene_load({ cat: 'G1' }, false, 'G1')).toBe(false);
+    // A cluster click or cleared selection changed cats.cat.
+    expect(mod.is_current_gene_load({ cat: 'cluster' }, true, 'G1')).toBe(
+      false
+    );
   });
 
   it('stays cleared when cleared while the expression loads', async () => {

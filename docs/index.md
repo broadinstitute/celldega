@@ -16,13 +16,13 @@ Celldega is a spatial analysis and visualization library that is being developed
 
 ## What's New
 
-### Atera Pre-processing
+### Atera
 
-Celldega now pre-processes 10x Atera bundles directly from their Zarr stores. The [Atera Kidney Landscape-Clustergram](examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) tutorial explores 399,120 cells in a whole-transcriptome human kidney section, including cell-type composition around glomeruli.
+Visualize 10x Atera whole-transcriptome data in Celldega. The [Atera Kidney Landscape-Clustergram](examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) tutorial explores 399,120 cells and over 1 billion transcripts in a human kidney section with linked Landscape, Clustergram, and Yearbook views, including cell-type composition around glomeruli.
 
-<a href="examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/">
-    <img src="assets/img/atera_kidney_default_clusters.png" alt="Default cell clusters in an Atera human kidney section" style="display:block; margin:1rem auto; width:75%; border:1px solid lightgray; border-radius:5px;">
-</a>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+    <iframe src="https://www.youtube.com/embed/cVKc2mcMqSA" title="Atera human kidney tutorial in Celldega" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
+</div>
 
 ### Visium HD Colorectal Cancer Tutorial Video
 

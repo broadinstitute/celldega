@@ -226,6 +226,16 @@ export const resolve_gene_tokens = (tokens, gene_lookup) => {
   return { genes, complete: genes.length === tokens.length };
 };
 
+/**
+ * Genes Enter applies: whatever resolves, skipping unknown tokens. Null when
+ * something was typed but nothing resolves (e.g. a typo), so the current
+ * selection is kept.
+ */
+export const genes_for_enter = (tokens, gene_lookup) => {
+  const { genes } = resolve_gene_tokens(tokens, gene_lookup);
+  return tokens.length > 0 && genes.length === 0 ? null : genes;
+};
+
 const MAX_GENE_SUGGESTIONS = 50;
 
 /**
@@ -306,7 +316,7 @@ const show_gene_selection = async (viz_state, selected_genes) => {
     const info = get_uniprot_info(genes[0]);
     box.innerHTML =
       info?.name && info.description
-        ? `${note}<span style="color: blue;">${info.name}</span><br>${info.description}`
+        ? `${note}<span style="color: blue;">${escape_html(info.name)}</span><br>${escape_html(info.description)}`
         : note;
   } else {
     box.innerHTML =
@@ -473,12 +483,11 @@ export const set_gene_search = async (
     apply(genes);
   });
 
-  // Enter applies whatever resolves, skipping unknown tokens.
+  // Enter applies whatever resolves (see genes_for_enter).
   input.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    apply(
-      resolve_gene_tokens(parse_gene_query(input.value), gene_lookup).genes
-    );
+    const genes = genes_for_enter(parse_gene_query(input.value), gene_lookup);
+    if (genes) apply(genes);
   });
 };

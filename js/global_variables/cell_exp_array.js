@@ -62,14 +62,22 @@ async function readGeneFromRowGroups(cbgReader, geneName) {
 }
 
 // Recently loaded gene expression, so adding a gene to a multi-gene selection
-// doesn't refetch the genes already shown. Holds promises, so concurrent
-// requests for one gene share a fetch.
-const expression_cache = new Map();
+// doesn't refetch the genes already shown. One cache per widget (kept on its
+// `cats`): it goes away with the widget, and a new widget reads files rewritten
+// at the same URL afresh. Holds promises, so concurrent requests for one gene
+// share a fetch.
 const EXPRESSION_CACHE_LIMIT = 20;
 
-const load_gene_expression = (base_url, version, gene, aws, cbgReader) => {
+const load_gene_expression = (
+  cache,
+  base_url,
+  version,
+  gene,
+  aws,
+  cbgReader
+) => {
   const key = `${base_url}|${version}|${gene}`;
-  if (expression_cache.has(key)) return expression_cache.get(key);
+  if (cache.has(key)) return cache.get(key);
 
   const request = (async () => {
     if (cbgReader) return readGeneFromRowGroups(cbgReader, gene);
@@ -83,10 +91,10 @@ const load_gene_expression = (base_url, version, gene, aws, cbgReader) => {
     return getGeneExpressionColumns(exp_table, gene);
   })();
 
-  expression_cache.set(key, request);
-  request.catch(() => expression_cache.delete(key));
-  if (expression_cache.size > EXPRESSION_CACHE_LIMIT) {
-    expression_cache.delete(expression_cache.keys().next().value);
+  cache.set(key, request);
+  request.catch(() => cache.delete(key));
+  if (cache.size > EXPRESSION_CACHE_LIMIT) {
+    cache.delete(cache.keys().next().value);
   }
   return request;
 };
@@ -135,9 +143,10 @@ export const update_cell_exp_array = async (
   const gene_list = Array.isArray(inst_gene) ? inst_gene : [inst_gene];
   const request_id = (cats.exp_request_id = (cats.exp_request_id ?? 0) + 1);
 
+  const cache = (cats.expression_cache ??= new Map());
   const expression = await Promise.all(
     gene_list.map((gene) =>
-      load_gene_expression(base_url, version, gene, aws, cbgReader)
+      load_gene_expression(cache, base_url, version, gene, aws, cbgReader)
     )
   );
   if (cats.exp_request_id !== request_id) return false;

@@ -15,9 +15,22 @@ const is_finite_number = (value) =>
   typeof value === 'number' && Number.isFinite(value);
 
 /**
+ * Zoom at which the tissue (its extent, in data units) fits the canvas; not
+ * finite while either size is unknown or zero.
+ */
+export const zoom_to_fit = (
+  canvas_width,
+  canvas_height,
+  data_width,
+  data_height
+) =>
+  Math.log2(Math.min(canvas_width / data_width, canvas_height / data_height));
+
+/**
  * @param {object} params
- * @param {number} params.fit_zoom - Tissue-wide zoom (`spatial.ini_zoom`).
- * @param {number} [params.initial_zoom] - Starting zoom; always allowed.
+ * @param {number} params.fit_zoom - Tissue-wide zoom (see zoom_to_fit).
+ * @param {number} [params.initial_zoom] - The view's current (or starting)
+ *   zoom; always allowed.
  * @param {number} params.canvas_size - Shorter canvas side, in pixels.
  * @param {number|null} [params.microns_per_unit] - Microns per data unit
  *   (image pixel); data units are taken as microns when unknown.

@@ -2,6 +2,7 @@ import { is_orbit_technology } from '../../global_variables/image_info';
 import { sync_trx_slider_range } from '../../ui/sliders';
 import {
   is_trx_force_shown,
+  keep_trx_forced,
   sync_trx_button,
   trx_force_tile_factor,
   trx_load_tile_limit,
@@ -380,7 +381,7 @@ export const calc_viewport = async (
     viz_state.max_tiles_to_view,
     trx_force_tile_factor(viz_state)
   );
-  if (viz_state.trx_zone === 'far') viz_state.trx_forced = false;
+  viz_state.trx_forced = keep_trx_forced(viz_state, layers_obj);
   sync_trx_button(viz_state, layers_obj);
   sync_trx_force_view(layers_obj, viz_state);
 
@@ -474,4 +475,22 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
+};
+
+/**
+ * Once transcripts are hidden (e.g. for region editing), end forced loading
+ * at intermediate zoom and update the view now, rather than at the next pan
+ * or zoom.
+ */
+export const end_hidden_trx_force = (deck_ist, layers_obj, viz_state) => {
+  const was_shown = is_trx_force_shown(viz_state);
+  viz_state.trx_forced = keep_trx_forced(viz_state, layers_obj);
+  if (was_shown && !viz_state.trx_forced && viz_state.last_viewport_params) {
+    calc_viewport(
+      viz_state.last_viewport_params,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 };

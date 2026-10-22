@@ -365,6 +365,9 @@ export const switch_dataset = async (
     viz_state.spatial.data_height =
       viz_state.spatial.y_max - viz_state.spatial.y_min;
 
+    // Zoom limits for the new tissue's extent (the view itself is kept).
+    viz_state.update_zoom_limits?.();
+
     // Update cell layer with new data (clone, don't recreate)
     // Disable transitions for instant dataset switching
     refresh_cell_layer_data(layers_obj, viz_state, {

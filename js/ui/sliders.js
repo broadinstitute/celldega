@@ -236,9 +236,12 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 
 // Zoomed out, the TRX slider sets the expression drawn at full cell opacity,
 // as a percent of the max (100 = the max, the default scaling).
-const cell_opacity_slider_callback = (layers_obj, viz_state) => {
+const opacity_slider_scale = (value) => Math.max(1, Number(value)) / 100;
+
+/** Set `cats.cell_exp_scale` and recolor the cells to match. */
+const set_cell_exp_scale = (layers_obj, viz_state, scale) => {
   const { cats } = viz_state;
-  cats.cell_exp_scale = Math.max(1, Number(viz_state.sliders.trx.value)) / 100;
+  cats.cell_exp_scale = scale;
   update_expression_note(viz_state);
   if (cats.cat === 'cluster' || viz_state.cell_opacity_frame) return;
 
@@ -254,6 +257,13 @@ const cell_opacity_slider_callback = (layers_obj, viz_state) => {
     refresh_layer(viz_state, layers_obj, 'cell_layer');
   });
 };
+
+const cell_opacity_slider_callback = (layers_obj, viz_state) =>
+  set_cell_exp_scale(
+    layers_obj,
+    viz_state,
+    opacity_slider_scale(viz_state.sliders.trx.value)
+  );
 
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   // Repurposed for neighborhood-cloud only: an independent opacity control
@@ -611,7 +621,8 @@ export const sync_trx_slider_range = (layers_obj, viz_state) => {
 /**
  * Switch the Landscape's TRX slider between its two jobs as the view enters
  * and leaves close-up: transcript size in close-up, cell expression opacity
- * zoomed out (see trx_handle.js). Each job keeps its own slider position.
+ * zoomed out (see trx_handle.js). Each job keeps its own slider position, and
+ * the opacity applies only zoomed out.
  */
 export const ini_trx_slider_modes = (layers_obj, viz_state) => {
   const slider = viz_state.sliders?.trx;
@@ -643,6 +654,12 @@ export const ini_trx_slider_modes = (layers_obj, viz_state) => {
         value = size;
       }
       set_slider_value(slider, value);
+      // The opacity scale applies only while the slider shows it, so close-up
+      // cells use the full range.
+      const scale = mode === 'opacity' ? opacity_slider_scale(value) : 1;
+      if ((viz_state.cats.cell_exp_scale ?? 1) !== scale) {
+        set_cell_exp_scale(layers_obj, viz_state, scale);
+      }
       slider.title =
         mode === 'size' ? 'Transcript size' : 'Cell expression opacity';
       if (mode === 'size') {

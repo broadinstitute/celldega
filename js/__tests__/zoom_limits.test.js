@@ -11,10 +11,35 @@ const source = fs
 const module_ = { exports: {} };
 new Function(
   'module',
-  `${source}\nmodule.exports = { MIN_ZOOM_MARGIN, MAX_ZOOM_VIEW_MICRONS, landscape_zoom_limits };`
+  `${source}\nmodule.exports = { MIN_ZOOM_MARGIN, MAX_ZOOM_VIEW_MICRONS, zoom_to_fit, landscape_zoom_limits };`
 )(module_);
-const { MIN_ZOOM_MARGIN, MAX_ZOOM_VIEW_MICRONS, landscape_zoom_limits } =
-  module_.exports;
+const {
+  MIN_ZOOM_MARGIN,
+  MAX_ZOOM_VIEW_MICRONS,
+  zoom_to_fit,
+  landscape_zoom_limits,
+} = module_.exports;
+
+describe('zoom_to_fit', () => {
+  it('fits the tissue by its tighter side', () => {
+    // 1000 x 600 canvas, 4000 x 1200 tissue: the width limits (1/4 scale).
+    expect(zoom_to_fit(1000, 600, 4000, 1200)).toBe(-2);
+    // A 4x wider tissue fits two zoom levels further out.
+    expect(zoom_to_fit(1000, 600, 16000, 1200)).toBe(-4);
+  });
+
+  it('is not finite until both sizes are known', () => {
+    expect(Number.isFinite(zoom_to_fit(0, 600, 4000, 1200))).toBe(false);
+    expect(Number.isFinite(zoom_to_fit(1000, 600, 0, 0))).toBe(false);
+    // ...so the matching limit is left open.
+    expect(
+      landscape_zoom_limits({
+        fit_zoom: zoom_to_fit(0, 600, 4000, 1200),
+        canvas_size: 600,
+      }).minZoom
+    ).toBe(-Infinity);
+  });
+});
 
 describe('landscape_zoom_limits', () => {
   const xenium = {

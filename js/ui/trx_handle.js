@@ -74,6 +74,16 @@ export const trx_load_tile_limit = (viz_state) =>
 export const is_trx_force_shown = (viz_state) =>
   viz_state.trx_zone === 'forceable' && Boolean(viz_state.trx_forced);
 
+/**
+ * Whether forced loading continues: it ends too far out, and once transcripts
+ * are hidden (TRX turned off in close-up, region editing), so TRX never shows
+ * them as loaded with nothing on screen.
+ */
+export const keep_trx_forced = (viz_state, layers_obj) =>
+  Boolean(viz_state.trx_forced) &&
+  viz_state.trx_zone !== 'far' &&
+  layers_obj?.trx_layer?.props?.visible !== false;
+
 export const has_gene_selection = (viz_state) =>
   (viz_state.genes?.selected_genes ?? []).length > 0;
 

@@ -11,7 +11,7 @@ const source = fs
 const module_ = { exports: {} };
 new Function(
   'module',
-  `${source}\nmodule.exports = { TRX_FORCE_TILE_FACTOR, trx_force_tile_factor, trx_forced_size_scale, trx_zone, trx_load_tile_limit, is_trx_force_shown, sync_trx_button, sync_trx_slider, update_expression_note, with_trx_loading };`
+  `${source}\nmodule.exports = { TRX_FORCE_TILE_FACTOR, trx_force_tile_factor, trx_forced_size_scale, trx_zone, trx_load_tile_limit, is_trx_force_shown, keep_trx_forced, sync_trx_button, sync_trx_slider, update_expression_note, with_trx_loading };`
 )(module_);
 const {
   TRX_FORCE_TILE_FACTOR,
@@ -20,6 +20,7 @@ const {
   trx_zone,
   trx_load_tile_limit,
   is_trx_force_shown,
+  keep_trx_forced,
   sync_trx_button,
   sync_trx_slider,
   update_expression_note,
@@ -85,6 +86,21 @@ describe('trx_zone', () => {
         trx_forced: true,
       })
     ).toBe(200);
+  });
+
+  it('ends forced loading too far out or once transcripts are hidden', () => {
+    const shown = { trx_layer: { props: { visible: true } } };
+    const hidden = { trx_layer: { props: { visible: false } } };
+    const forced = (zone) => ({ trx_zone: zone, trx_forced: true });
+
+    expect(keep_trx_forced(forced('forceable'), shown)).toBe(true);
+    // Close-up keeps it, for zooming back out.
+    expect(keep_trx_forced(forced('auto'), shown)).toBe(true);
+    expect(keep_trx_forced(forced('far'), shown)).toBe(false);
+    // TRX turned off in close-up, or region editing.
+    expect(keep_trx_forced(forced('auto'), hidden)).toBe(false);
+    expect(keep_trx_forced(forced('forceable'), hidden)).toBe(false);
+    expect(keep_trx_forced({ trx_zone: 'forceable' }, shown)).toBe(false);
   });
 
   it('scales the forced size range with the view width', () => {

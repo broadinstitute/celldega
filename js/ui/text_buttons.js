@@ -332,6 +332,26 @@ const ist_img_button_callback = async (
   set_img_layer_visible(show);
 };
 
+/**
+ * Shown transcripts take over from neighborhoods and region editing and light
+ * up the gene bars; hidden, the gene bars dim.
+ */
+const sync_trx_exclusivity = (layers_obj, viz_state, visible) => {
+  if (visible) {
+    toggle_nbhd_layer_visibility(layers_obj, false);
+    viz_state.obs_store.viz_nbhd_layer.set(false);
+    viz_state.obs_store.viz_edit_layer.set(false);
+
+    if (viz_state.nbhd.is_nbhd) {
+      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+    }
+
+    viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+  } else {
+    viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
+  }
+};
+
 const trx_button_callback_ist = async (
   event,
   deck_ist,
@@ -346,6 +366,7 @@ const trx_button_callback_ist = async (
     if (viz_state.trx_forced) {
       toggle_trx_layer_visibility(layers_obj, true);
       toggle_slider(viz_state.sliders.trx, true);
+      sync_trx_exclusivity(layers_obj, viz_state, true);
     }
     sync_trx_button(viz_state, layers_obj);
     if (viz_state.last_viewport_params) {
@@ -364,20 +385,7 @@ const trx_button_callback_ist = async (
   toggle_trx_layer_visibility(layers_obj, is_visible);
   // Dimmed while loading only when on.
   sync_trx_button(viz_state, layers_obj);
-
-  if (is_visible) {
-    toggle_nbhd_layer_visibility(layers_obj, false);
-    viz_state.obs_store.viz_nbhd_layer.set(false);
-    viz_state.obs_store.viz_edit_layer.set(false);
-
-    if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
-    }
-
-    viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-  } else {
-    viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-  }
+  sync_trx_exclusivity(layers_obj, viz_state, is_visible);
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),

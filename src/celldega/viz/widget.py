@@ -230,7 +230,7 @@ class Landscape(CelldegaWidget):
         min_zoom (float, optional): Furthest zoom out. Default: one zoom level
             past the tissue-wide view.
         max_zoom (float, optional): Closest zoom in. Default: about 10 µm
-            across the widget's shorter side.
+            across the map's shorter side.
         max_tiles_to_view (int, optional): Tiles in view below which
             transcripts and cell boundaries load automatically (close-up).
             Default: 50.

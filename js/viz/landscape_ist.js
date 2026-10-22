@@ -4,6 +4,7 @@ import * as d3 from 'd3';
 
 import {
   calc_viewport,
+  end_hidden_trx_force,
   set_trx_zone_for_view,
 } from '../deck-gl/core/calc_viewport';
 import {
@@ -14,7 +15,10 @@ import {
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
 import { set_views } from '../deck-gl/core/views';
-import { landscape_zoom_limits } from '../deck-gl/core/zoom_limits';
+import {
+  landscape_zoom_limits,
+  zoom_to_fit,
+} from '../deck-gl/core/zoom_limits';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   get_point_cloud_cell_radius,
@@ -945,6 +949,7 @@ export const landscape_ist = async (
         viz_state.obs_store.viz_nbhd_layer.set(false);
         toggle_nbhd_layer_visibility(layers_obj, false);
         toggle_trx_layer_visibility(layers_obj, false);
+        end_hidden_trx_force(deck_ist, layers_obj, viz_state);
         viz_state.buttons.buttons.trx.style('color', 'gray');
         sync_trx_button(viz_state, layers_obj);
         d3.select(viz_state.edit.buttons.nbhd).style('color', 'blue');
@@ -1040,23 +1045,57 @@ export const landscape_ist = async (
     rotation_x
   );
 
-  if (!is_orbit_technology(tech)) {
-    const canvas_sides = [
+  // Zoom limits follow the tissue and the map's size: set now, and again when
+  // the map is resized or the dataset changes (switch_dataset). Until the map
+  // is laid out, the widget's width stands in for its own.
+  viz_state.update_zoom_limits = ({
+    canvas_width = deck_ist.width ||
+      root.clientWidth ||
       viz_state.root?.clientWidth,
-      viz_state.containers?.root_dim?.height,
-    ].filter((side) => side > 0);
-    viz_state.views = set_views(
-      tech,
-      landscape_zoom_limits({
-        fit_zoom: viz_state.spatial.ini_zoom,
-        initial_zoom: viz_state.initial_view_state.zoom,
-        canvas_size: Math.min(...canvas_sides),
-        microns_per_unit: micronsPerPixel,
-        min_zoom: model_option('min_zoom'),
-        max_zoom: model_option('max_zoom'),
-      })
-    );
+    canvas_height = deck_ist.height || root.clientHeight || height,
+  } = {}) => {
+    const { technology } = viz_state.img.landscape_parameters;
+    if (is_orbit_technology(technology)) return;
+
+    const { data_width, data_height } = viz_state.spatial;
+    const limits = landscape_zoom_limits({
+      fit_zoom: zoom_to_fit(
+        canvas_width,
+        canvas_height,
+        data_width,
+        data_height
+      ),
+      // The current view stays reachable.
+      initial_zoom:
+        viz_state.last_viewport_params?.zoom ??
+        viz_state.initial_view_state?.zoom,
+      canvas_size: Math.min(canvas_width, canvas_height),
+      microns_per_unit: PIXEL_SIZE_MICRONS[technology] ?? userMicronsPerPixel,
+      min_zoom: model_option('min_zoom'),
+      max_zoom: model_option('max_zoom'),
+    });
+    const current = viz_state.zoom_limits;
+    if (
+      current?.minZoom === limits.minZoom &&
+      current?.maxZoom === limits.maxZoom
+    ) {
+      return;
+    }
+    viz_state.zoom_limits = limits;
+    viz_state.views = set_views(technology, limits);
     set_views_prop(deck_ist, viz_state.views);
+  };
+  viz_state.update_zoom_limits();
+
+  if (typeof ResizeObserver !== 'undefined') {
+    const map_resize_observer = new ResizeObserver(([entry]) => {
+      const { width: canvas_width, height: canvas_height } = entry.contentRect;
+      if (canvas_width > 0 && canvas_height > 0) {
+        viz_state.update_zoom_limits({ canvas_width, canvas_height });
+      }
+    });
+    map_resize_observer.observe(root);
+    cleanup_callbacks.push(() => map_resize_observer.disconnect());
   }
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);

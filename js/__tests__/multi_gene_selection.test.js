@@ -143,6 +143,41 @@ describe('select_genes', () => {
     await mod.select_genes(viz_state, ['G1']);
     expect(viz_state.cats.selected_cats).toEqual(['previous']);
   });
+
+  const hold_expression = () => {
+    let release;
+    control.pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    return () => release();
+  };
+
+  it('leaves a cluster clicked while the expression loads selected', async () => {
+    const viz_state = make_viz_state();
+    const release = hold_expression();
+    const loading = mod.select_genes(viz_state, ['G1']);
+
+    // A cluster bar click (update_cat + update_selected_cats).
+    viz_state.cats.cat = 'cluster';
+    viz_state.cats.selected_cats = ['3'];
+    release();
+    await loading;
+    expect(viz_state.cats.cat).toBe('cluster');
+    expect(viz_state.cats.selected_cats).toEqual(['3']);
+  });
+
+  it('stays cleared when cleared while the expression loads', async () => {
+    const viz_state = make_viz_state();
+    const release = hold_expression();
+    const loading = mod.select_genes(viz_state, ['G1']);
+
+    await mod.select_genes(viz_state, []);
+    release();
+    await loading;
+    expect(viz_state.cats.cat).toBe('cluster');
+    expect(viz_state.cats.selected_cats).toEqual([]);
+    expect(viz_state.genes.selected_genes).toEqual([]);
+  });
 });
 
 describe('update_cell_exp_array with several genes', () => {
@@ -151,6 +186,7 @@ describe('update_cell_exp_array with several genes', () => {
     B: { cell_names: ['b', 'c'], cell_exp: [1, 2] },
   };
   const gate = { pending: null };
+  const fetched = [];
   let update_cell_exp_array;
   let rescale_cell_exp_array;
 
@@ -158,6 +194,7 @@ describe('update_cell_exp_array with several genes', () => {
     const shims = `
       const options = { fetch: {} };
       const get_arrow_table = async (url) => {
+        fetched.push(url);
         if (gate.pending) await gate.pending;
         return url;
       };
@@ -167,7 +204,7 @@ describe('update_cell_exp_array with several genes', () => {
       '../global_variables/cell_exp_array.js',
       shims,
       ['update_cell_exp_array', 'rescale_cell_exp_array'],
-      { expression, gate }
+      { expression, gate, fetched }
     ));
   });
 
@@ -232,6 +269,33 @@ describe('update_cell_exp_array with several genes', () => {
     expect(Array.from(cats.cell_exp_array)).toEqual([0, byte(1, 2), 255]);
   });
 
+  it('keeps one expression cache per widget', async () => {
+    fetched.length = 0;
+    const cats = make_cats();
+    await update_cell_exp_array(cats, genes, '/data', ['A'], 'default', false);
+    // Adding a gene fetches only the new one.
+    await update_cell_exp_array(
+      cats,
+      genes,
+      '/data',
+      ['A', 'B'],
+      'default',
+      false
+    );
+    expect(fetched).toEqual(['/data/cbg/A.parquet', '/data/cbg/B.parquet']);
+
+    // Another widget (e.g. after the files were rewritten) reads them afresh.
+    await update_cell_exp_array(
+      make_cats(),
+      genes,
+      '/data',
+      ['A'],
+      'default',
+      false
+    );
+    expect(fetched).toHaveLength(3);
+  });
+
   it('ignores a load that a newer request replaced', async () => {
     const cats = make_cats();
     let release;
@@ -276,6 +340,7 @@ describe('comma-separated gene search', () => {
     search = load('../ui/gene_search.js', shims, [
       'parse_gene_query',
       'resolve_gene_tokens',
+      'genes_for_enter',
       'gene_suggestions',
     ]);
   });
@@ -302,6 +367,15 @@ describe('comma-separated gene search', () => {
     });
   });
 
+  it('applies what resolves on Enter, keeping the selection for a typo', () => {
+    expect(search.genes_for_enter(['NPHS1', 'nope'], lookup)).toEqual([
+      'NPHS1',
+    ]);
+    expect(search.genes_for_enter(['NPSH1'], lookup)).toBeNull();
+    // A cleared box still clears the selection.
+    expect(search.genes_for_enter([], lookup)).toEqual([]);
+  });
+
   it('uses the full gene list until a comma is typed', () => {
     expect(search.gene_suggestions('NPH', gene_names)).toBeNull();
   });
@@ -320,6 +394,55 @@ describe('comma-separated gene search', () => {
       'CLU, NPHS1',
       'CLU, NPHS2',
     ]);
+  });
+});
+
+describe('gene panel', () => {
+  let show_gene_selection;
+
+  beforeAll(() => {
+    const shims = `
+      const select_nbhd_cloud_gene = async () => {};
+      const get_uniprot_info = () => ({
+        name: '<b>Nephrin</b>',
+        description: 'Binds <img src=x onerror=alert(1)>',
+      });
+      const request_uniprot_info = async () => undefined;
+      const update_cat = () => {};
+      const select_genes = async () => {};
+      const update_selected_genes = () => {};
+      const sync_nbhd_cloud_opacity_sliders = () => {};
+      const refresh_layer = () => {};
+      const contain_scroll = () => {};
+      const escape_html = (value) =>
+        String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      const is_gene_axis = () => true;
+      const set_gene_search_input = () => {};
+      const update_expression_note = () => {};
+    `;
+    ({ show_gene_selection } = load('../ui/gene_search.js', shims, [
+      'show_gene_selection',
+    ]));
+  });
+
+  it('shows UniProt text as text, not markup', async () => {
+    const box = document.createElement('div');
+    box.scrollTo = () => {};
+    const viz_state = {
+      genes: {
+        gene_search_input: document.createElement('input'),
+        gene_text_box: box,
+        gene_names: ['NPHS1'],
+      },
+    };
+    await show_gene_selection(viz_state, ['NPHS1']);
+
+    expect(box.querySelector('b, img')).toBeNull();
+    expect(box.textContent).toContain('<b>Nephrin</b>');
+    expect(box.textContent).toContain('Binds <img src=x onerror=alert(1)>');
   });
 });
 

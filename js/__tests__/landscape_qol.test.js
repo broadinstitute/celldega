@@ -281,6 +281,7 @@ describe('ini_selected_gene_trx_focus', () => {
         'ini_selected_gene_trx_focus',
         'ini_trx_slider_modes',
         'sync_trx_slider_range',
+        'trx_slider_callback',
         'TRX_FOCUS_SLIDER_VALUE',
       ],
       { radius_calls }
@@ -375,6 +376,7 @@ describe('ini_selected_gene_trx_focus', () => {
     slider.value = '30';
     const viz_state = {
       close_up: true,
+      cats: {},
       sliders: { trx: slider },
       obs_store: {
         close_up: make_observable(true),
@@ -445,6 +447,38 @@ describe('ini_selected_gene_trx_focus', () => {
     expect(radius_calls.at(-1)).toBeCloseTo(1.0);
   });
 
+  it('scales cell opacity only while the slider shows it', () => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.value = '30';
+    const viz_state = {
+      close_up: false,
+      cats: { cat: 'UMOD' },
+      sliders: { trx: slider },
+      obs_store: {
+        close_up: make_observable(false),
+        selected_genes: make_observable([]),
+        selected_cats: make_observable([]),
+      },
+    };
+    const layers_obj = { trx_layer: { props: { visible: true } } };
+    sliders.ini_trx_slider_modes(layers_obj, viz_state);
+
+    // Zoomed out: full opacity at 40% of the max.
+    slider.value = '40';
+    sliders.trx_slider_callback(null, layers_obj, viz_state);
+    expect(viz_state.cats.cell_exp_scale).toBe(0.4);
+
+    // Close-up cells use the full range...
+    viz_state.obs_store.close_up.set(true);
+    expect(viz_state.cats.cell_exp_scale).toBe(1);
+
+    // ...and zooming back out restores the setting.
+    viz_state.obs_store.close_up.set(false);
+    expect(slider.value).toBe('40');
+    expect(viz_state.cats.cell_exp_scale).toBe(0.4);
+  });
+
   it('uses the forced size range when entering close-up forced', () => {
     const slider = document.createElement('input');
     slider.type = 'range';
@@ -453,6 +487,7 @@ describe('ini_selected_gene_trx_focus', () => {
       close_up: false,
       trx_zone: 'forceable',
       trx_forced: true,
+      cats: {},
       sliders: { trx: slider },
       obs_store: {
         close_up: make_observable(false),
@@ -479,6 +514,7 @@ describe('ini_selected_gene_trx_focus', () => {
       close_up,
       trx_zone,
       trx_forced,
+      cats: {},
       genes: { selected_genes: [] },
       sliders: { trx: slider },
       obs_store: {

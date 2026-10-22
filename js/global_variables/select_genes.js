@@ -80,8 +80,10 @@ export const select_genes = async (viz_state, genes) => {
       viz_state.aws,
       viz_state.row_group_readers?.cbg
     );
-    // A newer selection replaced this one while its expression loaded.
-    if (!applied) return;
+    // A newer selection replaced this one while its expression loaded: another
+    // gene load, or a cluster click or cleared selection, which load nothing
+    // but change cats.cat.
+    if (!applied || cats.cat !== gene_selection_cat(selected)) return;
   }
 
   // Set after the expression loads: this is what refreshes the cell colors.

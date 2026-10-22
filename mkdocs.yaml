@@ -1,4 +1,6 @@
 site_name: Celldega Documentation
+repo_url: https://github.com/broadinstitute/celldega
+repo_name: GitHub
 
 # Keep large/data artifacts out of the built site (and off the gh-pages branch).
 # mkdocs copies everything under docs/ into site/ regardless of .gitignore,
@@ -16,6 +18,10 @@ theme:
   favicon: assets/img/celldega_logo_32x32_transparent.png
   logo: assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png
   # logo: assets/img/assets/img/celldega_logo_32x32_transparent.png
+  # Theme overrides: overrides/.icons holds the Lucide outline GitHub icon.
+  custom_dir: overrides
+  icon:
+    repo: lucide/github
   features:
     - navigation.indexes
 

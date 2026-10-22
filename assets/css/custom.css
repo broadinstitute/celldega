@@ -112,3 +112,46 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
     line-height: 1.2;
     margin: 0 0 0.4em;
 }
+
+/* Header GitHub link (Material's repo_url widget), kept discreet: the GitHub
+   mark and the live star count on one line. The label, the version (the latest
+   GitHub release, which lags PyPI) and the fork count are hidden. */
+.md-header__source {
+    width: auto;
+    padding-right: 0.6rem; /* keep the star count off the header's edge */
+}
+
+/* The Lucide outline GitHub icon is drawn with strokes, so don't fill it.
+   Smaller than Material's 1.2rem default to sit with the star count, and
+   re-centered in the 2.4rem-tall header row. */
+.md-source__icon svg {
+    fill: none;
+    width: 0.9rem;
+    height: 0.9rem;
+    margin-top: 0.75rem;
+}
+
+.md-source__repository {
+    display: inline-flex;
+    align-items: center;
+    max-width: none;
+    font-size: 0; /* hides the label; the facts set their own size */
+}
+
+.md-source__facts {
+    width: auto;
+    margin-top: 0;
+    font-size: 0.7rem;
+    opacity: 1;
+}
+
+.md-source__fact--stars::before {
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-right: 0.2rem;
+}
+
+.md-source__fact--version,
+.md-source__fact--forks {
+    display: none;
+}

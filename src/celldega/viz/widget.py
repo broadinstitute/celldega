@@ -227,6 +227,17 @@ class Landscape(CelldegaWidget):
         ini_x (float): The initial x-coordinate of the view.
         ini_y (float): The initial y-coordinate of the view.
         ini_zoom (float): The initial zoom level of the view.
+        min_zoom (float, optional): Furthest zoom out. Default: one zoom level
+            past the tissue-wide view.
+        max_zoom (float, optional): Closest zoom in. Default: about 10 µm
+            across the widget's shorter side.
+        max_tiles_to_view (int, optional): Tiles in view below which
+            transcripts and cell boundaries load automatically (close-up).
+            Default: 50.
+        intermediate_zoom_limit (float, optional): How far out the TRX button
+            can still load transcripts and cell boundaries on demand, as a
+            multiple of ``max_tiles_to_view``. This counts tiles, so 9 allows a
+            view 3 times wider than close-up. 1 turns this off. Default: 9.
         rotation_orbit (float, optional): Rotating angle around orbit axis for
             point-cloud views.
         rotation_x (float, optional): Rotating angle around X axis for
@@ -287,11 +298,14 @@ class Landscape(CelldegaWidget):
     token = traitlets.Unicode("").tag(sync=True)
     creds = traitlets.Dict({}).tag(sync=True)
     max_tiles_to_view = traitlets.Int(50).tag(sync=True)
+    intermediate_zoom_limit = traitlets.Float(9.0).tag(sync=True)
 
     ini_x = traitlets.Float().tag(sync=True)
     ini_y = traitlets.Float().tag(sync=True)
     ini_z = traitlets.Float().tag(sync=True)
     ini_zoom = traitlets.Float(0).tag(sync=True)
+    min_zoom = traitlets.Float(default_value=None, allow_none=True).tag(sync=True)
+    max_zoom = traitlets.Float(default_value=None, allow_none=True).tag(sync=True)
     rotation_orbit = traitlets.Float(0).tag(sync=True)
     rotation_x = traitlets.Float(0).tag(sync=True)
     rotate = traitlets.Float(0).tag(sync=True)

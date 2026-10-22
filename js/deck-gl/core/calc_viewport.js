@@ -1,8 +1,12 @@
 import { is_orbit_technology } from '../../global_variables/image_info';
+import { sync_trx_slider_range } from '../../ui/sliders';
 import {
+  is_trx_force_shown,
   sync_trx_button,
+  trx_force_tile_factor,
   trx_load_tile_limit,
   trx_zone,
+  with_trx_loading,
 } from '../../ui/trx_handle';
 import {
   areBarDataEqual,
@@ -10,13 +14,36 @@ import {
   createEmptyTrxCompact,
   makeVisibleTileKey,
 } from '../../utils/compact_data';
+import { refresh_layer } from '../../utils/refresh_layer';
 import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
+import { is_cluster_color_mode } from '../layers/cell_color';
+import { refresh_cell_layer_data } from '../layers/cell_layer';
 import { build_nbhd_cloud_gene_bar_data } from '../layers/nbhd_cloud_shapes_layer';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
 const VIEWPORT_GENE_BAR_LIMIT = 200;
+
+/**
+ * Entering or leaving intermediate zoom with forced transcripts: cells switch
+ * between cluster colors and summed expression (see getVizCellColorContext),
+ * and the TRX size slider widens or narrows. Runs before close_up updates, so
+ * the slider is back in close-up range before it switches to opacity.
+ */
+const sync_trx_force_view = (layers_obj, viz_state) => {
+  const shown = is_trx_force_shown(viz_state);
+  if (shown === Boolean(viz_state.trx_force_shown)) return;
+  viz_state.trx_force_shown = shown;
+
+  sync_trx_slider_range(layers_obj, viz_state);
+  if (!is_cluster_color_mode(viz_state.cats)) {
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      updateTriggers: { getFillColor: [viz_state.selection_token, shown] },
+    });
+    refresh_layer(viz_state, layers_obj, 'cell_layer');
+  }
+};
 
 const ensureViewportCache = (viz_state) => {
   if (!viz_state.viewport_cache) {
@@ -272,7 +299,8 @@ export const set_trx_zone_for_view = (
   };
   viz_state.trx_zone = trx_zone(
     tiles_in_bounds(bounds, viz_state).length,
-    viz_state.max_tiles_to_view
+    viz_state.max_tiles_to_view,
+    trx_force_tile_factor(viz_state)
   );
   sync_trx_button(viz_state, layers_obj);
 };
@@ -349,10 +377,12 @@ export const calc_viewport = async (
   // intermediate zoom loads transcripts and boundaries as in close-up.
   viz_state.trx_zone = trx_zone(
     tiles_in_view.length,
-    viz_state.max_tiles_to_view
+    viz_state.max_tiles_to_view,
+    trx_force_tile_factor(viz_state)
   );
   if (viz_state.trx_zone === 'far') viz_state.trx_forced = false;
   sync_trx_button(viz_state, layers_obj);
+  sync_trx_force_view(layers_obj, viz_state);
 
   if (tiles_in_view.length < trx_load_tile_limit(viz_state)) {
     viz_state.close_up = true;
@@ -366,30 +396,21 @@ export const calc_viewport = async (
           path_data: false,
         });
 
-        const forced_load = viz_state.trx_zone === 'forceable';
-        if (forced_load) {
-          viz_state.trx_loading = true;
-          sync_trx_button(viz_state, layers_obj);
-        }
+        await with_trx_loading(viz_state, layers_obj, async () => {
+          await update_trx_layer_data(
+            viz_state.global_base_url,
+            tiles_in_view,
+            layers_obj,
+            viz_state
+          );
 
-        await update_trx_layer_data(
-          viz_state.global_base_url,
-          tiles_in_view,
-          layers_obj,
-          viz_state
-        );
-
-        await update_path_layer_data(
-          viz_state.global_base_url,
-          tiles_in_view,
-          layers_obj,
-          viz_state
-        );
-
-        if (forced_load) {
-          viz_state.trx_loading = false;
-          sync_trx_button(viz_state, layers_obj);
-        }
+          await update_path_layer_data(
+            viz_state.global_base_url,
+            tiles_in_view,
+            layers_obj,
+            viz_state
+          );
+        });
       }
 
       viewportCache.visibleTileKey = visibleTileKey;

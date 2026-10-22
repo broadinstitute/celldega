@@ -268,6 +268,11 @@ describe('ini_selected_gene_trx_focus', () => {
       const rescale_cell_exp_array = () => {};
       const sync_trx_slider = () => {};
       const update_expression_note = () => {};
+      const is_trx_force_shown = (viz_state) =>
+        viz_state.trx_zone === 'forceable' && Boolean(viz_state.trx_forced);
+      const trx_forced_size_scale = () => 3;
+      const has_gene_selection = (viz_state) =>
+        (viz_state.genes?.selected_genes ?? []).length > 0;
     `;
     sliders = load(
       '../ui/sliders.js',
@@ -275,6 +280,7 @@ describe('ini_selected_gene_trx_focus', () => {
       [
         'ini_selected_gene_trx_focus',
         'ini_trx_slider_modes',
+        'sync_trx_slider_range',
         'TRX_FOCUS_SLIDER_VALUE',
       ],
       { radius_calls }
@@ -411,5 +417,171 @@ describe('ini_selected_gene_trx_focus', () => {
 
     viz_state.obs_store.selected_genes.set([]);
     expect(viz_state.trx_slider_values.size).toBe(30);
+  });
+
+  it('allows larger transcripts while forced, and shrinks them after', () => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.max = '100';
+    slider.value = '100';
+    const viz_state = {
+      trx_slider_mode: 'size',
+      trx_zone: 'forceable',
+      trx_forced: true,
+      sliders: { trx: slider },
+    };
+    const layers_obj = { trx_layer: {} };
+
+    sliders.sync_trx_slider_range(layers_obj, viz_state);
+    expect(slider.max).toBe('300');
+    expect(slider.value).toBe('100');
+    expect(radius_calls).toHaveLength(0);
+
+    slider.value = '300';
+    viz_state.trx_zone = 'auto';
+    sliders.sync_trx_slider_range(layers_obj, viz_state);
+    expect(slider.max).toBe('100');
+    expect(slider.value).toBe('100');
+    expect(radius_calls.at(-1)).toBeCloseTo(1.0);
+  });
+
+  it('uses the forced size range when entering close-up forced', () => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.value = '30';
+    const viz_state = {
+      close_up: false,
+      trx_zone: 'forceable',
+      trx_forced: true,
+      sliders: { trx: slider },
+      obs_store: {
+        close_up: make_observable(false),
+        selected_genes: make_observable([]),
+        selected_cats: make_observable([]),
+      },
+    };
+    const layers_obj = { trx_layer: { props: { visible: true } } };
+    sliders.ini_trx_slider_modes(layers_obj, viz_state);
+    expect(slider.max).toBe('100');
+
+    viz_state.obs_store.close_up.set(true);
+    expect(slider.max).toBe('300');
+    expect(slider.value).toBe('30');
+  });
+
+  // A Landscape's TRX slider at intermediate zoom: forced transcripts widen
+  // the size range, and its top is full size.
+  const make_landscape = ({ close_up, trx_zone, trx_forced }) => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.value = '30';
+    const viz_state = {
+      close_up,
+      trx_zone,
+      trx_forced,
+      genes: { selected_genes: [] },
+      sliders: { trx: slider },
+      obs_store: {
+        close_up: make_observable(close_up),
+        selected_genes: make_observable([]),
+        selected_cats: make_observable([]),
+      },
+    };
+    const layers_obj = { trx_layer: { props: { visible: true } } };
+    sliders.ini_trx_slider_modes(layers_obj, viz_state);
+    sliders.ini_selected_gene_trx_focus(null, layers_obj, viz_state);
+    const select = (genes) => {
+      viz_state.genes.selected_genes = genes;
+      viz_state.obs_store.selected_genes.set(genes);
+    };
+    return { slider, viz_state, layers_obj, select };
+  };
+
+  it('slides to the top of the wider range at intermediate zoom', () => {
+    const { slider, select } = make_landscape({
+      close_up: true,
+      trx_zone: 'forceable',
+      trx_forced: true,
+    });
+    expect(slider.max).toBe('300');
+
+    select(['NPHS2']);
+    jest.advanceTimersByTime(500);
+    expect(slider.value).toBe('300');
+    expect(radius_calls.at(-1)).toBeCloseTo(3.0);
+
+    select([]);
+    expect(slider.value).toBe('30');
+    expect(radius_calls.at(-1)).toBeCloseTo(0.3);
+  });
+
+  it('keeps selected genes at full size as intermediate zoom starts and ends', () => {
+    const { slider, viz_state, layers_obj, select } = make_landscape({
+      close_up: true,
+      trx_zone: 'auto',
+      trx_forced: true,
+    });
+    select(['UMOD']);
+    jest.advanceTimersByTime(500);
+    expect(slider.value).toBe('100');
+
+    viz_state.trx_zone = 'forceable';
+    sliders.sync_trx_slider_range(layers_obj, viz_state);
+    expect(slider.value).toBe('300');
+    expect(radius_calls.at(-1)).toBeCloseTo(3.0);
+
+    viz_state.trx_zone = 'auto';
+    sliders.sync_trx_slider_range(layers_obj, viz_state);
+    expect(slider.value).toBe('100');
+    expect(radius_calls.at(-1)).toBeCloseTo(1.0);
+
+    // A smaller size the user picked is kept.
+    slider.value = '60';
+    viz_state.trx_zone = 'forceable';
+    sliders.sync_trx_slider_range(layers_obj, viz_state);
+    expect(slider.value).toBe('60');
+  });
+
+  it('loads transcripts for already-selected genes at full size', () => {
+    const { slider, viz_state, select } = make_landscape({
+      close_up: false,
+      trx_zone: 'forceable',
+      trx_forced: false,
+    });
+    // Zoomed out, the selection sets full close-up size directly.
+    select(['UMOD']);
+    expect(viz_state.trx_slider_values.size).toBe(
+      sliders.TRX_FOCUS_SLIDER_VALUE
+    );
+
+    // Clicking TRX.
+    viz_state.trx_forced = true;
+    viz_state.obs_store.close_up.set(true);
+    expect(slider.max).toBe('300');
+    expect(slider.value).toBe('300');
+    expect(radius_calls.at(-1)).toBeCloseTo(3.0);
+
+    select([]);
+    expect(slider.value).toBe('30');
+  });
+
+  it('restores a size from the wider range within the close-up range', () => {
+    const { slider, viz_state, layers_obj, select } = make_landscape({
+      close_up: true,
+      trx_zone: 'forceable',
+      trx_forced: true,
+    });
+    slider.value = '250';
+    select(['UMOD']);
+    jest.advanceTimersByTime(500);
+
+    // Zooming out past intermediate zoom, then clearing the selection.
+    viz_state.trx_zone = 'far';
+    viz_state.trx_forced = false;
+    sliders.sync_trx_slider_range(layers_obj, viz_state);
+    viz_state.obs_store.close_up.set(false);
+    select([]);
+    expect(viz_state.trx_slider_values.size).toBe(100);
+    expect(radius_calls.at(-1)).toBeCloseTo(1.0);
   });
 });

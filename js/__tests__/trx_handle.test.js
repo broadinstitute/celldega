@@ -11,15 +11,19 @@ const source = fs
 const module_ = { exports: {} };
 new Function(
   'module',
-  `${source}\nmodule.exports = { TRX_FORCE_TILE_FACTOR, trx_zone, trx_load_tile_limit, sync_trx_button, sync_trx_slider, update_expression_note };`
+  `${source}\nmodule.exports = { TRX_FORCE_TILE_FACTOR, trx_force_tile_factor, trx_forced_size_scale, trx_zone, trx_load_tile_limit, is_trx_force_shown, sync_trx_button, sync_trx_slider, update_expression_note, with_trx_loading };`
 )(module_);
 const {
   TRX_FORCE_TILE_FACTOR,
+  trx_force_tile_factor,
+  trx_forced_size_scale,
   trx_zone,
   trx_load_tile_limit,
+  is_trx_force_shown,
   sync_trx_button,
   sync_trx_slider,
   update_expression_note,
+  with_trx_loading,
 } = module_.exports;
 
 // Minimal d3-selection stand-in that records styles.
@@ -49,6 +53,43 @@ describe('trx_zone', () => {
     expect(
       trx_load_tile_limit({ max_tiles_to_view: 50, trx_forced: true })
     ).toBe(50 * TRX_FORCE_TILE_FACTOR);
+  });
+
+  it('is a forced view only at intermediate zoom after a click', () => {
+    expect(is_trx_force_shown({ trx_zone: 'forceable' })).toBe(false);
+    expect(
+      is_trx_force_shown({ trx_zone: 'forceable', trx_forced: true })
+    ).toBe(true);
+    // Close-up keeps trx_forced, but transcripts load there anyway.
+    expect(is_trx_force_shown({ trx_zone: 'auto', trx_forced: true })).toBe(
+      false
+    );
+  });
+
+  it('takes the limit from intermediate_zoom_limit, at least 1', () => {
+    expect(trx_force_tile_factor({})).toBe(TRX_FORCE_TILE_FACTOR);
+    expect(trx_force_tile_factor({ intermediate_zoom_limit: null })).toBe(
+      TRX_FORCE_TILE_FACTOR
+    );
+    expect(trx_force_tile_factor({ intermediate_zoom_limit: 4 })).toBe(4);
+    expect(trx_force_tile_factor({ intermediate_zoom_limit: 0.5 })).toBe(1);
+
+    expect(trx_zone(50, 50, 4)).toBe('forceable');
+    expect(trx_zone(200, 50, 4)).toBe('far');
+    // 1 leaves no intermediate zoom.
+    expect(trx_zone(50, 50, 1)).toBe('far');
+    expect(
+      trx_load_tile_limit({
+        max_tiles_to_view: 50,
+        intermediate_zoom_limit: 4,
+        trx_forced: true,
+      })
+    ).toBe(200);
+  });
+
+  it('scales the forced size range with the view width', () => {
+    expect(trx_forced_size_scale({})).toBe(3);
+    expect(trx_forced_size_scale({ intermediate_zoom_limit: 16 })).toBe(4);
   });
 });
 
@@ -99,10 +140,93 @@ describe('sync_trx_button', () => {
     expect(button.styles.color).toBe('blue');
   });
 
+  it('dims close-up blue while transcripts load, but not gray', () => {
+    const viz_state = make_viz_state('auto', {
+      trx_button_zone: 'auto',
+      trx_loading: true,
+    });
+    const { styles } = viz_state.buttons.buttons.trx;
+    sync_trx_button(viz_state, {});
+    expect(styles.opacity).toBe(0.5);
+
+    styles.color = 'gray'; // transcripts toggled off
+    sync_trx_button(viz_state, {});
+    expect(styles.opacity).toBe(1);
+  });
+
+  it('arrives in close-up dimmed blue while zooming in loads transcripts', () => {
+    const viz_state = make_viz_state('far');
+    const { styles } = viz_state.buttons.buttons.trx;
+    sync_trx_button(viz_state, {});
+
+    viz_state.trx_zone = 'auto';
+    viz_state.trx_loading = true;
+    sync_trx_button(viz_state, { trx_layer: { props: { visible: true } } });
+    expect(styles.color).toBe('blue');
+    expect(styles.opacity).toBe(0.5);
+  });
+
   it('does nothing without a zone (e.g. Yearbook, point clouds)', () => {
     const viz_state = make_viz_state(undefined);
     sync_trx_button(viz_state, {});
     expect(viz_state.buttons.buttons.trx.styles).toEqual({ color: 'blue' });
+  });
+});
+
+describe('with_trx_loading', () => {
+  const make_close_up = () => ({
+    trx_zone: 'auto',
+    trx_button_zone: 'auto',
+    buttons: { buttons: { trx: make_button('blue') } },
+  });
+  const deferred = () => {
+    let resolve;
+    const promise = new Promise((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  };
+
+  it('dims TRX until the view loads', async () => {
+    const viz_state = make_close_up();
+    const { styles } = viz_state.buttons.buttons.trx;
+    const tiles = deferred();
+    const loading = with_trx_loading(viz_state, {}, () => tiles.promise);
+    expect(styles.opacity).toBe(0.5);
+
+    tiles.resolve();
+    await loading;
+    expect(styles.opacity).toBe(1);
+    expect(styles.color).toBe('blue');
+  });
+
+  it('stays dimmed until the latest of overlapping loads finishes', async () => {
+    const viz_state = make_close_up();
+    const { styles } = viz_state.buttons.buttons.trx;
+    const first = deferred();
+    const second = deferred();
+    const first_load = with_trx_loading(viz_state, {}, () => first.promise);
+    const second_load = with_trx_loading(viz_state, {}, () => second.promise);
+
+    first.resolve();
+    await first_load;
+    expect(styles.opacity).toBe(0.5);
+
+    second.resolve();
+    await second_load;
+    expect(styles.opacity).toBe(1);
+  });
+
+  it('undims when a load fails', async () => {
+    const viz_state = make_close_up();
+    const { styles } = viz_state.buttons.buttons.trx;
+    await expect(
+      with_trx_loading(viz_state, {}, async () => {
+        throw new Error('fetch failed');
+      })
+    ).rejects.toThrow('fetch failed');
+    expect(styles.opacity).toBe(1);
+    expect(viz_state.trx_loading).toBe(false);
   });
 });
 

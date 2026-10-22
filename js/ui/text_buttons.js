@@ -362,6 +362,8 @@ const trx_button_callback_ist = async (
   toggle_visible_button(event);
   toggle_slider(viz_state.sliders.trx, is_visible);
   toggle_trx_layer_visibility(layers_obj, is_visible);
+  // Dimmed while loading only when on.
+  sync_trx_button(viz_state, layers_obj);
 
   if (is_visible) {
     toggle_nbhd_layer_visibility(layers_obj, false);

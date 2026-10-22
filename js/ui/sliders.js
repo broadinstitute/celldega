@@ -15,7 +15,13 @@ import { is_orbit_technology } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
 import { register_ui_cleanup } from '../utils/ui_cleanup';
 
-import { sync_trx_slider, update_expression_note } from './trx_handle';
+import {
+  has_gene_selection,
+  is_trx_force_shown,
+  sync_trx_slider,
+  trx_forced_size_scale,
+  update_expression_note,
+} from './trx_handle';
 
 const clamp_to_byte = (value) => {
   return Math.max(0, Math.min(255, Math.round(value)));
@@ -365,7 +371,7 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
       // rather than the unrelated legacy per-transcript radius default.
       ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
         ? 75
-        : viz_state.genes.trx_ini_raidus * 100;
+        : viz_state.genes.trx_ini_radius * 100;
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'nbhd':
@@ -455,9 +461,32 @@ export const toggle_slider = (slider, state) => {
   slider.disabled = !state;
 };
 
-/** TRX slider position used while a gene is selected (full transcript size). */
+/**
+ * TRX slider position for full transcript size in close-up, the top of its
+ * range. Gene selections slide to it (see ini_selected_gene_trx_focus).
+ */
 export const TRX_FOCUS_SLIDER_VALUE = 100;
 const TRX_FOCUS_DURATION_MS = 300;
+
+/**
+ * Top of the TRX size slider (full transcript size): larger while transcripts
+ * are forced at intermediate zoom (see trx_handle.js).
+ */
+const trx_size_slider_max = (viz_state) =>
+  Math.round(
+    TRX_FOCUS_SLIDER_VALUE *
+      (is_trx_force_shown(viz_state) ? trx_forced_size_scale(viz_state) : 1)
+  );
+
+/**
+ * Transcript size once the size slider's top changes from `old_max` to
+ * `max`: with genes selected, full size stays full size; otherwise the size
+ * is kept, within range.
+ */
+const resize_trx_size = (viz_state, value, old_max, max) =>
+  has_gene_selection(viz_state) && value >= old_max
+    ? max
+    : Math.min(value, max);
 
 /** Ease-in-out cubic on t in [0, 1]. */
 const ease_in_out = (t) =>
@@ -466,11 +495,14 @@ const ease_in_out = (t) =>
 /**
  * Enlarge transcripts while a gene is selected, then restore the previous
  * size when the selection clears. Selecting a gene (bar, search, transcript
- * click, or a linked Clustergram) animates the TRX slider to full size;
- * clearing it jumps straight back to wherever the slider was before, since
- * every gene's transcripts reappear at that moment and shrinking them all in
- * an animation reads as a glitch. Dragging the slider during the animation
- * stops it, and the user's value wins.
+ * click, or a linked Clustergram) animates the TRX slider to full size, the
+ * top of its range, which is larger at intermediate zoom with transcripts
+ * forced; full size then stays full size as the view enters or leaves that
+ * zoom (see resize_trx_size). Clearing the selection jumps straight back to
+ * wherever the slider was before, since every gene's transcripts reappear at
+ * that moment and shrinking them all in an animation reads as a glitch.
+ * Dragging the slider during the animation stops it, and the user's value
+ * wins.
  *
  * Neighborhood-cloud repurposes the TRX slider as an opacity control, so it is
  * left alone there.
@@ -535,9 +567,10 @@ export const ini_selected_gene_trx_focus = (
         Array.isArray(selected_genes) && selected_genes.length > 0;
       if (focused && restore_value === null) {
         restore_value = current_size();
-        animate_to(TRX_FOCUS_SLIDER_VALUE);
+        animate_to(trx_size_slider_max(viz_state));
       } else if (!focused && restore_value !== null) {
-        const target = restore_value;
+        // Within range: it may be from intermediate zoom's wider one.
+        const target = Math.min(restore_value, trx_size_slider_max(viz_state));
         restore_value = null;
         cancel_animation();
         apply_value(target);
@@ -551,6 +584,28 @@ export const ini_selected_gene_trx_focus = (
     slider.removeEventListener('input', on_user_input);
     unsubscribe?.();
   });
+};
+
+/**
+ * Widen the TRX size slider while transcripts are forced at intermediate zoom
+ * (see trx_handle.js), and narrow it back after, shrinking transcripts that
+ * were made larger than the close-up max. Full size with genes selected
+ * stays full size (see resize_trx_size).
+ */
+export const sync_trx_slider_range = (layers_obj, viz_state) => {
+  const slider = viz_state.sliders?.trx;
+  if (!slider || viz_state.trx_slider_mode !== 'size') return;
+
+  const value = Number(slider.value);
+  const old_max = Number(slider.max);
+  const max = trx_size_slider_max(viz_state);
+  slider.max = String(max);
+  const size = resize_trx_size(viz_state, value, old_max, max);
+  set_slider_value(slider, size);
+  if (size !== value) {
+    update_trx_layer_radius(layers_obj, size / 100);
+    refresh_layer(viz_state, layers_obj, 'trx_layer');
+  }
 };
 
 /**
@@ -573,7 +628,21 @@ export const ini_trx_slider_modes = (layers_obj, viz_state) => {
         );
       }
       viz_state.trx_slider_mode = mode;
-      set_slider_value(slider, viz_state.trx_slider_values[mode]);
+      const max = mode === 'size' ? trx_size_slider_max(viz_state) : 100;
+      slider.max = String(max);
+      let value = viz_state.trx_slider_values[mode];
+      if (mode === 'size') {
+        // Saved in close-up's range: the wider one ends before close_up does.
+        const size = resize_trx_size(
+          viz_state,
+          value,
+          TRX_FOCUS_SLIDER_VALUE,
+          max
+        );
+        if (size !== value) update_trx_layer_radius(layers_obj, size / 100);
+        value = size;
+      }
+      set_slider_value(slider, value);
       slider.title =
         mode === 'size' ? 'Transcript size' : 'Cell expression opacity';
       if (mode === 'size') {

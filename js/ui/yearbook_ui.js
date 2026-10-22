@@ -764,10 +764,9 @@ export const make_yearbook_ui_container = (
       const names = Array.isArray(selected_cats) ? selected_cats : [];
       apply_bar_selection_highlight(svg.selectAll('g'), names);
 
-      if (names.length === 0) {
-        container.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
+      // Clearing the selection keeps the scroll position, so a bar just
+      // deselected stays in view.
+      if (names.length === 0) return;
 
       if (names.length === 1) {
         const inst_cat = String(names[0]);

@@ -14,6 +14,7 @@ import {
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
 import { set_views } from '../deck-gl/core/views';
+import { landscape_zoom_limits } from '../deck-gl/core/zoom_limits';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   get_point_cloud_cell_radius,
@@ -290,9 +291,11 @@ export const landscape_ist = async (
   // 2D technology); CellCloud/NeighborhoodCloud set it to their own filename.
   // set_landscape_parameters falls back to landscape_parameters.json when the
   // requested file is absent, so pre-rename datasets still render.
+  const model_option = (name) =>
+    typeof ini_model?.get === 'function' ? ini_model.get(name) : undefined;
+
   const manifest_name =
-    (typeof ini_model?.get === 'function' && ini_model.get('manifest_name')) ||
-    'landscape_parameters.json';
+    model_option('manifest_name') || 'landscape_parameters.json';
 
   viz_state.obs_store = create_obs_store();
 
@@ -310,6 +313,8 @@ export const landscape_ist = async (
   }
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
+  // How far past close-up TRX can load transcripts (see trx_handle.js).
+  viz_state.intermediate_zoom_limit = model_option('intermediate_zoom_limit');
 
   // Set up centralized image visibility management via obs_store
   // This handles the logic for showing/hiding images based on gene/cluster selection and zoom level
@@ -1034,6 +1039,25 @@ export const landscape_ist = async (
     rotation_orbit,
     rotation_x
   );
+
+  if (!is_orbit_technology(tech)) {
+    const canvas_sides = [
+      viz_state.root?.clientWidth,
+      viz_state.containers?.root_dim?.height,
+    ].filter((side) => side > 0);
+    viz_state.views = set_views(
+      tech,
+      landscape_zoom_limits({
+        fit_zoom: viz_state.spatial.ini_zoom,
+        initial_zoom: viz_state.initial_view_state.zoom,
+        canvas_size: Math.min(...canvas_sides),
+        microns_per_unit: micronsPerPixel,
+        min_zoom: model_option('min_zoom'),
+        max_zoom: model_option('max_zoom'),
+      })
+    );
+    set_views_prop(deck_ist, viz_state.views);
+  }
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
 

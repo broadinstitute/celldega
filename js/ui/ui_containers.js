@@ -974,14 +974,10 @@ export const make_ist_ui_container = (
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
       // --- 1. Update the styles ---
+      // Clearing the selection keeps the scroll position, so a bar just
+      // deselected stays in view.
       if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
         svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);
-
-        // Scroll to top if we're resetting
-        container.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
       } else {
         svg
           .selectAll('g')

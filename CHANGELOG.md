@@ -4,7 +4,7 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.28.0] - Unreleased
 
 ### Added
 
@@ -22,11 +22,21 @@ All notable changes to Celldega are documented here. This project follows
   falling back to cluster colors.
 - Landscape: the TRX button loads transcripts and cell boundaries on demand
   at intermediate zoom. Below `max_tiles_to_view` tiles they load
-  automatically, as before. Up to 4 times that many tiles, TRX turns gray and
-  clicking it loads them anyway (blue once loaded, dimmed while loading); they
-  keep updating as you pan until you click TRX again or zoom out further.
-  Beyond that (including a new Landscape's tissue-wide view), TRX is faded
-  and not clickable.
+  automatically, as before. Up to `intermediate_zoom_limit` times that many
+  tiles (default 9, a view 3 times wider), TRX turns gray and clicking it
+  loads them anyway (blue once loaded, dimmed while loading); they keep
+  updating as you pan until you click TRX again or zoom out further. Beyond
+  that (including a new Landscape's tissue-wide view), TRX is faded and not
+  clickable. While transcripts are loaded this way, cells keep their cluster
+  colors with genes selected (the transcripts show the genes), and the TRX
+  slider can make transcripts larger than in close-up, by as much as the view
+  is wider (3 times by default). In close-up, TRX is likewise dimmed while
+  the view's transcripts load, e.g. after zooming in or panning.
+- Landscape: zooming stops one zoom level past the tissue-wide view and at
+  about 10 µm across the widget's shorter side; set `min_zoom`/`max_zoom` to
+  change either. Panning is not limited.
+- Landscape and Yearbook: the CELL slider at 0 hides cell centroids, leaving
+  cell boundaries (and transcripts) visible.
 - Landscape: the TRX slider sets transcript size in close-up and, zoomed out,
   the expression at which cells reach full opacity for the selected gene(s),
   shown as a note at the top of the gene panel. Each role keeps its own slider
@@ -38,7 +48,16 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape and Yearbook: selecting a gene (bar, search, transcript click, or
   a linked Clustergram) smoothly enlarges transcripts to full size, and
   clearing the selection snaps back to the previous TRX slider size. Dragging
-  the slider during the transition keeps the user's value.
+  the slider during the transition keeps the user's value. Full size is the
+  top of the TRX slider; in a Landscape that includes its wider range at
+  intermediate zoom, and full size stays full size as the view enters or
+  leaves intermediate zoom.
+
+### Changed
+
+- Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
+  selection another way) keeps the bar panels' scroll position instead of
+  scrolling them back to the top.
 
 ### Fixed
 
@@ -53,6 +72,9 @@ All notable changes to Celldega are documented here. This project follows
   flipping to the left of or above the cursor near the right and bottom
   edges. Transcript tooltips appear once their UniProt text has loaded, at
   their final position, instead of jumping as they resize.
+- Landscape and Yearbook: the TRX slider starts at the actual initial
+  transcript size instead of the middle of its range, so the first drag (or
+  clearing a gene selection) no longer jumps transcripts to a larger size.
 
 ## [0.27.0]
 

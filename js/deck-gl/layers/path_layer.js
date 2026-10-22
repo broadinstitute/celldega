@@ -6,6 +6,9 @@ import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_cell_tiles_in_view } from '../../vector_tile/polygons/grab_cell_tiles_in_view';
 
 import { is_cluster_color_mode } from './cell_color';
+import { create_segmentation_error_handler } from './segmentation_recovery';
+
+const pathDataRequests = new WeakMap();
 
 export const get_path_color = (cats, i, d) => {
   const inst_cell_id = cats.polygon_cell_names[d.index];
@@ -65,6 +68,7 @@ export const ini_path_layer = (viz_state) => {
     widthMinPixels: 1,
     getPath: (d) => d,
     getColor: (i, d) => get_path_color(viz_state.cats, i, d),
+    onError: create_segmentation_error_handler(viz_state),
     widthUnits: 'pixels',
     ...getModelMatrixProps(viz_state.rotation),
   });
@@ -100,15 +104,77 @@ export const update_path_layer_data = async (
   layers_obj,
   viz_state
 ) => {
-  const polygonPathsConcat = await grab_cell_tiles_in_view(
-    base_url,
-    tiles_in_view,
-    viz_state
-  );
+  if (
+    viz_state.disposed ||
+    (viz_state.global_base_url !== undefined &&
+      base_url !== viz_state.global_base_url)
+  ) {
+    return false;
+  }
 
-  layers_obj.path_layer = layers_obj.path_layer.clone({
-    data: polygonPathsConcat,
+  const request = {};
+  pathDataRequests.set(viz_state, request);
+  const datasetUrl = viz_state.global_base_url;
+  const segmentationVersion = viz_state.seg?.version;
+  const viewportRequestId = viz_state.viewport_request_id;
+  const { cats } = viz_state;
+  const cellReader = viz_state.row_group_readers?.cell;
+  // Tile requests can finish out of order after a pan, zoom, or dataset change.
+  // Discard the complete result before touching either geometry or cell IDs.
+  const isCurrentRequest = () =>
+    pathDataRequests.get(viz_state) === request &&
+    !viz_state.disposed &&
+    !cellReader?.disposed &&
+    datasetUrl === viz_state.global_base_url &&
+    segmentationVersion === viz_state.seg?.version &&
+    viewportRequestId === viz_state.viewport_request_id &&
+    cats === viz_state.cats &&
+    cellReader === viz_state.row_group_readers?.cell;
+
+  let result;
+  let succeeded = true;
+  try {
+    result = await grab_cell_tiles_in_view(base_url, tiles_in_view, viz_state);
+    if (
+      !Array.isArray(result.paths) ||
+      !Array.isArray(result.cellNames) ||
+      result.paths.length !== result.cellNames.length
+    ) {
+      throw new Error(
+        'Segmentation paths and cell names must have equal lengths'
+      );
+    }
+  } catch (error) {
+    if (!isCurrentRequest()) return false;
+
+    // Fetch caches hold decoded Arrow tables before geometry validation. Evict
+    // a bad result so the next viewport can fetch/decode fresh data to recover.
+    viz_state.cache?.cell?.clear?.();
+    cellReader?.requestCache?.clear?.();
+
+    // Never leave a previously rendered set of boundaries paired with failed
+    // or partially decoded data. A future viewport update can retry the tiles.
+    result = { paths: [], cellNames: [] };
+    succeeded = false;
+    // eslint-disable-next-line no-console -- Surface invalid tile data for diagnosis.
+    console.error('[segmentation] Failed to load cell boundaries:', error);
+  }
+
+  if (!isCurrentRequest()) {
+    return false;
+  }
+
+  // PathLayer packs positions and boundary masks into separate GPU buffers.
+  // Recreate both together when tiles change, rather than carrying partial
+  // renderer state from an earlier geometry update into the new outlines.
+  viz_state.path_data_revision = (viz_state.path_data_revision || 0) + 1;
+  const pathLayer = layers_obj.path_layer.clone({
+    id: `path-layer-data-${viz_state.path_data_revision}`,
+    data: result.paths,
+    onError: create_segmentation_error_handler(viz_state),
   });
+  cats.polygon_cell_names = result.cellNames;
+  layers_obj.path_layer = pathLayer;
 
   // ensure state updated prior to deck_ready notification
   viz_state.layers_obj = layers_obj;
@@ -117,6 +183,8 @@ export const update_path_layer_data = async (
     ...viz_state.obs_store.deck_check.get(),
     path_data: true,
   });
+
+  return succeeded;
 };
 
 export const set_path_layer_onclick = (deck_ist, layers_obj, viz_state) => {

@@ -152,6 +152,7 @@ describe('update_cell_exp_array with several genes', () => {
   };
   const gate = { pending: null };
   let update_cell_exp_array;
+  let rescale_cell_exp_array;
 
   beforeAll(() => {
     const shims = `
@@ -162,10 +163,10 @@ describe('update_cell_exp_array with several genes', () => {
       };
       const getGeneExpressionColumns = (table, gene) => expression[gene];
     `;
-    ({ update_cell_exp_array } = load(
+    ({ update_cell_exp_array, rescale_cell_exp_array } = load(
       '../global_variables/cell_exp_array.js',
       shims,
-      ['update_cell_exp_array'],
+      ['update_cell_exp_array', 'rescale_cell_exp_array'],
       { expression, gate }
     ));
   });
@@ -195,6 +196,29 @@ describe('update_cell_exp_array with several genes', () => {
     );
     expect(applied).toBe(true);
     // Sums: a = 4, b = 1 + 1 = 2, c = 2; largest sum = 4.
+    expect(Array.from(cats.cell_exp_array)).toEqual([
+      255,
+      byte(2, 4),
+      byte(2, 4),
+    ]);
+  });
+
+  it('rescales from kept raw values when the opacity scale changes', async () => {
+    const cats = make_cats();
+    await update_cell_exp_array(
+      cats,
+      genes,
+      '/data',
+      ['A', 'B'],
+      'default',
+      false
+    );
+    // Full opacity at half the max sum (4 * 0.5 = 2): b and c saturate.
+    cats.cell_exp_scale = 0.5;
+    rescale_cell_exp_array(cats);
+    expect(Array.from(cats.cell_exp_array)).toEqual([255, 255, 255]);
+    cats.cell_exp_scale = 1;
+    rescale_cell_exp_array(cats);
     expect(Array.from(cats.cell_exp_array)).toEqual([
       255,
       byte(2, 4),
@@ -311,6 +335,7 @@ describe('shift-click on gene bars', () => {
       };
       const toggle_slider = () => {};
       const toggle_trx_layer_visibility = () => {};
+      const sync_trx_button = () => {};
       const new_toggle_cell_layer_visibility = () => {};
       const refresh_layer = () => {};
       const register_ui_cleanup = () => {};

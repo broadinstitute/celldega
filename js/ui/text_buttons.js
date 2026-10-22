@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 
+import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
 import { toggle_nbhd_cloud_shapes_layer_visibility } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
@@ -22,6 +23,7 @@ import { crop_filter_signature } from '../matrix/crop_filter';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import { toggle_slider } from './sliders';
+import { sync_trx_button } from './trx_handle';
 
 let is_visible;
 
@@ -336,6 +338,27 @@ const trx_button_callback_ist = async (
   layers_obj,
   viz_state
 ) => {
+  // Past the close-up limit, TRX is a handle that loads transcripts (and
+  // boundaries) on demand -- see trx_handle.js. Too far out it does nothing.
+  if (viz_state.trx_zone === 'far') return;
+  if (viz_state.trx_zone === 'forceable') {
+    viz_state.trx_forced = !viz_state.trx_forced;
+    if (viz_state.trx_forced) {
+      toggle_trx_layer_visibility(layers_obj, true);
+      toggle_slider(viz_state.sliders.trx, true);
+    }
+    sync_trx_button(viz_state, layers_obj);
+    if (viz_state.last_viewport_params) {
+      await calc_viewport(
+        viz_state.last_viewport_params,
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+    }
+    return;
+  }
+
   toggle_visible_button(event);
   toggle_slider(viz_state.sliders.trx, is_visible);
   toggle_trx_layer_visibility(layers_obj, is_visible);

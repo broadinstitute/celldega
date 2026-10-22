@@ -92,6 +92,28 @@ const load_gene_expression = (base_url, version, gene, aws, cbgReader) => {
 };
 
 /**
+ * Expression at which cells reach full opacity: the max, times the
+ * zoomed-out TRX slider's scale (`cats.cell_exp_scale`, 1 by default).
+ */
+export const cell_exp_display_max = (cats) =>
+  (cats.cell_exp_max ?? 0) * (cats.cell_exp_scale ?? 1);
+
+/** Recompute `cats.cell_exp_array` from the kept raw expression. */
+export const rescale_cell_exp_array = (cats) => {
+  const { cell_exp_raw: summed, cell_exp_included: included } = cats;
+  if (!summed) return;
+
+  const max_exp = cell_exp_display_max(cats);
+  const new_exp_array = ensureExpressionArray(cats);
+  for (let index = 0; index < summed.length; index += 1) {
+    if (included[index]) {
+      new_exp_array[index] = toExpressionByte(summed[index], max_exp);
+    }
+  }
+  cats.cell_exp_array = new_exp_array;
+};
+
+/**
  * Fill `cats.cell_exp_array` with the expression of `inst_gene`, a gene name
  * or a list of genes. Several genes are summed per cell (raw values), and the
  * sum is scaled like a single gene, against the largest summed value instead
@@ -156,18 +178,13 @@ export const update_cell_exp_array = async (
 
   // One gene keeps its whole-dataset max from meta_gene; a sum uses the
   // largest summed value over all cells (the same whole-dataset reference).
-  const max_exp =
+  cats.cell_exp_max =
     gene_list.length === 1
       ? Number(genes.meta_gene[gene_list[0]].max)
       : summed.reduce((max, value) => Math.max(max, value), 0);
-
-  const new_exp_array = ensureExpressionArray(cats);
-  for (let index = 0; index < num_cells; index += 1) {
-    if (included[index]) {
-      new_exp_array[index] = toExpressionByte(summed[index], max_exp);
-    }
-  }
-
-  cats.cell_exp_array = new_exp_array;
+  // Kept so the zoomed-out TRX slider can rescale opacity without refetching.
+  cats.cell_exp_raw = summed;
+  cats.cell_exp_included = included;
+  rescale_cell_exp_array(cats);
   return true;
 };

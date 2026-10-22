@@ -1,5 +1,10 @@
 import { is_orbit_technology } from '../../global_variables/image_info';
 import {
+  sync_trx_button,
+  trx_load_tile_limit,
+  trx_zone,
+} from '../../ui/trx_handle';
+import {
   areBarDataEqual,
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -218,6 +223,60 @@ const computeViewportCellBars = (viz_state, viewportCache) => {
   return nextCellBars;
 };
 
+/** Tiles overlapping `bounds` (a view's extent, before rotation). */
+const tiles_in_bounds = (bounds, viz_state) => {
+  let tile_bounds = bounds;
+  if (viz_state.rotation?.hasRotation) {
+    const corners = [
+      [bounds.min_x, bounds.min_y],
+      [bounds.min_x, bounds.max_y],
+      [bounds.max_x, bounds.min_y],
+      [bounds.max_x, bounds.max_y],
+    ].map(([x, y]) => rotate_point_inverse(x, y, viz_state.rotation));
+    const xs = corners.map(([x]) => x);
+    const ys = corners.map(([, y]) => y);
+    tile_bounds = {
+      min_x: Math.min(...xs),
+      max_x: Math.max(...xs),
+      min_y: Math.min(...ys),
+      max_y: Math.max(...ys),
+    };
+  }
+
+  return visibleTiles(
+    tile_bounds.min_x,
+    tile_bounds.max_x,
+    tile_bounds.min_y,
+    tile_bounds.max_y,
+    viz_state.img.landscape_parameters.tile_size
+  );
+};
+
+/**
+ * Set the TRX button's zoom zone for a view without loading anything. The
+ * zone is otherwise only set when the view changes, so a new Landscape uses
+ * this for its initial view.
+ */
+export const set_trx_zone_for_view = (
+  { height, width, zoom, target },
+  layers_obj,
+  viz_state
+) => {
+  const scale = Math.pow(2, zoom);
+  const [x, y] = target;
+  const bounds = {
+    min_x: x - width / (2 * scale),
+    max_x: x + width / (2 * scale),
+    min_y: y - height / (2 * scale),
+    max_y: y + height / (2 * scale),
+  };
+  viz_state.trx_zone = trx_zone(
+    tiles_in_bounds(bounds, viz_state).length,
+    viz_state.max_tiles_to_view
+  );
+  sync_trx_button(viz_state, layers_obj);
+};
+
 export const calc_viewport = async (
   { height, width, zoom, target },
   deck_ist,
@@ -225,7 +284,8 @@ export const calc_viewport = async (
   viz_state
 ) => {
   const wasCloseUp = viz_state.close_up;
-  const { tile_size } = viz_state.img.landscape_parameters;
+  // Kept so a TRX click can re-run this for the current view.
+  viz_state.last_viewport_params = { height, width, zoom, target };
   const isPointCloud = is_orbit_technology(
     viz_state.img?.landscape_parameters?.technology
   );
@@ -282,39 +342,19 @@ export const calc_viewport = async (
     return;
   }
 
-  const tile_bounds = (() => {
-    if (!viz_state.rotation?.hasRotation) {
-      return viz_state.bounds;
-    }
-
-    const corners = [
-      [viz_state.bounds.min_x, viz_state.bounds.min_y],
-      [viz_state.bounds.min_x, viz_state.bounds.max_y],
-      [viz_state.bounds.max_x, viz_state.bounds.min_y],
-      [viz_state.bounds.max_x, viz_state.bounds.max_y],
-    ].map(([x, y]) => rotate_point_inverse(x, y, viz_state.rotation));
-
-    const xs = corners.map(([x]) => x);
-    const ys = corners.map(([, y]) => y);
-
-    return {
-      min_x: Math.min(...xs),
-      max_x: Math.max(...xs),
-      min_y: Math.min(...ys),
-      max_y: Math.max(...ys),
-    };
-  })();
-
-  const tiles_in_view = visibleTiles(
-    tile_bounds.min_x,
-    tile_bounds.max_x,
-    tile_bounds.min_y,
-    tile_bounds.max_y,
-    tile_size
-  );
+  const tiles_in_view = tiles_in_bounds(viz_state.bounds, viz_state);
   const visibleTileKey = makeVisibleTileKey(tiles_in_view);
 
-  if (tiles_in_view.length < viz_state.max_tiles_to_view) {
+  // Past the automatic limit, a TRX click (trx_forced) raises it, so
+  // intermediate zoom loads transcripts and boundaries as in close-up.
+  viz_state.trx_zone = trx_zone(
+    tiles_in_view.length,
+    viz_state.max_tiles_to_view
+  );
+  if (viz_state.trx_zone === 'far') viz_state.trx_forced = false;
+  sync_trx_button(viz_state, layers_obj);
+
+  if (tiles_in_view.length < trx_load_tile_limit(viz_state)) {
     viz_state.close_up = true;
     viz_state.obs_store.close_up.set(true);
 
@@ -325,6 +365,12 @@ export const calc_viewport = async (
           trx_data: false,
           path_data: false,
         });
+
+        const forced_load = viz_state.trx_zone === 'forceable';
+        if (forced_load) {
+          viz_state.trx_loading = true;
+          sync_trx_button(viz_state, layers_obj);
+        }
 
         await update_trx_layer_data(
           viz_state.global_base_url,
@@ -339,6 +385,11 @@ export const calc_viewport = async (
           layers_obj,
           viz_state
         );
+
+        if (forced_load) {
+          viz_state.trx_loading = false;
+          sync_trx_button(viz_state, layers_obj);
+        }
       }
 
       viewportCache.visibleTileKey = visibleTileKey;

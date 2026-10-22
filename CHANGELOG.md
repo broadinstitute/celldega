@@ -20,6 +20,19 @@ All notable changes to Celldega are documented here. This project follows
   20 highest-expressed genes, with a note in the gene panel. Clustergram row
   dendrogram selections of several genes now use this view instead of
   falling back to cluster colors.
+- Landscape: the TRX button loads transcripts and cell boundaries on demand
+  at intermediate zoom. Below `max_tiles_to_view` tiles they load
+  automatically, as before. Up to 4 times that many tiles, TRX turns gray and
+  clicking it loads them anyway (blue once loaded, dimmed while loading); they
+  keep updating as you pan until you click TRX again or zoom out further.
+  Beyond that (including a new Landscape's tissue-wide view), TRX is faded
+  and not clickable.
+- Landscape: the TRX slider sets transcript size in close-up and, zoomed out,
+  the expression at which cells reach full opacity for the selected gene(s),
+  shown as a note at the top of the gene panel. Each role keeps its own slider
+  position; zoomed out with no gene selected, the slider is disabled.
+- Landscape and Yearbook: cell outlines scale with zoom, so they stay thin when
+  zoomed out (no thicker than before when zoomed in).
 - Landscape and Yearbook: hovering a gene bar shows the gene's UniProt name
   and description, and hovering a cluster bar shows its name and cell count.
 - Landscape and Yearbook: selecting a gene (bar, search, transcript click, or

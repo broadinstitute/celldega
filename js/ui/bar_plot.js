@@ -16,6 +16,7 @@ import { select_genes } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
 import { toggle_slider } from '../ui/sliders';
+import { sync_trx_button } from '../ui/trx_handle';
 import { refresh_layer } from '../utils/refresh_layer';
 import { register_ui_cleanup } from '../utils/ui_cleanup';
 
@@ -264,8 +265,8 @@ export const bar_callback_gene = async (
 
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
-
   toggle_slider(_viz_state.sliders.trx, true);
+  sync_trx_button(_viz_state, _layers_obj);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
 
   toggle_trx_layer_visibility(_layers_obj, true);

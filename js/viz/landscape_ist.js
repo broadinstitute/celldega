@@ -2,7 +2,10 @@ import { ViewMode } from '@deck.gl-community/editable-layers';
 import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
 
-import { calc_viewport } from '../deck-gl/core/calc_viewport';
+import {
+  calc_viewport,
+  set_trx_zone_for_view,
+} from '../deck-gl/core/calc_viewport';
 import {
   ini_deck,
   set_deck_on_view_state_change,
@@ -99,6 +102,7 @@ import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
+import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import {
   createEmptyCellCompact,
@@ -898,6 +902,7 @@ export const landscape_ist = async (
           toggle_slider(viz_state.sliders.nbhd, false);
         }
       }
+      sync_trx_button(viz_state, layers_obj);
       if (visible) {
         viz_state.obs_store.viz_edit_layer.set(false);
       }
@@ -936,6 +941,7 @@ export const landscape_ist = async (
         toggle_nbhd_layer_visibility(layers_obj, false);
         toggle_trx_layer_visibility(layers_obj, false);
         viz_state.buttons.buttons.trx.style('color', 'gray');
+        sync_trx_button(viz_state, layers_obj);
         d3.select(viz_state.edit.buttons.nbhd).style('color', 'blue');
         d3.select(viz_state.edit.buttons.sktch)
           .style('display', 'inline-flex')
@@ -951,6 +957,7 @@ export const landscape_ist = async (
       } else {
         toggle_trx_layer_visibility(layers_obj, true);
         viz_state.buttons.buttons.trx.style('color', 'blue');
+        sync_trx_button(viz_state, layers_obj);
         d3.select(viz_state.edit.buttons.nbhd)
           .style('color', 'gray')
           .classed('active', false);
@@ -1029,6 +1036,33 @@ export const landscape_ist = async (
   );
 
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
+
+  // Until the view first changes, set the TRX button for the initial view
+  // (usually tissue-wide, so not clickable), once deck.gl has measured its
+  // canvas and the button exists.
+  const set_initial_trx_zone = (attempt = 0) => {
+    if (finalized || viz_state.trx_zone || attempt > 300) return;
+    if (!deck_ist.width || !viz_state.buttons?.buttons?.trx) {
+      const frame_id = requestAnimationFrame(() => {
+        pending_animation_frames.delete(frame_id);
+        set_initial_trx_zone(attempt + 1);
+      });
+      pending_animation_frames.add(frame_id);
+      return;
+    }
+    set_trx_zone_for_view(
+      {
+        ...viz_state.initial_view_state,
+        width: deck_ist.width,
+        height: deck_ist.height,
+      },
+      layers_obj,
+      viz_state
+    );
+  };
+  if (!is_orbit_technology(viz_state.img?.landscape_parameters?.technology)) {
+    set_initial_trx_zone();
+  }
 
   if (viz_state.model?.on) {
     const on_update_trigger = () =>

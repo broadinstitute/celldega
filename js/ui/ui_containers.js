@@ -52,6 +52,7 @@ import {
   ini_selected_gene_trx_focus,
   ini_slider,
   ini_slider_params,
+  ini_trx_slider_modes,
 } from './sliders';
 import {
   apply_state_button_style,
@@ -1159,6 +1160,7 @@ export const make_ist_ui_container = (
 
   ini_slider('trx', deck_ist, layers_obj, viz_state);
   ini_selected_gene_trx_focus(deck_ist, layers_obj, viz_state);
+  if (!isPointCloud) ini_trx_slider_modes(layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 

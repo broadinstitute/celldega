@@ -264,11 +264,19 @@ describe('ini_selected_gene_trx_focus', () => {
       const update_nbhd_cloud_manual_fill_opacity = () => {};
       const update_nbhd_layer_opacity = () => {};
       const is_orbit_technology = () => false;
+      const refresh_cell_layer_data = () => {};
+      const rescale_cell_exp_array = () => {};
+      const sync_trx_slider = () => {};
+      const update_expression_note = () => {};
     `;
     sliders = load(
       '../ui/sliders.js',
       shims,
-      ['ini_selected_gene_trx_focus', 'TRX_FOCUS_SLIDER_VALUE'],
+      [
+        'ini_selected_gene_trx_focus',
+        'ini_trx_slider_modes',
+        'TRX_FOCUS_SLIDER_VALUE',
+      ],
       { radius_calls }
     );
   });
@@ -353,5 +361,55 @@ describe('ini_selected_gene_trx_focus', () => {
     jest.advanceTimersByTime(500);
     expect(slider.value).toBe('30');
     expect(radius_calls).toHaveLength(0);
+  });
+
+  it('keeps separate size and opacity positions as the view changes', () => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.value = '30';
+    const viz_state = {
+      close_up: true,
+      sliders: { trx: slider },
+      obs_store: {
+        close_up: make_observable(true),
+        selected_genes: make_observable([]),
+        selected_cats: make_observable([]),
+      },
+    };
+    const layers_obj = { trx_layer: { props: { visible: true } } };
+    sliders.ini_trx_slider_modes(layers_obj, viz_state);
+    expect(viz_state.trx_slider_mode).toBe('size');
+
+    viz_state.obs_store.close_up.set(false);
+    expect(viz_state.trx_slider_mode).toBe('opacity');
+    expect(slider.value).toBe('100');
+    slider.value = '40';
+
+    viz_state.obs_store.close_up.set(true);
+    expect(slider.value).toBe('30');
+    viz_state.obs_store.close_up.set(false);
+    expect(slider.value).toBe('40');
+  });
+
+  it('applies the gene-focus size directly while zoomed out', () => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.value = '40';
+    const viz_state = {
+      trx_slider_mode: 'opacity',
+      trx_slider_values: { size: 30, opacity: 40 },
+      sliders: { trx: slider },
+      obs_store: { selected_genes: make_observable([]) },
+    };
+    sliders.ini_selected_gene_trx_focus(null, { trx_layer: {} }, viz_state);
+    viz_state.obs_store.selected_genes.set(['UMOD']);
+    expect(viz_state.trx_slider_values.size).toBe(
+      sliders.TRX_FOCUS_SLIDER_VALUE
+    );
+    expect(slider.value).toBe('40');
+    expect(radius_calls.at(-1)).toBeCloseTo(1.0);
+
+    viz_state.obs_store.selected_genes.set([]);
+    expect(viz_state.trx_slider_values.size).toBe(30);
   });
 });

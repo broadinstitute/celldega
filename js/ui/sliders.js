@@ -1,5 +1,6 @@
 import {
   get_point_cloud_cell_radius,
+  refresh_cell_layer_data,
   update_cell_layer_radius,
 } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
@@ -9,9 +10,12 @@ import {
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
+import { rescale_cell_exp_array } from '../global_variables/cell_exp_array';
 import { is_orbit_technology } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
 import { register_ui_cleanup } from '../utils/ui_cleanup';
+
+import { sync_trx_slider, update_expression_note } from './trx_handle';
 
 const clamp_to_byte = (value) => {
   return Math.max(0, Math.min(255, Math.round(value)));
@@ -224,6 +228,27 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   refresh_layer(viz_state, layers_obj, 'cell_layer');
 };
 
+// Zoomed out, the TRX slider sets the expression drawn at full cell opacity,
+// as a percent of the max (100 = the max, the default scaling).
+const cell_opacity_slider_callback = (layers_obj, viz_state) => {
+  const { cats } = viz_state;
+  cats.cell_exp_scale = Math.max(1, Number(viz_state.sliders.trx.value)) / 100;
+  update_expression_note(viz_state);
+  if (cats.cat === 'cluster' || viz_state.cell_opacity_frame) return;
+
+  // At most one rescale per frame while dragging.
+  viz_state.cell_opacity_frame = requestAnimationFrame(() => {
+    viz_state.cell_opacity_frame = null;
+    rescale_cell_exp_array(cats);
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      updateTriggers: {
+        getFillColor: [viz_state.selection_token, cats.cell_exp_scale],
+      },
+    });
+    refresh_layer(viz_state, layers_obj, 'cell_layer');
+  });
+};
+
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   // Repurposed for neighborhood-cloud only: an independent opacity control
   // for gene-shapes mode (disabled/enabled opposite the NBHD slider, see
@@ -236,6 +261,11 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
       viz_state.sliders.trx.value / 100
     );
     refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
+
+  if (viz_state.trx_slider_mode === 'opacity') {
+    cell_opacity_slider_callback(layers_obj, viz_state);
     return;
   }
 
@@ -462,16 +492,27 @@ export const ini_selected_gene_trx_focus = (
     frame_id = null;
   };
 
+  // Zoomed out the slider shows cell opacity, so the transcript size lives in
+  // trx_slider_values (see ini_trx_slider_modes) and is applied directly.
+  const sliding_size = () => viz_state.trx_slider_mode !== 'opacity';
+  const current_size = () =>
+    sliding_size() ? Number(slider.value) : viz_state.trx_slider_values.size;
+
   const apply_value = (value) => {
     if (!layers_obj.trx_layer) return;
-    set_slider_value(slider, value);
-    trx_slider_callback(inst_deck, layers_obj, viz_state);
+    if (sliding_size()) {
+      set_slider_value(slider, value);
+      trx_slider_callback(inst_deck, layers_obj, viz_state);
+    } else {
+      viz_state.trx_slider_values.size = value;
+      update_trx_layer_radius(layers_obj, value / 100);
+    }
   };
 
   const animate_to = (target) => {
     cancel_animation();
-    const start = Number(slider.value);
-    if (!Number.isFinite(start) || start === target) {
+    const start = current_size();
+    if (!Number.isFinite(start) || start === target || !sliding_size()) {
       apply_value(target);
       return;
     }
@@ -493,7 +534,7 @@ export const ini_selected_gene_trx_focus = (
       const focused =
         Array.isArray(selected_genes) && selected_genes.length > 0;
       if (focused && restore_value === null) {
-        restore_value = Number(slider.value);
+        restore_value = current_size();
         animate_to(TRX_FOCUS_SLIDER_VALUE);
       } else if (!focused && restore_value !== null) {
         const target = restore_value;
@@ -509,5 +550,54 @@ export const ini_selected_gene_trx_focus = (
     cancel_animation();
     slider.removeEventListener('input', on_user_input);
     unsubscribe?.();
+  });
+};
+
+/**
+ * Switch the Landscape's TRX slider between its two jobs as the view enters
+ * and leaves close-up: transcript size in close-up, cell expression opacity
+ * zoomed out (see trx_handle.js). Each job keeps its own slider position.
+ */
+export const ini_trx_slider_modes = (layers_obj, viz_state) => {
+  const slider = viz_state.sliders?.trx;
+  if (!slider || viz_state.nbhd_cloud?.is_nbhd_cloud) return;
+
+  viz_state.trx_slider_values = { size: Number(slider.value), opacity: 100 };
+
+  const apply_mode = (close_up) => {
+    const mode = close_up ? 'size' : 'opacity';
+    if (mode !== viz_state.trx_slider_mode) {
+      if (viz_state.trx_slider_mode) {
+        viz_state.trx_slider_values[viz_state.trx_slider_mode] = Number(
+          slider.value
+        );
+      }
+      viz_state.trx_slider_mode = mode;
+      set_slider_value(slider, viz_state.trx_slider_values[mode]);
+      slider.title =
+        mode === 'size' ? 'Transcript size' : 'Cell expression opacity';
+      if (mode === 'size') {
+        toggle_slider(slider, layers_obj.trx_layer?.props?.visible !== false);
+      }
+    }
+    sync_trx_slider(viz_state);
+    update_expression_note(viz_state);
+  };
+  apply_mode(Boolean(viz_state.close_up));
+
+  // The note's count changes once a new selection's expression has loaded,
+  // which is when selected_cats is set.
+  const refresh = () => {
+    sync_trx_slider(viz_state);
+    update_expression_note(viz_state);
+  };
+  const unsubscribes = [
+    viz_state.obs_store.close_up.subscribe(apply_mode, { immediate: false }),
+    viz_state.obs_store.selected_genes.subscribe(refresh, { immediate: false }),
+    viz_state.obs_store.selected_cats.subscribe(refresh, { immediate: false }),
+  ];
+  register_ui_cleanup(viz_state, () => {
+    cancelAnimationFrame(viz_state.cell_opacity_frame);
+    unsubscribes.forEach((unsubscribe) => unsubscribe?.());
   });
 };

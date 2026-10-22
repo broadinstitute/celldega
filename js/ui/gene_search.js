@@ -11,6 +11,7 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 import { contain_scroll, escape_html, is_gene_axis } from './gene_info';
 import { set_gene_search_input } from './gene_search_input';
+import { update_expression_note } from './trx_handle';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
@@ -319,6 +320,7 @@ const show_gene_selection = async (viz_state, selected_genes) => {
         )
         .join('<br>');
   }
+  update_expression_note(viz_state);
   box.scrollTo({ top: 0, behavior: 'smooth' });
 };
 

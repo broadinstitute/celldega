@@ -30,7 +30,7 @@ const controls = new Function(`
   const createEmptyCellCompact = () => ({});
   const getModelMatrixProps = () => ({});
   const getVizCellColorContext = (state) => ({
-    cellNames: state.cats.cell_names_array, isClusterMode: true, selectedCats: []
+    cellNames: state.cats.cell_names_array, isClusterMode: true, clusterFilter: []
   });
   const update_cell_color_buffer = () => new Uint8Array(8);
   ${stripImports(readSource('global_variables/image_info.js'))}
@@ -182,6 +182,13 @@ describe('CellCloud cell diameter and slider', () => {
     state.sliders.cell.value = 50;
     state.sliders.cell.dispatchEvent(new Event('input'));
     expect(layers.cell_layer.props.getRadius).toBe(10);
+    expect(layers.cell_layer.props.radiusMinPixels).toBe(1);
+
+    // At 0, centroids disappear instead of staying a pixel wide.
+    state.sliders.cell.value = 0;
+    state.sliders.cell.dispatchEvent(new Event('input'));
+    expect(layers.cell_layer.props.getRadius).toBe(0);
+    expect(layers.cell_layer.props.radiusMinPixels).toBe(0);
   });
 
   test.each([undefined, 0, 16])(

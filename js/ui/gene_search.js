@@ -1,12 +1,17 @@
 import { select_nbhd_cloud_gene } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
-import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
+import {
+  get_uniprot_info,
+  request_uniprot_info,
+} from '../external_apis/uniprot_api';
+import { update_cat } from '../global_variables/cat';
+import { select_genes } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { sync_nbhd_cloud_opacity_sliders } from '../ui/bar_plot';
 import { refresh_layer } from '../utils/refresh_layer';
 
-import { contain_scroll, is_gene_axis } from './gene_info';
+import { contain_scroll, escape_html, is_gene_axis } from './gene_info';
 import { set_gene_search_input } from './gene_search_input';
+import { update_expression_note } from './trx_handle';
 
 let gene_search_options = [];
 let gene_datalist_counter = 0;
@@ -201,64 +206,137 @@ const ist_gene_search_callback_nbhd_cloud = async (layers_obj, viz_state) => {
   viz_state.nbhd_cloud.svg_bar_cluster?.selectAll('rect').style('opacity', 1.0);
 };
 
-const ist_gene_search_callback = async (deck_ist, layers_obj, viz_state) => {
-  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
-    await ist_gene_search_callback_nbhd_cloud(layers_obj, viz_state);
+/** Gene names typed in the search box, split on commas. */
+export const parse_gene_query = (value) =>
+  String(value ?? '')
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+/**
+ * Map typed tokens to dataset gene names, case-insensitively.
+ *
+ * @returns {{genes: string[], complete: boolean}} `complete` is false while
+ *   any token isn't (yet) a gene name.
+ */
+export const resolve_gene_tokens = (tokens, gene_lookup) => {
+  const genes = tokens
+    .map((token) => gene_lookup.get(token.toLowerCase()))
+    .filter(Boolean);
+  return { genes, complete: genes.length === tokens.length };
+};
+
+/**
+ * Genes Enter applies: whatever resolves, skipping unknown tokens. Null when
+ * something was typed but nothing resolves (e.g. a typo), so the current
+ * selection is kept.
+ */
+export const genes_for_enter = (tokens, gene_lookup) => {
+  const { genes } = resolve_gene_tokens(tokens, gene_lookup);
+  return tokens.length > 0 && genes.length === 0 ? null : genes;
+};
+
+const MAX_GENE_SUGGESTIONS = 50;
+
+/**
+ * Datalist options that autocomplete the gene after the last comma: each is
+ * the typed text up to that comma plus a matching gene, since a datalist
+ * matches against the whole input value. Returns null without a comma (the
+ * full gene list applies).
+ */
+export const gene_suggestions = (value, gene_names) => {
+  const comma = value.lastIndexOf(',');
+  if (comma < 0) return null;
+
+  const tail = value.slice(comma + 1);
+  const prefix = value.slice(0, comma + 1) + tail.match(/^\s*/)[0];
+  const token = tail.trim().toLowerCase();
+  const chosen = new Set(
+    parse_gene_query(value.slice(0, comma)).map((gene) => gene.toLowerCase())
+  );
+  const candidates = gene_names.filter(
+    (gene) => !chosen.has(gene.toLowerCase())
+  );
+  const starts = candidates.filter((gene) =>
+    gene.toLowerCase().startsWith(token)
+  );
+  const contains = token
+    ? candidates.filter(
+        (gene) =>
+          !gene.toLowerCase().startsWith(token) &&
+          gene.toLowerCase().includes(token)
+      )
+    : [];
+  return [...starts, ...contains]
+    .slice(0, MAX_GENE_SUGGESTIONS)
+    .map((gene) => `${prefix}${gene}`);
+};
+
+const same_genes = (a, b) =>
+  a.length === b.length &&
+  a.every((gene, index) => gene.toLowerCase() === b[index].toLowerCase());
+
+/**
+ * Show the current gene selection in the search box and the gene panel: the
+ * genes as a comma-separated list, with UniProt name and description for one
+ * gene or one name per line for several, plus a note when only the
+ * highest-expressed subset of a larger selection is shown.
+ */
+const show_gene_selection = async (viz_state, selected_genes) => {
+  const { gene_search_input: input, gene_text_box: box } = viz_state.genes;
+  const revision = (box.revision = (box.revision ?? 0) + 1);
+
+  // Leave the text alone while it already describes the selection (e.g.
+  // mid-typing "NPHS1, "), so syncing never fights the user's edits.
+  if (!same_genes(parse_gene_query(input.value), selected_genes)) {
+    input.value = selected_genes.join(', ');
+  }
+
+  const genes = selected_genes.filter((gene) =>
+    viz_state.genes.gene_names.includes(gene)
+  );
+  if (genes.length === 0) {
+    box.textContent = '';
     return;
   }
 
-  const inst_gene = viz_state.genes.gene_search_input.value;
+  box.textContent = 'loading';
+  await Promise.all(
+    genes.map((gene) => request_uniprot_info(gene).catch(() => {}))
+  );
+  if (box.revision !== revision) return;
 
-  const new_cat = inst_gene === '' ? 'cluster' : inst_gene;
+  const subset = viz_state.genes.gene_subset;
+  const note =
+    subset?.genes === selected_genes && subset.total > selected_genes.length
+      ? `<i>Showing the ${selected_genes.length} highest-expressed of ${subset.total} selected genes.</i><br>`
+      : '';
 
-  if (inst_gene === '' || viz_state.genes.gene_names.includes(inst_gene)) {
-    update_cat(viz_state.cats, new_cat);
-
-    viz_state.obs_store.deck_check.set({
-      ...viz_state.obs_store.deck_check.get(),
-      cell_layer: false,
-      trx_layer: false,
-    });
-
-    update_selected_genes(
-      viz_state.genes,
-      inst_gene === '' ? [] : [inst_gene],
-      viz_state.obs_store
-    );
-
-    const inst_gene_in_gene_names =
-      viz_state.genes.gene_names.includes(inst_gene);
-
-    if (inst_gene_in_gene_names) {
-      await update_cell_exp_array(
-        viz_state.cats,
-        viz_state.genes,
-        viz_state.global_base_url,
-        inst_gene,
-        viz_state.seg.version,
-        viz_state.vector_name_integer,
-        viz_state.aws,
-        viz_state.row_group_readers?.cbg
-      );
-    }
-
-    // make selected_cats an empty array if new_cat is cluster or
-    // make it an array with the selected gene if inst_gene is not an empty string
-    // update_selected_cats(viz_state.cats, [new_cat], viz_state.obs_store);
-    //
-    // update selected_cats after update_cell_exp_array has been run
-    // can clean up and move more logic to observability
-    update_selected_cats(
-      viz_state.cats,
-      new_cat === 'cluster' ? [] : [inst_gene],
-      viz_state.obs_store
-    );
+  if (genes.length === 1) {
+    const info = get_uniprot_info(genes[0]);
+    box.innerHTML =
+      info?.name && info.description
+        ? `${note}<span style="color: blue;">${escape_html(info.name)}</span><br>${escape_html(info.description)}`
+        : note;
+  } else {
+    box.innerHTML =
+      note +
+      genes
+        .map(
+          (gene) =>
+            `<span style="color: blue;">${escape_html(gene)}</span> ${escape_html(
+              get_uniprot_info(gene)?.name ?? ''
+            )}`
+        )
+        .join('<br>');
   }
+  update_expression_note(viz_state);
+  box.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 export const set_gene_search = async (
   _tech_type,
-  inst_deck,
+  _inst_deck,
   layers_obj,
   viz_state
 ) => {
@@ -274,6 +352,8 @@ export const set_gene_search = async (
         ]),
       ]
     : ['cluster', ...viz_state.genes.gene_names];
+  // This widget's list (gene_search_options is shared across widgets).
+  const full_options = gene_search_options;
 
   viz_state.genes.gene_search.style.width = '115px';
 
@@ -331,10 +411,83 @@ export const set_gene_search = async (
   viz_state.genes.gene_search_input.value = '';
   update_cat(viz_state.cats, 'cluster');
 
-  // Event listener when an option is selected or the input is cleared
-  const callback = () =>
-    ist_gene_search_callback(inst_deck, layers_obj, viz_state);
-  viz_state.genes.gene_search_input.style.marginTop = '5px';
+  const input = viz_state.genes.gene_search_input;
+  input.style.marginTop = '5px';
 
-  viz_state.genes.gene_search_input.addEventListener('input', callback);
+  viz_state.obs_store.selected_genes.subscribe((selected_genes) =>
+    show_gene_selection(viz_state, selected_genes)
+  );
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    input.addEventListener('input', () =>
+      ist_gene_search_callback_nbhd_cloud(layers_obj, viz_state)
+    );
+    return;
+  }
+
+  // Comma-separated genes, e.g. "NPHS1, NPHS2": cells show their summed
+  // expression and each gene's transcripts are shown.
+  const gene_lookup = new Map(
+    viz_state.genes.gene_names.map((gene) => [gene.toLowerCase(), gene])
+  );
+  const apply = (genes) => {
+    if (same_genes(genes, viz_state.genes.selected_genes ?? [])) return;
+    select_genes(viz_state, genes);
+  };
+
+  let showing_suggestions = false;
+  const update_suggestions = () => {
+    const suggestions = gene_suggestions(
+      input.value,
+      viz_state.genes.gene_names
+    );
+    if (!suggestions && !showing_suggestions) return;
+    showing_suggestions = Boolean(suggestions);
+    dataList.replaceChildren(
+      ...(suggestions ?? full_options).map((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        return option;
+      })
+    );
+  };
+
+  // True while the last gene typed is a strict prefix of another gene (e.g.
+  // "ACE" on the way to "ACE2"), so typing doesn't select genes mid-word.
+  const is_ambiguous_prefix = (token) => {
+    const value = token.toLowerCase();
+    return viz_state.genes.gene_names.some((gene) => {
+      const candidate = gene.toLowerCase();
+      return candidate !== value && candidate.startsWith(value);
+    });
+  };
+
+  input.addEventListener('input', (event) => {
+    update_suggestions();
+    const tokens = parse_gene_query(input.value);
+    if (
+      tokens.length === 0 ||
+      (tokens.length === 1 && tokens[0] === 'cluster')
+    ) {
+      apply([]);
+      return;
+    }
+    const { genes, complete } = resolve_gene_tokens(tokens, gene_lookup);
+    if (!complete) return;
+    if (
+      event.inputType !== 'insertReplacementText' &&
+      is_ambiguous_prefix(tokens.at(-1))
+    ) {
+      return;
+    }
+    apply(genes);
+  });
+
+  // Enter applies whatever resolves (see genes_for_enter).
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const genes = genes_for_enter(parse_gene_query(input.value), gene_lookup);
+    if (genes) apply(genes);
+  });
 };

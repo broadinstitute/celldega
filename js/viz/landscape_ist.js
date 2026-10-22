@@ -2,7 +2,11 @@ import { ViewMode } from '@deck.gl-community/editable-layers';
 import { AwsClient } from 'aws4fetch';
 import * as d3 from 'd3';
 
-import { calc_viewport } from '../deck-gl/core/calc_viewport';
+import {
+  calc_viewport,
+  end_hidden_trx_force,
+  set_trx_zone_for_view,
+} from '../deck-gl/core/calc_viewport';
 import {
   ini_deck,
   set_deck_on_view_state_change,
@@ -11,6 +15,10 @@ import {
   set_views_prop,
 } from '../deck-gl/core/deck_ist';
 import { set_views } from '../deck-gl/core/views';
+import {
+  landscape_zoom_limits,
+  zoom_to_fit,
+} from '../deck-gl/core/zoom_limits';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
   get_point_cloud_cell_radius,
@@ -99,6 +107,7 @@ import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
+import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import {
   createEmptyCellCompact,
@@ -107,6 +116,7 @@ import {
 import { refresh_layer } from '../utils/refresh_layer';
 import { build_rotation_state } from '../utils/rotation';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
+import { run_ui_cleanups } from '../utils/ui_cleanup';
 import { update_cell_clusters } from '../widget_interactions/update_cell_clusters';
 import {
   sync_focused_gene_to_landscape,
@@ -285,9 +295,11 @@ export const landscape_ist = async (
   // 2D technology); CellCloud/NeighborhoodCloud set it to their own filename.
   // set_landscape_parameters falls back to landscape_parameters.json when the
   // requested file is absent, so pre-rename datasets still render.
+  const model_option = (name) =>
+    typeof ini_model?.get === 'function' ? ini_model.get(name) : undefined;
+
   const manifest_name =
-    (typeof ini_model?.get === 'function' && ini_model.get('manifest_name')) ||
-    'landscape_parameters.json';
+    model_option('manifest_name') || 'landscape_parameters.json';
 
   viz_state.obs_store = create_obs_store();
 
@@ -305,6 +317,8 @@ export const landscape_ist = async (
   }
 
   viz_state.max_tiles_to_view = max_tiles_to_view;
+  // How far past close-up TRX can load transcripts (see trx_handle.js).
+  viz_state.intermediate_zoom_limit = model_option('intermediate_zoom_limit');
 
   // Set up centralized image visibility management via obs_store
   // This handles the logic for showing/hiding images based on gene/cluster selection and zoom level
@@ -897,6 +911,7 @@ export const landscape_ist = async (
           toggle_slider(viz_state.sliders.nbhd, false);
         }
       }
+      sync_trx_button(viz_state, layers_obj);
       if (visible) {
         viz_state.obs_store.viz_edit_layer.set(false);
       }
@@ -934,7 +949,9 @@ export const landscape_ist = async (
         viz_state.obs_store.viz_nbhd_layer.set(false);
         toggle_nbhd_layer_visibility(layers_obj, false);
         toggle_trx_layer_visibility(layers_obj, false);
+        end_hidden_trx_force(deck_ist, layers_obj, viz_state);
         viz_state.buttons.buttons.trx.style('color', 'gray');
+        sync_trx_button(viz_state, layers_obj);
         d3.select(viz_state.edit.buttons.nbhd).style('color', 'blue');
         d3.select(viz_state.edit.buttons.sktch)
           .style('display', 'inline-flex')
@@ -950,6 +967,7 @@ export const landscape_ist = async (
       } else {
         toggle_trx_layer_visibility(layers_obj, true);
         viz_state.buttons.buttons.trx.style('color', 'blue');
+        sync_trx_button(viz_state, layers_obj);
         d3.select(viz_state.edit.buttons.nbhd)
           .style('color', 'gray')
           .classed('active', false);
@@ -1027,7 +1045,87 @@ export const landscape_ist = async (
     rotation_x
   );
 
+  // Zoom limits follow the tissue and the map's size: set now, and again when
+  // the map is resized or the dataset changes (switch_dataset). Until the map
+  // is laid out, the widget's width stands in for its own.
+  viz_state.update_zoom_limits = ({
+    canvas_width = deck_ist.width ||
+      root.clientWidth ||
+      viz_state.root?.clientWidth,
+    canvas_height = deck_ist.height || root.clientHeight || height,
+  } = {}) => {
+    const { technology } = viz_state.img.landscape_parameters;
+    if (is_orbit_technology(technology)) return;
+
+    const { data_width, data_height } = viz_state.spatial;
+    const limits = landscape_zoom_limits({
+      fit_zoom: zoom_to_fit(
+        canvas_width,
+        canvas_height,
+        data_width,
+        data_height
+      ),
+      // The current view stays reachable.
+      initial_zoom:
+        viz_state.last_viewport_params?.zoom ??
+        viz_state.initial_view_state?.zoom,
+      canvas_size: Math.min(canvas_width, canvas_height),
+      microns_per_unit: PIXEL_SIZE_MICRONS[technology] ?? userMicronsPerPixel,
+      min_zoom: model_option('min_zoom'),
+      max_zoom: model_option('max_zoom'),
+    });
+    const current = viz_state.zoom_limits;
+    if (
+      current?.minZoom === limits.minZoom &&
+      current?.maxZoom === limits.maxZoom
+    ) {
+      return;
+    }
+    viz_state.zoom_limits = limits;
+    viz_state.views = set_views(technology, limits);
+    set_views_prop(deck_ist, viz_state.views);
+  };
+  viz_state.update_zoom_limits();
+
+  if (typeof ResizeObserver !== 'undefined') {
+    const map_resize_observer = new ResizeObserver(([entry]) => {
+      const { width: canvas_width, height: canvas_height } = entry.contentRect;
+      if (canvas_width > 0 && canvas_height > 0) {
+        viz_state.update_zoom_limits({ canvas_width, canvas_height });
+      }
+    });
+    map_resize_observer.observe(root);
+    cleanup_callbacks.push(() => map_resize_observer.disconnect());
+  }
+
   set_deck_on_view_state_change(deck_ist, layers_obj, viz_state);
+
+  // Until the view first changes, set the TRX button for the initial view
+  // (usually tissue-wide, so not clickable), once deck.gl has measured its
+  // canvas and the button exists.
+  const set_initial_trx_zone = (attempt = 0) => {
+    if (finalized || viz_state.trx_zone || attempt > 300) return;
+    if (!deck_ist.width || !viz_state.buttons?.buttons?.trx) {
+      const frame_id = requestAnimationFrame(() => {
+        pending_animation_frames.delete(frame_id);
+        set_initial_trx_zone(attempt + 1);
+      });
+      pending_animation_frames.add(frame_id);
+      return;
+    }
+    set_trx_zone_for_view(
+      {
+        ...viz_state.initial_view_state,
+        width: deck_ist.width,
+        height: deck_ist.height,
+      },
+      layers_obj,
+      viz_state
+    );
+  };
+  if (!is_orbit_technology(viz_state.img?.landscape_parameters?.technology)) {
+    set_initial_trx_zone();
+  }
 
   if (viz_state.model?.on) {
     const on_update_trigger = () =>
@@ -1326,6 +1424,7 @@ export const landscape_ist = async (
       pending_animation_frames.clear();
 
       cleanup_callbacks.splice(0).forEach((cleanup) => cleanup?.());
+      run_ui_cleanups(viz_state);
       viz_state.update_viz_image_layers?.dispose?.();
 
       viz_state.cache?.cell?.clear?.();

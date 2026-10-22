@@ -1,8 +1,6 @@
 import { ScatterplotLayer } from 'deck.gl';
 
-import { update_cat, update_selected_cats } from '../../global_variables/cat';
-import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
-import { update_selected_genes } from '../../global_variables/selected_genes';
+import { select_genes } from '../../global_variables/select_genes';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
 
@@ -28,33 +26,10 @@ const trx_layer_callback = async (
     return;
   }
 
-  const reset_gene = inst_gene === viz_state.cats.cat;
-
-  const new_cat = reset_gene ? 'cluster' : inst_gene;
-
-  update_cat(viz_state.cats, new_cat);
-
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    trx_layer: false,
-  });
-
-  update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-  // testing setting selected_cats to array with the selected gene for
-  // observable updates
-  update_selected_cats(viz_state.cats, [inst_gene], viz_state.obs_store);
-
-  await update_cell_exp_array(
-    viz_state.cats,
-    viz_state.genes,
-    viz_state.global_base_url,
-    inst_gene,
-    viz_state.seg.version,
-    viz_state.vector_name_integer,
-    viz_state.aws,
-    viz_state.row_group_readers?.cbg
-  );
+  // Select just this gene, or clear it if it's the only one selected.
+  const current = viz_state.genes.selected_genes ?? [];
+  const only_this_gene = current.length === 1 && current[0] === inst_gene;
+  await select_genes(viz_state, only_this_gene ? [] : [inst_gene]);
 };
 
 export const ini_trx_layer = (viz_state) => {

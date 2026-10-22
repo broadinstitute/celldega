@@ -24,6 +24,14 @@ Celldega now pre-processes 10x Atera bundles directly from their Zarr stores. Th
     <img src="assets/img/atera_kidney_default_clusters.png" alt="Default cell clusters in an Atera human kidney section" style="display:block; margin:1rem auto; width:75%; border:1px solid lightgray; border-radius:5px;">
 </a>
 
+### Visium HD Colorectal Cancer Tutorial Video
+
+This video shows how to link a Landscape, Clustergram, and Enrich to analyze a Visium HD human colorectal cancer dataset. Follow along in the [Visium HD Human CRC Landscape-Clustergram-Enrich](examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) tutorial.
+
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+    <iframe src="https://www.youtube.com/embed/IjGsIykVIUE" title="Visium HD human colorectal cancer tutorial in Celldega" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
+</div>
+
 ### 3D Developing Mouse Brain
 
 Explore 3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain as a 3D CellCloud. See the [Broad-Allen Dev Mouse Brain E15.5 Viz](examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) tutorial.

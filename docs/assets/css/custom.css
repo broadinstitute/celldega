@@ -113,16 +113,24 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
     margin: 0 0 0.4em;
 }
 
-/* Header GitHub link (Material's repo_url widget), kept discreet: the GitHub
-   mark and the live star count on one line. The label, the version (the latest
-   GitHub release, which lags PyPI) and the fork count are hidden. */
+/* Header GitHub link (Material's repo_url widget), kept discreet: the outline
+   GitHub mark, then the live star and fork counts and the latest release, on
+   one line, all in the same size and color. The "GitHub" label is hidden. */
 .md-header__source {
     width: auto;
-    padding-right: 0.6rem; /* keep the star count off the header's edge */
+    padding-right: 0.6rem; /* keep the facts off the header's edge */
+}
+
+/* Material hides the link below 60em (it moves into the navigation drawer).
+   Show it on tablets too, where the header has room; phones keep the drawer. */
+@media screen and (min-width: 45em) {
+    .md-header__source {
+        display: block;
+    }
 }
 
 /* The Lucide outline GitHub icon is drawn with strokes, so don't fill it.
-   Smaller than Material's 1.2rem default to sit with the star count, and
+   Smaller than Material's 1.2rem default to sit with the counts, and
    re-centered in the 2.4rem-tall header row. */
 .md-source__icon svg {
     fill: none;
@@ -141,17 +149,24 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
 .md-source__facts {
     width: auto;
     margin-top: 0;
-    font-size: 0.7rem;
+    align-items: center;
+    font-size: 0.65rem;
     opacity: 1;
 }
 
-.md-source__fact--stars::before {
-    width: 0.75rem;
-    height: 0.75rem;
+/* Center each fact's icon on its text. */
+.md-source__fact {
+    display: inline-flex;
+    align-items: center;
+}
+
+.md-source__fact::before {
+    width: 0.7rem;
+    height: 0.7rem;
     margin-right: 0.2rem;
 }
 
-.md-source__fact--version,
-.md-source__fact--forks {
-    display: none;
+/* Version last (it comes first in the markup). */
+.md-source__fact--version {
+    order: 1;
 }

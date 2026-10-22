@@ -3967,9 +3967,15 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h1 id="atera-kidney-default-clusters-and-glomerular-gradients">Atera kidney: default clusters and glomerular gradients<a class="anchor-link" href="#atera-kidney-default-clusters-and-glomerular-gradients">¶</a></h1><p>Compare the dataset's <strong>28 default Leiden clusters</strong> in a linked Landscape–dotplot Clustergram, then measure how cell-type composition changes with distance from <strong>podocyte-defined glomerular footprints</strong>.</p>
+<div style="max-width: 900px; margin: 0 auto;">
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+<iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/cVKc2mcMqSA" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" title="Atera human kidney tutorial in Celldega"></iframe>
+</div>
+</div>
+<p style="text-align: center;"><a href="https://www.youtube.com/watch?v=cVKc2mcMqSA">Watch on YouTube</a></p>
 <p>Default cluster <strong>16</strong> contains <strong>5,172 cells</strong>, 96.7% with a supplied Podocyte annotation. We use its spatial nodules as candidate glomeruli, then summarize the supplied <strong>Azimuth coarse cell types</strong> inside and around them. The gradient uses all 399,120 cell centroids, including cells without a default cluster.</p>
 <p>The workflow uses <strong>AnnData, GeoDataFrames, Scanpy, and the neighborhood module's geometry functions</strong>. There are no collection classes, inline helper functions, signature caches, or sub-clustering steps. Manual category tracks are disabled in the linked default-cluster view.</p>
-<p>Use the <code>dega</code> environment on the <code>atera_preprocess</code> branch. <a href="https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE">DegaFiles are on GitHub</a>; <a href="https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Atera_v1_WTA_Kidney_non_diseased_FFPE.h5ad">annotated raw counts are on Hugging Face</a>. The count file is 1.31 GiB; allow several GiB of memory.</p>
+<p>The data are the public <a href="https://www.10xgenomics.com/datasets/atera-wta-ffpe-human-nd-kidney">Atera WTA FFPE human non-diseased kidney dataset</a> from 10x Genomics, with over 1 billion transcripts. Use the <code>dega</code> environment on the <code>atera_preprocess</code> branch. <a href="https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE">DegaFiles are on GitHub</a>; <a href="https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Atera_v1_WTA_Kidney_non_diseased_FFPE.h5ad">annotated raw counts are on Hugging Face</a>. The count file is 1.31 GiB; allow several GiB of memory.</p>
 </div>
 </div>
 </div>
@@ -4231,9 +4237,9 @@ wide_landscape</div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
 <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[3]:</div>
-<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="40030aca-012b-40df-882a-f55132a1b734" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="98c2d43c-975a-4c37-95b8-d6468552e329" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('40030aca-012b-40df-882a-f55132a1b734');
+var element = document.getElementById('98c2d43c-975a-4c37-95b8-d6468552e329');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "37cde5e2058140559134c086b8911341", "version_major": 2, "version_minor": 1}
@@ -4335,9 +4341,9 @@ yearbook.layout.width = "100%"</div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
 <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[5]:</div>
-<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="7b4eeeaa-ebcb-4564-8576-158ef3b6eac7" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="08a4d237-73c7-425c-a400-7c375a5e0c1b" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('7b4eeeaa-ebcb-4564-8576-158ef3b6eac7');
+var element = document.getElementById('08a4d237-73c7-425c-a400-7c375a5e0c1b');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "5b3bb855134b44e68efa8764f3e43fb7", "version_major": 2, "version_minor": 1}
@@ -4591,9 +4597,9 @@ widgets = dega.viz.spatial_clustergram(landscape, clustergram, enrich=True)</div
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
 <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[9]:</div>
-<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="9a412c69-2432-42cf-b424-a9c01a13db67" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="be44091a-4afd-4280-922c-4d6fb4837764" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('9a412c69-2432-42cf-b424-a9c01a13db67');
+var element = document.getElementById('be44091a-4afd-4280-922c-4d6fb4837764');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "ea695f840f584a90a2fb230bbc0cc4d0", "version_major": 2, "version_minor": 0}
@@ -5182,9 +5188,9 @@ gradient_widgets</div>
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
 <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[14]:</div>
-<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="0490b67b-7b89-473b-8fb7-a713b2942c5f" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output jp-OutputArea-executeResult" id="abdd8b6b-8d4c-4a81-b765-b7735d4961a6" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('0490b67b-7b89-473b-8fb7-a713b2942c5f');
+var element = document.getElementById('abdd8b6b-8d4c-4a81-b765-b7735d4961a6');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
 {"model_id": "39be3f5e890b4e67a196965b186d9d0f", "version_major": 2, "version_minor": 0}

@@ -36,4 +36,4 @@ runs:
     - name: Install Python dependencies
       shell: bash
       run: |
-        pip install -e ".[dev]"
+        pip install -e ".[dev,scanpy]"

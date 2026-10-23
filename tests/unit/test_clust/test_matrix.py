@@ -495,25 +495,22 @@ class TestMatrix:
         assert (output_dir / "mat.parquet").is_file()
         assert (output_dir / "meta.json").is_file()
 
-    def test_matrix_from_collection_color_by_size_by(self) -> None:
-        """`Matrix(collection=..., color_by=..., size_by=...)` should build the
-        main matrix and attach the named size-channel modality, with no manual
+    def test_matrix_from_mudata_color_by_size_by(self) -> None:
+        """`Matrix(mdata=..., color_by=..., size_by=...)` should build the main
+        matrix and attach the named size-channel modality, with no manual
         DataFrame wrangling. `dot_plot=` is an alias for `size_by=`."""
         from anndata import AnnData
-
-        from celldega.set import SetCollection
+        from mudata import MuData
 
         rng = np.random.default_rng(0)
-        n = 40
-        adata = AnnData(X=rng.random((n, 5)))
-        adata.var_names = [f"g{i}" for i in range(5)]
-        adata.obs["leiden"] = rng.choice(["0", "1", "2"], n)
+        groups = pd.DataFrame(index=["0", "1", "2"])
+        genes = pd.DataFrame(index=[f"g{i}" for i in range(5)])
+        expression = AnnData(X=rng.random((3, 5)), obs=groups.copy(), var=genes.copy())
+        fraction = AnnData(X=rng.random((3, 5)), obs=groups.copy(), var=genes.copy())
+        expression.layers["fraction_expressing"] = fraction.X.copy()
+        mdata = MuData({"expression": expression, "fraction_expressing": fraction})
 
-        setc = SetCollection(adata, set_col="leiden", name="leiden")
-        setc.calc_signature(adata, modality_name="expression")
-        setc.calc_signature(adata, modality_name="fraction_expressing", aggregate="fraction")
-
-        mat = Matrix(collection=setc, color_by="expression", size_by="fraction_expressing")
+        mat = Matrix(mdata=mdata, color_by="expression", size_by="fraction_expressing")
         assert mat.data.shape == (5, 3)
         assert mat.size_matrix is not None
         assert list(mat.size_matrix.index) == list(mat.data.index)
@@ -521,33 +518,20 @@ class TestMatrix:
 
         # dot_plot= remains a deprecated compatibility alias for size_by=
         with pytest.deprecated_call(match="dot_plot"):
-            mat_alias = Matrix(
-                collection=setc,
-                color_by="expression",
-                dot_plot="fraction_expressing",
-            )
+            mat_alias = Matrix(mdata=mdata, color_by="expression", dot_plot="fraction_expressing")
         assert mat_alias.size_matrix is not None
 
-        # The compact form keeps the fraction matrix with expression when both
-        # share the same axes.
-        compact = SetCollection(adata, set_col="leiden", name="leiden")
-        compact.calc_signature(
-            adata,
-            modality_name="expression",
-            fraction_expressing_layer="fraction_expressing",
-        )
-        mat_layer = Matrix(
-            collection=compact,
-            color_by="expression",
-            size_by_layer="fraction_expressing",
-        )
-        assert mat_layer.size_matrix is not None
+        # The compact form keeps the fraction matrix with expression as a layer,
+        # on a MuData modality or a plain AnnData.
+        mat_layer = Matrix(mdata=mdata, color_by="expression", size_by_layer="fraction_expressing")
         np.testing.assert_allclose(mat_layer.size_matrix, mat.size_matrix)
+        mat_adata_layer = Matrix(expression, size_by_layer="fraction_expressing")
+        np.testing.assert_allclose(mat_adata_layer.size_matrix, mat.size_matrix)
 
         # size_by/dot_plot are mutually exclusive
         with pytest.raises(ValueError, match="not both"):
             Matrix(
-                collection=setc,
+                mdata=mdata,
                 color_by="expression",
                 size_by="fraction_expressing",
                 dot_plot="fraction_expressing",
@@ -555,22 +539,26 @@ class TestMatrix:
 
         with pytest.raises(ValueError, match="not both"):
             Matrix(
-                collection=compact,
+                mdata=mdata,
                 color_by="expression",
                 size_by="fraction_expressing",
                 size_by_layer="fraction_expressing",
             )
 
-        # data/collection are mutually exclusive
+        # data/mdata are mutually exclusive
         with pytest.raises(ValueError, match="not both"):
-            Matrix(data=adata, collection=setc, color_by="expression")
+            Matrix(data=expression, mdata=mdata, color_by="expression")
 
-        # unknown size_by modality raises a clear error
+        # color_by/size_by need mdata
+        with pytest.raises(ValueError, match="require `mdata`"):
+            Matrix(expression, size_by="fraction_expressing")
+
+        # unknown size_by modality / layer raise clear errors
         with pytest.raises(KeyError, match="size_by"):
-            Matrix(collection=setc, color_by="expression", size_by="nope")
+            Matrix(mdata=mdata, color_by="expression", size_by="nope")
 
         with pytest.raises(KeyError, match="size_by_layer"):
-            Matrix(collection=compact, color_by="expression", size_by_layer="nope")
+            Matrix(mdata=mdata, color_by="expression", size_by_layer="nope")
 
     def test_matrix_error_handling(self) -> None:
         """Test Matrix error handling and edge cases."""

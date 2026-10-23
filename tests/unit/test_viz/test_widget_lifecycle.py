@@ -2,7 +2,6 @@ import pytest
 
 from celldega.viz._widget_lifecycle import CelldegaWidget, _widget_registry
 from celldega.viz.cloud import CellCloud, NeighborhoodCloud
-from celldega.viz.landmark_widget import Landmark
 from celldega.viz.widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
@@ -65,7 +64,6 @@ def test_name_and_registry_key_must_agree():
         Clustergram,
         Composition,
         Enrich,
-        Landmark,
     ],
 )
 def test_all_public_widgets_share_lifecycle_base(widget_type):

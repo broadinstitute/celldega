@@ -11,7 +11,6 @@ import pandas as pd
 import scanpy as sc
 
 from celldega.clust import Matrix
-from celldega.dataset import DatasetCollection
 
 from .features import stacked_feature_id
 from .prepare import apply_modality_colors, inherit_annotation_colors
@@ -244,7 +243,7 @@ def representative_module_features(
 
 
 def stack_modalities(
-    collection: DatasetCollection,
+    collection: MuData,
     modalities: tuple[str, ...],
     model_ids: pd.Index,
     *,

@@ -11,7 +11,6 @@ import pytest
 from celldega.clust import Matrix
 from celldega.clust.matrix import marker_ranks_to_uns
 from celldega.clust.utils import compute_marker_ranks
-from celldega.set import SetCollection
 
 
 N_GROUPS = 4
@@ -60,15 +59,7 @@ def _grouped_adata(n_cells=400, n_genes=80, seed=1):
 
 def _marker_matrix():
     pytest.importorskip("scanpy")
-    adata = _grouped_adata()
-    setc = SetCollection(adata, set_col="leiden", name="leiden")
-    setc.calc_signature(
-        adata,
-        modality_name="expression",
-        normalization=None,
-        rank_genes_groups=True,
-    )
-    return Matrix(collection=setc, color_by="expression")
+    return Matrix(_grouped_adata(), groupby="leiden", rank_genes_groups=True)
 
 
 def _expected_top_markers(mat, per_cluster):

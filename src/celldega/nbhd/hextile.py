@@ -1,31 +1,37 @@
 """Module for hexatile computing."""
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 import geopandas as gpd
 import numpy as np
 from shapely.affinity import translate
 from shapely.geometry import Polygon
 
-
-if TYPE_CHECKING:
-    from anndata import AnnData
+from .utils import _cell_coords, _unwrap_mudata
 
 
 def generate_hextile(
-    adata: "AnnData",
+    adata: Any,
     diameter: float = 100,
+    *,
+    modality: str | None = None,
+    spatial_key: str = "spatial",
 ) -> gpd.GeoDataFrame:
     """
     Generate a hexagonal grid over the bounding box of cell spatial coordinates.
 
     Parameters
     ----------
-    adata : AnnData
-        AnnData object with spatial coordinates in `obsm["spatial"]`.
+    adata : AnnData, MuData, GeoDataFrame, or array
+        Cell-level data with spatial coordinates in `obsm[spatial_key]`, a
+        GeoDataFrame (its total bounds are used), or an `(n, 2)` coordinate array.
     diameter : float, default 100
         Diameter of each hexagon in the same units as the spatial coordinates
         (typically microns).
+    modality : str, optional
+        For a MuData input, the modality to take coordinates from.
+    spatial_key : str, default "spatial"
+        Key of the cell coordinates in `obsm`.
 
     Returns
     -------
@@ -39,10 +45,15 @@ def generate_hextile(
     >>> gdf_hex.shape
     (1234, 2)
     """
-    # Get bounding box directly from spatial coordinates
-    coords = adata.obsm["spatial"]
-    minx, miny = coords[:, 0].min(), coords[:, 1].min()
-    maxx, maxy = coords[:, 0].max(), coords[:, 1].max()
+    if isinstance(adata, gpd.GeoDataFrame | gpd.GeoSeries):
+        minx, miny, maxx, maxy = adata.total_bounds
+    else:
+        if hasattr(adata, "obs"):
+            coords = _cell_coords(adata, spatial_key=spatial_key, modality=modality).to_numpy()
+        else:
+            coords = np.asarray(adata, dtype=float)
+        minx, miny = coords[:, 0].min(), coords[:, 1].min()
+        maxx, maxy = coords[:, 0].max(), coords[:, 1].max()
 
     radius = diameter / 2
     dx = np.sqrt(3) * radius
@@ -78,7 +89,7 @@ def generate_hextile(
 
 def hextile_niche(
     gdf_hex: gpd.GeoDataFrame,
-    adata_hex: "AnnData",
+    adata_hex: Any,
     category: str = "leiden",
     dissolve: bool = True,
 ) -> gpd.GeoDataFrame:
@@ -94,8 +105,8 @@ def hextile_niche(
     gdf_hex : gpd.GeoDataFrame
         GeoDataFrame of hexagon geometries. Must be indexed by hexagon name
         (matching `adata_hex.obs.index`).
-    adata_hex : AnnData
-        AnnData object containing clustering results in `obs[category]`.
+    adata_hex : AnnData or MuData
+        Hexagon-level data containing clustering results in `obs[category]`.
         The index must match the hexagon names in `gdf_hex`.
         Colors can be provided in `uns[f"{category}_colors"]`.
     category : str, default "leiden"
@@ -119,8 +130,7 @@ def hextile_niche(
     --------
     >>> # Generate hexagons and compute population distribution
     >>> gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
-    >>> nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_hex)
-    >>> nbhd.calc_population(adata, category="leiden")
+    >>> adata_hex = dega.nbhd.calc_nbhd_by_pop(adata, gdf_hex, category="leiden")
     >>>
     >>> # Cluster hexagons by population similarity (e.g., using scanpy)
     >>> import scanpy as sc
@@ -134,6 +144,8 @@ def hextile_niche(
     >>> # Or keep individual hexagons with niche assignment
     >>> gdf_hex_niche = dega.nbhd.hextile_niche(gdf_hex, adata_hex, dissolve=False)
     """
+    adata_hex = _unwrap_mudata(adata_hex)
+
     # Validate inputs
     if category not in adata_hex.obs.columns:
         raise ValueError(f"adata_hex.obs missing '{category}' column")
@@ -181,5 +193,7 @@ def hextile_niche(
         return gdf_dissolved[["name", "cat", "geometry", "color", "area"]]
 
     # Return individual hexagons with niche assignment
-    gdf_result = gdf_result.reset_index()
+    if "name" not in gdf_result.columns:
+        gdf_result["name"] = gdf_result.index.astype(str)
+    gdf_result = gdf_result.reset_index(drop=True)
     return gdf_result[["name", "cat", "geometry", "color"]]

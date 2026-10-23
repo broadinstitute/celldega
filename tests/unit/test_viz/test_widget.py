@@ -14,11 +14,10 @@ import traitlets
 
 try:
     import geopandas as gpd
+    from mudata import MuData
     from shapely.geometry import Polygon
 
     from celldega.clust import Matrix
-    from celldega.dataset import DatasetCollection
-    from celldega.nbhd import NeighborhoodCollection
     from celldega.viz import (
         Clustergram,
         Composition,
@@ -372,27 +371,57 @@ def test_composition_col_weights_default_empty_for_dataframe_input() -> None:
     assert comp.composition_col_weights == {}
 
 
-def test_composition_col_weights_from_dataset_collection_n_cells() -> None:
+def _sample_cells() -> AnnData:
     obs = pd.DataFrame(
         {
             "sample_id": ["s1"] * 10 + ["s2"] * 40,
             "cell_type": (["T"] * 6 + ["B"] * 4) + (["T"] * 20 + ["B"] * 20),
+            "condition": ["ctrl"] * 10 + ["treated"] * 40,
         },
         index=[f"c{i}" for i in range(50)],
     )
+    obs["cell_type"] = pd.Categorical(obs["cell_type"], categories=["B", "T"])
     adata = AnnData(X=np.zeros((50, 3)), obs=obs)
+    adata.uns["cell_type_colors"] = ["#0000ff", "#ff0000"]
+    return adata
 
-    dc = DatasetCollection(adata, dataset_col="sample_id")
-    dc.calc_population(adata, category="cell_type")
 
-    comp = Composition(dc, category="cell_type", adata=adata)
+def test_composition_groupby_from_cell_level_adata() -> None:
+    adata = _sample_cells()
+
+    comp = Composition(adata, groupby="sample_id", category="cell_type", group_attrs=["condition"])
 
     assert comp.composition_col_weights == {"s1": 10.0, "s2": 40.0}
-    # Explicit override wins over the auto-derived n_cells.
+    assert comp.composition_normalized is True
+    assert comp.composition_colors == {"B": "#0000ff", "T": "#ff0000"}
+    body = comp._matrix.data
+    assert body.loc["T", "s1"] == pytest.approx(0.6)
+    assert body.loc["B", "s2"] == pytest.approx(0.5)
+    assert comp._matrix.meta_col.loc["s2", "condition"] == "treated"
+
+    # Explicit override wins over the group sizes.
     comp_override = Composition(
-        dc, category="cell_type", adata=adata, col_weights={"s1": 1.0, "s2": 1.0}
+        adata, groupby="sample_id", category="cell_type", col_weights={"s1": 1.0, "s2": 1.0}
     )
     assert comp_override.composition_col_weights == {"s1": 1.0, "s2": 1.0}
+
+
+def test_composition_groupby_requires_category() -> None:
+    with pytest.raises(ValueError, match="`category` is required"):
+        Composition(_sample_cells(), groupby="sample_id")
+
+
+def test_composition_reads_mudata_population_modality() -> None:
+    population = AnnData(
+        X=np.array([[0.6, 0.4], [0.5, 0.5]]),
+        obs=pd.DataFrame({"n_cells": [10, 40]}, index=["s1", "s2"]),
+        var=pd.DataFrame(index=["T", "B"]),
+    )
+    mdata = MuData({"population": population})
+
+    comp = Composition(mdata, category="cell_type")
+
+    assert comp.composition_col_weights == {"s1": 10.0, "s2": 40.0}
 
 
 def test_landscape_nbhd_geojson_and_metadata() -> None:
@@ -436,7 +465,19 @@ def test_landscape_nbhd_edit_with_preloaded_data() -> None:
     assert len(widget.nbhd_geojson["features"]) == 1
 
 
-def test_landscape_accepts_neighborhood_collection() -> None:
+class _NeighborhoodLike:
+    """Duck-typed neighborhood object: geometry via to_geodataframe(), metadata in obs."""
+
+    def __init__(self, gdf: gpd.GeoDataFrame, obs: pd.DataFrame) -> None:
+        self._gdf = gdf
+        self.obs = obs
+        self.nbhd_col = "name"
+
+    def to_geodataframe(self) -> gpd.GeoDataFrame:
+        return self._gdf
+
+
+def test_landscape_accepts_neighborhood_like_object() -> None:
     gdf = gpd.GeoDataFrame(
         {"name": ["a", "b"]},
         geometry=[
@@ -444,11 +485,9 @@ def test_landscape_accepts_neighborhood_collection() -> None:
             Polygon([(2, 0), (3, 0), (3, 1), (2, 1)]),
         ],
     )
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="hextile")
-    collection.obs["cat"] = ["0", "1"]
-    collection.obs["color"] = ["#ff0000", "#00ff00"]
+    obs = pd.DataFrame({"cat": ["0", "1"], "color": ["#ff0000", "#00ff00"]}, index=["a", "b"])
 
-    widget = Landscape(nbhd=collection, transform=np.eye(3))
+    widget = Landscape(nbhd=_NeighborhoodLike(gdf, obs), transform=np.eye(3))
 
     features = widget.nbhd_geojson["features"]
     properties = [feature["properties"] for feature in features]
@@ -573,18 +612,19 @@ def test_yearbook_cluster_attr_synced_for_custom_cluster_key() -> None:
     assert "my_cluster" in table.schema.names
 
 
+class _SelectionLike:
+    """Duck-typed selection result exposing to_json()."""
+
+    def to_json(self) -> dict:
+        return {
+            "ids": ["cell_1", "cell_3"],
+            "query": {"attr": "cluster", "op": "==", "value": "B cell"},
+            "candidate_count": 2,
+        }
+
+
 def test_yearbook_accepts_selection_result() -> None:
-    from anndata import AnnData
-
-    from celldega.select import Selector
-
-    obs = pd.DataFrame(
-        {"cluster": ["B cell", "T cell", "B cell"]},
-        index=["cell_1", "cell_2", "cell_3"],
-    )
-    adata = AnnData(np.ones((3, 1)), obs=obs, var=pd.DataFrame(index=["MS4A1"]))
-    selector = Selector(adata)
-    selection = selector.select(query=selector.attr("cluster") == "B cell")
+    selection = _SelectionLike()
 
     widget = Yearbook(base_url="https://example.org/data", selection=selection, current_page=4)
 
@@ -592,6 +632,14 @@ def test_yearbook_accepts_selection_result() -> None:
     assert widget.current_page == 0
     assert widget.selection["query"] == selection.to_json()["query"]
     assert widget.selection["candidate_count"] == 2
+
+
+def test_yearbook_accepts_selection_dict_and_ids() -> None:
+    by_dict = Yearbook(base_url="https://example.org/data", selection={"ids": ["c2", "c1"]})
+    by_ids = Yearbook(base_url="https://example.org/data", selection=["c2", "c1"])
+
+    assert by_dict.cells == ["c2", "c1"]
+    assert by_ids.cells == ["c2", "c1"]
 
 
 def test_yearbook_rejects_cells_and_selection() -> None:

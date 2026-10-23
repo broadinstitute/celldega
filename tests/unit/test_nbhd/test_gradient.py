@@ -3,7 +3,7 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point
 
-from celldega.nbhd import NeighborhoodCollection, calc_gradient
+from celldega.nbhd import calc_gradient
 
 
 def _circle_roi(radius=30):
@@ -86,29 +86,3 @@ def test_gradient_multiple_footprints_with_anndata_clip():
         assert ring.intersection(footprints.unary_union).area < 1e-8
         for other in rings.geometry.iloc[:i]:
             assert ring.intersection(other).area < 1e-8
-
-
-def test_calc_gradient_from_named_observation():
-    """calc_gradient anchors on a named neighborhood and yields one obs per ring."""
-    source = NeighborhoodCollection(
-        gdf=gpd.GeoDataFrame({"name": ["islet"]}, geometry=[Point(0, 0).buffer(100)]),
-        nbhd_type="alpha_shape",
-    )
-    grad_nbhd = source.calc_gradient(obs_name="islet", direction="both", bin_width=10, max_dist=50)
-    assert grad_nbhd.nbhd_type == "gradient"
-    assert grad_nbhd.obs.shape[0] == 10
-    assert "direction" in grad_nbhd.obs.columns
-
-
-def test_calc_gradient_unknown_obs_name_raises():
-    """An unknown obs_name raises KeyError."""
-    source = NeighborhoodCollection(
-        gdf=gpd.GeoDataFrame({"name": ["islet"]}, geometry=[Point(0, 0).buffer(100)]),
-        nbhd_type="alpha_shape",
-    )
-    try:
-        source.calc_gradient(obs_name="missing")
-    except KeyError:
-        pass
-    else:
-        raise AssertionError("expected KeyError for unknown obs_name")

@@ -21,6 +21,8 @@ import pandas as pd
 from shapely.affinity import affine_transform
 import traitlets
 
+from celldega.nbhd.utils import _nbhd_geometry
+
 from ._widget_lifecycle import CelldegaWidget
 
 
@@ -93,8 +95,8 @@ def _selection_to_payload(selection) -> dict:
             payload["ids"] = list(selection)
         else:
             raise TypeError(
-                "`selection` must be a celldega.select.Selection, "
-                "a JSON-like selection dict, or a sequence of cell ids."
+                "`selection` must be an object with to_json()/to_dict() returning "
+                "'ids', a selection dict with 'ids', or a sequence of cell ids."
             )
 
     ids = payload["ids"]
@@ -140,42 +142,25 @@ def _metadata_from_nbhd_like(nbhd_like: Any) -> pd.DataFrame | None:
     return None
 
 
-def _geometry_from_nbhd_like(nbhd_like: Any) -> gpd.GeoDataFrame | None:
-    geometry = getattr(nbhd_like, "geometry", None)
-    if isinstance(geometry, gpd.GeoDataFrame):
-        return geometry.copy()
-
-    gdf = getattr(nbhd_like, "gdf", None)
-    if isinstance(gdf, gpd.GeoDataFrame):
-        return gdf.copy()
-
-    return None
-
-
 def _coerce_nbhd_for_landscape(
     nbhd_like: Any,
     meta_nbhd: pd.DataFrame | None = None,
 ) -> tuple[gpd.GeoDataFrame | None, pd.DataFrame | None]:
-    """Coerce GeoDataFrame, NeighborhoodCollection, or legacy NBHD inputs."""
+    """Coerce a GeoDataFrame or neighborhood-like object (e.g. a
+    ``dega_collection.NeighborhoodCollection``) into Landscape geometry."""
     if nbhd_like is None:
         return None, meta_nbhd
-
-    collection = getattr(nbhd_like, "collection", None)
-    if collection is not None:
-        nbhd_like = collection
 
     if isinstance(nbhd_like, gpd.GeoDataFrame):
         gdf = nbhd_like.copy()
         inferred_meta = None
         prefer_meta_columns = False
     else:
-        gdf = _geometry_from_nbhd_like(nbhd_like)
+        gdf = _nbhd_geometry(nbhd_like)
         inferred_meta = _metadata_from_nbhd_like(nbhd_like)
         prefer_meta_columns = True
         if gdf is None:
-            raise TypeError(
-                "nbhd must be a GeoDataFrame, NeighborhoodCollection, or legacy NBHD object"
-            )
+            raise TypeError("nbhd must be a GeoDataFrame or an object exposing to_geodataframe()")
 
     if meta_nbhd is None and inferred_meta is not None:
         meta_nbhd = inferred_meta
@@ -276,9 +261,7 @@ class Landscape(CelldegaWidget):
 
     A point-cloud (3D) view requires a real, pre-built DegaFiles ``base_url``
     like any other technology — build one with the ``celldega.pre`` module
-    (e.g. after running an alignment with
-    :func:`~celldega.align.serial_slices.align_serial_slices`, regenerate
-    LandscapeFiles from the aligned ``AnnData`` before visualizing it).
+    (e.g. :func:`celldega.pre.write_point_cloud_dataset` for a 3D ``AnnData``).
     ``adata`` here is only ever used for cell attributes/metadata, never for
     spatial positions.
 
@@ -345,7 +328,7 @@ class Landscape(CelldegaWidget):
 
     # Named alignment variant for point-cloud technology. When set, cell
     # positions are read from cell_metadata_<alignment>.parquet (written by
-    # celldega.align.write_alignment_point_cloud) while clusters/genes keep
+    # celldega.pre.write_point_cloud_dataset(name=...)) while clusters/genes keep
     # loading from their normal (segmentation-driven) paths.
     alignment = traitlets.Unicode("").tag(sync=True)
 
@@ -795,18 +778,61 @@ def _colors_from_adata(
     return {cat: mapping[cat] for cat in categories if cat in mapping}
 
 
+def _composition_from_cells(
+    data: Any,
+    groupby: str,
+    category: str | None,
+    group_attrs: list[str] | None,
+) -> dict[str, Any]:
+    """Composition inputs from a cell-level AnnData/MuData: crosstab ``groupby`` x ``category``."""
+    if category is None:
+        raise ValueError("`category` is required with `groupby`")
+    obs = getattr(data, "obs", None)
+    if not isinstance(obs, pd.DataFrame):
+        raise TypeError("`groupby` requires a cell-level AnnData or MuData")
+    missing = [col for col in (groupby, category, *(group_attrs or [])) if col not in obs]
+    if missing:
+        raise KeyError(f"columns not found on obs: {missing}")
+
+    counts = obs.groupby([groupby, category], observed=True).size().unstack(fill_value=0)
+    counts.index = counts.index.astype(str)
+    counts.columns = counts.columns.astype(str)
+    group_sizes = counts.sum(axis=1)
+    groups_x_pops = counts.div(group_sizes.where(group_sizes > 0, 1), axis=0)
+
+    df = groups_x_pops.T.copy()
+    meta_col = None
+    if group_attrs:
+        meta_col = obs.groupby(groupby, observed=True)[list(group_attrs)].first()
+        meta_col.index = meta_col.index.astype(str)
+        meta_col = meta_col.reindex(df.columns)
+
+    return {
+        "df": df,
+        "meta_col": meta_col,
+        "col_attr": list(group_attrs) if group_attrs else [],
+        "colors": _colors_from_adata(data, category, list(counts.columns)),
+        "normalized": True,
+        "category": category,
+        "col_weights": {str(name): float(n) for name, n in group_sizes.items()},
+    }
+
+
 def _composition_matrix_inputs(
     data: Any,
     modality: str = "population",
     category: str | None = None,
     color_adata: Any = None,
     group_attrs: list[str] | None = None,
+    groupby: str | None = None,
 ) -> dict[str, Any]:
     """Build Matrix inputs for a composition Clustergram.
 
-    Accepts a Celldega collection / ``MuData`` (reads ``modality``), an
-    ``AnnData`` (obs = groups, var = populations), or a ``DataFrame``
-    (rows = groups, columns = populations). Returns a dict with:
+    Accepts a cell-level ``AnnData``/``MuData`` with ``groupby`` (cells are
+    cross-tabulated into groups x ``category``), a ``MuData`` or any object
+    exposing ``mod`` (reads ``modality``), an ``AnnData`` (obs = groups, var =
+    populations), or a ``DataFrame`` (rows = groups, columns = populations).
+    Returns a dict with:
 
     * ``df`` - populations x groups DataFrame (Clustergram row/col orientation)
     * ``meta_col`` - optional group (column) attribute table
@@ -817,6 +843,9 @@ def _composition_matrix_inputs(
       used to scale bar height in non-normalized ("counts") mode even when
       the displayed matrix itself holds proportions
     """
+    if groupby is not None:
+        return _composition_from_cells(data, groupby, category, group_attrs)
+
     meta_col: pd.DataFrame | None = None
     collection_obs: pd.DataFrame | None = None
     col_weights: dict[str, float] = {}
@@ -830,7 +859,7 @@ def _composition_matrix_inputs(
         output = "proportion"
         resolved_category = category
     else:
-        if hasattr(data, "mod"):  # CelldegaCollection or MuData
+        if hasattr(data, "mod"):  # MuData, or any object exposing modalities
             available = list(data.mod)
             if modality not in available:
                 raise KeyError(
@@ -841,7 +870,7 @@ def _composition_matrix_inputs(
         elif hasattr(data, "X") and hasattr(data, "var_names"):  # AnnData
             adata = data
         else:
-            raise TypeError("data must be a Celldega collection, MuData, AnnData, or DataFrame")
+            raise TypeError("data must be a MuData, AnnData, or DataFrame")
 
         matrix = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
         groups_x_pops = pd.DataFrame(
@@ -869,8 +898,8 @@ def _composition_matrix_inputs(
             colors = _colors_from_adata(color_adata, resolved_category, categories)
         output = str(adata.uns.get("output", "proportion"))
 
-        # True per-group cell count, independent of `output`: `calc_population`
-        # always stores this on the modality's own obs (collection.py), so
+        # True per-group cell count, independent of `output`: population
+        # matrices (e.g. `calc_nbhd_by_pop`) store it in obs["n_cells"], so
         # "counts" mode can scale bar height correctly even when `df` itself
         # holds proportions (every group's proportions sum to ~1.0 otherwise,
         # making non-normalized mode indistinguishable from normalized mode).
@@ -892,7 +921,7 @@ def _composition_matrix_inputs(
     df.columns = df.columns.astype(str)
 
     if group_attrs:
-        # Prefer the collection's dataset/set obs (richer metadata) over the
+        # Prefer the MuData's group-level obs (richer metadata) over the
         # modality's obs, which is usually just n_cells.
         source_obs = collection_obs if collection_obs is not None else None
         if source_obs is None and not isinstance(data, pd.DataFrame):
@@ -929,14 +958,14 @@ class Yearbook(CelldegaWidget):
         cells (list, optional): List of cell identifiers to display as portraits.
             If not provided and no query is given, random cells will be selected.
         selection (Selection or dict or list, optional): Ordered selection of
-            cells to display as portraits. Accepts a ``celldega.select.Selection``
-            returned by ``dega.select.Selector.select``, a JSON-ready selection
-            dict, or a plain list of cell ids. Yearbook uses its ids as the
+            cells to display as portraits. Accepts a selection object exposing
+            ``to_json()``/``to_dict()`` (e.g. a ``dega_collection.select``
+            selection), a JSON-ready selection dict with ``ids``, or a plain
+            list of cell ids. Yearbook uses its ids as the
             portrait cell order and stores the JSON-ready payload for provenance.
             Pass either ``selection`` or ``cells``, not both.
         front_end_query (dict, optional): Stateless query evaluated in the browser
-            against LandscapeFiles (no Python/AnnData required). This is separate
-            from the Python-side ``celldega.select`` query module. Supports the
+            against LandscapeFiles (no Python/AnnData required). Supports the
             following formats:
 
             - Cluster only: ``{"cluster": {"attr": "leiden", "value": "8"}}``
@@ -975,9 +1004,8 @@ class Yearbook(CelldegaWidget):
             portrait_size_um=100,
         )
 
-        # Using a Python selector result
-        selector = dega.select.Selector(adata)
-        selection = selector.select(query=selector.attr("leiden") == "5")
+        # Using an ordered selection of cell ids from an AnnData
+        selection = adata.obs_names[adata.obs["leiden"] == "5"][:4].tolist()
         yb = Yearbook(
             base_url="https://path-to-dataset",
             selection=selection,
@@ -1052,8 +1080,7 @@ class Yearbook(CelldegaWidget):
     cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
 
     # Stateless front-end query, evaluated in the browser against LandscapeFiles
-    # (no Python/AnnData required). Distinct from the Python-side
-    # ``celldega.select`` query module. Supports:
+    # (no Python/AnnData required). Supports:
     #   {"cluster": {"attr": "leiden", "value": "8"}} - cells from cluster
     #   {"gene": "BRCA1"} - cells ranked by gene expression
     #   {"cluster": {"attr": "leiden", "value": "8"}, "gene": "BRCA1"} - cluster cells ranked by gene
@@ -1073,7 +1100,7 @@ class Yearbook(CelldegaWidget):
             kwargs.pop("cols")  # Remove duplicate
 
         # `query` was renamed to `front_end_query` to disambiguate the stateless
-        # browser query from the Python-side celldega.select query module.
+        # browser query from Python-side cell selections.
         if "query" in kwargs:
             if "front_end_query" not in kwargs:
                 warnings.warn(
@@ -1373,8 +1400,8 @@ class Clustergram(CelldegaWidget):
     composition_colors = traitlets.Dict(default_value={}).tag(sync=True)
     # Optional {group_name: n_cells} true per-group magnitude. Scales bar
     # height in non-normalized ("counts") mode even when the displayed matrix
-    # holds proportions (e.g. from `DatasetCollection.calc_population`, whose
-    # default output already normalizes each group to sum to 1).
+    # holds proportions (e.g. `Composition(adata, groupby=...)`, which
+    # normalizes each group to sum to 1).
     composition_col_weights = traitlets.Dict(default_value={}).tag(sync=True)
 
     #: Supported `viz_mode` values. "size" (square size ∝ value alone, full
@@ -1787,18 +1814,14 @@ class Composition(Clustergram):
 
     Example::
 
-        dset = dega.DatasetCollection(adata, dataset_col="sample_id",
-                                       obs_columns=["condition"])
-        dset.calc_population(adata, category="cell_type")
+        # Cell-level AnnData: cells are cross-tabulated into samples x cell types
         dega.viz.Composition(
-            dset, category="cell_type", group_attrs=["condition"]
+            adata, groupby="sample_id", category="cell_type", group_attrs=["condition"]
         )
 
-    Note: ``calc_population`` already copies ``adata.uns[f"{category}_colors"]``
-    onto the population modality it builds, so ``Composition`` picks up the
-    same colors from ``dset`` alone — passing ``adata=`` is only needed as a
-    fallback (e.g. a plain ``DataFrame`` input, or an ``AnnData``/modality that
-    has no color palette of its own).
+    Colors come from ``adata.uns[f"{category}_colors"]``. A precomputed
+    population matrix (``AnnData`` with groups as obs and populations as var,
+    a ``MuData`` modality, or a ``DataFrame``) works too.
     """
 
     def __init__(
@@ -1806,6 +1829,7 @@ class Composition(Clustergram):
         data: Any,
         modality: str = "population",
         *,
+        groupby: str | None = None,
         category: str | None = None,
         colors: dict[str, str] | None = None,
         adata: Any = None,
@@ -1822,26 +1846,29 @@ class Composition(Clustergram):
     ) -> None:
         """
         Args:
-            data: A Celldega collection (``DatasetCollection`` / ``SetCollection``),
-                a ``MuData``, an ``AnnData`` (obs = groups, var = populations), or a
-                ``DataFrame`` (rows = groups, columns = populations) — typically the
-                output of ``calc_population``.
-            modality: Modality key on a collection/MuData (default ``"population"``).
-            category: Population ``obs`` column name used to resolve colors from
-                ``adata.uns[f"{category}_colors"]`` when the modality has none.
+            data: A cell-level ``AnnData``/``MuData`` with ``groupby``, or a
+                precomputed population matrix: a ``MuData`` (or any object
+                exposing ``mod``), an ``AnnData`` (obs = groups, var =
+                populations), or a ``DataFrame`` (rows = groups, columns =
+                populations).
+            modality: Modality key on a MuData (default ``"population"``).
+            groupby: With cell-level ``data``, the ``obs`` column defining the
+                groups (e.g. a sample column); cells are cross-tabulated against
+                ``category``.
+            category: Population ``obs`` column name (required with
+                ``groupby``); also used to resolve colors from
+                ``uns[f"{category}_colors"]`` when the matrix has none.
             colors: Optional ``{population: hex}`` overrides.
             adata: Optional source cell-level ``AnnData`` to fall back to for
-                its color palette. Usually unnecessary: ``calc_population``
-                already copies the category's colors onto the modality it
-                builds, so a ``DatasetCollection``/``SetCollection`` that has
-                already run it carries its own colors.
-            group_attrs: Dataset/set ``obs`` columns to show as Clustergram column
-                attribute tracks (e.g. ``["condition", "timepoint"]``).
+                its color palette, e.g. for a plain ``DataFrame`` input.
+            group_attrs: Group-level ``obs`` columns to show as Clustergram column
+                attribute tracks (e.g. ``["condition", "timepoint"]``). With
+                ``groupby`` the first value per group is used.
             normalized: Column-normalize each bar to 100%. Defaults to ``True`` for
                 proportion matrices and ``False`` for count matrices.
             col_weights: Optional ``{group: n_cells}`` true per-group magnitude,
                 used to scale bar height in non-normalized ("counts") mode.
-                Defaults to `DatasetCollection`/`calc_population`'s own
+                Defaults to the group sizes (``groupby``) or the matrix's own
                 ``n_cells`` obs column when available — pass explicitly to
                 override, e.g. for a plain ``DataFrame`` input.
             cluster: Run hierarchical clustering before display (default ``True``).
@@ -1864,6 +1891,7 @@ class Composition(Clustergram):
             category=category,
             color_adata=adata,
             group_attrs=group_attrs,
+            groupby=groupby,
         )
         merged_colors = dict(payload["colors"])
         if colors:

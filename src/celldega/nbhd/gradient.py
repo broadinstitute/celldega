@@ -5,24 +5,20 @@ A "gradient" is a set of fixed-width bands measured from the boundary of an inpu
 geometry (e.g. a tumor alpha shape). Outward bands grow away from the ROI, inward
 bands erode into it, and each band carries a signed micron distance so downstream
 analyses can correlate cell composition or gene expression with distance from the
-ROI edge. :func:`calc_gradient` returns a tidy ``GeoDataFrame`` for spatial joins
-with cell coordinates, or for use with ``NeighborhoodCollection``.
+ROI edge. :func:`calc_gradient` returns a tidy ``GeoDataFrame`` of rings, itself
+a neighborhood GeoDataFrame for :func:`calc_nbhd_by_pop` / :func:`calc_nbhd_by_gene`.
 """
 
 from __future__ import annotations
 
 import colorsys
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import geopandas as gpd
 import numpy as np
 from shapely.geometry.base import BaseGeometry
 
 from .alpha_shapes import alpha_shape
-
-
-if TYPE_CHECKING:
-    from celldega.nbhd.collection import NeighborhoodCollection
 
 
 # Native micron-per-pixel scale of common imaging-based spatial platforms. Used to
@@ -68,19 +64,25 @@ def _get_micron_per_pixel(technology: str) -> float:
 def _resolve_roi_geometry(source: Any, nbhd_col: str = "name") -> tuple[BaseGeometry, Any]:
     """Coerce a flexible ``source`` into a single merged ROI geometry.
 
-    Accepts a :class:`~celldega.nbhd.collection.NeighborhoodCollection` (its
-    ``gdf`` is used), a ``GeoDataFrame``/``GeoSeries`` (all rows are dissolved
-    into one shape), or a bare shapely ``(Multi)Polygon``.
+    Accepts a ``GeoDataFrame``/``GeoSeries`` (all rows are dissolved into one
+    shape), a bare shapely ``(Multi)Polygon``, or a neighborhood-like object
+    exposing ``to_geodataframe()`` or a ``geometry``/``gdf`` GeoDataFrame.
 
     Returns:
         A ``(geometry, crs)`` tuple where ``geometry`` is the unioned ROI and
         ``crs`` is the source coordinate reference system (``None`` for a bare
         geometry).
     """
-    # NeighborhoodCollection (and anything else exposing a live ``gdf``).
-    gdf = getattr(source, "gdf", None)
-    if gdf is not None and isinstance(gdf, gpd.GeoDataFrame):
-        return gdf.geometry.unary_union, gdf.crs
+    if not isinstance(source, gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry):
+        to_geodataframe = getattr(source, "to_geodataframe", None)
+        if callable(to_geodataframe):
+            source = to_geodataframe()
+        else:
+            for attr in ("geometry", "gdf"):
+                candidate = getattr(source, attr, None)
+                if isinstance(candidate, gpd.GeoDataFrame):
+                    source = candidate
+                    break
 
     if isinstance(source, gpd.GeoDataFrame):
         return source.geometry.unary_union, source.crs
@@ -92,8 +94,8 @@ def _resolve_roi_geometry(source: Any, nbhd_col: str = "name") -> tuple[BaseGeom
         return source, None
 
     raise TypeError(
-        "source must be a GeoDataFrame, GeoSeries, NeighborhoodCollection, or "
-        f"shapely geometry, got {type(source).__name__}"
+        "source must be a GeoDataFrame, GeoSeries, shapely geometry, or an object "
+        f"exposing to_geodataframe(), got {type(source).__name__}"
     )
 
 
@@ -178,7 +180,7 @@ def _ring_colors(hue: float, n: int) -> list[str]:
 
 
 def calc_gradient(
-    source: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry | NeighborhoodCollection,
+    source: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry | Any,
     direction: str = "both",
     bin_width: float = 10,
     max_dist: float = 50,
@@ -192,9 +194,7 @@ def calc_gradient(
     add_colors: bool = True,
     nbhd_col: str = "name",
 ) -> gpd.GeoDataFrame:
-    """Generate gradient bands as a GeoDataFrame, without requiring a collection.
-
-    Also supplies the geometry for ``NeighborhoodCollection.calc_gradient``.
+    """Generate gradient bands around a region of interest as a GeoDataFrame.
 
     Starting from the boundary of the merged ``source`` geometry, this builds
     fixed-width bands every ``bin_width`` microns out to ``max_dist``:
@@ -212,9 +212,8 @@ def calc_gradient(
 
     Args:
         source: The ROI. May be a ``GeoDataFrame``/``GeoSeries`` (all rows are
-            dissolved into one shape), a
-            :class:`~celldega.nbhd.collection.NeighborhoodCollection` (its
-            ``gdf`` is used), or a bare shapely ``(Multi)Polygon``.
+            dissolved into one shape), a bare shapely ``(Multi)Polygon``, or a
+            neighborhood-like object exposing ``to_geodataframe()``.
         direction: ``"outward"``, ``"inward"``, or ``"both"`` (default).
         bin_width: Width of each ring in microns (default ``10``).
         max_dist: Maximum distance from the ROI boundary in microns (default
@@ -225,8 +224,7 @@ def calc_gradient(
         scale_um_per_pixel: Microns per pixel. Required (directly or via
             ``technology``) when ``is_pixel_space=True``.
         is_pixel_space: ``True`` if ``source`` geometry is in pixel units;
-            ``False`` (default) if it is already in microns — the natural space
-            of a ``NeighborhoodCollection``. Controls how micron ring widths are
+            ``False`` (default) if it is already in microns. Controls how micron ring widths are
             converted to the geometry's units and how areas are reported.
         clip_boundary: Optional precomputed tissue boundary
             (``GeoDataFrame``/``GeoSeries``/geometry) to clip **outward** rings
@@ -242,7 +240,7 @@ def calc_gradient(
         add_colors: If ``True`` (default), add a ``color`` column (Blues for
             outward bands, Reds for inward) for visualization.
         nbhd_col: Name of the band-identifier column in the output (default
-            ``"name"``), matching what ``NeighborhoodCollection`` expects.
+            ``"name"``), matching the neighborhood functions' default ``nbhd_col``.
 
     Returns:
         A ``GeoDataFrame`` with one row per ring, ordered inner-most to
@@ -361,7 +359,3 @@ def calc_gradient(
         gdf_rings["color"] = gdf_rings["ring_range_um"].map(color_map).fillna("#cccccc")
 
     return gdf_rings
-
-
-# Preserve the internal entry point used by existing collections and callers.
-_calc_gradient = calc_gradient

@@ -1,26 +1,23 @@
 import json
 
 import anndata as ad
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import Point
 
-from celldega.nbhd import (
-    NeighborhoodCollection,
-    alpha_shape_cell_clusters_by_slice,
-    alpha_shape_gene_expression_by_slice,
-)
+from celldega.nbhd import alpha_shape_cell_clusters_by_slice
 from celldega.pre import (
     write_cell_clusters_meta,
     write_gene_cell_scatter,
-    write_gene_shapes,
-    write_gene_shapes_streaming,
     write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
     write_nbhd_cloud_cells,
     write_nbhd_cloud_dataset,
     write_nbhd_cloud_shapes_and_features,
 )
+from celldega.pre.nbhd_cloud import _write_nbhd_cloud_landscape_parameters
 
 
 def _synthetic_dataset(seed=0, n_slices=2, n_clusters=2, n_per_cluster=30, n_genes=2):
@@ -60,10 +57,19 @@ def _synthetic_dataset(seed=0, n_slices=2, n_clusters=2, n_per_cluster=30, n_gen
 
 
 def _build_nbhd(adata):
-    gdf = alpha_shape_cell_clusters_by_slice(
+    return alpha_shape_cell_clusters_by_slice(
         adata, cluster_attr="cluster", slice_attr="slice_id", z_attr="z", alphas=(150,)
     )
-    return NeighborhoodCollection.from_gdf(gdf, nbhd_type="alpha_shape")
+
+
+class _NeighborhoodLike:
+    """Duck-typed neighborhood object exposing to_geodataframe()."""
+
+    def __init__(self, gdf):
+        self._gdf = gdf
+
+    def to_geodataframe(self):
+        return self._gdf
 
 
 def test_write_meta_slice(tmp_path):
@@ -227,14 +233,12 @@ def test_write_nbhd_cloud_shapes_and_features(tmp_path):
     }.issubset(df_meta_nbhd.columns)
     assert (df_meta_nbhd["cell_count"] == 30).all()
 
-    # Per-neighborhood gene expression / population are no longer computed or
-    # written here -- gene coloring comes from the curated gene-shapes
-    # feature instead (see write_gene_shapes), and population was never
-    # surfaced in the frontend.
+    # Per-neighborhood gene expression / population are not computed or
+    # written here -- gene coloring comes from the per-gene cell scatter
+    # (see write_gene_cell_scatter), and population was never surfaced in the
+    # frontend.
     assert not (tmp_path / "nbhd_cloud" / "expression").exists()
     assert not (tmp_path / "nbhd_cloud" / "population.parquet").exists()
-    assert "gene" not in nbhd.mod
-    assert "population" not in nbhd.mod
 
     # cell_clusters/meta_cluster.parquet is also written so the existing
     # cluster-color/cluster-bar machinery (shared by every technology) works
@@ -244,57 +248,6 @@ def test_write_nbhd_cloud_shapes_and_features(tmp_path):
     assert set(df_meta_cluster["cluster"]) == {"0", "1"}
     # each cluster spans both slices, 30 cells each -> 60 total
     assert (df_meta_cluster["count"] == 60).all()
-
-
-def test_write_gene_shapes(tmp_path):
-    rng = np.random.RandomState(0)
-    rows = []
-    xy = []
-    X = []
-    for slice_idx in range(2):
-        center = np.array([slice_idx * 300.0, 0.0])
-        pts = rng.normal(loc=center, scale=10.0, size=(20, 2))
-        xy.append(pts)
-        rows.extend([{"slice_id": f"s{slice_idx}", "z": float(slice_idx) * 100.0}] * 20)
-        slice_expr = np.zeros((20, 1))
-        slice_expr[::2, :] = 5.0
-        X.append(slice_expr)
-
-    obs = pd.DataFrame(rows)
-    obs.index = [f"cell_{i}" for i in range(len(obs))]
-    adata = ad.AnnData(X=np.vstack(X), obs=obs, var=pd.DataFrame(index=["Matn1"]))
-    adata.obsm["spatial"] = np.vstack(xy)
-
-    gdf = alpha_shape_gene_expression_by_slice(
-        adata, ["Matn1"], slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
-    )
-
-    write_gene_shapes(gdf, tmp_path)
-
-    gene_shapes_dir = tmp_path / "nbhd_cloud" / "shapes" / "by_gene"
-    assert {p.name for p in gene_shapes_dir.glob("*")} == {
-        "Matn1.parquet",
-        "available_genes.json",
-    }
-
-    df_matn1 = pd.read_parquet(gene_shapes_dir / "Matn1.parquet")
-    assert len(df_matn1) == 2  # one shape per slice
-    assert set(df_matn1["slice_id"]) == {"s0", "s1"}
-    assert "geometry_geojson" in df_matn1.columns
-    assert "geometry" not in df_matn1.columns
-    parsed_geometries = [json.loads(g) for g in df_matn1["geometry_geojson"]]
-    assert all(
-        len(coord) == 3
-        for g in parsed_geometries
-        for poly in g["coordinates"]
-        for ring in poly
-        for coord in ring
-    )
-
-    with (gene_shapes_dir / "available_genes.json").open() as f:
-        manifest = json.load(f)
-    assert set(manifest) == {"Matn1"}
-    assert manifest["Matn1"] == pytest.approx(5.0)
 
 
 def _synthetic_multi_gene_adata(n_slices=2, n_cells=20, gene_names=("Gene0", "Gene1", "Gene2")):
@@ -316,168 +269,6 @@ def _synthetic_multi_gene_adata(n_slices=2, n_cells=20, gene_names=("Gene0", "Ge
     adata = ad.AnnData(X=np.vstack(X), obs=obs, var=pd.DataFrame(index=list(gene_names)))
     adata.obsm["spatial"] = np.vstack(xy)
     return adata
-
-
-def test_write_gene_shapes_streaming(tmp_path):
-    adata = _synthetic_multi_gene_adata()
-
-    n_written = write_gene_shapes_streaming(
-        adata,
-        ["Gene0", "Gene1", "Gene2"],
-        tmp_path,
-        slice_attr="slice_id",
-        z_attr="z",
-        alphas=(150,),
-        min_cells=4,
-        progress_every=0,
-    )
-
-    assert n_written == 3
-    gene_shapes_dir = tmp_path / "nbhd_cloud" / "shapes" / "by_gene"
-    assert {p.name for p in gene_shapes_dir.glob("*")} == {
-        "Gene0.parquet",
-        "Gene1.parquet",
-        "Gene2.parquet",
-        "available_genes.json",
-    }
-
-    df_gene0 = pd.read_parquet(gene_shapes_dir / "Gene0.parquet")
-    assert len(df_gene0) == 2  # one shape per slice
-    assert set(df_gene0["slice_id"]) == {"s0", "s1"}
-    assert "geometry_geojson" in df_gene0.columns
-    assert "geometry" not in df_gene0.columns
-
-    with (gene_shapes_dir / "available_genes.json").open() as f:
-        manifest = json.load(f)
-    assert set(manifest) == {"Gene0", "Gene1", "Gene2"}
-    assert manifest["Gene0"] == pytest.approx(5.0)
-
-
-def test_write_gene_shapes_streaming_skips_genes_with_no_shape(tmp_path):
-    adata = _synthetic_multi_gene_adata(gene_names=("Gene0", "Gene1"))
-    # Gene1 has no cells at all expressing above min_expression (all zero) --
-    # nothing to compute, and it must not appear on disk or in the manifest.
-    # (Indexing directly into the array, not `adata[:, "Gene1"].X`, since the
-    # latter operates on a disconnected view/copy and never touches `adata`.)
-    adata.X[:, adata.var_names.get_loc("Gene1")] = 0
-
-    n_written = write_gene_shapes_streaming(
-        adata,
-        ["Gene0", "Gene1"],
-        tmp_path,
-        slice_attr="slice_id",
-        z_attr="z",
-        alphas=(150,),
-        min_cells=4,
-        progress_every=0,
-    )
-
-    assert n_written == 1
-    gene_shapes_dir = tmp_path / "nbhd_cloud" / "shapes" / "by_gene"
-    assert {p.name for p in gene_shapes_dir.glob("*.parquet")} == {"Gene0.parquet"}
-
-    with (gene_shapes_dir / "available_genes.json").open() as f:
-        manifest = json.load(f)
-    assert set(manifest) == {"Gene0"}
-
-    # Gene1 has no shape (and thus no manifest entry, so it's unreachable
-    # from the frontend) -- its cells file must not exist either.
-    gene_cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
-    assert {p.name for p in gene_cells_dir.glob("*.parquet")} == {"Gene0.parquet"}
-
-
-def test_write_gene_shapes_streaming_writes_top_expressing_cells(tmp_path):
-    adata = _synthetic_multi_gene_adata(n_slices=2, n_cells=20, gene_names=("Gene0",))
-    # Distinct expression values on the "expressing" cells so the top-K
-    # selection is unambiguous.
-    gene_col = adata.var_names.get_loc("Gene0")
-    expressing_mask = adata.X[:, gene_col] != 0
-    adata.X[expressing_mask, gene_col] = np.arange(1, expressing_mask.sum() + 1)
-
-    write_gene_shapes_streaming(
-        adata,
-        ["Gene0"],
-        tmp_path,
-        slice_attr="slice_id",
-        z_attr="z",
-        alphas=(150,),
-        min_cells=4,
-        max_cells=5,
-        progress_every=0,
-    )
-
-    df_cells = pd.read_parquet(tmp_path / "nbhd_cloud" / "cells" / "by_gene" / "Gene0.parquet")
-    assert len(df_cells) == 5
-    assert {"cell_id", "gene", "slice_id", "x", "y", "z", "expression"}.issubset(df_cells.columns)
-    assert (df_cells["gene"] == "Gene0").all()
-    # Top-5 expressing cells across both slices are the 5 highest values.
-    max_expr = expressing_mask.sum()
-    assert set(df_cells["expression"]) == set(range(max_expr - 4, max_expr + 1))
-
-
-def test_write_gene_shapes_streaming_max_cells_zero_writes_no_cells_files(tmp_path):
-    adata = _synthetic_multi_gene_adata()
-
-    write_gene_shapes_streaming(
-        adata,
-        ["Gene0", "Gene1", "Gene2"],
-        tmp_path,
-        slice_attr="slice_id",
-        z_attr="z",
-        alphas=(150,),
-        min_cells=4,
-        max_cells=0,
-        progress_every=0,
-    )
-
-    gene_cells_dir = tmp_path / "nbhd_cloud" / "cells" / "by_gene"
-    assert not any(gene_cells_dir.glob("*.parquet"))
-
-
-def test_write_gene_shapes_streaming_matches_non_streaming_output(tmp_path):
-    """The streaming and non-streaming writers must produce the same files
-    for the same input -- streaming is purely a memory-bounding change to
-    *when* things get written, not a different computation."""
-    adata = _synthetic_multi_gene_adata()
-    gene_list = ["Gene0", "Gene1", "Gene2"]
-
-    streaming_dir = tmp_path / "streaming"
-    write_gene_shapes_streaming(
-        adata,
-        gene_list,
-        streaming_dir,
-        slice_attr="slice_id",
-        z_attr="z",
-        alphas=(150,),
-        min_cells=4,
-        progress_every=0,
-    )
-
-    non_streaming_dir = tmp_path / "non_streaming"
-    gdf = alpha_shape_gene_expression_by_slice(
-        adata, gene_list, slice_attr="slice_id", z_attr="z", alphas=(150,), min_cells=4
-    )
-    write_gene_shapes(gdf, non_streaming_dir)
-
-    streaming_files = {
-        p.name for p in (streaming_dir / "nbhd_cloud" / "shapes" / "by_gene").glob("*")
-    }
-    non_streaming_files = {
-        p.name for p in (non_streaming_dir / "nbhd_cloud" / "shapes" / "by_gene").glob("*")
-    }
-    assert streaming_files == non_streaming_files
-
-    for gene in gene_list:
-        df_streaming = pd.read_parquet(
-            streaming_dir / "nbhd_cloud" / "shapes" / "by_gene" / f"{gene}.parquet"
-        )
-        df_non_streaming = pd.read_parquet(
-            non_streaming_dir / "nbhd_cloud" / "shapes" / "by_gene" / f"{gene}.parquet"
-        )
-        pd.testing.assert_frame_equal(
-            df_streaming.sort_values("slice_id").reset_index(drop=True),
-            df_non_streaming.sort_values("slice_id").reset_index(drop=True),
-        )
 
 
 def test_write_gene_cell_scatter_writes_cells_but_no_shape(tmp_path):
@@ -573,29 +364,47 @@ def test_write_gene_cell_scatter_raises_for_missing_gene(tmp_path):
 
 
 def test_write_cell_clusters_meta_requires_gdf_columns():
-    import geopandas as gpd
-    from shapely.geometry import Point
-
-    bare_nbhd = NeighborhoodCollection(
-        gdf=gpd.GeoDataFrame({"name": ["x"]}, geometry=[Point(0, 0).buffer(10)]),
-        nbhd_type="manual",
-    )
+    bare_nbhd = gpd.GeoDataFrame({"name": ["x"]}, geometry=[Point(0, 0).buffer(10)])
 
     with pytest.raises(ValueError, match="cluster_id"):
         write_cell_clusters_meta(bare_nbhd, "unused")
 
 
 def test_write_nbhd_cloud_shapes_and_features_requires_slice_id_column():
-    import geopandas as gpd
-    from shapely.geometry import Point
-
-    bare_nbhd = NeighborhoodCollection(
-        gdf=gpd.GeoDataFrame({"name": ["x"]}, geometry=[Point(0, 0).buffer(10)]),
-        nbhd_type="manual",
+    bare_nbhd = gpd.GeoDataFrame(
+        {"name": ["x"], "cluster_id": ["0"], "color": ["#ff0000"], "cell_count": [5]},
+        geometry=[Point(0, 0).buffer(10)],
     )
 
     with pytest.raises(ValueError, match="slice_id"):
         write_nbhd_cloud_shapes_and_features(bare_nbhd, "unused")
+
+
+def test_write_nbhd_cloud_shapes_and_features_rejects_duplicate_ids(tmp_path):
+    gdf = _build_nbhd(_synthetic_dataset())
+    gdf.loc[1, "name"] = gdf.loc[0, "name"]
+
+    with pytest.raises(ValueError, match="unique"):
+        write_nbhd_cloud_shapes_and_features(gdf, tmp_path)
+
+
+def test_write_nbhd_cloud_shapes_accepts_neighborhood_like_object(tmp_path):
+    gdf = _build_nbhd(_synthetic_dataset())
+
+    write_nbhd_cloud_shapes_and_features(_NeighborhoodLike(gdf), tmp_path)
+
+    df_meta_nbhd = pd.read_parquet(tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet")
+    assert list(df_meta_nbhd["neighborhood_id"]) == list(gdf["name"])
+
+
+def test_nbhd_cloud_writes_both_manifests(tmp_path) -> None:
+    _write_nbhd_cloud_landscape_parameters(tmp_path)
+
+    legacy = json.loads((tmp_path / "landscape_parameters.json").read_text())
+    new = json.loads((tmp_path / "neighborhood_cloud.json").read_text())
+
+    assert new == legacy
+    assert new["technology"] == "neighborhood-cloud"
 
 
 def test_write_nbhd_cloud_dataset_end_to_end(tmp_path):

@@ -6,8 +6,53 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.28.0] - Unreleased
 
+### Breaking
+
+- Higher-level data structures and the tools that query and align them moved
+  to the separate `dega-collection` package, the way AnnData lives apart from
+  Scanpy. Celldega now works directly on scverse `AnnData`/`MuData` and
+  `GeoDataFrame` neighborhoods. Removed from Celldega: `celldega.collection`
+  (`CelldegaCollection`), `celldega.dataset` (`DatasetCollection`),
+  `celldega.set` (`SetCollection`, `concat_sets`), `NeighborhoodCollection`,
+  `celldega.select`, and `celldega.align` (including `align_serial_slices`).
+- Removed the `Landmark` widget, including the `landmark` / `render_landmark`
+  exports of the JavaScript bundle.
+- Removed the per-gene alpha shapes (`iter_gene_alpha_shapes`,
+  `iter_gene_alpha_shapes_by_slice`, `alpha_shape_gene_expression_by_slice`,
+  `pre.write_gene_shapes`, `pre.write_gene_shapes_streaming`). Gene coloring in
+  a NeighborhoodCloud comes from the per-gene cell scatter
+  (`pre.write_gene_cell_scatter`).
+- `Matrix(collection=...)` is now `Matrix(mdata=...)` (a `MuData`, or any object
+  exposing `.mod`).
+- `nbhd.calc_nbhd_overlap` / `calc_nbhd_bordering` take `nbhd_col` instead of
+  `name_col`; `nbhd._stamp_z` and `nbhd._get_gdf_trx` are now `nbhd.stamp_z`
+  and `nbhd.read_transcripts`.
+
 ### Added
 
+- Neighborhood calculations are public functions again, taking a neighborhood
+  `GeoDataFrame` plus cell-level `AnnData` or `MuData` and returning new
+  `AnnData`: `nbhd.calc_nbhd_by_gene`, `calc_nbhd_by_pop`, `calc_nbhd_overlap`,
+  `calc_nbhd_bordering`, and `calc_nbhd_transcript_assignment`. A `MuData`
+  input to `calc_nbhd_by_gene` returns one neighborhood-level modality per
+  input modality. Outputs carry axis entities, so `Matrix` links them to
+  Landscape neighborhoods without extra arguments.
+- Alpha shapes and hextiles accept `MuData` too, and every neighborhood input
+  accepts any object exposing `to_geodataframe()`.
+- `Matrix(adata, groupby="leiden")` builds a marker-gene dot plot from a
+  cell-level `AnnData`: `scanpy.get.aggregate` gives the mean expression
+  (color) and fraction of cells expressing (dot size), and scanpy's
+  `rank_genes_groups` results (reused, or computed with
+  `rank_genes_groups=True`) drive `cluster(view="rank_genes_groups")`.
+  `size_by_layer` also works with a plain `AnnData`.
+- `Composition(adata, groupby="sample_id", category="cell_type")` builds the
+  composition view straight from a cell-level `AnnData`.
+- `pre.write_point_cloud_dataset` writes a cell-level `AnnData` to point-cloud
+  DegaFiles for `CellCloud`, including named position variants
+  (`CellCloud(alignment=...)`). The point-cloud and neighborhood-cloud DegaFiles
+  layouts are documented under File Formats.
+- `pre.write_nbhd_cloud_dataset` and its parts take a neighborhood
+  `GeoDataFrame` (e.g. from `nbhd.alpha_shape_cell_clusters_by_slice`).
 - Landscape: shift-click cluster bars to select several clusters at once;
   shift-click a selected cluster again to remove it. A plain click still
   selects a single cluster.
@@ -68,6 +113,12 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- `nbhd.alpha_shape_cell_clusters_by_slice` colors shapes from
+  `uns[f"{cluster_attr}_colors"]` instead of drawing them black.
+- `nbhd.hextile_niche(dissolve=False)` no longer fails when the hextile index
+  is named like a column.
+- `nbhd.filter_alpha_shapes` strips the alpha suffix from names built with a
+  float alpha (e.g. `150.0`).
 - Landscape and Yearbook bar plots no longer clip the last bars (the least
   abundant clusters or genes) when a list has more than about 14 entries.
 - Landscape: clicking a transcript no longer leaves cell colors from the

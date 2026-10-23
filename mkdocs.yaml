@@ -51,14 +51,9 @@ nav:
       - Enrich: visualizations/enrich.md
   - Python API:
       - python/index.md
-      - align: python/align/api.md
       - clust: python/clust/api.md
-      - collection: python/collection/api.md
-      - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
       - pre: python/pre/api.md
-      - select: python/select/api.md
-      - set: python/set/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
@@ -96,7 +91,6 @@ nav:
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
       - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
       - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
-      - Broad-Allen Dev Mouse Brain E15.5 Align: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
       - Broad-Allen Dev Mouse Brain E15.5 Viz: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
@@ -108,10 +102,7 @@ nav:
       - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
-      - NeighborhoodCollection Population Space: examples/brief_notebooks/NeighborhoodCollection_Population_Space.ipynb
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
-      - DatasetCollection Population Space: examples/brief_notebooks/DatasetCollection_Population_Space.ipynb
-      - SetCollection Cluster Space: examples/brief_notebooks/SetCollection_Cluster_Space.ipynb
     # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
     # - CCLE Multi-omics Tutorials:
     #   - Overview: examples/ccle_multiomics.md

@@ -20,19 +20,17 @@ compositions across groups.
 ```python
 import celldega as dega
 
-dset = dega.dataset.DatasetCollection(
-    adata, dataset_col="sample_id", obs_columns=["condition"]
-)
-dset.calc_population(adata, category="cell_type")
-
+# Cell types across samples, straight from a cell-level AnnData
 dega.viz.Composition(
-    dset, category="cell_type", group_attrs=["condition"]
+    adata, groupby="sample_id", category="cell_type", group_attrs=["condition"]
 )
 ```
 
-`Composition` accepts a Celldega collection (`DatasetCollection` /
-`SetCollection`), a `MuData`, an `AnnData`, or a plain `DataFrame` of
-group-by-population values — typically the output of `calc_population`. See
+With `groupby`, the cells are cross-tabulated into groups x categories and
+colored from `adata.uns[f"{category}_colors"]`. `Composition` also accepts a
+precomputed group-by-population matrix: an `AnnData` (groups as obs), a
+`MuData` modality, or a plain `DataFrame` (e.g. from
+[`dega.nbhd.calc_nbhd_by_pop`](../python/nbhd/api.md)). See
 [Clustergram](clustergram.md) for the shared heatmap controls, and the
 [Viz Module API reference](../python/viz/api.md) for the full set of
 constructor arguments.

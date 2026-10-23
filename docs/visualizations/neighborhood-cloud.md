@@ -29,9 +29,20 @@ nbhd_cloud = dega.viz.NeighborhoodCloud(
 nbhd_cloud
 ```
 
-Build the underlying neighborhood-cloud DegaFiles with
-[`celldega.align.write_nbhd_cloud`](../python/align/api.md) (or
-[`celldega.pre.write_nbhd_cloud_dataset`](../python/pre/api.md)).
+Build the underlying neighborhood-cloud DegaFiles from per-slice alpha shapes:
+
+```python
+gdf = dega.nbhd.alpha_shape_cell_clusters_by_slice(
+    adata, cluster_attr="leiden", slice_attr="slice_id", z_attr="Z"
+)
+dega.pre.write_nbhd_cloud_dataset(
+    adata, gdf, "path/to/dega_files",
+    cluster_attr="leiden", slice_attr="slice_id", z_attr="Z",
+)
+```
+
+See [File Formats](../overview/file_formats.md#neighborhood-cloud-degafiles)
+for the layout.
 `NeighborhoodCloud` can also be linked to a `Clustergram`, exactly like
 `Landscape` — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 

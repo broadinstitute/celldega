@@ -280,3 +280,67 @@ def test_generation_accepts_mudata():
     )
     assert set(shapes["cat"]) == {"0", "1"}
     assert set(shapes["color"]) == {"#aa0000", "#00aa00"}
+
+
+def test_calc_nbhd_by_pop_keeps_every_category_in_category_order():
+    """A categorical column yields one column per category, in category order,
+    including categories absent from every kept neighborhood (all zero)."""
+    adata = _cells()
+    categories = [str(i) for i in range(12)]  # natsorted: '10' after '9'
+    labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
+    adata.obs["leiden"] = pd.Categorical(labels, categories=categories)
+    # cells 10 and 11 (labels '10', '11') sit outside both neighborhoods
+    result = calc_nbhd_by_pop(adata, _neighborhoods(), category="leiden", min_cells=1)
+
+    assert list(result.var_names) == categories
+    counts = pd.DataFrame(result.X, index=result.obs_names, columns=result.var_names)
+    assert (counts["10"] == 0).all()
+    assert (counts["11"] == 0).all()
+
+
+def test_neighborhood_functions_handle_duplicate_obs_names():
+    adata = _cells()
+    adata.obs_names = ["dup"] * adata.n_obs
+
+    by_gene = calc_nbhd_by_gene(_neighborhoods(), adata=adata)
+    by_pop = calc_nbhd_by_pop(adata, _neighborhoods(), category="leiden", min_cells=1)
+
+    np.testing.assert_allclose(by_gene.X, _expected_means(_cells()).to_numpy())
+    assert list(by_pop.obs["n_cells"]) == [6, 4]
+
+
+def test_calc_nbhd_by_gene_cell_free_min_cells_zero_keeps_empty_neighborhoods():
+    gdf = gpd.GeoDataFrame(
+        {"name": ["A", "B", "empty"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10), box(100, 100, 110, 110)],
+    )
+    gdf_trx = gpd.GeoDataFrame(
+        {"feature_name": ["GeneA", "GeneB"]}, geometry=[Point(1, 1), Point(11, 1)]
+    )
+
+    kept = calc_nbhd_by_gene(gdf, by="cell-free", gdf_trx=gdf_trx, min_cells=0)
+    dropped = calc_nbhd_by_gene(gdf, by="cell-free", gdf_trx=gdf_trx)
+
+    assert list(kept.obs_names) == ["A", "B", "empty"]
+    assert list(kept.obs["n_transcripts"]) == [1, 1, 0]
+    assert list(dropped.obs_names) == ["A", "B"]
+
+
+def test_alpha_shapes_by_slice_use_a_fallback_palette_without_stored_colors():
+    from celldega.nbhd import alpha_shape_cell_clusters_by_slice
+
+    rng = np.random.default_rng(0)
+    xy = np.vstack([rng.normal(0, 5, (40, 2)), rng.normal(100, 5, (40, 2))])
+    adata = AnnData(
+        X=np.zeros((80, 1)),
+        obs=pd.DataFrame(
+            {"cluster": ["a"] * 40 + ["b"] * 40, "slice_id": ["s0"] * 80},
+            index=[f"c{i}" for i in range(80)],
+        ),
+    )
+    adata.obsm["spatial"] = xy
+
+    shapes = alpha_shape_cell_clusters_by_slice(adata, alphas=(50,))
+
+    assert "#000000" not in set(shapes["color"])
+    assert shapes["color"].nunique() == 2

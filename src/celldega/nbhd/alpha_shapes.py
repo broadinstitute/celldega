@@ -15,8 +15,9 @@ from shapely.geometry import MultiPolygon, Point, base
 from .utils import (
     _category_colors,
     _cell_coords,
-    _cell_obs_column,
     _classify_polygons_contains_check,
+    _fallback_category_colors,
+    _obs_column_at,
     _round_coordinates,
     stamp_z,
 )
@@ -155,7 +156,7 @@ def alpha_shape_cell_clusters(
         `inv_alpha`, `color`, and `area`, sorted by area.
     """
     coords = _cell_coords(adata, spatial_key=spatial_key, modality=modality)
-    labels = _cell_obs_column(adata, cat, modality=modality).reindex(coords.index)
+    labels = _obs_column_at(adata, cat, coords, modality=modality)
     xy = coords.to_numpy()
 
     if meta_cluster is not None:
@@ -227,7 +228,8 @@ def alpha_shape_cell_clusters_by_slice(
         `alpha_shape_cell_clusters` which can sweep several.
     meta_cluster : pd.DataFrame | None
         Optional cluster metadata with a 'color' column. Defaults to the colors
-        in `uns[f"{cluster_attr}_colors"]`, so every slice shares one palette.
+        in `uns[f"{cluster_attr}_colors"]`, or a distinct fallback palette when
+        none are stored, so every slice shares one palette.
     z_jitter : float
         Per-cluster Z offset within a slice, to avoid z-fighting between
         coplanar cluster polygons that would otherwise sit at the exact same Z.
@@ -256,20 +258,25 @@ def alpha_shape_cell_clusters_by_slice(
     alpha = alphas[0]
 
     coords = _cell_coords(adata, spatial_key=spatial_key, modality=modality)
-    clusters = _cell_obs_column(adata, cluster_attr, modality=modality).reindex(coords.index)
-    slices = _cell_obs_column(adata, slice_attr, modality=modality).reindex(coords.index)
+    clusters = _obs_column_at(adata, cluster_attr, coords, modality=modality)
+    slices = _obs_column_at(adata, slice_attr, coords, modality=modality)
     z_values = (
-        _cell_obs_column(adata, z_attr, modality=modality).reindex(coords.index)
-        if z_attr is not None
-        else None
+        _obs_column_at(adata, z_attr, coords, modality=modality) if z_attr is not None else None
     )
 
     # The per-slice inputs below carry no `uns`, so resolve one shared palette
-    # up front (otherwise every shape would fall back to black).
+    # up front: stored colors, else a distinct fallback per cluster (otherwise
+    # every shape would be black).
     if meta_cluster is None:
         color_dict = _category_colors(adata, cluster_attr, modality=modality)
-        if color_dict:
-            meta_cluster = pd.DataFrame({"color": pd.Series(color_dict)})
+        if not color_dict:
+            categories = (
+                list(clusters.cat.categories)
+                if isinstance(clusters.dtype, pd.CategoricalDtype)
+                else sorted(clusters.dropna().unique(), key=str)
+            )
+            color_dict = _fallback_category_colors(categories)
+        meta_cluster = pd.DataFrame({"color": pd.Series(color_dict)})
 
     slice_ids = slices.unique()
     n_slices = len(slice_ids)

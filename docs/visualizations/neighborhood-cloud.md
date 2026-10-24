@@ -38,8 +38,13 @@ gdf = dega.nbhd.alpha_shape_cell_clusters_by_slice(
 dega.pre.write_nbhd_cloud_dataset(
     adata, gdf, "path/to/dega_files",
     cluster_attr="leiden", slice_attr="slice_id", z_attr="Z",
+    max_cells=50_000,  # cap the cells written per cluster for large datasets
 )
 ```
+
+Shape colors come from `adata.uns["leiden_colors"]` (or pass `meta_cluster=`
+with a `color` column); without either, each cluster gets a distinct fallback
+color.
 
 See [File Formats](../overview/file_formats.md#neighborhood-cloud-degafiles)
 for the layout.

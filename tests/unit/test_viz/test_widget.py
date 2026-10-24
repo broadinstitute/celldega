@@ -406,6 +406,24 @@ def test_composition_groupby_from_cell_level_adata() -> None:
     assert comp_override.composition_col_weights == {"s1": 1.0, "s2": 1.0}
 
 
+def test_composition_groupby_keeps_categorical_attributes_and_color_fallback() -> None:
+    adata = _sample_cells()
+    adata.obs["condition"] = pd.Categorical(adata.obs["condition"])
+    palette_source = adata.copy()
+    del adata.uns["cell_type_colors"]
+
+    comp = Composition(
+        adata,
+        groupby="sample_id",
+        category="cell_type",
+        group_attrs=["condition"],
+        adata=palette_source,
+    )
+
+    assert "cat-0" in comp._matrix.viz["col_nodes"][0]
+    assert comp.composition_colors == {"B": "#0000ff", "T": "#ff0000"}
+
+
 def test_composition_groupby_requires_category() -> None:
     with pytest.raises(ValueError, match="`category` is required"):
         Composition(_sample_cells(), groupby="sample_id")

@@ -457,3 +457,16 @@ def test_write_meta_gene_for_nbhd_cloud_accepts_sparse_x(tmp_path):
     df_meta_gene = pd.read_parquet(tmp_path / "meta_gene.parquet")
     assert set(df_meta_gene.index) == {"Gene0", "Gene1", "Gene2"}
     assert {"mean", "std", "max", "non-zero", "color"}.issubset(df_meta_gene.columns)
+
+
+def test_write_nbhd_cloud_shapes_accepts_object_with_custom_id_column(tmp_path):
+    gdf = _build_nbhd(_synthetic_dataset()).rename(columns={"name": "region"})
+
+    class _Custom(_NeighborhoodLike):
+        nbhd_col = "region"
+
+    write_nbhd_cloud_shapes_and_features(_Custom(gdf), tmp_path)
+
+    df_meta_nbhd = pd.read_parquet(tmp_path / "nbhd_cloud" / "meta_neighborhood.parquet")
+    assert list(df_meta_nbhd["neighborhood_id"]) == list(gdf["region"])
+    assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()

@@ -5,11 +5,11 @@ Local server module for handling HTTP requests with CORS support.
 from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 import ipaddress
 import socket
+from pathlib import Path
 from socketserver import ThreadingMixIn
 import threading as thr
 from typing import ClassVar
 from urllib.parse import unquote, urlparse
-from pathlib import Path
 import requests
 
 

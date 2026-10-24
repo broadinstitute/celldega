@@ -40,7 +40,7 @@ async function main() {
         'define.amd': 'false',
       },
       metafile: true,
-      sourcemap: 'inline',
+      sourcemap: isWatchMode ? 'inline' : false,
       sourcesContent: true,
     });
 

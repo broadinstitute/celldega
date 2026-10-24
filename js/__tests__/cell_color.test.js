@@ -107,4 +107,64 @@ describe('cell color selection semantics', () => {
       expect(colors.slice(4, 8)).toEqual([255, 0, 0, 128]);
     });
   });
+
+  describe('in the UMAP view', () => {
+    const DIMMED = [128, 128, 128, 64];
+    const colors_for = (cats, { umap = true, highlighted = new Set() } = {}) =>
+      Array.from(
+        update_cell_color_buffer({
+          cats,
+          highlighted_cells: highlighted,
+          spatial: {},
+          obs_store: { umap_state: { get: () => umap } },
+        })
+      );
+
+    test('dims cells outside the selected clusters', () => {
+      const cats = makeCats({ selected_cats: ['A'] });
+
+      expect(colors_for(cats)).toEqual([
+        10,
+        20,
+        30,
+        255,
+        ...DIMMED,
+        10,
+        20,
+        30,
+        255,
+      ]);
+    });
+
+    test('dims cells outside the highlighted cells', () => {
+      const colors = colors_for(makeCats(), {
+        highlighted: new Set(['cell-b']),
+      });
+
+      expect(colors).toEqual([...DIMMED, 0, 0, 255, 255, ...DIMMED]);
+    });
+
+    test('dims cells outside a cluster filter in gene mode', () => {
+      const cats = makeCats({ cat: 'GeneA', selected_cats: ['GeneA', 'B'] });
+
+      expect(colors_for(cats)).toEqual([...DIMMED, 255, 0, 0, 128, ...DIMMED]);
+    });
+
+    test('keeps cells without a cluster color hidden', () => {
+      const cats = makeCats({
+        cell_cats: ['A', 'B', 'unassigned'],
+        selected_cats: ['A'],
+      });
+
+      expect(colors_for(cats).slice(8, 12)).toEqual([0, 0, 0, 0]);
+    });
+
+    test('the spatial view still hides cells outside the selection', () => {
+      const cats = makeCats({ selected_cats: ['A'] });
+
+      expect(colors_for(cats, { umap: false }).slice(4, 8)).toEqual([
+        0, 0, 0, 0,
+      ]);
+    });
+  });
 });

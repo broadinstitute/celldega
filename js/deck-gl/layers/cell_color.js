@@ -1,5 +1,10 @@
 export const CELL_COLOR_SIZE = 4;
 
+// In UMAP views, cells outside a selection stay as a faint backdrop so the
+// selected cells keep the context of the whole embedding. Mid-gray reads on
+// both the black canvas and a white page.
+export const DIMMED_CELL_COLOR = [128, 128, 128, 64];
+
 export const is_cluster_color_mode = (cats) =>
   !cats.cat || cats.cat === 'cluster';
 
@@ -30,11 +35,13 @@ export const setColor = (colors, offset, r, g, b, a) => {
  * @param {object} [options]
  * @param {boolean} [options.cluster_colors] - Cluster colors even with genes
  *   selected (intermediate zoom with transcripts forced, see trx_handle.js).
+ * @param {boolean} [options.dim_unselected] - Draw cells outside the selected
+ *   clusters or highlighted cells in DIMMED_CELL_COLOR instead of hiding them.
  */
 export const getCellColorContext = (
   cats,
   highlighted_cells = new Set(),
-  { cluster_colors = false } = {}
+  { cluster_colors = false, dim_unselected = false } = {}
 ) => {
   const highlightedCells = highlighted_cells ?? new Set();
   const selectedCats = Array.isArray(cats.selected_cats)
@@ -60,69 +67,85 @@ export const getCellColorContext = (
     colorDict,
     isClusterMode,
     hasClusterFilter: !isClusterMode && clusterFilter.length > 0,
+    dimUnselected: dim_unselected,
   };
 };
 
-export const getVizCellColorContext = (viz_state) =>
-  getCellColorContext(viz_state.cats, viz_state.highlighted_cells, {
-    cluster_colors:
-      Boolean(viz_state.trx_force_shown) &&
-      !viz_state.obs_store?.umap_state?.get(),
+export const getVizCellColorContext = (viz_state) => {
+  const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
+  return getCellColorContext(viz_state.cats, viz_state.highlighted_cells, {
+    cluster_colors: Boolean(viz_state.trx_force_shown) && !isUmap,
+    dim_unselected: isUmap,
   });
+};
 
-export const isCellVisible = (context, index) => {
+const hasClusterColor = (context, index) =>
+  Array.isArray(context.colorDict[String(context.cats.cell_cats?.[index])]);
+
+// True when highlighted cells or selected clusters leave this cell out.
+const isOutsideSelection = (context, index) => {
   const {
     cats,
     cellNames,
     highlightedCells,
     hasHighlights,
     clusterFilter,
-    colorDict,
     isClusterMode,
     hasClusterFilter,
   } = context;
 
   if (hasHighlights) {
-    return highlightedCells.has(cellNames[index]);
+    return !highlightedCells.has(cellNames[index]);
   }
 
-  const instCat = cats.cell_cats?.[index];
-  if (isClusterMode) {
-    return (
-      Array.isArray(colorDict[String(instCat)]) &&
-      (clusterFilter.length === 0 || isSelectedCat(clusterFilter, instCat))
-    );
+  const isFiltering = isClusterMode
+    ? clusterFilter.length > 0
+    : hasClusterFilter;
+  return isFiltering && !isSelectedCat(clusterFilter, cats.cell_cats?.[index]);
+};
+
+// Dimmed cells are the ones a selection leaves out; cells without a cluster
+// color are not part of the cluster coloring, so they stay hidden.
+const isDimmedCell = (context, index) =>
+  context.dimUnselected &&
+  isOutsideSelection(context, index) &&
+  (!context.isClusterMode || hasClusterColor(context, index));
+
+export const isCellVisible = (context, index) => {
+  if (isOutsideSelection(context, index)) {
+    return isDimmedCell(context, index);
   }
 
-  if (hasClusterFilter && !isSelectedCat(clusterFilter, instCat)) {
-    return false;
+  if (context.hasHighlights) {
+    return true;
   }
 
-  return toByte(cats.cell_exp_array?.[index]) > 0;
+  if (context.isClusterMode) {
+    return hasClusterColor(context, index);
+  }
+
+  return toByte(context.cats.cell_exp_array?.[index]) > 0;
 };
 
 export const writeCellColor = (context, index, colors, offset) => {
-  const {
-    cats,
-    cellNames,
-    highlightedCells,
-    hasHighlights,
-    colorDict,
-    isClusterMode,
-  } = context;
+  const { cats, colorDict, hasHighlights, isClusterMode } = context;
 
-  if (hasHighlights) {
-    if (highlightedCells.has(cellNames[index])) {
-      setColor(colors, offset, 0, 0, 255, 255);
+  if (isOutsideSelection(context, index)) {
+    if (isDimmedCell(context, index)) {
+      setColor(colors, offset, ...DIMMED_CELL_COLOR);
     } else {
       setColor(colors, offset, 0, 0, 0, 0);
     }
     return;
   }
 
+  if (hasHighlights) {
+    setColor(colors, offset, 0, 0, 255, 255);
+    return;
+  }
+
   if (isClusterMode) {
-    const instCat = cats.cell_cats?.[index];
-    const instColor = colorDict[String(instCat)];
+    const instColor = colorDict[String(cats.cell_cats?.[index])];
     if (Array.isArray(instColor)) {
       setColor(colors, offset, instColor[0], instColor[1], instColor[2], 255);
     } else {

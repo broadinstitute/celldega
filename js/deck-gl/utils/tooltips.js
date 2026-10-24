@@ -4,8 +4,33 @@ import {
   gene_info_tooltip_html,
   refresh_gene_tooltip_async,
 } from '../../ui/gene_info';
+import { is_cluster_color_mode } from '../layers/cell_color';
 
 import { get_point_cloud_source_index } from './point_cloud_indices';
+
+/**
+ * Expression of the selected gene (summed over several selected genes) in one
+ * cell, from the raw values kept for coloring; empty when cells are colored
+ * by cluster.
+ *
+ * @param {Object} cats - viz_state.cats
+ * @param {number} cellIndex - Index into cats.cell_names_array
+ * @returns {string} Tooltip HTML line, or ''
+ */
+export const cell_expression_html = (cats, cellIndex) => {
+  const value = cats.cell_exp_raw?.[cellIndex];
+  if (
+    is_cluster_color_mode(cats) ||
+    !cats.cell_exp_genes?.length ||
+    !Number.isFinite(value)
+  ) {
+    return '';
+  }
+
+  const label = escape_html(cats.cell_exp_genes.join(' + '));
+  const formatted = Number.isInteger(value) ? value : value.toFixed(2);
+  return `<div>${label}: ${formatted}</div>`;
+};
 
 /** Same cap as the Enrich/bar-plot gene tooltips, so descriptions wrap. */
 const TOOLTIP_MAX_WIDTH = '260px';
@@ -97,20 +122,25 @@ export const make_tooltip = (viz_state, info) => {
     info.layer.id.startsWith('cell-layer') ||
     info.layer.id.startsWith('path-layer')
   ) {
+    let cellIndex;
     if (info.layer.id.startsWith('cell-layer')) {
-      const sourceIndex = get_point_cloud_source_index(viz_state, info.index);
-      if (sourceIndex < 0) {
+      cellIndex = get_point_cloud_source_index(viz_state, info.index);
+      if (cellIndex < 0) {
         return null;
       }
-      inst_name = viz_state.cats.cell_names_array[sourceIndex];
+      inst_name = viz_state.cats.cell_names_array[cellIndex];
       inst_cat =
-        viz_state.cats.cell_cats?.[sourceIndex] ??
+        viz_state.cats.cell_cats?.[cellIndex] ??
         viz_state.cats.dict_cell_cats?.[inst_name];
     } else {
       inst_name = viz_state.cats.polygon_cell_names[info.index];
       inst_cat = viz_state.cats.dict_cell_cats?.[inst_name];
+      cellIndex = viz_state.cats.cell_name_to_index_map?.get(String(inst_name));
     }
-    inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>`;
+    inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>${cell_expression_html(
+      viz_state.cats,
+      cellIndex
+    )}`;
 
     viz_state.tooltip_cat_cell = inst_cat;
   }

@@ -124,6 +124,12 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
   selection another way) keeps the bar panels' scroll position instead of
   scrolling them back to the top.
+- Landscape UMAP view: selecting clusters or highlighting cells (for example,
+  from a linked Clustergram) dims the other cells to a faint gray instead of
+  hiding them, so the selection stays in the context of the whole UMAP. The
+  spatial view still hides them.
+- Landscape cell tooltips show the selected gene's expression in the hovered
+  cell (the summed expression when several genes are selected).
 
 ### Fixed
 

@@ -49,3 +49,11 @@ This gallery collects project web presentations and visualizations made with the
 - [Broad Retreat 2024: Data Visualization Breakout Session ![](../assets/img/Celldega_Broad-Retreat-2024.png)](https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/)
 
 </div>
+
+## Multi-Omic
+
+<div class="grid cards" markdown>
+
+- [CITE-seq PBMC Cell Types: RNA and Protein ![Clustered RNA and protein markers of PBMC cell types](../assets/img/citeseq_pbmc_cell_types.png)](gallery_citeseq_pbmc.md)
+
+</div>

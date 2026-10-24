@@ -86,6 +86,8 @@ nav:
       - Sequencing Spatial Transcriptomics:
           - Visium HD:
               - Visium HD Cell Segmentation Mouse Brain: gallery/gallery_visium_hd_cell_segmentation_mouse_brain.md
+      - Multi-Omic:
+          - CITE-seq PBMC Cell Types (RNA + Protein): gallery/gallery_citeseq_pbmc.md
   - Example Notebooks:
     - examples/index.md
     - Spatial Transcriptomics Tutorials:
@@ -170,6 +172,8 @@ extra_javascript:
   - path: assets/js/gallery_broad_allen_mouse_brain_3d.js
     type: module
   - path: assets/js/gallery_broad_allen_mouse_brain_2d.js
+    type: module
+  - path: assets/js/gallery_citeseq_pbmc.js
     type: module
 
 extra_css:

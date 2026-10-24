@@ -233,6 +233,100 @@ def _dense(values: Any) -> np.ndarray:
     return values.toarray() if hasattr(values, "toarray") else np.asarray(values)
 
 
+# A clustered Matrix on disk is an AnnData Zarr store in ``Matrix(adata)``'s
+# orientation (obs = Clustergram columns, var = rows). Dendrogram orders are
+# ``obsm``/``varm`` frames; linkages, packed views, and a small JSON document
+# with colors, attributes, and entities live in ``uns["celldega"]``.
+_STORE_FORMAT = "celldega.matrix"
+_STORE_VERSION = 1
+_STORE_NODES_KEY = "celldega_nodes"
+_STORE_NODE_ORDERS = ("ini", "clust", "rank", "rankvar")
+_STORE_VIEW_SCALARS = ("view_type", "level", "level_unit", "n_rows")
+_STORE_VIZ_KEYS = (
+    "name",
+    "row_attr_maxabs",
+    "col_attr_maxabs",
+    "cat_colors",
+    "matrix_colors",
+    "global_cat_colors",
+    "links",
+)
+# X and the size layer are chunked in bands of whole columns of at most 16 MB.
+_STORE_CHUNK_BYTES = 16 * 2**20
+
+
+def _json_native(value: Any) -> Any:
+    """Convert numpy scalars to Python and non-finite floats to ``None`` for JSON."""
+    if isinstance(value, dict):
+        return {str(key): _json_native(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_json_native(item) for item in value]
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+    return value
+
+
+def _nodes_frame(nodes: list[dict[str, Any]], names: pd.Index) -> pd.DataFrame:
+    """Node records (orders, categories, numeric attributes) as an obsm/varm frame."""
+    frame = pd.DataFrame(nodes).drop(columns="name")
+    frame.index = names
+    for column in frame.columns:
+        if column in _STORE_NODE_ORDERS:
+            frame[column] = frame[column].astype(np.int32)
+        elif column.startswith("num-"):
+            frame[column] = frame[column].astype(np.float64)
+        else:
+            frame[column] = frame[column].astype(str).astype(object)
+    return frame
+
+
+def _nodes_records(frame: pd.DataFrame) -> list[dict[str, Any]]:
+    """Rebuild node records with the Python types the visualization export uses."""
+    records = []
+    for name, values in zip(frame.index, frame.itertuples(index=False, name=None), strict=True):
+        node: dict[str, Any] = {"name": str(name)}
+        for column, value in zip(frame.columns, values, strict=True):
+            if column in _STORE_NODE_ORDERS:
+                node[column] = int(value)
+            elif column.startswith("num-"):
+                node[column] = float(value)
+            else:
+                node[column] = str(value)
+        records.append(node)
+    return records
+
+
+def _writable_meta(meta: pd.DataFrame, names: pd.Index) -> tuple[pd.DataFrame, list[str]]:
+    """Make row/column metadata writable without loss; return its object columns.
+
+    AnnData writes missing values in object columns as the string "None", so
+    object columns are stored as categoricals, which keep them, and converted
+    back on read.
+    """
+    frame = meta.reindex(names).copy()
+    frame.index = names
+    object_columns = []
+    for column in frame.columns:
+        series = frame[column]
+        if series.dtype == object or isinstance(series.dtype, pd.StringDtype):
+            object_columns.append(str(column))
+            values = series.astype(object)
+            frame[column] = pd.Categorical(values.where(values.isna(), values.astype(str)))
+    frame.columns = [str(column) for column in frame.columns]
+    return frame, object_columns
+
+
+def _restored_meta(frame: pd.DataFrame, object_columns: list[str]) -> pd.DataFrame:
+    """Undo :func:`_writable_meta`: turn stored categoricals back into object columns."""
+    frame = frame.copy()
+    for column in object_columns:
+        values = frame[column].astype(object)
+        frame[column] = values.where(values.notna(), np.nan)
+    return frame
+
+
 def _group_signature(
     adata: AnnData,
     groupby: str,
@@ -1779,6 +1873,224 @@ class Matrix:
         (cgm_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
         print(f"Clustergram data saved to {cgm_dir}")
+
+    def to_clustered_adata(self, *, dtype: Any = None) -> AnnData:
+        """Package the clustered Matrix as an AnnData, ready to write to Zarr.
+
+        The AnnData has the Clustergram's columns as observations and its rows
+        as variables (the orientation ``Matrix(adata)`` reads): matrix values in
+        ``X``, the optional size matrix in ``layers["size"]``, dendrogram orders
+        in ``obsm``/``varm["celldega_nodes"]``, and linkages, views, colors,
+        attributes, and entities in ``uns["celldega"]``.
+        :meth:`from_clustered_adata` restores the Matrix without re-clustering.
+
+        Args:
+            dtype: Data type of ``X`` and the size layer. Defaults to the
+                Matrix's own.
+
+        Raises:
+            ValueError: If the Matrix has not been clustered.
+        """
+        if self.data is None or not self._clustered:
+            raise ValueError("Call cluster() before saving the Matrix.")
+
+        rows = pd.Index(self.data.index.astype(str))
+        cols = pd.Index(self.data.columns.astype(str))
+        x_dtype = np.dtype(dtype) if dtype is not None else self.data.values.dtype
+        var, var_object_columns = _writable_meta(self.meta_row, rows)
+        obs, obs_object_columns = _writable_meta(self.meta_col, cols)
+
+        adata = AnnData(X=np.ascontiguousarray(self.data.values.T, dtype=x_dtype), obs=obs, var=var)
+        if self.size_matrix is not None:
+            size = self.size_matrix.reindex(index=self.data.index, columns=self.data.columns)
+            adata.layers["size"] = np.ascontiguousarray(size.fillna(0.0).values.T, dtype=x_dtype)
+        adata.varm[_STORE_NODES_KEY] = _nodes_frame(self.viz["row_nodes"], rows)
+        adata.obsm[_STORE_NODES_KEY] = _nodes_frame(self.viz["col_nodes"], cols)
+
+        meta = {
+            "format": _STORE_FORMAT,
+            "version": _STORE_VERSION,
+            "row_entity": self.row_entity,
+            "col_entity": self.col_entity,
+            "row_attr": list(self.row_attr),
+            "col_attr": list(self.col_attr),
+            "row_cats": list(self.row_cats),
+            "col_cats": list(self.col_cats),
+            "var_object_columns": var_object_columns,
+            "obs_object_columns": obs_object_columns,
+            "is_downsampled": bool(self.is_downsampled),
+            "has_size_matrix": self.size_matrix is not None,
+            "source_global_cat_colors": dict(self._source_global_cat_colors),
+            "viz": {key: self.viz.get(key) for key in _STORE_VIZ_KEYS},
+            "views": [{key: view[key] for key in _STORE_VIEW_SCALARS} for view in self.views],
+        }
+        store: dict[str, Any] = {
+            # One JSON document: AnnData's uns cannot hold lists of dicts, keys
+            # containing "/" (category values such as "T/NK"), or key order.
+            "meta_json": json.dumps(_json_native(meta)),
+            # Lets a plain Matrix(adata) pick up the entities as well.
+            "axis_entities": {
+                "row_entity": dict(self.row_entity),
+                "col_entity": dict(self.col_entity),
+            },
+            "linkage": {
+                axis: np.asarray(self.viz["linkage"][axis], dtype=np.float64).reshape(-1, 4)
+                for axis in ("row", "col")
+            },
+        }
+        if self.views:
+            # Five arrays for any number of views; each view's n_rows (in
+            # meta_json) gives the split points of the concatenated row arrays.
+            store["views"] = {
+                "row_indices": np.concatenate(
+                    [np.asarray(view["row_indices"], dtype=np.int32) for view in self.views]
+                ),
+                "row_clust": np.asarray([view["row_clust"] for view in self.views], dtype=np.int32),
+                "col_clust": np.asarray([view["col_clust"] for view in self.views], dtype=np.int32),
+                "row_linkage": np.concatenate(
+                    [
+                        np.asarray(view["row_linkage"], dtype=np.float64).reshape(-1, 4)
+                        for view in self.views
+                    ]
+                ),
+                "col_linkage": np.asarray(
+                    [view["col_linkage"] for view in self.views], dtype=np.float64
+                ),
+            }
+        adata.uns["celldega"] = store
+        if self._marker_ranks is not None and not self._marker_ranks.empty:
+            adata.uns["marker_ranks"] = marker_ranks_to_uns(self._marker_ranks)
+        return adata
+
+    @classmethod
+    def from_clustered_adata(cls, adata: AnnData) -> Matrix:
+        """Restore a clustered Matrix from :meth:`to_clustered_adata`'s AnnData.
+
+        Nothing is re-clustered: dendrograms, orders, views, and colors are read
+        back as saved, so the result can go straight to ``Clustergram(matrix=...)``.
+
+        Raises:
+            ValueError: If ``adata`` does not hold a supported clustered Matrix.
+        """
+        store = adata.uns.get("celldega", {})
+        meta = json.loads(str(store["meta_json"])) if "meta_json" in store else {}
+        if meta.get("format") != _STORE_FORMAT or int(meta.get("version", 0)) > _STORE_VERSION:
+            raise ValueError(
+                "adata does not hold a supported clustered Matrix (see Matrix.write_zarr)."
+            )
+
+        rows = pd.Index(adata.var_names.astype(str))
+        cols = pd.Index(adata.obs_names.astype(str))
+        mat = cls(
+            name=meta["viz"]["name"],
+            row_entity=meta["row_entity"],
+            col_entity=meta["col_entity"],
+        )
+        mat.data = pd.DataFrame(_dense(adata.X).T, index=rows, columns=cols)
+        mat.meta_row = _restored_meta(adata.var, meta["var_object_columns"])
+        mat.meta_col = _restored_meta(adata.obs, meta["obs_object_columns"])
+        mat.row_attr, mat.col_attr = meta["row_attr"], meta["col_attr"]
+        mat.row_cats, mat.col_cats = meta["row_cats"], meta["col_cats"]
+        mat.is_downsampled = bool(meta["is_downsampled"])
+        mat._source_global_cat_colors = dict(meta["source_global_cat_colors"])
+        if "size" in adata.layers:
+            mat.size_matrix = pd.DataFrame(_dense(adata.layers["size"]).T, index=rows, columns=cols)
+        markers = marker_ranks_from_uns(adata.uns.get("marker_ranks"))
+        if markers is not None:
+            # Zarr returns uns keys sorted; restore the frame's column order.
+            first = [column for column in _MARKER_RANK_COLUMNS if column in markers.columns]
+            markers = markers[first + [c for c in markers.columns if c not in first]]
+        mat._marker_ranks = markers
+
+        views = []
+        packed = store.get("views", {})
+        row_start = 0
+        for index, description in enumerate(meta["views"]):
+            n_rows = int(description["n_rows"])
+            link_start = row_start - index  # previous views contribute n_rows - 1 merges each
+            views.append(
+                {
+                    "row_indices": np.asarray(
+                        packed["row_indices"][row_start : row_start + n_rows]
+                    ).tolist(),
+                    "row_clust": np.asarray(packed["row_clust"][index]).tolist(),
+                    "col_clust": np.asarray(packed["col_clust"][index]).tolist(),
+                    "row_linkage": np.asarray(
+                        packed["row_linkage"][link_start : link_start + n_rows - 1]
+                    ).tolist(),
+                    "col_linkage": np.asarray(packed["col_linkage"][index]).tolist(),
+                    **description,
+                }
+            )
+            row_start += n_rows
+
+        viz = copy.deepcopy(DEFAULT_VIZ)
+        viz["linkage"] = {
+            axis: np.asarray(store["linkage"][axis]).tolist() for axis in ("row", "col")
+        }
+        viz["row_nodes"] = _nodes_records(adata.varm[_STORE_NODES_KEY])
+        viz["col_nodes"] = _nodes_records(adata.obsm[_STORE_NODES_KEY])
+        # The same list objects as the Matrix attributes, as set_global_cat_colors leaves them.
+        viz["row_cats"], viz["col_cats"] = mat.row_cats, mat.col_cats
+        viz["row_attr"], viz["col_attr"] = mat.row_attr, mat.col_attr
+        viz["views"] = mat.views = views
+        mat.viz = viz
+
+        # Building `dat` rewrites viz[*_attr_maxabs], so build it first and
+        # restore the saved values after.
+        mat._invalidate_cache(CacheLevel.DATA.value)
+        dat = mat.dat
+        for key in _STORE_VIZ_KEYS:
+            viz[key] = copy.deepcopy(meta["viz"][key])
+        viz["mat"] = dat["mat"].tolist()
+        mat._clustered = True
+        return mat
+
+    def write_zarr(self, store: Any, *, dtype: Any = "float32", zarr_format: int = 3) -> None:
+        """Write the clustered Matrix to an AnnData Zarr store (experimental).
+
+        The store keeps everything a Clustergram needs: :meth:`read_zarr` loads
+        it back without re-clustering for ``Clustergram(matrix=...)``, and the
+        JavaScript ``matrix_from_zarr`` renders it in a browser. It is also a
+        regular AnnData store that ``anndata.read_zarr`` opens.
+
+        Args:
+            store: Path or zarr store to write to.
+            dtype: Data type of the matrix values and size layer. Defaults to
+                float32, the precision the Clustergram displays; ``None``
+                keeps the Matrix's own.
+            zarr_format: Zarr format version, 3 (default) or 2.
+
+        Examples:
+            >>> mat.cluster(view="rank_genes_groups")
+            >>> mat.write_zarr("pbmc_markers.zarr")
+            >>> cgm = Clustergram(matrix=Matrix.read_zarr("pbmc_markers.zarr"))
+        """
+        import anndata as ad
+        import zarr
+
+        adata = self.to_clustered_adata(dtype=dtype)
+        band_bytes = max(adata.n_vars * adata.X.dtype.itemsize, 1)
+        chunk_rows = max(1, min(adata.n_obs, _STORE_CHUNK_BYTES // band_bytes))
+        # Write chunks even when they hold only the fill value, so hosts that
+        # answer 403 rather than 404 for missing files serve every chunk.
+        with (
+            ad.settings.override(zarr_write_format=zarr_format, auto_shard_zarr_v3=False),
+            zarr.config.set({"array.write_empty_chunks": True}),
+        ):
+            ad.io.write_zarr(
+                store,
+                adata,
+                chunks=(chunk_rows, adata.n_vars),
+                convert_strings_to_categoricals=False,
+            )
+
+    @classmethod
+    def read_zarr(cls, store: Any) -> Matrix:
+        """Read a clustered Matrix written by :meth:`write_zarr` (experimental)."""
+        import anndata as ad
+
+        return cls.from_clustered_adata(ad.read_zarr(store))
 
     def add_category(self, axis: AxisInput, name: str, data: pd.Series) -> None:
         """

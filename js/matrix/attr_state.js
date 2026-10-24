@@ -21,6 +21,7 @@ import {
   get_axis_label_font_size,
   get_axis_slot_size,
 } from './crop_filter';
+import { compute_geometry } from './geometry';
 
 const FALLBACK_COLORS = [
   '#1f77b4',
@@ -50,35 +51,6 @@ const fallback_color = (value, index) => {
     if (col) return value;
   }
   return palette_color;
-};
-
-const compute_geometry = (viz_state) => {
-  const total_row_attrs = viz_state.attr.num.row;
-  const total_col_attrs = viz_state.attr.num.col;
-
-  viz_state.viz.mat_width =
-    viz_state.viz.total_width - viz_state.viz.row_cat_offset * total_row_attrs;
-  viz_state.viz.mat_height =
-    viz_state.viz.total_height - viz_state.viz.col_cat_offset * total_col_attrs;
-
-  viz_state.viz.col_region =
-    (viz_state.viz.col_cat_height + viz_state.viz.extra_space.col) *
-      total_col_attrs +
-    viz_state.viz.col_label;
-
-  viz_state.viz.row_region =
-    (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) *
-      total_row_attrs +
-    viz_state.viz.row_label;
-
-  viz_state.viz.col_width = viz_state.viz.mat_width / viz_state.mat.num_cols;
-  viz_state.viz.row_offset = viz_state.viz.mat_height / viz_state.mat.num_rows;
-  viz_state.viz.col_offset = viz_state.viz.mat_width / viz_state.mat.num_cols;
-
-  viz_state.viz.cat_shift_col = viz_state.viz.col_label;
-  viz_state.zoom.ini_pan_x = viz_state.viz.mat_width / 2;
-  viz_state.zoom.ini_pan_y =
-    viz_state.viz.mat_height / 2 + viz_state.viz.row_offset;
 };
 
 const build_cat_data_for_axis = (viz_state, axis) => {

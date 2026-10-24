@@ -2,6 +2,7 @@ import { create_clustergram_store } from '../obs_store/clustergram_store';
 import { ManualCategoryStore } from '../obs_store/manual_category_store';
 
 import { initialize_attr_state } from './attr_state';
+import { compute_geometry } from './geometry';
 import { resolve_viz_mode } from './mat_data';
 
 /**
@@ -127,11 +128,6 @@ export const set_mat_constants = (
   viz_state.viz.total_width = width;
   viz_state.viz.total_height = height;
 
-  viz_state.viz.mat_width =
-    width - viz_state.viz.row_cat_offset * viz_state.attr.num.row;
-  viz_state.viz.mat_height =
-    height - viz_state.viz.col_cat_offset * viz_state.attr.num.col;
-
   viz_state.mat = {};
   viz_state.mat.num_rows = network.mat.length;
   viz_state.mat.num_cols = network.mat[0].length;
@@ -205,27 +201,7 @@ export const set_mat_constants = (
     cols: labelScale(model.get('col_label_scale'), 0.8),
   };
 
-  viz_state.viz.col_region =
-    (viz_state.viz.col_cat_height + viz_state.viz.extra_space.col) *
-      viz_state.attr.num.col +
-    viz_state.viz.col_label;
-
-  viz_state.viz.row_region =
-    (viz_state.viz.row_cat_width + viz_state.viz.extra_space.row) *
-      viz_state.attr.num.row +
-    viz_state.viz.row_label;
-
-  viz_state.viz.col_width = viz_state.viz.mat_width / viz_state.mat.num_cols;
-  viz_state.viz.row_offset = viz_state.viz.mat_height / viz_state.mat.num_rows;
-  viz_state.viz.col_offset = viz_state.viz.mat_width / viz_state.mat.num_cols;
-
-  // column category positioning
-  viz_state.viz.cat_shift_col = viz_state.viz.col_label; // + viz_state.viz.extra_space.col
-  viz_state.zoom.ini_pan_x = viz_state.viz.mat_width / 2;
-
-  // not sure why I need to add row_offset?
-  viz_state.zoom.ini_pan_y =
-    viz_state.viz.mat_height / 2 + viz_state.viz.row_offset;
+  compute_geometry(viz_state);
 
   // make mat_data from network_data
   //////////////////////////////////////

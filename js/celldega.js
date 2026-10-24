@@ -8,6 +8,7 @@ import {
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
+import { networkFromZarr } from './read_zarr/network_from_zarr';
 import {
   handleAsyncError,
   handleValidationWarning,
@@ -348,6 +349,27 @@ async function render({ model, el }) {
   }
 }
 
+// A minimal stand-in for the widget model when matrix_viz renders without Python.
+const static_matrix_model = (network, { viz_mode = null } = {}) => ({
+  get: (key) => {
+    if (key === 'row_entity') {
+      return JSON.stringify(
+        network.row_entity || { entity: 'gene', attr: 'name' }
+      );
+    }
+    if (key === 'col_entity') {
+      return JSON.stringify(
+        network.col_entity || { entity: 'cell', attr: 'leiden' }
+      );
+    }
+    if (key === 'viz_mode') return viz_mode;
+    return null;
+  },
+  set: () => {},
+  save_changes: () => {},
+  on: () => {},
+});
+
 /**
  * Load and render a Clustergram from DegaFiles.
  *
@@ -375,25 +397,52 @@ const matrix_from_dega_files = async (
 ) => {
   const network = await networkFromDegaFiles(base_url, name, options);
 
-  // Create a minimal model-like object for matrix_viz
-  const model = {
-    get: (key) => {
-      if (key === 'row_entity') {
-        return JSON.stringify(
-          network.row_entity || { entity: 'gene', attr: 'name' }
-        );
-      }
-      if (key === 'col_entity') {
-        return JSON.stringify(
-          network.col_entity || { entity: 'cell', attr: 'leiden' }
-        );
-      }
-      return null;
-    },
-    set: () => {},
-    save_changes: () => {},
-    on: () => {},
-  };
+  return matrix_viz(
+    static_matrix_model(network),
+    el,
+    network,
+    width,
+    height,
+    row_label_callback,
+    col_label_callback,
+    col_dendro_callback
+  );
+};
+
+/**
+ * Load and render a Clustergram from a clustered Matrix Zarr store, written in
+ * Python with `Matrix.write_zarr` (experimental).
+ *
+ * @param {HTMLElement} el - Container element for the visualization
+ * @param {object} options
+ * @param {string} options.url - URL of the `.zarr` store
+ * @param {number} [options.width=500] - Width of the matrix
+ * @param {number} [options.height=500] - Height of the matrix
+ * @param {string} [options.viz_mode] - 'heatmap' or 'dotplot'; defaults to
+ *   'dotplot' when the store has a size matrix
+ * @param {function} [options.row_label_callback] - Callback for row label clicks
+ * @param {function} [options.col_label_callback] - Callback for column label clicks
+ * @param {function} [options.col_dendro_callback] - Callback for dendrogram selections
+ * @param {object} [options.fetchOptions] - Options for every fetch, e.g. headers
+ * @returns {Promise<object>} - The matrix visualization object
+ */
+const matrix_from_zarr = async (
+  el,
+  {
+    url,
+    width = 500,
+    height = 500,
+    viz_mode,
+    row_label_callback = null,
+    col_label_callback = null,
+    col_dendro_callback = null,
+    fetchOptions = {},
+  } = {}
+) => {
+  const network = await networkFromZarr(url, { fetchOptions });
+  const model = static_matrix_model(network, {
+    viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
+  });
 
   return matrix_viz(
     model,
@@ -412,7 +461,9 @@ export default {
   landscape_h_e,
   matrix_viz,
   matrix_from_dega_files,
+  matrix_from_zarr,
   networkFromDegaFiles,
+  networkFromZarr,
   yearbook,
   render,
   render_landscape_ist,

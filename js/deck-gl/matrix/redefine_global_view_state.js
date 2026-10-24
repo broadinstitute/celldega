@@ -36,7 +36,7 @@ export const redefine_global_view_state = (
     },
     cols: {
       zoom: [zoom_curated[0], viz_state.zoom.ini_zoom_y],
-      target: [pan_curated[0], viz_state.viz.label_col_y],
+      target: [pan_curated[0], viz_state.viz.cols_target_y],
     },
     dendro_rows: {
       zoom: [viz_state.zoom.ini_zoom_x, zoom_curated[1]],

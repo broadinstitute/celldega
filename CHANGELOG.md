@@ -30,6 +30,13 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
+- Experimental on-disk format for a clustered `Matrix`: `Matrix.write_zarr`
+  saves the matrix, dendrograms, views, colors, attributes, and size matrix as
+  an AnnData Zarr store, and `Matrix.read_zarr` restores it without
+  re-clustering, ready for `Clustergram(matrix=...)`. In JavaScript,
+  `matrix_from_zarr(el, { url, width, height, ... })` renders the same store in
+  a browser (new `zarrita` dependency) and `networkFromZarr(url)` returns its
+  `network` object.
 - Neighborhood calculations are public functions again:
   - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
     `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
@@ -120,6 +127,10 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Clustergram: with more than two attribute bars on an axis, the column (or
+  row) dendrogram fell outside the canvas, and from four column bars on, the
+  last bar and its label were cut off. The matrix now shrinks to make room;
+  layouts with up to two bars per axis are unchanged.
 - `nbhd.alpha_shape_cell_clusters_by_slice` colors shapes from
   `uns[f"{cluster_attr}_colors"]`, or a distinct fallback palette when none
   are stored, instead of drawing them black.

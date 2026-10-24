@@ -50,4 +50,22 @@ The older `clust()`, `views=`, `dot_plot`, `dot_mat`, `set_dot_matrix()`, and
 use `cluster()`, `view=`, `size_by_layer` / `size_matrix` /
 `set_size_matrix()`, and `cut_tree()`.
 
+## Saving a clustered Matrix (experimental)
+
+`write_zarr()` saves a clustered Matrix, including its dendrograms, views,
+colors, attributes, and size matrix, as an AnnData Zarr store. `read_zarr()`
+restores it without re-clustering, so it can go straight to a Clustergram:
+
+```python
+mat.cluster(view="rank_genes_groups")
+mat.write_zarr("pbmc_markers.zarr")
+
+cgm = dega.viz.Clustergram(matrix=dega.clust.Matrix.read_zarr("pbmc_markers.zarr"))
+```
+
+The store has the Clustergram's columns as observations and its rows as
+variables, so `anndata.read_zarr` opens it too. Values are saved as float32 by
+default; pass `dtype=None` to keep the Matrix's own precision. In a browser, the
+JavaScript `matrix_from_zarr` renders the same store without Python.
+
 ::: celldega.clust

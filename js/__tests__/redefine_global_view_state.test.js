@@ -43,6 +43,7 @@ describe('redefine_global_view_state', () => {
       viz: {
         label_row_x: 15,
         label_col_y: 25,
+        cols_target_y: 31,
         col_region: 60,
         dendrogram_width: 15,
         mat_width: 300,
@@ -59,7 +60,7 @@ describe('redefine_global_view_state', () => {
 
     expect(view_state.matrix.target).toEqual([111, 222]);
     expect(view_state.rows.target).toEqual([15, 222]);
-    expect(view_state.cols.target).toEqual([111, 25]);
+    expect(view_state.cols.target).toEqual([111, 31]);
     expect(view_state.dendro_rows.target).toEqual([15, 222]);
     expect(view_state.dendro_cols.target).toEqual([111, 25]);
     expect(view_state.dendro_tree_rows).toEqual({

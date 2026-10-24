@@ -1,7 +1,7 @@
 # Review: Celldega `reorg_modules` — methods on plain scverse objects; data structures move to dega-collection
 
 **Branch:** `reorg_modules` (on top of `2c982e87`)
-**Commits:** `4446da47` (code + tests), `41294eae` (docs + CHANGELOG), `bfdeb531` (notebook code cells)
+**Commits:** `4446da47` (code + tests), `41294eae` (docs + CHANGELOG), `bfdeb531` (notebook code cells), `f97bb59d` (pre-review audit fixes)
 **Companion package:** `dega-collection` (separate review document)
 **Target release:** 0.28.0 (breaking; the version bump is left to the release)
 
@@ -157,7 +157,7 @@ fails with a standard ImportError.
 
 ## 4. Verification
 
-- **Python tests:** `pytest`: 263 passed, 1 failed, no skips (run with `-rs`).
+- **Python tests:** `pytest`: 272 passed, 1 failed, no skips (run with `-rs`).
   The failure is `test_pre/test_atera.py::test_read_atera_variable_length_strings`,
   a known local-only zarr 2 issue in the dev venv that predates this branch.
 - **New tests:**
@@ -176,6 +176,7 @@ fails with a standard ImportError.
     - NaN labels, `layer=`, errors.
   - `test_pre/test_point_cloud.py`: the former align point-cloud tests ported to the new writer, plus `name=None` and manifest sync.
   - Composition `groupby` and duck-typed Landscape/Yearbook inputs in `test_viz/test_widget.py`.
+  - A regression test for each audit fix (§6).
 - **JS:** `jest`: 56 suites, 420 tests passed. `eslint` and `prettier` are clean.
 - **Python lint/format:** `ruff check` and `ruff format` are clean.
 - **Docs:** `mkdocs build` succeeds with no new warnings. The only anchor
@@ -192,7 +193,9 @@ fails with a standard ImportError.
   (CONTRIBUTING.md), which is planned as a separate PR.
 - **Untracked notebooks.** The Broad-Allen E15.5 Viz notebook is untracked; its
   code cells were updated locally. The E15.5 Align notebook moved to
-  dega-collection and is no longer in the nav.
+  dega-collection. It and two older local alignment drafts
+  (`1.0_Preprocess_and_Align`, `2.0_Viz_CellCloud`) are excluded from the docs
+  build in `mkdocs.yaml`; the local files can be deleted.
 - **NeighborhoodCloud gene shapes.** The JS still has the gene-shape rendering
   path (`nbhd_cloud_shapes_layer.js`), which now has no producer. Remove it in
   a follow-up.
@@ -205,7 +208,39 @@ fails with a standard ImportError.
 
 ## 6. Pre-review audit findings
 
-_To be filled from the verification workflow results._
+**Method.** Five read-only reviewers covered `nbhd`, `Matrix`/`Composition`, the
+`pre` writers, viz/removal completeness/docs, and the dega-collection wiring.
+An adversarial verifier then tried to refute each finding by tracing it through
+the code. Of the 28 findings, 23 were confirmed (two of them reported twice) and
+5 were rejected as intended behavior or as predating this branch. Every
+confirmed Celldega finding is fixed in `f97bb59d` with a regression test, except
+the notebook re-run.
+
+| # | Finding (Celldega) | Severity | Status |
+| --- | --- | --- | --- |
+| 1 | `calc_nbhd_by_pop` dropped the Categorical dtype: categories missing or lexicographically reordered (e.g. `'10'` before `'2'`) | medium | fixed (`labels.array`) |
+| 2 | Duplicate `obs_names` crashed `calc_nbhd_by_gene` / `calc_nbhd_by_pop` / alpha shapes (old code was positional) | medium | fixed (positional alignment when indices match; clear error otherwise) |
+| 3 | `Composition(groupby=..., group_attrs=...)` silently dropped categorical attribute tracks | medium | fixed (here and in Matrix node info) |
+| 4 | By-slice alpha shapes all black without stored cluster colors (the removed `write_nbhd_cloud` used to add a fallback palette) | medium | fixed (fallback palette) |
+| 5 | The removed Align tutorial and two old drafts in `docs/` were still built and published | medium | fixed (`exclude_docs`) |
+| 6 | Cell-free `calc_nbhd_by_gene(min_cells=0)` dropped empty neighborhoods | low | fixed |
+| 7 | `Matrix(groupby=)` counted negative (scaled) values as expressing | low | fixed (`> 0` indicator) |
+| 8 | `rank_genes_groups={}` computed no ranks | low | fixed |
+| 9 | `Matrix(groupby=)` discarded `adata.var`, so `row_attr` was ignored | low | fixed |
+| 10 | `Composition(groupby=)` ignored the `adata=` color fallback | low | fixed |
+| 11 | `write_cell_clusters_meta` failed for neighborhood objects with a custom id column | low | fixed |
+| 12 | `write_point_cloud_dataset` wrote the manifest before clusters/genes, so a corrected retry skipped them | low | fixed (validate first, manifest last) |
+| 13 | CHANGELOG overstated where `to_geodataframe()` objects are accepted | low | fixed (narrowed) |
+| 14 | CHANGELOG misdescribed `calc_nbhd_transcript_assignment` | low | fixed |
+| 15 | nbhd API page used an undefined `gdf_alpha` | low | fixed |
+| 16 | Edited notebooks still show outputs from the removed classes | low | open: re-execute in a follow-up PR |
+
+Rejected:
+- NaN propagation in `calc_nbhd_by_gene` means (affects only neighborhoods containing a NaN cell).
+- `name` taking precedence over an object's `nbhd_col` (documented behavior).
+- Same precedence in the nbhd-cloud writers.
+- `overwrite=True` without `name` resetting the variant list (documented).
+- `Yearbook(selection=pd.Index)` (predates this branch).
 
 ## 7. Suggested review focus
 

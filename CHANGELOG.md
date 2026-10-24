@@ -30,18 +30,25 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
-- Neighborhood calculations are public functions again, taking a neighborhood
-  `GeoDataFrame` plus cell-level `AnnData` or `MuData` and returning new
-  `AnnData`: `nbhd.calc_nbhd_by_gene`, `calc_nbhd_by_pop`, `calc_nbhd_overlap`,
-  `calc_nbhd_bordering`, and `calc_nbhd_transcript_assignment`. A `MuData`
-  input to `calc_nbhd_by_gene` returns one neighborhood-level modality per
-  input modality. Outputs carry axis entities, so `Matrix` links them to
-  Landscape neighborhoods without extra arguments.
-- Alpha shapes and hextiles accept `MuData` too, and every neighborhood input
-  accepts any object exposing `to_geodataframe()`.
+- Neighborhood calculations are public functions again:
+  - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
+    `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
+    (a `MuData` input to `calc_nbhd_by_gene` returns one neighborhood-level
+    modality per input modality);
+  - `calc_nbhd_overlap` and `calc_nbhd_bordering` take the neighborhoods and
+    return a square neighborhood-by-neighborhood `AnnData`;
+  - `calc_nbhd_transcript_assignment` takes transcripts (`gdf_trx` or
+    `data_dir`) and returns a per-neighborhood `DataFrame`.
+
+  Outputs carry axis entities, so `Matrix` links them to Landscape
+  neighborhoods without extra arguments.
+- Alpha shapes and hextiles accept `MuData` too. The `calc_nbhd_*` functions,
+  `calc_gradient`, `Landscape(nbhd=...)`, and the `pre` neighborhood-cloud
+  writers accept any object exposing `to_geodataframe()` in place of a
+  neighborhood `GeoDataFrame`.
 - `Matrix(adata, groupby="leiden")` builds a marker-gene dot plot from a
   cell-level `AnnData`: `scanpy.get.aggregate` gives the mean expression
-  (color) and fraction of cells expressing (dot size), and scanpy's
+  (color) and fraction of cells with expression > 0 (dot size), and scanpy's
   `rank_genes_groups` results (reused, or computed with
   `rank_genes_groups=True`) drive `cluster(view="rank_genes_groups")`.
   `size_by_layer` also works with a plain `AnnData`.
@@ -114,7 +121,8 @@ All notable changes to Celldega are documented here. This project follows
 ### Fixed
 
 - `nbhd.alpha_shape_cell_clusters_by_slice` colors shapes from
-  `uns[f"{cluster_attr}_colors"]` instead of drawing them black.
+  `uns[f"{cluster_attr}_colors"]`, or a distinct fallback palette when none
+  are stored, instead of drawing them black.
 - `nbhd.hextile_niche(dissolve=False)` no longer fails when the hextile index
   is named like a column.
 - `nbhd.filter_alpha_shapes` strips the alpha suffix from names built with a

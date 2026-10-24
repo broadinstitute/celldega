@@ -253,10 +253,19 @@ def write_point_cloud_dataset(
         )
     if append_mode and name is None:
         append_mode = False
-    if not append_mode:
-        dega_files_dir.mkdir(parents=True, exist_ok=True)
 
+    # Validate everything before writing, so a failed call leaves nothing behind
     coords = _build_coordinates(adata, z_key)
+    if not append_mode:
+        if cluster_key is not None and cluster_key not in adata.obs.columns:
+            raise ValueError(f"cluster_key {cluster_key!r} not found in adata.obs")
+        if write_genes is None:
+            write_genes = _has_expression(adata)
+        if write_genes and not _has_expression(adata):
+            raise ValueError(
+                "write_genes=True but adata has no expression matrix (X / layers['counts'])."
+            )
+        dega_files_dir.mkdir(parents=True, exist_ok=True)
     names = adata.obs_names
 
     base_path = dega_files_dir / "cell_metadata.parquet"
@@ -281,18 +290,14 @@ def write_point_cloud_dataset(
         _register_variant(params_path, name)
         return written
 
-    _write_manifests(dega_files_dir, _new_manifest(name))
     if cluster_key is not None:
         from celldega.pre import add_clustering_from_adata
 
         add_clustering_from_adata(adata, dega_files_dir, cluster_key=cluster_key)
-    if write_genes is None:
-        write_genes = _has_expression(adata)
     if write_genes:
-        if not _has_expression(adata):
-            raise ValueError(
-                "write_genes=True but adata has no expression matrix (X / layers['counts'])."
-            )
         _write_cbg_and_meta_gene(dega_files_dir, adata)
+    # The manifest goes last: a directory without one is never mistaken for a
+    # complete dataset (a retry runs in create mode again).
+    _write_manifests(dega_files_dir, _new_manifest(name))
 
     return written

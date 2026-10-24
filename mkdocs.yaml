@@ -12,6 +12,11 @@ exclude_docs: |
   # uncomment their nav entries below to restore them.
   examples/ccle_multiomics.md
   examples/tutorial_notebooks/CCLE_Multiomics_*.ipynb
+  # Alignment tutorials live with the dega-collection package; local drafts
+  # here use APIs that are no longer part of Celldega.
+  examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
+  examples/tutorial_notebooks/1.0_Preprocess_and_Align.ipynb
+  examples/tutorial_notebooks/2.0_Viz_CellCloud.ipynb
 
 theme:
   name: material

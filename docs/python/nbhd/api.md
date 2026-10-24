@@ -17,7 +17,9 @@ adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_hex, "cell", adata)
 # neighborhoods x cell types (proportions)
 adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_hex, category="leiden")
 
-# neighborhoods x neighborhoods relations
+# neighborhoods x neighborhoods relations (e.g. between cluster alpha shapes)
+gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(adata, cat="leiden", alphas=[150])
+gdf_alpha = dega.nbhd.filter_alpha_shapes(gdf_alpha, alpha=150)
 adata_overlap = dega.nbhd.calc_nbhd_overlap(gdf_alpha, metric="iou")
 
 # every result is ready for a Clustergram
@@ -26,8 +28,9 @@ mat = dega.clust.Matrix(adata_nbp)
 
 With a `MuData` (e.g. RNA + protein), `calc_nbhd_by_gene` aggregates every
 modality and returns a `MuData` of neighborhood-level modalities; pass
-`modality=` to aggregate just one. Any object exposing `to_geodataframe()` can
-stand in for the neighborhood `GeoDataFrame`.
+`modality=` to aggregate just one. In the `calc_nbhd_*` functions and
+`calc_gradient`, any object exposing `to_geodataframe()` can stand in for the
+neighborhood `GeoDataFrame`.
 
 `alpha_shape` returns Shapely geometry and `calc_gradient` returns a
 `GeoDataFrame` of rings. With coordinates in microns:

@@ -783,6 +783,7 @@ def _composition_from_cells(
     groupby: str,
     category: str | None,
     group_attrs: list[str] | None,
+    color_adata: Any = None,
 ) -> dict[str, Any]:
     """Composition inputs from a cell-level AnnData/MuData: crosstab ``groupby`` x ``category``."""
     if category is None:
@@ -806,12 +807,18 @@ def _composition_from_cells(
         meta_col = obs.groupby(groupby, observed=True)[list(group_attrs)].first()
         meta_col.index = meta_col.index.astype(str)
         meta_col = meta_col.reindex(df.columns)
+        categorical = [
+            c for c in meta_col.columns if isinstance(meta_col[c].dtype, pd.CategoricalDtype)
+        ]
+        meta_col = meta_col.astype(dict.fromkeys(categorical, str))
 
+    categories = list(counts.columns)
     return {
         "df": df,
         "meta_col": meta_col,
         "col_attr": list(group_attrs) if group_attrs else [],
-        "colors": _colors_from_adata(data, category, list(counts.columns)),
+        "colors": _colors_from_adata(data, category, categories)
+        or _colors_from_adata(color_adata, category, categories),
         "normalized": True,
         "category": category,
         "col_weights": {str(name): float(n) for name, n in group_sizes.items()},
@@ -844,7 +851,7 @@ def _composition_matrix_inputs(
       the displayed matrix itself holds proportions
     """
     if groupby is not None:
-        return _composition_from_cells(data, groupby, category, group_attrs)
+        return _composition_from_cells(data, groupby, category, group_attrs, color_adata)
 
     meta_col: pd.DataFrame | None = None
     collection_obs: pd.DataFrame | None = None

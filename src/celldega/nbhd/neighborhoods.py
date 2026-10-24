@@ -25,8 +25,8 @@ from celldega.nbhd.utils import (
     _as_nbhd_gdf,
     _category_colors,
     _cell_coords,
-    _cell_obs_column,
     _is_multimodal,
+    _obs_column_at,
     _unwrap_mudata,
     read_transcripts,
 )
@@ -93,7 +93,17 @@ def _aggregate_cells(
     feature_type: str,
 ) -> AnnData:
     """Mean (and optionally variance) of one feature matrix per neighborhood."""
-    positions = coords.index.get_indexer(pd.Index(adata_mod.obs_names.astype(str)))
+    obs_names = pd.Index(adata_mod.obs_names.astype(str))
+    if coords.index.equals(obs_names):
+        # Coordinates come from this modality: align positionally (handles duplicate ids)
+        positions = np.arange(len(obs_names))
+    else:
+        if not (coords.index.is_unique and obs_names.is_unique):
+            raise ValueError(
+                "cell obs_names must be unique to align a modality with spatial coordinates; "
+                "call obs_names_make_unique()"
+            )
+        positions = coords.index.get_indexer(obs_names)
     has_coords = positions >= 0
     features = adata_mod.layers[layer] if layer is not None else adata_mod.X
     features = features[has_coords]
@@ -175,7 +185,8 @@ def calc_nbhd_by_gene(
         `neighborhood_id`/`nbhd_id`).
     min_cells : int, default 1
         Minimum cells (or, for `by="cell-free"`, transcripts) a neighborhood
-        needs to be included.
+        needs to be included. With `by="cell"`, neighborhoods without any cells
+        are never included.
     include_variance : bool, default False
         With `by="cell"`, also store per-neighborhood, per-gene variance
         (population variance) in `layers["variance"]`.
@@ -257,7 +268,7 @@ def calc_nbhd_by_gene(
     )
 
     trx_counts = df_result.sum(axis=1)
-    valid = (trx_counts >= max(min_cells, 1)).to_numpy()
+    valid = (trx_counts >= min_cells).to_numpy()
     df_result = df_result.loc[valid]
 
     resolved_feature_type = feature_type or "gene"
@@ -332,13 +343,13 @@ def calc_nbhd_by_pop(
         raise ValueError("output must be 'proportion' or 'counts'")
 
     data = _unwrap_mudata(adata)
-    labels = _cell_obs_column(data, category, modality=modality)
     coords = _cell_coords(data, spatial_key=spatial_key, modality=modality)
-    labels = labels.reindex(coords.index)
+    labels = _obs_column_at(data, category, coords, modality=modality)
 
-    # No CRS: micron imaging coordinates, not geospatial
+    # No CRS: micron imaging coordinates, not geospatial. `.array` keeps a
+    # Categorical so every category becomes a column, in category order.
     gdf_cell = gpd.GeoDataFrame(
-        {category: labels.to_numpy()},
+        {category: labels.array},
         geometry=gpd.points_from_xy(coords["x"].to_numpy(), coords["y"].to_numpy()),
     )
     sjoin_df = gdf_cell.sjoin(

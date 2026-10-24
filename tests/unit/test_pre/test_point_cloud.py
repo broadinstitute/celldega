@@ -241,3 +241,18 @@ def test_manifests_written_and_kept_in_sync(tmp_path):
     assert manifests[0] == manifests[1]
     assert manifests[0]["technology"] == "point-cloud"
     assert manifests[0]["alignments"] == ["a1", "a2"]
+
+
+def test_create_mode_validates_before_writing(tmp_path):
+    adata = _make_adata()
+
+    with pytest.raises(ValueError, match="cluster_key"):
+        write_point_cloud_dataset(adata, tmp_path / "pc", name="a1", cluster_key="nope")
+    with pytest.raises(ValueError, match="write_genes"):
+        write_point_cloud_dataset(adata, tmp_path / "pc2", name="a1", write_genes=True)
+
+    assert not (tmp_path / "pc").exists()
+    assert not (tmp_path / "pc2").exists()
+    # a corrected retry still runs in create mode and writes clusters
+    write_point_cloud_dataset(adata, tmp_path / "pc", name="a1", cluster_key="cluster")
+    assert (tmp_path / "pc" / "cell_clusters" / "meta_cluster.parquet").exists()

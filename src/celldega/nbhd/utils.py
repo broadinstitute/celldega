@@ -170,6 +170,39 @@ def _cell_obs_column(data: Any, column: str, *, modality: str | None = None) -> 
     return series
 
 
+def _obs_column_at(
+    data: Any,
+    column: str,
+    coords: pd.DataFrame,
+    *,
+    modality: str | None = None,
+) -> pd.Series:
+    """``column`` aligned row-for-row with ``coords`` (from :func:`_cell_coords`).
+
+    When both come from the same object they already share an index, so the
+    column is used positionally (this also handles duplicate ``obs_names``).
+    Otherwise it is matched by cell id, which needs unique ids.
+    """
+    series = _cell_obs_column(data, column, modality=modality)
+    if series.index.equals(coords.index):
+        return series
+    if not (series.index.is_unique and coords.index.is_unique):
+        raise ValueError(
+            "cell obs_names must be unique to align obs columns with spatial coordinates; "
+            "call obs_names_make_unique()"
+        )
+    return series.reindex(coords.index)
+
+
+def _fallback_category_colors(categories: Sequence[Any]) -> dict[str, str]:
+    """A distinct color per category (matplotlib tab20 + tab20b, cycled)."""
+    from matplotlib import colormaps
+    from matplotlib.colors import to_hex
+
+    palette = [*colormaps["tab20"].colors, *colormaps["tab20b"].colors]
+    return {str(cat): to_hex(palette[i % len(palette)]) for i, cat in enumerate(categories)}
+
+
 def _category_colors(data: Any, category: str, *, modality: str | None = None) -> dict[str, str]:
     """Map each ``category`` value to its color from ``uns[f"{category}_colors"]``.
 

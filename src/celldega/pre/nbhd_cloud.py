@@ -35,7 +35,7 @@ import pandas as pd
 from scipy.sparse import issparse
 from shapely.geometry import mapping
 
-from celldega.nbhd.utils import _as_nbhd_gdf
+from celldega.nbhd.utils import _as_nbhd_gdf, _nbhd_geometry
 
 
 # `cells/by_gene/<gene>.parquet` schema -- mirrors `cells/by_cluster/<id>
@@ -219,7 +219,9 @@ def write_cell_clusters_meta(nbhd: Any, path_dega_files: str | Path) -> None:
     path_dega_files : str | Path
         DegaFiles root directory.
     """
-    gdf, _ = _as_nbhd_gdf(nbhd)
+    gdf = _nbhd_geometry(nbhd)
+    if gdf is None:
+        raise TypeError("nbhd must be a GeoDataFrame or an object exposing to_geodataframe()")
     missing = _NBHD_CLOUD_CLUSTER_COLUMNS - set(gdf.columns)
     if missing:
         raise ValueError(f"nbhd is missing required columns: {sorted(missing)}")

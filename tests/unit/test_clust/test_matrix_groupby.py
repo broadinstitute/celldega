@@ -119,3 +119,34 @@ def test_groupby_layer_and_input_errors():
         Matrix(adata, layer="counts")
     with pytest.raises(ValueError, match="not found"):
         Matrix(adata, groupby="nope")
+
+
+def test_groupby_fraction_counts_only_positive_values():
+    adata = _cells()
+    sc.pp.scale(adata)  # negative values everywhere a gene is below its mean
+
+    mat = Matrix(adata, groupby="leiden")
+
+    expected = (
+        (pd.DataFrame(adata.X, columns=adata.var_names) > 0)
+        .groupby(adata.obs["leiden"].to_numpy())
+        .mean()
+    )
+    np.testing.assert_allclose(
+        mat.size_matrix.T.loc[["a", "b", "c"]].to_numpy(), expected.to_numpy()
+    )
+    # count_nonzero would put nearly every scaled value (rarely exactly 0) at ~1.0;
+    # cluster a's cells are below the mean for the other clusters' markers.
+    assert mat.size_matrix.loc[["g3", "g4", "g5", "g6", "g7", "g8"], "a"].max() < 0.5
+
+
+def test_groupby_empty_rank_kwargs_still_ranks_and_var_metadata_is_kept():
+    adata = _cells()
+    adata.var["gene_type"] = ["marker"] * 6 + ["other"] * 3
+
+    mat = Matrix(adata, groupby="leiden", rank_genes_groups={}, row_attr=["gene_type"])
+
+    assert mat._marker_ranks is not None
+    assert "gene_type" in mat.meta_row.columns
+    mat.cluster()
+    assert "cat-0" in mat.viz["row_nodes"][0]

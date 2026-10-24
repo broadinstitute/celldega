@@ -242,9 +242,9 @@ def _group_signature(
 ) -> tuple[AnnData, AnnData]:
     """Aggregate a cell-level AnnData into a groups x features signature.
 
-    Uses ``scanpy.get.aggregate`` for the per-group mean (color) and the count
-    of expressing cells, divided by group size for the fraction expressing
-    (dot size). Marker ranks come from ``adata.uns["rank_genes_groups"]`` when
+    Uses ``scanpy.get.aggregate`` for the per-group mean (color) and the number
+    of cells with expression > 0, divided by group size for the fraction
+    expressing (dot size). Marker ranks come from ``adata.uns["rank_genes_groups"]`` when
     it was computed for the same ``groupby``, or from
     ``scanpy.tl.rank_genes_groups`` when ``rank_genes_groups`` asks for it.
 
@@ -267,7 +267,7 @@ def _group_signature(
     labelled = labels.notna().to_numpy()
     cells = adata if labelled.all() else adata[labelled]
 
-    aggregated = sc.get.aggregate(cells, by=groupby, func=["mean", "count_nonzero"], layer=layer)
+    aggregated = sc.get.aggregate(cells, by=groupby, func="mean", layer=layer)
     group_names = pd.Index(aggregated.obs_names.astype(str))
     group_sizes = (
         cells.obs[groupby].astype(str).value_counts().reindex(group_names).fillna(0).to_numpy()
@@ -277,12 +277,26 @@ def _group_signature(
     group_sizes = group_sizes[present]
 
     mean = _dense(aggregated.layers["mean"])[present]
-    fraction = _dense(aggregated.layers["count_nonzero"])[present] / group_sizes[:, None]
+
+    # Fraction of each group's cells with expression > 0 (scanpy's dot plot
+    # convention), so scaled data with negative values doesn't count as expressing.
+    source = cells.layers[layer] if layer is not None else cells.X
+    detected = AnnData(
+        X=(source > 0).astype(np.float32),
+        obs=cells.obs[[groupby]].copy(),
+        var=pd.DataFrame(index=cells.var_names),
+    )
+    expressing = sc.get.aggregate(detected, by=groupby, func="sum")
+    n_expressing = pd.DataFrame(
+        _dense(expressing.layers["sum"]), index=pd.Index(expressing.obs_names.astype(str))
+    ).reindex(group_names)
+    fraction = n_expressing.to_numpy() / group_sizes[:, None]
 
     obs = pd.DataFrame(index=group_names)
     obs[groupby] = group_names
     obs["n_cells"] = group_sizes.astype(int)
-    var = pd.DataFrame(index=pd.Index(cells.var_names.astype(str)))
+    var = cells.var.copy()
+    var.index = pd.Index(cells.var_names.astype(str))
     signature = AnnData(X=mean, obs=obs, var=var)
 
     color_key = f"{groupby}_colors"
@@ -303,7 +317,7 @@ def _group_signature(
     if rank_genes_groups is not False:
         if existing_groupby == groupby and not isinstance(rank_genes_groups, dict):
             markers = marker_ranks_from_uns(existing)
-        elif rank_genes_groups:
+        elif rank_genes_groups or isinstance(rank_genes_groups, dict):
             kwargs = rank_genes_groups if isinstance(rank_genes_groups, dict) else None
             markers = compute_marker_ranks(cells, groupby, kwargs)
     if markers is not None:

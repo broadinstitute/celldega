@@ -117,8 +117,8 @@ def compute_marker_ranks(
 ) -> pd.DataFrame | None:
     """Run ``scanpy.tl.rank_genes_groups`` and return tidy, rank-annotated results.
 
-    Used by ``SetCollection.calc_signature`` so marker ranking happens against
-    cell-level data before the signature is aggregated.
+    Used by ``Matrix(adata, groupby=..., rank_genes_groups=True)`` so marker
+    ranking happens against cell-level data before the signature is aggregated.
 
     Cost is dominated by scanpy: the default ``"wilcoxon"`` test runs at roughly
     30 ms per gene on 200k cells (``"t-test"`` is about 3x faster), scaling
@@ -249,7 +249,10 @@ def add_mixed_attributes_to_node_info(
                 max_abs_val = float(series.abs().max())
                 max_abs.append(max_abs_val)
             else:
-                node_info[f"cat-{idx}"] = series.fillna("Unknown").astype(str).tolist()
+                # object first: fillna can't add "Unknown" to a Categorical
+                node_info[f"cat-{idx}"] = (
+                    series.astype(object).fillna("Unknown").astype(str).tolist()
+                )
                 max_abs.append(None)
     except Exception:
         return []

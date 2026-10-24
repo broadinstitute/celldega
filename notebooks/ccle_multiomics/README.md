@@ -4,7 +4,7 @@ The files in this directory support exploratory notebooks at the repository
 root. They are not part of the installed Celldega API.
 
 `prepare.py` constructs a coverage-preserving native `MuData` from the core
-source-scale assays and wraps it in a `DatasetCollection`:
+source-scale assays:
 
 | Modality | Matrix values | First analytical role |
 | --- | --- | --- |

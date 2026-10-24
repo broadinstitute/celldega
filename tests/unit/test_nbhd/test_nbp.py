@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-from celldega.nbhd.neighborhoods import _calc_nbhd_by_pop as calc_nbhd_by_pop
+from celldega.nbhd import calc_nbhd_by_pop
 
 
 # --- Fixtures and Tests ---

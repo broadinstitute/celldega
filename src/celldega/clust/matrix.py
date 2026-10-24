@@ -118,8 +118,7 @@ def _infer_axis_entities_from_adata(adata: AnnData) -> tuple[AxisEntity, AxisEnt
         ):
             col_entity = {"entity": "nbhd", "attr": "name"}
         else:
-            # Neighborhood population modalities created before collection alignment
-            # still have the same AnnData shape but may lack collection obs metadata.
+            # Neighborhood population matrices may lack neighborhood obs metadata.
             col_entity = {"entity": "nbhd", "attr": "name"}
 
         return row_entity, col_entity
@@ -230,6 +229,109 @@ def marker_ranks_from_uns(payload: Any) -> pd.DataFrame | None:
     return pd.concat(frames, ignore_index=True)
 
 
+def _dense(values: Any) -> np.ndarray:
+    return values.toarray() if hasattr(values, "toarray") else np.asarray(values)
+
+
+def _group_signature(
+    adata: AnnData,
+    groupby: str,
+    *,
+    layer: str | None = None,
+    rank_genes_groups: bool | dict[str, Any] | None = None,
+) -> tuple[AnnData, AnnData]:
+    """Aggregate a cell-level AnnData into a groups x features signature.
+
+    Uses ``scanpy.get.aggregate`` for the per-group mean (color) and the number
+    of cells with expression > 0, divided by group size for the fraction
+    expressing (dot size). Marker ranks come from ``adata.uns["rank_genes_groups"]`` when
+    it was computed for the same ``groupby``, or from
+    ``scanpy.tl.rank_genes_groups`` when ``rank_genes_groups`` asks for it.
+
+    Returns:
+        ``(signature, fraction)``: the groups x features mean expression (with
+        group colors, sizes, marker ranks, and axis entities) and a same-shaped
+        AnnData of the fraction of cells expressing each feature.
+    """
+    try:
+        import scanpy as sc
+    except ImportError:
+        raise ImportError(ERRORS["missing_scanpy"]) from None
+
+    from .utils import compute_marker_ranks
+
+    if groupby not in adata.obs.columns:
+        raise ValueError(ERRORS["missing_category"].format(groupby, list(adata.obs.columns)))
+
+    labels = adata.obs[groupby]
+    labelled = labels.notna().to_numpy()
+    cells = adata if labelled.all() else adata[labelled]
+
+    aggregated = sc.get.aggregate(cells, by=groupby, func="mean", layer=layer)
+    group_names = pd.Index(aggregated.obs_names.astype(str))
+    group_sizes = (
+        cells.obs[groupby].astype(str).value_counts().reindex(group_names).fillna(0).to_numpy()
+    )
+    present = group_sizes > 0
+    group_names = group_names[present]
+    group_sizes = group_sizes[present]
+
+    mean = _dense(aggregated.layers["mean"])[present]
+
+    # Fraction of each group's cells with expression > 0 (scanpy's dot plot
+    # convention), so scaled data with negative values doesn't count as expressing.
+    source = cells.layers[layer] if layer is not None else cells.X
+    detected = AnnData(
+        X=(source > 0).astype(np.float32),
+        obs=cells.obs[[groupby]].copy(),
+        var=pd.DataFrame(index=cells.var_names),
+    )
+    expressing = sc.get.aggregate(detected, by=groupby, func="sum")
+    n_expressing = pd.DataFrame(
+        _dense(expressing.layers["sum"]), index=pd.Index(expressing.obs_names.astype(str))
+    ).reindex(group_names)
+    fraction = n_expressing.to_numpy() / group_sizes[:, None]
+
+    obs = pd.DataFrame(index=group_names)
+    obs[groupby] = group_names
+    obs["n_cells"] = group_sizes.astype(int)
+    var = cells.var.copy()
+    var.index = pd.Index(cells.var_names.astype(str))
+    signature = AnnData(X=mean, obs=obs, var=var)
+
+    color_key = f"{groupby}_colors"
+    if color_key in adata.uns:
+        if isinstance(labels.dtype, pd.CategoricalDtype):
+            categories = labels.cat.categories.astype(str)
+        else:
+            categories = pd.Index(pd.unique(labels.dropna())).astype(str)
+        palette = dict(zip(categories, adata.uns[color_key], strict=False))
+        signature.obs["color"] = [palette.get(name, "#808080") for name in group_names]
+        signature.uns[color_key] = list(signature.obs["color"])
+
+    markers = None
+    existing = adata.uns.get("rank_genes_groups")
+    existing_groupby = (
+        existing.get("params", {}).get("groupby") if isinstance(existing, dict) else None
+    )
+    if rank_genes_groups is not False:
+        if existing_groupby == groupby and not isinstance(rank_genes_groups, dict):
+            markers = marker_ranks_from_uns(existing)
+        elif rank_genes_groups or isinstance(rank_genes_groups, dict):
+            kwargs = rank_genes_groups if isinstance(rank_genes_groups, dict) else None
+            markers = compute_marker_ranks(cells, groupby, kwargs)
+    if markers is not None:
+        signature.uns["rank_genes_groups"] = marker_ranks_to_uns(markers)
+
+    signature.uns["axis_entities"] = {
+        "row_entity": {"entity": "gene", "attr": "name"},
+        "col_entity": {"entity": "cell", "attr": groupby},
+    }
+
+    size = AnnData(X=fraction, obs=pd.DataFrame(index=group_names), var=var.copy())
+    return signature, size
+
+
 def _serialize_linkage(linkage_matrix: np.ndarray) -> list[list[float]]:
     """Compact JSON-ready linkage. Views ride along inside the viz metadata, so
     trim float noise rather than shipping full repr precision per merge."""
@@ -281,8 +383,12 @@ class Matrix:
         global_colors: dict[str, str] | pd.DataFrame | None = None,
         name: str | None = None,
         *,
-        # Celldega collection convenience path (alternative to `data`)
-        collection: Any = None,
+        # Cell-level AnnData path: aggregate cells into groups (dot plot)
+        groupby: str | None = None,
+        layer: str | None = None,
+        rank_genes_groups: bool | dict[str, Any] | None = None,
+        # MuData path (alternative to `data`)
+        mdata: Any = None,
         color_by: str | None = None,
         size_by: str | None = None,
         size_by_layer: str | None = None,
@@ -309,19 +415,31 @@ class Matrix:
             col_entity: Entity specification for columns (same formats as row_entity)
             global_colors: Global category color mapping (dict or DataFrame with 'color' column)
             name: Name for the matrix (default: None)
-            collection: A Celldega collection (``SetCollection``/``DatasetCollection``/etc.)
-                to build ``data`` from, in place of passing ``data`` directly —
-                equivalent to ``data=collection.mod[color_by]``. Requires `color_by`.
-            color_by: Modality key on `collection` driving color/opacity (the main
+            groupby: With a cell-level AnnData ``data``, aggregate cells into
+                groups by this ``obs`` column (e.g. ``"leiden"``, a sample or
+                dataset column) with ``scanpy.get.aggregate``: columns become
+                groups, color is the mean expression, and dot size is the
+                fraction of cells expressing each feature (a dot plot). Group
+                colors come from ``uns[f"{groupby}_colors"]``. Requires scanpy.
+            layer: With ``groupby``, aggregate this layer instead of ``X``.
+            rank_genes_groups: With ``groupby``, where marker ranks (for
+                ``cluster(view="rank_genes_groups")``) come from. ``None``
+                (default) reuses ``adata.uns["rank_genes_groups"]`` when it was
+                computed for the same ``groupby``; ``True`` also runs
+                ``scanpy.tl.rank_genes_groups`` when there are none; a dict runs
+                it with these keyword arguments; ``False`` skips marker ranks.
+            mdata: A ``MuData`` (or any object exposing ``.mod``) to build
+                ``data`` from, in place of passing ``data`` directly —
+                equivalent to ``data=mdata.mod[color_by]``. Requires `color_by`.
+            color_by: Modality key on `mdata` driving color/opacity (the main
                 matrix).
-            size_by: Optional modality key on `collection` driving the secondary
+            size_by: Optional modality key on `mdata` driving the secondary
                 *size* channel (dot-plot size, e.g. fraction of cells expressing —
                 but any per-cell magnitude works, e.g. significance) — equivalent to
-                calling ``.set_size_matrix(collection.mod[size_by])`` after
+                calling ``.set_size_matrix(mdata.mod[size_by])`` after
                 construction. Omit for a matrix with no size channel.
-            size_by_layer: Optional layer on ``collection.mod[color_by]`` driving
-                the secondary size channel. This is the compact path for a
-                signature created with ``fraction_expressing_layer``. Mutually
+            size_by_layer: Optional layer driving the secondary size channel,
+                on ``mdata.mod[color_by]`` or on an AnnData ``data``. Mutually
                 exclusive with ``size_by`` and ``dot_plot``.
             dot_plot: Deprecated alias for `size_by` (pass either, not both).
 
@@ -335,17 +453,13 @@ class Matrix:
             mat.filter("row", by="var", num=5000)
             mat.norm("row", by="qn")
 
-            # Dot plot directly from a SetCollection, no manual DataFrame wrangling
-            setc.calc_signature(
-                adata,
-                modality_name="expression",
-                fraction_expressing_layer="fraction_expressing",
-            )
-            mat = Matrix(
-                collection=setc,
-                color_by="expression",
-                size_by_layer="fraction_expressing",
-            )
+            # Marker dot plot straight from a cell-level AnnData
+            sc.tl.rank_genes_groups(adata, groupby="leiden")
+            mat = Matrix(adata, groupby="leiden")
+            mat.cluster(view="rank_genes_groups")
+
+            # Dot plot from MuData modalities
+            mat = Matrix(mdata=mdata, color_by="expression", size_by="fraction")
 
             # Raw matrix without data
             mat = Matrix()  # Empty matrix for manual loading
@@ -376,20 +490,30 @@ class Matrix:
         if size_by_layer is not None and size_by is not None:
             raise ValueError("pass either `size_by_layer` or `size_by`/`dot_plot`, not both")
 
-        if collection is not None:
+        if mdata is not None:
             if data is not None:
-                raise ValueError("pass either `data` or `collection`, not both")
+                raise ValueError("pass either `data` or `mdata`, not both")
             if color_by is None:
-                raise ValueError(
-                    "`color_by` is required when constructing Matrix from `collection`"
-                )
-            if color_by not in collection.mod:
+                raise ValueError("`color_by` is required when constructing Matrix from `mdata`")
+            if color_by not in mdata.mod:
                 raise KeyError(
-                    f"color_by '{color_by}' not found; available modalities: {list(collection.mod)}"
+                    f"color_by '{color_by}' not found; available modalities: {list(mdata.mod)}"
                 )
-            data = collection.mod[color_by]
-        elif color_by is not None or size_by is not None or size_by_layer is not None:
-            raise ValueError("`color_by`/`size_by`/`size_by_layer` require `collection`")
+            data = mdata.mod[color_by]
+        elif color_by is not None or size_by is not None:
+            raise ValueError("`color_by`/`size_by` require `mdata`")
+        elif size_by_layer is not None and not isinstance(data, AnnData):
+            raise ValueError("`size_by_layer` requires an AnnData `data` or `mdata`")
+
+        group_size: AnnData | None = None
+        if groupby is not None:
+            if mdata is not None or not isinstance(data, AnnData):
+                raise ValueError("`groupby` requires a cell-level AnnData as `data`")
+            data, group_size = _group_signature(
+                data, groupby, layer=layer, rank_genes_groups=rank_genes_groups
+            )
+        elif layer is not None or rank_genes_groups is not None:
+            raise ValueError("`layer`/`rank_genes_groups` require `groupby`")
 
         axis_entities_defaulted = _is_default_entity_pair(row_entity, col_entity)
         if isinstance(data, AnnData) and axis_entities_defaulted:
@@ -410,7 +534,7 @@ class Matrix:
 
         # Differential-expression results carried by the input AnnData, as a
         # tidy frame with group/names/scores/logfoldchanges/pvals/pvals_adj.
-        # Kept internal: SetCollection owns calculation and persistence; Matrix
+        # Kept internal: scanpy (or `Matrix(adata, groupby=...)`) computes them; Matrix
         # only consumes the ranks for `cluster(view="rank_genes_groups")`.
         self._marker_ranks: pd.DataFrame | None = None
 
@@ -453,7 +577,7 @@ class Matrix:
         self.viz: dict[str, Any] = copy.deepcopy(DEFAULT_VIZ)
         # AnnData category palettes are collected in ``load_adata`` and take
         # precedence over auto-generated Matrix colors. This preserves a
-        # DatasetCollection's shared annotation colors across separate views.
+        # shared annotation colors across separate views.
         self._source_global_cat_colors: dict[str, str] = {}
 
         # if name is None, generate a quick hash-based name from the data content
@@ -486,21 +610,22 @@ class Matrix:
         # Always assign colors (auto-generated if not provided)
         self.set_global_cat_colors(global_colors)
 
-        # Optional size channel from the same collection
+        # Optional size channel from the same MuData / AnnData
         if size_by is not None:
-            if collection is None:
-                raise ValueError("`size_by`/`dot_plot` require `collection`")
-            if size_by not in collection.mod:
+            if mdata is None:
+                raise ValueError("`size_by`/`dot_plot` require `mdata`")
+            if size_by not in mdata.mod:
                 raise KeyError(
-                    f"size_by '{size_by}' not found; available modalities: {list(collection.mod)}"
+                    f"size_by '{size_by}' not found; available modalities: {list(mdata.mod)}"
                 )
-            self.set_size_matrix(collection.mod[size_by])
+            self.set_size_matrix(mdata.mod[size_by])
         elif size_by_layer is not None:
-            color_modality = collection.mod[color_by]
+            color_modality = data
             if size_by_layer not in color_modality.layers:
+                source = f"modality '{color_by}'" if mdata is not None else "data"
                 raise KeyError(
-                    f"size_by_layer '{size_by_layer}' not found in modality "
-                    f"'{color_by}'; available layers: {list(color_modality.layers)}"
+                    f"size_by_layer '{size_by_layer}' not found in {source}; "
+                    f"available layers: {list(color_modality.layers)}"
                 )
             dot = AnnData(
                 X=color_modality.layers[size_by_layer],
@@ -508,6 +633,8 @@ class Matrix:
                 var=color_modality.var.copy(),
             )
             self.set_size_matrix(dot)
+        elif group_size is not None:
+            self.set_size_matrix(group_size)
 
     @property
     def dat(self) -> dict[str, Any]:
@@ -655,7 +782,7 @@ class Matrix:
         )
 
         # Differential expression carried on the AnnData -- written by
-        # `SetCollection.calc_signature(rank_genes_groups=True)`, or by scanpy
+        # `Matrix(adata, groupby=..., rank_genes_groups=True)`, or by scanpy
         # itself -- makes `cluster(view="rank_genes_groups")` work with no
         # further setup. `load_df` above reset state, so this has to follow it.
         for key in ("rank_genes_groups", "marker_ranks"):
@@ -827,7 +954,7 @@ class Matrix:
                 - ``"rank_genes_groups"``: each cluster's top markers, unioned.
                   Needs differential expression carried by the input AnnData,
                   normally from
-                  ``SetCollection.calc_signature(..., rank_genes_groups=True)``.
+                  ``scanpy.tl.rank_genes_groups`` (see ``Matrix(adata, groupby=...)``).
                 - ``"var"`` / ``"sum"`` / ``"mean"``: rows ranked by a per-row
                   metric on the matrix itself — no differential expression needed,
                   which is the right fit for bulk or otherwise ungrouped matrices.
@@ -1102,8 +1229,8 @@ class Matrix:
 
         This is the programmatic counterpart to the Clustergram's interactive
         dendrogram slider: it turns a clustered Matrix into discrete groups (e.g.
-        consensus domains, meta-clusters) that can be attached back to a
-        collection's ``obs`` / ``var``.
+        consensus domains, meta-clusters) that can be attached back to an
+        AnnData's ``obs`` / ``var``.
 
         Args:
             axis: ``"row"``/``"col"`` (or ``0``/``1``) — which dendrogram to cut.
@@ -1337,7 +1464,7 @@ class Matrix:
         if self._marker_ranks is None or self._marker_ranks.empty:
             raise ValueError(
                 "view='rank_genes_groups' needs differential expression results. "
-                "Use SetCollection.calc_signature(..., rank_genes_groups=True), "
+                "Build the Matrix with Matrix(adata, groupby=..., rank_genes_groups=True), "
                 "or pass an AnnData carrying scanpy rank_genes_groups results -- "
                 "or pick a view that needs no groups, e.g. view='var' / view='sum'."
             )

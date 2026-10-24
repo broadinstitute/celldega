@@ -17,12 +17,11 @@ which cells it shows, in increasing order of power:
 
 1. **An explicit id list** — `cells=["cell_1", "cell_2", ...]`. The simplest
    path: you already know the cells you want.
-2. **A back-end selection** — `selection=...`. Accepts a
-   [`celldega.select.Selection`](../select/api.md), a JSON-ready selection dict,
-   or a plain id list. This is the recommended way to drive the grid from a
-   Python `AnnData` object, because it carries the query, sampler, scores, and
-   provenance with the cells. See the
-   [select module docs](../select/api.md) for the full query/sampling algebra.
+2. **A selection** — `selection=...`. Accepts a plain id list, a JSON-ready
+   dict with `ids` (plus any provenance such as the query that produced them),
+   or any object exposing `to_json()` / `to_dict()` that returns one (e.g. a
+   `dega-collection` selection). The payload is stored on the widget for
+   provenance.
 3. **A stateless front-end query** — `front_end_query=...`. Evaluated in the
    browser against the dataset's LandscapeFiles, so it needs only a `base_url`
    and **no Python `AnnData`**.
@@ -32,9 +31,8 @@ independent of those two — when set, the browser computes the cell list itself
 
 ### Front-End Query
 
-`front_end_query` is a small dict evaluated entirely in the browser. It is a
-deliberately narrow counterpart to the Python `select` module — it supports a
-single cluster filter and/or a single-gene ranking:
+`front_end_query` is a small dict evaluated entirely in the browser. It
+supports a single cluster filter and/or a single-gene ranking:
 
 | Query | Behavior |
 | --- | --- |
@@ -54,9 +52,8 @@ yb = dega.viz.Yearbook(
 
 !!! note
     The former `query=` argument was renamed to `front_end_query=` to
-    distinguish this stateless browser query from the Python-side
-    `celldega.select` query module. Passing `query=` still works but emits a
-    `DeprecationWarning`.
+    distinguish this stateless browser query from Python-side selections.
+    Passing `query=` still works but emits a `DeprecationWarning`.
 
 ::: celldega.viz
 

@@ -1,4 +1,4 @@
-"""Tests for celldega.align.write_alignment_point_cloud (synthetic data only)."""
+"""Tests for celldega.pre.write_point_cloud_dataset (synthetic data only)."""
 
 import json
 
@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 import pytest
 from scipy.sparse import csr_matrix
 
-from celldega.align import write_alignment_point_cloud
+from celldega.pre import POINT_CLOUD_MANIFEST_NAMES, write_point_cloud_dataset
 
 
 def _make_adata(n=30, n_slices=3, with_z=True, spatial_dim=2, seed=0, n_genes=0, sparse=True):
@@ -45,12 +45,12 @@ def _read_geometry(path):
 
 def test_create_mode_writes_full_point_cloud(tmp_path):
     adata = _make_adata()
-    path = write_alignment_point_cloud(adata, tmp_path, "procrustes", cluster_key="cluster")
+    path = write_point_cloud_dataset(adata, tmp_path, name="procrustes", cluster_key="cluster")
 
     assert path.name == "cell_metadata_procrustes.parquet"
     assert path.exists()
-    # create mode also writes a base cell_metadata.parquet so an alignment-less
-    # Landscape still works
+    # create mode also writes a base cell_metadata.parquet so a variant-less
+    # CellCloud still works
     assert (tmp_path / "cell_metadata.parquet").exists()
     assert (tmp_path / "cell_clusters" / "cluster.parquet").exists()
     assert (tmp_path / "cell_clusters" / "meta_cluster.parquet").exists()
@@ -62,7 +62,7 @@ def test_create_mode_writes_full_point_cloud(tmp_path):
 
 def test_geometry_is_xyz_from_spatial_and_z(tmp_path):
     adata = _make_adata()
-    path = write_alignment_point_cloud(adata, tmp_path, "a1")
+    path = write_point_cloud_dataset(adata, tmp_path, name="a1")
 
     names, geometry = _read_geometry(path)
     assert names == list(adata.obs_names)
@@ -76,26 +76,26 @@ def test_geometry_is_xyz_from_spatial_and_z(tmp_path):
 
 def test_z_falls_back_to_third_spatial_column(tmp_path):
     adata = _make_adata(with_z=False, spatial_dim=3)
-    _, geometry = _read_geometry(write_alignment_point_cloud(adata, tmp_path, "a1"))
+    _, geometry = _read_geometry(write_point_cloud_dataset(adata, tmp_path, name="a1"))
     z = np.asarray([g[2] for g in geometry])
     np.testing.assert_allclose(z, adata.obsm["spatial"][:, 2], rtol=1e-5)
 
 
 def test_z_defaults_to_zero_when_absent(tmp_path):
     adata = _make_adata(with_z=False, spatial_dim=2)
-    _, geometry = _read_geometry(write_alignment_point_cloud(adata, tmp_path, "a1"))
+    _, geometry = _read_geometry(write_point_cloud_dataset(adata, tmp_path, name="a1"))
     z = np.asarray([g[2] for g in geometry])
     np.testing.assert_array_equal(z, np.zeros(adata.n_obs))
 
 
 def test_append_mode_registers_without_clobbering(tmp_path):
     first = _make_adata(seed=0)
-    write_alignment_point_cloud(first, tmp_path, "procrustes", cluster_key="cluster")
+    write_point_cloud_dataset(first, tmp_path, name="procrustes", cluster_key="cluster")
     base_before = (tmp_path / "cell_metadata.parquet").read_bytes()
 
     # append a second variant with different positions
     second = _make_adata(seed=1)
-    path2 = write_alignment_point_cloud(second, tmp_path, "tps")
+    path2 = write_point_cloud_dataset(second, tmp_path, name="tps")
 
     assert path2.name == "cell_metadata_tps.parquet"
     # base cell_metadata is untouched by an append
@@ -112,24 +112,24 @@ def test_append_mode_registers_without_clobbering(tmp_path):
 
 def test_register_is_idempotent(tmp_path):
     adata = _make_adata()
-    write_alignment_point_cloud(adata, tmp_path, "a1")
-    write_alignment_point_cloud(adata, tmp_path, "a1", overwrite=True)
+    write_point_cloud_dataset(adata, tmp_path, name="a1")
+    write_point_cloud_dataset(adata, tmp_path, name="a1", overwrite=True)
     params = json.loads((tmp_path / "landscape_parameters.json").read_text())
     assert params["alignments"] == ["a1"]
 
 
 def test_overwrite_guard(tmp_path):
     adata = _make_adata()
-    write_alignment_point_cloud(adata, tmp_path, "a1")
+    write_point_cloud_dataset(adata, tmp_path, name="a1")
     with pytest.raises(FileExistsError):
-        write_alignment_point_cloud(adata, tmp_path, "a1")
+        write_point_cloud_dataset(adata, tmp_path, name="a1")
     # overwrite=True is allowed
-    write_alignment_point_cloud(adata, tmp_path, "a1", overwrite=True)
+    write_point_cloud_dataset(adata, tmp_path, name="a1", overwrite=True)
 
 
 def test_append_preserves_existing_params(tmp_path):
     adata = _make_adata()
-    write_alignment_point_cloud(adata, tmp_path, "a1")
+    write_point_cloud_dataset(adata, tmp_path, name="a1")
     # simulate an existing DegaFiles with extra params + prior alignments
     params_path = tmp_path / "landscape_parameters.json"
     params = json.loads(params_path.read_text())
@@ -137,29 +137,29 @@ def test_append_preserves_existing_params(tmp_path):
     params["custom_key"] = {"keep": "me"}
     params_path.write_text(json.dumps(params))
 
-    write_alignment_point_cloud(adata, tmp_path, "a2")
+    write_point_cloud_dataset(adata, tmp_path, name="a2")
     out = json.loads(params_path.read_text())
     assert out["custom_key"] == {"keep": "me"}
     assert out["alignments"] == ["a1", "a2"]
 
 
 @pytest.mark.parametrize("bad", ["default", "", "a/b", ".hidden", "-lead", "a b"])
-def test_invalid_alignment_names_rejected(tmp_path, bad):
+def test_invalid_variant_names_rejected(tmp_path, bad):
     adata = _make_adata()
     with pytest.raises(ValueError):
-        write_alignment_point_cloud(adata, tmp_path, bad)
+        write_point_cloud_dataset(adata, tmp_path, name=bad)
 
 
 def test_requires_spatial(tmp_path):
     adata = AnnData(X=np.zeros((3, 1)), obs=pd.DataFrame(index=["a", "b", "c"]))
     with pytest.raises(ValueError):
-        write_alignment_point_cloud(adata, tmp_path, "a1")
+        write_point_cloud_dataset(adata, tmp_path, name="a1")
 
 
 @pytest.mark.parametrize("sparse", [True, False])
 def test_create_mode_writes_gene_expression_when_available(tmp_path, sparse):
     adata = _make_adata(n_genes=4, sparse=sparse)
-    write_alignment_point_cloud(adata, tmp_path, "a1", cluster_key="cluster")
+    write_point_cloud_dataset(adata, tmp_path, name="a1", cluster_key="cluster")
 
     cbg_dir = tmp_path / "cbg"
     assert cbg_dir.is_dir()
@@ -182,14 +182,14 @@ def test_create_mode_writes_gene_expression_when_available(tmp_path, sparse):
 
 def test_create_mode_skips_genes_without_expression(tmp_path):
     adata = _make_adata(n_genes=0)  # no genes
-    write_alignment_point_cloud(adata, tmp_path, "a1", cluster_key="cluster")
+    write_point_cloud_dataset(adata, tmp_path, name="a1", cluster_key="cluster")
     assert not (tmp_path / "cbg").exists()
     assert not (tmp_path / "meta_gene.parquet").exists()
 
 
 def test_write_genes_false_disables_export(tmp_path):
     adata = _make_adata(n_genes=4)
-    write_alignment_point_cloud(adata, tmp_path, "a1", write_genes=False)
+    write_point_cloud_dataset(adata, tmp_path, name="a1", write_genes=False)
     assert not (tmp_path / "cbg").exists()
     assert not (tmp_path / "meta_gene.parquet").exists()
 
@@ -197,14 +197,62 @@ def test_write_genes_false_disables_export(tmp_path):
 def test_write_genes_true_without_expression_raises(tmp_path):
     adata = _make_adata(n_genes=0)
     with pytest.raises(ValueError):
-        write_alignment_point_cloud(adata, tmp_path, "a1", write_genes=True)
+        write_point_cloud_dataset(adata, tmp_path, name="a1", write_genes=True)
 
 
 def test_append_mode_leaves_gene_writing_to_existing_data(tmp_path):
     # create with genes, then append a variant with genes=True: append must not
     # touch gene data (write_genes only applies to create mode)
     adata = _make_adata(n_genes=3)
-    write_alignment_point_cloud(adata, tmp_path, "a1")
+    write_point_cloud_dataset(adata, tmp_path, name="a1")
     meta_before = (tmp_path / "meta_gene.parquet").read_bytes()
-    write_alignment_point_cloud(adata, tmp_path, "a2", write_genes=True)
+    write_point_cloud_dataset(adata, tmp_path, name="a2", write_genes=True)
     assert (tmp_path / "meta_gene.parquet").read_bytes() == meta_before
+
+
+def test_create_without_name_writes_base_positions_only(tmp_path):
+    adata = _make_adata()
+    path = write_point_cloud_dataset(adata, tmp_path, cluster_key="cluster")
+
+    assert path.name == "cell_metadata.parquet"
+    names, geometry = _read_geometry(path)
+    assert names == list(adata.obs_names)
+    assert all(len(g) == 3 for g in geometry)
+    assert not list(tmp_path.glob("cell_metadata_*.parquet"))
+    params = json.loads((tmp_path / "cell_cloud.json").read_text())
+    assert params["technology"] == "point-cloud"
+    assert params["alignments"] == []
+
+
+def test_existing_dataset_without_name_requires_overwrite(tmp_path):
+    adata = _make_adata()
+    write_point_cloud_dataset(adata, tmp_path)
+    with pytest.raises(FileExistsError):
+        write_point_cloud_dataset(adata, tmp_path)
+    write_point_cloud_dataset(adata, tmp_path, overwrite=True)
+
+
+def test_manifests_written_and_kept_in_sync(tmp_path):
+    adata = _make_adata()
+    write_point_cloud_dataset(adata, tmp_path, name="a1", cluster_key="cluster")
+    write_point_cloud_dataset(adata, tmp_path, name="a2")  # append mode
+
+    manifests = [json.loads((tmp_path / name).read_text()) for name in POINT_CLOUD_MANIFEST_NAMES]
+    assert manifests[0] == manifests[1]
+    assert manifests[0]["technology"] == "point-cloud"
+    assert manifests[0]["alignments"] == ["a1", "a2"]
+
+
+def test_create_mode_validates_before_writing(tmp_path):
+    adata = _make_adata()
+
+    with pytest.raises(ValueError, match="cluster_key"):
+        write_point_cloud_dataset(adata, tmp_path / "pc", name="a1", cluster_key="nope")
+    with pytest.raises(ValueError, match="write_genes"):
+        write_point_cloud_dataset(adata, tmp_path / "pc2", name="a1", write_genes=True)
+
+    assert not (tmp_path / "pc").exists()
+    assert not (tmp_path / "pc2").exists()
+    # a corrected retry still runs in create mode and writes clusters
+    write_point_cloud_dataset(adata, tmp_path / "pc", name="a1", cluster_key="cluster")
+    assert (tmp_path / "pc" / "cell_clusters" / "meta_cluster.parquet").exists()

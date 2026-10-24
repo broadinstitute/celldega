@@ -84,7 +84,8 @@ dev = [
     "nbconvert",
     "nbformat",
 ]
-# Optional dependency for SetCollection marker ranking and Matrix.downsample_to().
+# Optional dependency for Matrix(adata, groupby=...) dot plots, marker ranking, and
+# Matrix.downsample_to().
 scanpy = [
     "scanpy>=1.11.5,<1.12"
 ]

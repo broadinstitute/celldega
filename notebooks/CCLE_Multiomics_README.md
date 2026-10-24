@@ -8,8 +8,7 @@ versions.
 
 Run in this order:
 
-1. `CCLE_Multiomics_00_Prepare.py` creates or loads the native MuData archive and
-   its DatasetCollection wrapper.
+1. `CCLE_Multiomics_00_Prepare.py` creates or loads the native MuData archive.
 2. `CCLE_Multiomics_01_Global_Hierarchy.py` creates global RNA, RPPA, and
    metabolomics Ward Clustergrams plus an equal-feature matched multi-omic
    stack and marker tables.

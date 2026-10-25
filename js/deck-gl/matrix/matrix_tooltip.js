@@ -28,6 +28,16 @@ const dendro_tooltip_html = (label, object) => {
   return `${label} dendrogram: ${escape_html(properties.name)}${names_line}`;
 };
 
+// Two decimals, except that small nonzero values keep two significant digits:
+// a gene detected in 1 of 229 cells has size 0.0044, which must not read as 0.
+export const format_tooltip_number = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return number !== 0 && Math.abs(number) < 0.01
+    ? number.toPrecision(2)
+    : number.toFixed(2);
+};
+
 // Tooltips appear after a short hover dwell. deck.gl hides the tooltip
 // (display: none) between hovers, and re-showing it restarts this animation,
 // so the delay applies each time the pointer settles onto something new.
@@ -192,8 +202,8 @@ export const get_tooltip = (viz_state, params) => {
           total != null ? `<br>Total cells: ${Math.round(total)}` : '';
 
         return {
-          html: `Population: ${row_name}<br>Dataset: ${col_name}<br>Value: ${object.value.toFixed(
-            2
+          html: `Population: ${row_name}<br>Dataset: ${col_name}<br>Value: ${format_tooltip_number(
+            object.value
           )}${total_line}`,
           style: base_tooltip_style(),
         };
@@ -201,12 +211,12 @@ export const get_tooltip = (viz_state, params) => {
 
       const size_line =
         viz_state.mat.viz_mode === 'dotplot' && object.size_value != null
-          ? `<br> Size: ${object.size_value.toFixed(2)}`
+          ? `<br> Size: ${format_tooltip_number(object.size_value)}`
           : '';
 
       return {
-        html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${object.value.toFixed(
-          2
+        html: `Row: ${row_name} <br> Column: ${col_name} <br> Value: ${format_tooltip_number(
+          object.value
         )}${size_line}`,
         style: base_tooltip_style(),
       };

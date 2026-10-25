@@ -915,6 +915,33 @@ class Matrix:
         self._clustered = False
         self._invalidate_cache(CacheLevel.DATA.value)
 
+    def filter_by_size(self, min_size: float, axis: AxisInput = "row") -> None:
+        """Keep rows (or columns) that reach ``min_size`` in the size matrix.
+
+        With the fraction of cells expressing each gene as the size matrix (see
+        :meth:`set_size_matrix`), ``mat.filter_by_size(0.05)`` keeps genes
+        detected in at least 5% of the cells of at least one cluster.
+
+        Optional, but recommended for whole-transcriptome data before a row
+        z-score: the z-score measures how specific a gene is to a column, not how
+        many cells express it, so a gene detected in a single cell of a single
+        cluster gets the same top value as a real marker.
+
+        Args:
+            min_size: Value that a row's (or column's) largest size must reach.
+            axis: 'row'/'col', 0/1, or Axis enum: filter rows by their largest
+                size across columns, or columns by their largest size across rows.
+        """
+        if self.data is None:
+            raise ValueError(ERRORS["no_data"])
+        if self.size_matrix is None:
+            raise ValueError("filter_by_size needs a size matrix; set one with set_size_matrix().")
+
+        axis_enum = Axis.normalize(axis)
+        size = self.size_matrix.reindex(index=self.data.index, columns=self.data.columns)
+        largest = size.max(axis=1 if axis_enum == Axis.ROW else 0)
+        self.subset(axis_enum, largest.index[largest >= min_size].tolist())
+
     def subset(self, axis: AxisInput, by: list[str]) -> None:
         """
         Subset data by feature list.

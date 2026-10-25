@@ -34,6 +34,19 @@ arguments) to compute the ranks on the fly, and `layer=` to aggregate a layer
 instead of `X`. The same `groupby` path works for samples or any other cell
 grouping.
 
+With whole-transcriptome data, consider dropping genes that almost no cells
+detect before the row z-score. The z-score measures how specific a gene is to
+a cluster, not how many cells express it, so a gene detected in a single cell
+of a single cluster gets the same top value as a real marker and can crowd the
+full-gene view. `filter_by_size()` keeps rows whose size (here, the fraction
+of cells expressing) reaches a threshold in at least one column:
+
+```python
+mat = dega.clust.Matrix(adata, groupby="leiden")
+mat.filter_by_size(0.05)  # detected in at least 5% of some cluster's cells
+mat.norm("row", by="zscore")
+```
+
 Precomputed modalities in a `MuData` can drive color and size directly:
 
 ```python

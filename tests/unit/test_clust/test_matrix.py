@@ -460,6 +460,31 @@ class TestMatrix:
             dot_df.loc[genes, sets].to_numpy(), frac.X.T, rtol=1e-5, atol=1e-6
         )
 
+    def test_filter_by_size_keeps_rows_reaching_the_threshold_somewhere(self) -> None:
+        df = pd.DataFrame(np.ones((3, 2)), index=["g0", "g1", "g2"], columns=["s0", "s1"])
+        size = pd.DataFrame(
+            [[0.5, 0.0], [0.01, 0.02], [0.0, 0.06]], index=df.index, columns=df.columns
+        )
+        mat = Matrix(df).set_size_matrix(size)
+
+        mat.filter_by_size(0.05)
+
+        assert list(mat.data.index) == ["g0", "g2"]
+        assert list(mat.meta_row.index) == ["g0", "g2"]
+
+    def test_filter_by_size_filters_columns_and_needs_a_size_matrix(self) -> None:
+        df = pd.DataFrame(np.ones((2, 3)), index=["g0", "g1"], columns=["s0", "s1", "s2"])
+        size = pd.DataFrame(
+            [[0.2, 0.0, 0.01], [0.0, 0.3, 0.02]], index=df.index, columns=df.columns
+        )
+        mat = Matrix(df).set_size_matrix(size)
+
+        mat.filter_by_size(0.1, axis="col")
+
+        assert list(mat.data.columns) == ["s0", "s1"]
+        with pytest.raises(ValueError, match="size matrix"):
+            Matrix(df).filter_by_size(0.1)
+
     def test_set_size_matrix_accepts_arrays_and_legacy_aliases(self) -> None:
         df = pd.DataFrame(
             [[1.0, 2.0], [3.0, 4.0]],

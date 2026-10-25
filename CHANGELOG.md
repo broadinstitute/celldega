@@ -30,6 +30,11 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
+- `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
+  value reaches a threshold somewhere, for example genes detected in at least
+  5% of some cluster's cells. Recommended for whole-transcriptome data before
+  a row z-score, which otherwise gives genes detected in a single cell of a
+  single cluster the same top value as real markers.
 - Experimental on-disk format for a clustered `Matrix`: `Matrix.write_zarr`
   saves the matrix, dendrograms, views, colors, attributes, and size matrix as
   an AnnData Zarr store, and `Matrix.read_zarr` restores it without
@@ -130,6 +135,9 @@ All notable changes to Celldega are documented here. This project follows
   spatial view still hides them.
 - Landscape cell tooltips show the selected gene's expression in the hovered
   cell (the summed expression when several genes are selected).
+- Clustergram tooltips show small nonzero values with two significant digits
+  (for example, a size of `0.0044` for 1 cell in 229) instead of rounding them
+  to `0.00`.
 
 ### Fixed
 

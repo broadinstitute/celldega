@@ -29,6 +29,13 @@ let is_visible;
 
 let img_layer_visible = true;
 
+const set_nbhd_button_color = (viz_state, color) => {
+  const button = viz_state.buttons?.buttons?.nbhd;
+  if (!button) return;
+  if (typeof button.style === 'function') button.style('color', color);
+  else d3.select(button).style('color', color);
+};
+
 export const get_img_layer_visible = () => img_layer_visible;
 
 const set_img_layer_visible = (visible) => {
@@ -343,7 +350,7 @@ const sync_trx_exclusivity = (layers_obj, viz_state, visible) => {
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(viz_state, 'gray');
     }
 
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
@@ -401,7 +408,17 @@ const trx_button_callback_ist = async (
 };
 
 const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
-  toggle_visible_button(event);
+  // During NBHD editing cells remain visible as drawing context. Clicking
+  // CELL exits that context without toggling the highlighted cells off.
+  if (
+    viz_state.obs_store.viz_edit_layer.get() ||
+    viz_state.obs_store.viz_nbhd_layer.get()
+  ) {
+    is_visible = true;
+    d3.select(event.currentTarget).style('color', 'blue');
+  } else {
+    toggle_visible_button(event);
+  }
   toggle_slider(viz_state.sliders.cell, is_visible);
 
   new_toggle_cell_layer_visibility(layers_obj, is_visible);
@@ -413,7 +430,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(viz_state, 'gray');
     }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);

@@ -109,6 +109,7 @@ import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import { initialize_expression_scatter } from '../umap/expression_scatter';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -398,6 +399,8 @@ export const landscape_ist = async (
     };
 
     viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+    viz_state.nbhd.bar_data = [];
+    viz_state.nbhd.color_dict = {};
   } else {
     viz_state.nbhd.is_nbhd = true;
 
@@ -500,7 +503,7 @@ export const landscape_ist = async (
     requested: use_adata_3d_centroids,
   };
 
-  const isUmapInit = landscape_state === 'umap';
+  const isUmapInit = ['umap', 'xy'].includes(landscape_state);
   viz_state.obs_store.umap_state.set(isUmapInit);
   // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
   // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
@@ -946,6 +949,8 @@ export const landscape_ist = async (
     (visible) => {
       update_edit_visitility(layers_obj, visible);
       if (visible) {
+        new_toggle_cell_layer_visibility(layers_obj, true);
+        viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.obs_store.viz_nbhd_layer.set(false);
         toggle_nbhd_layer_visibility(layers_obj, false);
         toggle_trx_layer_visibility(layers_obj, false);
@@ -1135,6 +1140,7 @@ export const landscape_ist = async (
     const on_cell_clusters = () =>
       update_cell_clusters(deck_ist, layers_obj, viz_state);
     const on_selected_cells = () => {
+      if (viz_state.publishing_selection) return;
       const cells = viz_state.model.get('selected_cells') || [];
       viz_state.obs_store.selected_cells.set(cells);
     };
@@ -1196,17 +1202,25 @@ export const landscape_ist = async (
   subscribe(
     viz_state.obs_store.landscape_view,
     (view) => {
-      const isUmap = view === 'umap';
+      const isUmap = view === 'umap' || view === 'xy';
       viz_state.obs_store.umap_state.set(isUmap);
 
       if (viz_state.scale_bar) {
         viz_state.scale_bar.setVisible(!isUmap);
       }
 
-      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+      // XY owns its position animation. Starting a GPU transition here as
+      // well would race the expression buffers and can blank the scatter.
+      const expression_switch = viz_state.expression_scatter_enabled && isUmap;
+      if (!isUmap) viz_state.spatial.embedding_animation_positions = null;
+      if (!expression_switch)
+        toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
       if (isUmap) {
-        viz_state.buttons.buttons.umap.style('color', 'blue');
+        viz_state.buttons.buttons.umap.style(
+          'color',
+          view === 'umap' ? 'blue' : 'gray'
+        );
         if (!isChromium) {
           viz_state.buttons.buttons.spatial.style('color', 'gray');
           viz_state.buttons.buttons.img.style('color', 'gray');
@@ -1284,6 +1298,17 @@ export const landscape_ist = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }, 40);
     });
+  }
+
+  if (!is_orbit_technology(currentTechnology)) {
+    cleanup_callbacks.push(
+      initialize_expression_scatter(
+        viz_state,
+        layers_obj,
+        () => refresh_layer(viz_state, layers_obj, 'cell_layer'),
+        deck_ist
+      )
+    );
   }
 
   // Callback registries for external listeners

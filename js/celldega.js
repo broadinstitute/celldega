@@ -87,7 +87,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const technology = model.get('technology');
   let landscape_state = model.get('landscape_state');
   if (technology === 'Chromium') {
-    landscape_state = 'umap';
+    landscape_state = landscape_state === 'xy' ? 'xy' : 'umap';
   } else if (is_orbit_technology(technology)) {
     landscape_state = 'spatial';
   }

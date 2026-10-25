@@ -68,7 +68,7 @@ async function readGeneFromRowGroups(cbgReader, geneName) {
 // share a fetch.
 const EXPRESSION_CACHE_LIMIT = 20;
 
-const load_gene_expression = (
+export const load_gene_expression = (
   cache,
   base_url,
   version,

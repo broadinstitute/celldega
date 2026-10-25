@@ -346,6 +346,14 @@ export const bar_callback_nbhd = (
 
     refresh_layer(_viz_state, _layers_obj, 'edit_layer');
 
+    if (_viz_state.neighborhood_space) {
+      const selected = new Set(_viz_state.obs_store.selected_nbhds.get());
+      const ids = (_viz_state.edit.feature_collection.features || [])
+        .filter((feature) => selected.has(feature.properties.name))
+        .flatMap((feature) => feature.properties.cell_ids || []);
+      _viz_state.obs_store.selected_cells.set([...new Set(ids)]);
+    }
+
     if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
         if (d.name === _d.name) {

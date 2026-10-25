@@ -40,9 +40,9 @@ const module_ = { exports: {} };
 new Function(
   'module',
   'calls',
-  `${shims}\n${source}\nmodule.exports = { trx_button_callback_ist };`
+  `${shims}\n${source}\nmodule.exports = { trx_button_callback_ist, cell_button_callback };`
 )(module_, calls);
-const { trx_button_callback_ist } = module_.exports;
+const { trx_button_callback_ist, cell_button_callback } = module_.exports;
 
 const make_observable = (initial) => {
   let value = initial;
@@ -133,5 +133,23 @@ describe('TRX button', () => {
     await trx_button_callback_ist({}, {}, {}, viz_state);
     expect(calls).toHaveLength(0);
     expect(viz_state.trx_forced).toBeUndefined();
+  });
+});
+
+describe('CELL after NBHD drawing', () => {
+  it('exits editing with cells visible and keeps frontend gate membership highlighted', async () => {
+    calls.length = 0;
+    const state = make_viz_state('far');
+    state.cats = { svg_bar_cluster: { selectAll: () => make_styled() } };
+    state.obs_store.selected_cells = make_observable(['a', 'c']);
+    state.highlighted_cells = new Set(['a', 'c']);
+    const button = make_styled({ color: 'blue' });
+    await cell_button_callback({ currentTarget: button }, {}, {}, state);
+    expect(calls).toContainEqual(['cell', {}, true]);
+    expect(state.obs_store.viz_edit_layer.get()).toBe(false);
+    expect(state.obs_store.viz_nbhd_layer.get()).toBe(false);
+    expect(state.obs_store.selected_cells.get()).toEqual(['a', 'c']);
+    expect([...state.highlighted_cells]).toEqual(['a', 'c']);
+    expect(button.styles.color).toBe('blue');
   });
 });

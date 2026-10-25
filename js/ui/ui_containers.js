@@ -671,6 +671,7 @@ export const make_ist_ui_container = (
       );
     }
 
+    viz_state.containers.view_modes = spatial_toggle_container;
     viz_state.containers.image.appendChild(spatial_toggle_container);
 
     // Add dataset dropdown if multiple datasets are available

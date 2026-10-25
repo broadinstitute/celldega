@@ -309,6 +309,13 @@ class Landscape(CelldegaWidget):
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
+    xy_genes = traitlets.List(trait=traitlets.Unicode(), default_value=[], maxlen=2).tag(sync=True)
+    xy_scale = traitlets.Enum(["linear", "log1p"], default_value="log1p").tag(sync=True)
+    xy_auto_switch = traitlets.Bool(False).tag(sync=True)
+    # All drawn NBHDs keep their coordinate space. Only physical polygons
+    # receive a tissue affine when exposed as a Python GeoDataFrame.
+    gates = traitlets.Dict({"type": "FeatureCollection", "features": []}).tag(sync=True)
+    view_space = traitlets.Dict({}).tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
     # Browser-linked gene focus (e.g. a click in Enrich). The front end turns
@@ -616,6 +623,7 @@ class Landscape(CelldegaWidget):
         self.nbhd = nbhd_gdf
         self.nbhd_edit = nbhd_edit
         self.umap = umap_df
+        self._adata = adata
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
 
@@ -650,6 +658,109 @@ class Landscape(CelldegaWidget):
         """Highlight specific cells by their identifiers."""
 
         self.selected_cells = list(cell_ids)
+
+    def set_xy(self, x_gene=None, y_gene=None, *, scale="log1p"):
+        """Show raw DegaFiles expression on X/Y, using linear or log1p counts.
+
+        Both genes may be omitted to start with all cells overlapping. A gene
+        for Y requires a gene for X. Use ``landscape_state = 'umap'`` to return.
+        """
+        if y_gene and not x_gene:
+            raise ValueError("Specify an X gene before a Y gene.")
+        if scale not in ("linear", "log1p"):
+            raise ValueError("scale must be 'linear' or 'log1p'.")
+        genes = [gene for gene in (x_gene, y_gene) if gene]
+        if self._adata is not None:
+            missing = set(genes) - set(self._adata.var_names)
+            if missing:
+                raise ValueError(f"Unknown genes: {sorted(missing)}")
+        with self.hold_trait_notifications():
+            self.xy_scale = scale
+            self.xy_genes = genes
+            self.landscape_state = "xy"
+
+    def get_selected_cells(self, adata=None):
+        """Return selected IDs, or a copied AnnData subset when ``adata`` is supplied."""
+        ids = list(self.selected_cells)
+        if adata is None:
+            return ids
+        return adata[adata.obs_names.isin(ids)].copy()
+
+    def save_gates(self, path):
+        """Save named polygons, coordinate spaces and selected cell IDs as GeoJSON."""
+        path = Path(path)
+        path.write_text(json.dumps(self.gates, indent=2), encoding="utf-8")
+        return path
+
+    def load_gates(self, path):
+        """Restore NBHDs; only polygons matching the current coordinate space are drawn."""
+        gates = json.loads(Path(path).read_text(encoding="utf-8"))
+        if gates.get("type") != "FeatureCollection" or not isinstance(gates.get("features"), list):
+            raise ValueError("Expected a GeoJSON FeatureCollection.")
+        for feature in gates["features"]:
+            space = feature.get("properties", {}).get("coordinate_space", {})
+            if space.get("kind") not in ("spatial", "umap", "xy") or feature.get(
+                "geometry", {}
+            ).get("type") not in ("Polygon", "MultiPolygon"):
+                raise ValueError("Each NBHD needs polygon geometry and a physical/UMAP/XY space.")
+        self.gates = gates
+
+    def select_gate(self, name):
+        """Restore a gate's view and select its saved cells (names must be unambiguous)."""
+        matches = [
+            feature
+            for feature in self.gates.get("features", [])
+            if feature.get("properties", {}).get("name") == name
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"Expected one gate named {name!r}; found {len(matches)}.")
+        props = matches[0]["properties"]
+        space = props["coordinate_space"]
+        if space["kind"] == "xy":
+            self.set_xy(*space.get("genes", []), scale=space["scale"])
+        else:
+            self.landscape_state = space["kind"]
+        self.selected_cells = list(props.get("cell_ids", []))
+
+    # NBHD is the umbrella for manually drawn gates in all three views.
+    save_nbhds = save_gates
+    load_nbhds = load_gates
+    select_nbhd = select_gate
+
+    @staticmethod
+    def _polygon_vertices(geometry):
+        polygons = [geometry] if geometry.geom_type == "Polygon" else list(geometry.geoms)
+        rings = [ring for polygon in polygons for ring in [polygon.exterior, *polygon.interiors]]
+        return (
+            [list(ring.coords.xy[0]) for ring in rings],
+            [list(ring.coords.xy[1]) for ring in rings],
+        )
+
+    @property
+    def nbhd_polygons(self):
+        """Drawn NBHDs with geometry, space, cell IDs and x/y vertex rings.
+
+        Physical polygons use native tissue coordinates; UMAP and XY retain
+        their displayed coordinates and their saved embedding/axis metadata.
+        Each element of x/y is a polygon ring, including any interior holes.
+        """
+        features = self.gates.get("features", [])
+        if not features:
+            return gpd.GeoDataFrame(
+                columns=["name", "space", "x", "y", "geometry"], geometry="geometry"
+            )
+        frame = gpd.GeoDataFrame.from_features(deepcopy(features))
+        frame["space"] = frame["coordinate_space"].map(lambda space: space["kind"])
+        a, b, tx = self._inv_transform[0]
+        c, d, ty = self._inv_transform[1]
+        physical = frame["space"].eq("spatial")
+        frame.loc[physical, "geometry"] = frame.loc[physical, "geometry"].map(
+            lambda geom: affine_transform(geom, [a, b, c, d, tx, ty])
+        )
+        vertices = frame.geometry.map(self._polygon_vertices)
+        frame["x"] = vertices.map(lambda xy: xy[0])
+        frame["y"] = vertices.map(lambda xy: xy[1])
+        return frame
 
     @traitlets.observe("nbhd_geojson")
     def _on_nbhd_geojson_change(self, change):

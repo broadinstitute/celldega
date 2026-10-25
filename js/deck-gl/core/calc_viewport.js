@@ -26,6 +26,12 @@ import { update_trx_layer_data } from '../layers/trx_layer';
 
 const VIEWPORT_GENE_BAR_LIMIT = 200;
 
+// Chromium is always a single-cell UMAP, including before the view-state
+// observable is initialized. Spatial datasets can also be viewed as UMAPs.
+const is_umap_view = (viz_state) =>
+  viz_state.img?.landscape_parameters?.technology === 'Chromium' ||
+  Boolean(viz_state.obs_store?.umap_state?.get());
+
 /**
  * Entering or leaving intermediate zoom with forced transcripts: cells switch
  * between cluster colors and summed expression (see getVizCellColorContext),
@@ -290,6 +296,11 @@ export const set_trx_zone_for_view = (
   layers_obj,
   viz_state
 ) => {
+  // UMAP coordinates have no spatial transcript tiles. In particular,
+  // Chromium's placeholder tile_size=1 would allocate millions of entries
+  // just to classify the initial zoom, exhausting the browser's memory.
+  if (is_umap_view(viz_state)) return;
+
   const scale = Math.pow(2, zoom);
   const [x, y] = target;
   const bounds = {
@@ -312,6 +323,8 @@ export const calc_viewport = async (
   layers_obj,
   viz_state
 ) => {
+  if (is_umap_view(viz_state)) return;
+
   const wasCloseUp = viz_state.close_up;
   // Kept so a TRX click can re-run this for the current view.
   viz_state.last_viewport_params = { height, width, zoom, target };

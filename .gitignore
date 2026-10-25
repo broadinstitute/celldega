@@ -9,6 +9,7 @@ dist
 .DS_Store
 # So that notebooks are only included _intentionally_
 *.ipynb
+!notebooks/CELLxGENE_Census_PBMC_Landscape-Clustergram.ipynb
 !docs/examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
 .cache
 site

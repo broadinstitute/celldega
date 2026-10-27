@@ -1,17 +1,50 @@
 import { is_orbit_technology } from '../../global_variables/image_info';
+import { sync_trx_slider_range } from '../../ui/sliders';
+import {
+  is_trx_force_shown,
+  keep_trx_forced,
+  sync_trx_button,
+  trx_force_tile_factor,
+  trx_load_tile_limit,
+  trx_zone,
+  with_trx_loading,
+} from '../../ui/trx_handle';
 import {
   areBarDataEqual,
   createEmptyCellCompact,
   createEmptyTrxCompact,
   makeVisibleTileKey,
 } from '../../utils/compact_data';
+import { refresh_layer } from '../../utils/refresh_layer';
 import { rotate_point, rotate_point_inverse } from '../../utils/rotation';
 import { visibleTiles } from '../../vector_tile/visibleTiles';
+import { is_cluster_color_mode } from '../layers/cell_color';
+import { refresh_cell_layer_data } from '../layers/cell_layer';
 import { build_nbhd_cloud_gene_bar_data } from '../layers/nbhd_cloud_shapes_layer';
 import { update_path_layer_data } from '../layers/path_layer';
 import { update_trx_layer_data } from '../layers/trx_layer';
 
 const VIEWPORT_GENE_BAR_LIMIT = 200;
+
+/**
+ * Entering or leaving intermediate zoom with forced transcripts: cells switch
+ * between cluster colors and summed expression (see getVizCellColorContext),
+ * and the TRX size slider widens or narrows. Runs before close_up updates, so
+ * the slider is back in close-up range before it switches to opacity.
+ */
+const sync_trx_force_view = (layers_obj, viz_state) => {
+  const shown = is_trx_force_shown(viz_state);
+  if (shown === Boolean(viz_state.trx_force_shown)) return;
+  viz_state.trx_force_shown = shown;
+
+  sync_trx_slider_range(layers_obj, viz_state);
+  if (!is_cluster_color_mode(viz_state.cats)) {
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      updateTriggers: { getFillColor: [viz_state.selection_token, shown] },
+    });
+    refresh_layer(viz_state, layers_obj, 'cell_layer');
+  }
+};
 
 const ensureViewportCache = (viz_state) => {
   if (!viz_state.viewport_cache) {
@@ -218,6 +251,61 @@ const computeViewportCellBars = (viz_state, viewportCache) => {
   return nextCellBars;
 };
 
+/** Tiles overlapping `bounds` (a view's extent, before rotation). */
+const tiles_in_bounds = (bounds, viz_state) => {
+  let tile_bounds = bounds;
+  if (viz_state.rotation?.hasRotation) {
+    const corners = [
+      [bounds.min_x, bounds.min_y],
+      [bounds.min_x, bounds.max_y],
+      [bounds.max_x, bounds.min_y],
+      [bounds.max_x, bounds.max_y],
+    ].map(([x, y]) => rotate_point_inverse(x, y, viz_state.rotation));
+    const xs = corners.map(([x]) => x);
+    const ys = corners.map(([, y]) => y);
+    tile_bounds = {
+      min_x: Math.min(...xs),
+      max_x: Math.max(...xs),
+      min_y: Math.min(...ys),
+      max_y: Math.max(...ys),
+    };
+  }
+
+  return visibleTiles(
+    tile_bounds.min_x,
+    tile_bounds.max_x,
+    tile_bounds.min_y,
+    tile_bounds.max_y,
+    viz_state.img.landscape_parameters.tile_size
+  );
+};
+
+/**
+ * Set the TRX button's zoom zone for a view without loading anything. The
+ * zone is otherwise only set when the view changes, so a new Landscape uses
+ * this for its initial view.
+ */
+export const set_trx_zone_for_view = (
+  { height, width, zoom, target },
+  layers_obj,
+  viz_state
+) => {
+  const scale = Math.pow(2, zoom);
+  const [x, y] = target;
+  const bounds = {
+    min_x: x - width / (2 * scale),
+    max_x: x + width / (2 * scale),
+    min_y: y - height / (2 * scale),
+    max_y: y + height / (2 * scale),
+  };
+  viz_state.trx_zone = trx_zone(
+    tiles_in_bounds(bounds, viz_state).length,
+    viz_state.max_tiles_to_view,
+    trx_force_tile_factor(viz_state)
+  );
+  sync_trx_button(viz_state, layers_obj);
+};
+
 export const calc_viewport = async (
   { height, width, zoom, target },
   deck_ist,
@@ -225,7 +313,8 @@ export const calc_viewport = async (
   viz_state
 ) => {
   const wasCloseUp = viz_state.close_up;
-  const { tile_size } = viz_state.img.landscape_parameters;
+  // Kept so a TRX click can re-run this for the current view.
+  viz_state.last_viewport_params = { height, width, zoom, target };
   const isPointCloud = is_orbit_technology(
     viz_state.img?.landscape_parameters?.technology
   );
@@ -282,39 +371,21 @@ export const calc_viewport = async (
     return;
   }
 
-  const tile_bounds = (() => {
-    if (!viz_state.rotation?.hasRotation) {
-      return viz_state.bounds;
-    }
-
-    const corners = [
-      [viz_state.bounds.min_x, viz_state.bounds.min_y],
-      [viz_state.bounds.min_x, viz_state.bounds.max_y],
-      [viz_state.bounds.max_x, viz_state.bounds.min_y],
-      [viz_state.bounds.max_x, viz_state.bounds.max_y],
-    ].map(([x, y]) => rotate_point_inverse(x, y, viz_state.rotation));
-
-    const xs = corners.map(([x]) => x);
-    const ys = corners.map(([, y]) => y);
-
-    return {
-      min_x: Math.min(...xs),
-      max_x: Math.max(...xs),
-      min_y: Math.min(...ys),
-      max_y: Math.max(...ys),
-    };
-  })();
-
-  const tiles_in_view = visibleTiles(
-    tile_bounds.min_x,
-    tile_bounds.max_x,
-    tile_bounds.min_y,
-    tile_bounds.max_y,
-    tile_size
-  );
+  const tiles_in_view = tiles_in_bounds(viz_state.bounds, viz_state);
   const visibleTileKey = makeVisibleTileKey(tiles_in_view);
 
-  if (tiles_in_view.length < viz_state.max_tiles_to_view) {
+  // Past the automatic limit, a TRX click (trx_forced) raises it, so
+  // intermediate zoom loads transcripts and boundaries as in close-up.
+  viz_state.trx_zone = trx_zone(
+    tiles_in_view.length,
+    viz_state.max_tiles_to_view,
+    trx_force_tile_factor(viz_state)
+  );
+  viz_state.trx_forced = keep_trx_forced(viz_state, layers_obj);
+  sync_trx_button(viz_state, layers_obj);
+  sync_trx_force_view(layers_obj, viz_state);
+
+  if (tiles_in_view.length < trx_load_tile_limit(viz_state)) {
     viz_state.close_up = true;
     viz_state.obs_store.close_up.set(true);
 
@@ -326,19 +397,21 @@ export const calc_viewport = async (
           path_data: false,
         });
 
-        await update_trx_layer_data(
-          viz_state.global_base_url,
-          tiles_in_view,
-          layers_obj,
-          viz_state
-        );
+        await with_trx_loading(viz_state, layers_obj, async () => {
+          await update_trx_layer_data(
+            viz_state.global_base_url,
+            tiles_in_view,
+            layers_obj,
+            viz_state
+          );
 
-        await update_path_layer_data(
-          viz_state.global_base_url,
-          tiles_in_view,
-          layers_obj,
-          viz_state
-        );
+          await update_path_layer_data(
+            viz_state.global_base_url,
+            tiles_in_view,
+            layers_obj,
+            viz_state
+          );
+        });
       }
 
       viewportCache.visibleTileKey = visibleTileKey;
@@ -402,4 +475,22 @@ export const calc_viewport = async (
   }
 
   viz_state.layers_obj = layers_obj;
+};
+
+/**
+ * Once transcripts are hidden (e.g. for region editing), end forced loading
+ * at intermediate zoom and update the view now, rather than at the next pan
+ * or zoom.
+ */
+export const end_hidden_trx_force = (deck_ist, layers_obj, viz_state) => {
+  const was_shown = is_trx_force_shown(viz_state);
+  viz_state.trx_forced = keep_trx_forced(viz_state, layers_obj);
+  if (was_shown && !viz_state.trx_forced && viz_state.last_viewport_params) {
+    calc_viewport(
+      viz_state.last_viewport_params,
+      deck_ist,
+      layers_obj,
+      viz_state
+    );
+  }
 };

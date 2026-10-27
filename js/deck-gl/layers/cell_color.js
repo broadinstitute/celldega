@@ -24,33 +24,51 @@ export const setColor = (colors, offset, r, g, b, a) => {
   colors[offset + 3] = toByte(a);
 };
 
-export const getCellColorContext = (cats, highlighted_cells = new Set()) => {
+/**
+ * @param {object} cats
+ * @param {Set<string>} [highlighted_cells]
+ * @param {object} [options]
+ * @param {boolean} [options.cluster_colors] - Cluster colors even with genes
+ *   selected (intermediate zoom with transcripts forced, see trx_handle.js).
+ */
+export const getCellColorContext = (
+  cats,
+  highlighted_cells = new Set(),
+  { cluster_colors = false } = {}
+) => {
   const highlightedCells = highlighted_cells ?? new Set();
   const selectedCats = Array.isArray(cats.selected_cats)
     ? cats.selected_cats
     : [];
   const colorDict = cats.color_dict_cluster || {};
-  const isClusterMode = is_cluster_color_mode(cats);
+  const isGeneMode = !is_cluster_color_mode(cats);
+  // With genes selected, selected_cats holds the genes; only its cluster
+  // categories filter cells.
+  const clusterFilter = isGeneMode
+    ? selectedCats.filter((cat) =>
+        Object.prototype.hasOwnProperty.call(colorDict, String(cat))
+      )
+    : selectedCats;
+  const isClusterMode = !isGeneMode || cluster_colors;
 
   return {
     cats,
     cellNames: cats.cell_names_array || [],
     highlightedCells,
     hasHighlights: highlightedCells.size > 0,
-    selectedCats,
+    clusterFilter,
     colorDict,
     isClusterMode,
-    hasClusterFilter:
-      !isClusterMode &&
-      selectedCats.length > 0 &&
-      selectedCats.some((cat) =>
-        Object.prototype.hasOwnProperty.call(colorDict, String(cat))
-      ),
+    hasClusterFilter: !isClusterMode && clusterFilter.length > 0,
   };
 };
 
 export const getVizCellColorContext = (viz_state) =>
-  getCellColorContext(viz_state.cats, viz_state.highlighted_cells);
+  getCellColorContext(viz_state.cats, viz_state.highlighted_cells, {
+    cluster_colors:
+      Boolean(viz_state.trx_force_shown) &&
+      !viz_state.obs_store?.umap_state?.get(),
+  });
 
 export const isCellVisible = (context, index) => {
   const {
@@ -58,7 +76,7 @@ export const isCellVisible = (context, index) => {
     cellNames,
     highlightedCells,
     hasHighlights,
-    selectedCats,
+    clusterFilter,
     colorDict,
     isClusterMode,
     hasClusterFilter,
@@ -72,11 +90,11 @@ export const isCellVisible = (context, index) => {
   if (isClusterMode) {
     return (
       Array.isArray(colorDict[String(instCat)]) &&
-      (selectedCats.length === 0 || isSelectedCat(selectedCats, instCat))
+      (clusterFilter.length === 0 || isSelectedCat(clusterFilter, instCat))
     );
   }
 
-  if (hasClusterFilter && !isSelectedCat(selectedCats, instCat)) {
+  if (hasClusterFilter && !isSelectedCat(clusterFilter, instCat)) {
     return false;
   }
 

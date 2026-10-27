@@ -81,4 +81,13 @@ describe('continuous OrbitView rotation', () => {
     expect(view).toBeInstanceOf(OrthographicView);
     expect(view.props.viewState).toBeUndefined();
   });
+
+  test('2D zoom limits reach every view state, including programmatic ones', () => {
+    const [view] = set_views('Xenium', { minZoom: -6, maxZoom: 3 });
+    const props = view.filterViewState({ target: [0, 0, 0], zoom: 8 });
+    expect(props.minZoom).toBe(-6);
+    expect(props.maxZoom).toBe(3);
+    expect(props.zoom).toBe(8);
+    expect(view.getViewStateId()).toBe('ortho');
+  });
 });

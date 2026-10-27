@@ -18,10 +18,6 @@ import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
-import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
@@ -31,10 +27,13 @@ import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
+  attach_bar_tooltip,
   bar_callback_nbhd,
   bar_callback_nbhd_cloud_cluster,
   bar_callback_nbhd_cloud_slice,
   bar_callback_cat,
+  bar_svg_height,
+  BAR_HEIGHT,
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
@@ -50,8 +49,10 @@ import {
   toggle_slider,
   set_slider_value,
   ini_discrete_slider_params,
+  ini_selected_gene_trx_focus,
   ini_slider,
   ini_slider_params,
+  ini_trx_slider_modes,
 } from './sliders';
 import {
   apply_state_button_style,
@@ -896,7 +897,8 @@ export const make_ist_ui_container = (
       viz_state.cats.color_dict_cluster,
       deck_ist,
       layers_obj,
-      viz_state
+      viz_state,
+      { tooltip: 'cluster' }
     );
   }
 
@@ -940,7 +942,8 @@ export const make_ist_ui_container = (
       viz_state.genes.color_dict_gene,
       deck_ist,
       layers_obj,
-      viz_state
+      viz_state,
+      { tooltip: 'gene' }
     );
   }
 
@@ -971,14 +974,10 @@ export const make_ist_ui_container = (
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
       // --- 1. Update the styles ---
+      // Clearing the selection keeps the scroll position, so a bar just
+      // deselected stays in view.
       if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
         svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);
-
-        // Scroll to top if we're resetting
-        container.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
       } else {
         svg
           .selectAll('g')
@@ -1040,10 +1039,10 @@ export const make_ist_ui_container = (
   );
 
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    ({ svg, color_dict, selected_array, bar_callback, container, tooltip }) =>
     (bar_data) => {
-      const bar_height = 15;
-      const svg_height = bar_height * (bar_data.length + 1);
+      const bar_height = BAR_HEIGHT;
+      const svg_height = bar_svg_height(bar_data.length);
       svg.attr('height', svg_height);
 
       const max_bar_width = 90;
@@ -1069,6 +1068,8 @@ export const make_ist_ui_container = (
         .on('click', (event, d) =>
           bar_callback(event, d, deck_ist, layers_obj, viz_state)
         );
+
+      attach_bar_tooltip(bars_enter, tooltip, viz_state);
 
       bars_enter
         .append('rect')
@@ -1133,6 +1134,7 @@ export const make_ist_ui_container = (
       selected_array: viz_state.cats.selected_cats,
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
+      tooltip: 'cluster',
     }),
     { immediate: false }
   );
@@ -1144,6 +1146,7 @@ export const make_ist_ui_container = (
       selected_array: viz_state.genes.selected_genes,
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
+      tooltip: 'gene',
     }),
     { immediate: false }
   );
@@ -1152,6 +1155,8 @@ export const make_ist_ui_container = (
   cell_container.appendChild(viz_state.containers.bar_cluster);
 
   ini_slider('trx', deck_ist, layers_obj, viz_state);
+  ini_selected_gene_trx_focus(deck_ist, layers_obj, viz_state);
+  if (!isPointCloud) ini_trx_slider_modes(layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 
@@ -1169,40 +1174,6 @@ export const make_ist_ui_container = (
   set_gene_search('ist', deck_ist, layers_obj, viz_state);
 
   viz_state.genes.gene_search.style.marginLeft = '0px';
-
-  // add subscriber for gene search and gene_text_box
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    // if selected_genes has a length of 1, update the gene search input
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
-          }
-        }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
-
-      viz_state.genes.gene_text_box.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
 
   ui_container.appendChild(ctrl_container);
 

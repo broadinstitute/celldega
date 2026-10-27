@@ -61,11 +61,14 @@ export const ini_path_layer = (viz_state) => {
     id: 'path-layer',
     data: [],
     pickable: true,
-    widthScale: 3,
-    widthMinPixels: 1,
+    // Outline width scales with zoom (image pixels), so boundaries stay thin
+    // when zoomed out and reach the former 3px when zoomed in.
+    widthUnits: 'common',
+    widthScale: 1.5,
+    widthMinPixels: 0.5,
+    widthMaxPixels: 3,
     getPath: (d) => d,
     getColor: (i, d) => get_path_color(viz_state.cats, i, d),
-    widthUnits: 'pixels',
     ...getModelMatrixProps(viz_state.rotation),
   });
 

@@ -30,7 +30,9 @@ With `groupby`, the cells are cross-tabulated into groups x categories and
 colored from `adata.uns[f"{category}_colors"]`. `Composition` also accepts a
 precomputed group-by-population matrix: an `AnnData` (groups as obs), a
 `MuData` modality, or a plain `DataFrame` (e.g. from
-[`dega.nbhd.calc_nbhd_by_pop`](../python/nbhd/api.md)). See
+[`dega.nbhd.calc_nbhd_by_pop`](../python/nbhd/api.md)), or a
+[`DatasetCollection`](../python/dataset/api.md) /
+[`SetCollection`](../python/set/api.md) with a population modality. See
 [Clustergram](clustergram.md) for the shared heatmap controls, and the
 [Viz Module API reference](../python/viz/api.md) for the full set of
 constructor arguments.

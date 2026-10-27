@@ -213,9 +213,15 @@ and `align_serial_slices`. Changes from 0.27:
 
 ## 5. Known limitations and follow-ups
 
-- **Notebook outputs.** The edited docs notebooks keep their old outputs until
-  re-executed. Re-executing needs the data and embedding widget state
-  (CONTRIBUTING.md), which is planned as a separate PR.
+- **Notebook outputs.** `Gradient_Neighborhood_Pancreas_Islets` is
+  re-executed with embedded widget state (CDN bundle 0.27.0) and gained an
+  optional `NeighborhoodCollection` section. The other edited docs notebooks
+  (e.g. `Atera_Breast_Cancer_Neighborhood_Exploration`) keep their old outputs
+  until re-executed.
+- **Collection notebooks.** The NeighborhoodCollection, DatasetCollection, and
+  SetCollection brief notebooks and the E15.5 Align tutorial are out of the
+  examples nav; they use the pre-reorg APIs and need updating before they
+  return.
 - **Untracked notebooks.** The Broad-Allen E15.5 Viz notebook is untracked; its
   code cells were updated locally. The E15.5 Align notebook and two older local
   alignment drafts (`1.0_Preprocess_and_Align`, `2.0_Viz_CellCloud`) are

@@ -211,3 +211,39 @@ await matrix_viz(
     colDendroCallback
 );
 ```
+## `matrix_from_zarr` API Documentation (experimental)
+
+`matrix_from_zarr` renders a Clustergram from a clustered Matrix saved in Python
+with `Matrix.write_zarr`, without a Python kernel. It reads the AnnData Zarr
+store with [zarrita](https://zarrita.dev/), so the store can be hosted on any
+static file server that allows cross-origin requests.
+
+### Parameters
+
+- `el` (`HTMLElement`): The container element.
+- `options` (`object`):
+  - `url` (`string`): URL of the `.zarr` store.
+  - `width`, `height` (`number`, optional): Size of the matrix, 500 by default.
+  - `viz_mode` (`string`, optional): `'heatmap'` or `'dotplot'`; defaults to
+    `'dotplot'` when the store has a size matrix.
+  - `row_label_callback`, `col_label_callback`, `col_dendro_callback`
+    (`function`, optional): Called on row label, column label, and column
+    dendrogram clicks.
+  - `fetchOptions` (`object`, optional): Options passed to every `fetch`, for
+    example authentication headers.
+
+### Example
+
+```javascript
+import celldega from 'celldega';
+
+const el = document.getElementById('clustergram');
+await celldega.matrix_from_zarr(el, {
+    url: 'https://example.org/pbmc_markers.zarr',
+    width: 600,
+    height: 600,
+});
+```
+
+`networkFromZarr(url)` returns the same store's `network` object, for passing to
+`matrix_viz` directly.

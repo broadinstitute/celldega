@@ -248,6 +248,50 @@ describe('fit_tooltip_in_bounds', () => {
   });
 });
 
+describe('cell tooltip expression', () => {
+  let cell_expression_html;
+
+  beforeAll(() => {
+    const shims = `
+      const escape_html = (value) => String(value ?? '');
+      const gene_info_tooltip_html = () => '';
+      const refresh_gene_tooltip_async = () => {};
+      const get_point_cloud_source_index = () => -1;
+      const has_uniprot_info = () => true;
+      const is_cluster_color_mode = (cats) => !cats.cat || cats.cat === 'cluster';
+    `;
+    ({ cell_expression_html } = load('../deck-gl/utils/tooltips.js', shims, [
+      'cell_expression_html',
+    ]));
+  });
+
+  const make_cats = (overrides = {}) => ({
+    cat: 'CD3E',
+    cell_exp_genes: ['CD3E'],
+    cell_exp_raw: new Float64Array([0, 4, 2.5]),
+    ...overrides,
+  });
+
+  test('reports the selected gene expression of the hovered cell', () => {
+    expect(cell_expression_html(make_cats(), 1)).toBe('<div>CD3E: 4</div>');
+    expect(cell_expression_html(make_cats(), 0)).toBe('<div>CD3E: 0</div>');
+  });
+
+  test('labels summed genes and rounds non-integer values', () => {
+    const cats = make_cats({
+      cat: 'CD3E + CD3D',
+      cell_exp_genes: ['CD3E', 'CD3D'],
+    });
+
+    expect(cell_expression_html(cats, 2)).toBe('<div>CD3E + CD3D: 2.50</div>');
+  });
+
+  test('is empty when cells are colored by cluster or the cell is unknown', () => {
+    expect(cell_expression_html(make_cats({ cat: 'cluster' }), 1)).toBe('');
+    expect(cell_expression_html(make_cats(), undefined)).toBe('');
+  });
+});
+
 describe('ini_selected_gene_trx_focus', () => {
   let sliders;
   const radius_calls = [];

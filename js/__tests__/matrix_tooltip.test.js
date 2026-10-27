@@ -3,6 +3,7 @@
 describe('matrix tooltip positioning', () => {
   let get_tooltip;
   let hide_tooltip;
+  let format_tooltip_number;
 
   beforeAll(() => {
     const fs = require('fs');
@@ -36,10 +37,10 @@ describe('matrix tooltip positioning', () => {
       const refresh_gene_tooltip_async = () => {};
     `;
 
-    const code = `${shims}\n${source}\nmodule.exports = { get_tooltip, hide_tooltip };`;
+    const code = `${shims}\n${source}\nmodule.exports = { get_tooltip, hide_tooltip, format_tooltip_number };`;
     const module = { exports: {} };
     new Function('module', 'exports', code)(module, module.exports);
-    ({ get_tooltip, hide_tooltip } = module.exports);
+    ({ get_tooltip, hide_tooltip, format_tooltip_number } = module.exports);
   });
 
   const make_viz_state = (height = 200) => {
@@ -181,5 +182,12 @@ describe('matrix tooltip positioning', () => {
 
     expect(tooltip.innerHTML).toBe('');
     expect(tooltip.style.display).toBe('none');
+  });
+  test('cell values keep small nonzero sizes readable', () => {
+    expect(format_tooltip_number(5)).toBe('5.00');
+    expect(format_tooltip_number(0)).toBe('0.00');
+    expect(format_tooltip_number(0.25)).toBe('0.25');
+    expect(format_tooltip_number(1 / 229)).toBe('0.0044');
+    expect(format_tooltip_number(-0.004)).toBe('-0.0040');
   });
 });

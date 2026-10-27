@@ -38,6 +38,18 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
+- `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
+  value reaches a threshold somewhere, for example genes detected in at least
+  5% of some cluster's cells. Recommended for whole-transcriptome data before
+  a row z-score, which otherwise gives genes detected in a single cell of a
+  single cluster the same top value as real markers.
+- Experimental on-disk format for a clustered `Matrix`: `Matrix.write_zarr`
+  saves the matrix, dendrograms, views, colors, attributes, and size matrix as
+  an AnnData Zarr store, and `Matrix.read_zarr` restores it without
+  re-clustering, ready for `Clustergram(matrix=...)`. In JavaScript,
+  `matrix_from_zarr(el, { url, width, height, ... })` renders the same store in
+  a browser (new `zarrita` dependency) and `networkFromZarr(url)` returns its
+  `network` object.
 - Neighborhood calculations are public functions again:
   - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
     `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
@@ -125,11 +137,24 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
   selection another way) keeps the bar panels' scroll position instead of
   scrolling them back to the top.
+- Landscape UMAP view: selecting clusters or highlighting cells (for example,
+  from a linked Clustergram) dims the other cells to a faint gray instead of
+  hiding them, so the selection stays in the context of the whole UMAP. The
+  spatial view still hides them.
+- Landscape cell tooltips show the selected gene's expression in the hovered
+  cell (the summed expression when several genes are selected).
+- Clustergram tooltips show small nonzero values with two significant digits
+  (for example, a size of `0.0044` for 1 cell in 229) instead of rounding them
+  to `0.00`.
 - The `Landmark` widget is marked as an alpha feature: its traits and output
   may change without notice.
 
 ### Fixed
 
+- Clustergram: with more than two attribute bars on an axis, the column (or
+  row) dendrogram fell outside the canvas, and from four column bars on, the
+  last bar and its label were cut off. The matrix now shrinks to make room;
+  layouts with up to two bars per axis are unchanged.
 - `nbhd.alpha_shape_cell_clusters_by_slice` colors shapes from
   `uns[f"{cluster_attr}_colors"]`, or a distinct fallback palette when none
   are stored, instead of drawing them black.

@@ -1,6 +1,6 @@
 # Jupyter Notebook Examples
 
-These example notebooks demonstrate how to use Celldega for spatial transcriptomics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
+These example notebooks demonstrate how to use Celldega for spatial transcriptomics and multi-omics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
 
 ## Spatial Transcriptomics Tutorials
 
@@ -12,8 +12,21 @@ Comprehensive tutorials that walk through complete workflows:
 - [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Uses Scanpy and plain AnnData to summarize a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
-- [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and uses plain AnnData for expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
 - [Broad-Allen Dev Mouse Brain E15.5 Viz](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) - Visualizes the aligned E15.5 brain as a 3D CellCloud linked to the cluster composition of every slice and to a gene-expression Clustergram
+
+## Single Cell Tutorials
+
+Tutorials that explore single-cell RNA-seq data with UMAP Landscapes linked to Clustergrams:
+
+- [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and uses plain AnnData for expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
+- [MIX-seq Drug Screen Landscape-Clustergram-Enrich](tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb) - Explores the McFarland et al. 2020 screen of 13 drugs across about 170 pooled cancer cell lines: cell line identity, the drug responses within one cell line, and the response to the BRAF inhibitor dabrafenib across 94 cell lines, the analysis behind Fig. 3 of the pertpy paper
+
+## Multi-Omic Tutorials
+
+Tutorials that combine several omics measured on the same samples:
+
+- [Flex CITE-seq PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb) - Explores RNA and 184 surface proteins in 12,242 PBMCs across levels of the cell hierarchy: QC-guided filtering with a UMAP linked to a cluster Clustergram, cell types compared across RNA and protein, and single-cell Clustergrams of B-cell subtypes and suspected B + T doublets
+- [CST Lung Cancer PTM Clustergram-Enrich](tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb) - Reproduces the Clustergrammer lung cancer case study with a MuData of phosphorylation, methylation, acetylation, and gene expression across 37 cell lines: a Clustergram for each PTM type, stacked PTM, gene expression (linked to Enrich), and merged PTM-expression Clustergrams, plus a comparison of the cell line clusters found by each omic
 
 ## Brief Notebooks
 

@@ -90,6 +90,8 @@ nav:
       - Sequencing Spatial Transcriptomics:
           - Visium HD:
               - Visium HD Cell Segmentation Mouse Brain: gallery/gallery_visium_hd_cell_segmentation_mouse_brain.md
+      - Multi-Omic:
+          - CITE-seq PBMC Cell Types (RNA + Protein): gallery/gallery_citeseq_pbmc.md
   - Example Notebooks:
     - examples/index.md
     - Spatial Transcriptomics Tutorials:
@@ -99,8 +101,13 @@ nav:
       - Visium HD Human CRC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
       - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
-      - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
       - Broad-Allen Dev Mouse Brain E15.5 Viz: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
+    - Single Cell Tutorials:
+      - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      - MIX-seq Drug Screen Landscape-Clustergram-Enrich: examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
+    - Multi-Omic Tutorials:
+      - Flex CITE-seq PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
+      - CST Lung Cancer PTM Clustergram-Enrich: examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb
@@ -170,6 +177,8 @@ extra_javascript:
   - path: assets/js/gallery_broad_allen_mouse_brain_3d.js
     type: module
   - path: assets/js/gallery_broad_allen_mouse_brain_2d.js
+    type: module
+  - path: assets/js/gallery_citeseq_pbmc.js
     type: module
 
 extra_css:

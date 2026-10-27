@@ -40,7 +40,8 @@
     "d3": "^7.9.0",
     "deck.gl": "^9.0.12",
     "math.gl": "2.3.3",
-    "parquet-wasm": "^0.7.1"
+    "parquet-wasm": "^0.7.1",
+    "zarrita": "^0.7.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

@@ -257,7 +257,7 @@ export const ini_view_state = (viz_state) => {
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     cols: {
-      target: [default_pan[0], viz_state.viz.label_col_y],
+      target: [default_pan[0], viz_state.viz.cols_target_y],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     row_attr_labels: {

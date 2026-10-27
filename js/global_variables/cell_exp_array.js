@@ -191,9 +191,11 @@ export const update_cell_exp_array = async (
     gene_list.length === 1
       ? Number(genes.meta_gene[gene_list[0]].max)
       : summed.reduce((max, value) => Math.max(max, value), 0);
-  // Kept so the zoomed-out TRX slider can rescale opacity without refetching.
+  // Kept so the zoomed-out TRX slider can rescale opacity without refetching,
+  // and so cell tooltips can report the expression with the genes it sums.
   cats.cell_exp_raw = summed;
   cats.cell_exp_included = included;
+  cats.cell_exp_genes = gene_list;
   rescale_cell_exp_array(cats);
   return true;
 };

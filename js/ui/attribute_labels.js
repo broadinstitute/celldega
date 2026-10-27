@@ -203,12 +203,12 @@ const get_row_attr_label_data = (viz_state) => {
  *
  * Column bars y position in cols view:
  * - Canvas y = col_cat_offset * (attr_index + 1.5) - 30 + cat_shift_col
- * - Cols view target.y = label_col_y (25)
- * - DOM y = col_region/2 + (canvas_y - 25)
+ * - Cols view target.y = cols_target_y (see matrix/geometry.js)
+ * - DOM y = col_region/2 + (canvas_y - cols_target_y)
  *
  * For col_attr_labels view with centered target (1:1 mapping):
  * - DOM y = canvas_y (since target is at center)
- * - So we need canvas_y = col_region/2 + (bar_canvas_y - label_col_y)
+ * - So we need canvas_y = col_region/2 + (bar_canvas_y - cols_target_y)
  *
  * @param {Object} d - The label data
  * @param {Object} viz_state - The visualization state
@@ -225,11 +225,11 @@ const col_attr_label_get_position = (d, viz_state) => {
     30 +
     viz_state.viz.cat_shift_col;
 
-  // Convert to DOM y (cols view has target.y = label_col_y)
-  // DOM y = col_region/2 + (bar_canvas_y - label_col_y)
+  // Convert to DOM y (cols view has target.y = cols_target_y)
+  // DOM y = col_region/2 + (bar_canvas_y - cols_target_y)
   // For our centered view, canvas y = DOM y
   const pos_y =
-    viz_state.viz.col_region / 2 + (bar_canvas_y - viz_state.viz.label_col_y);
+    viz_state.viz.col_region / 2 + (bar_canvas_y - viz_state.viz.cols_target_y);
 
   return [pos_x, pos_y];
 };

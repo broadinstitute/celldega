@@ -1,7 +1,7 @@
 """Download the SpatialData Xenium example and build DegaFiles for its tutorial ROI.
 
 Run from the repository root with celldega[pre] installed:
-    python scripts/prepare_xenium_he_example.py --download
+    python scripts/prepare_xenium_he_example.py
 
 Source: 10x Genomics, FFPE Human Lung Cancer, Xenium 2.0.0 (CC BY 4.0).
 See docs/python/aligned_he.md for attribution and coordinate conventions.
@@ -105,6 +105,15 @@ def read_crop(path, x0, y0, width, height):
     return crop
 
 
+def add_he(source, output, x0, y0):
+    """Import the 10x H&E, mapping its morphology-pixel alignment into the crop."""
+    matrix = np.loadtxt(source / f"{SAMPLE}_he_imagealignment.csv", delimiter=",")
+    translate_crop = np.array([[1, 0, -x0], [0, 1, -y0], [0, 0, 1]])
+    pre.add_aligned_he(
+        output, source / f"{SAMPLE}_he_image.ome.tif", alignment=translate_crop @ matrix
+    )
+
+
 def prepare(source, output, *, include_he=True):
     """Build the tutorial ROI; omit H&E to demonstrate its import separately."""
     if output.exists():
@@ -193,11 +202,7 @@ def prepare(source, output, *, include_he=True):
         image_format=".webp",
     )
     if include_he:
-        matrix = np.loadtxt(source / f"{SAMPLE}_he_imagealignment.csv", delimiter=",")
-        translate_crop = np.array([[1, 0, -x0], [0, 1, -y0], [0, 0, 1]])
-        pre.add_aligned_he(
-            output, source / f"{SAMPLE}_he_image.ome.tif", alignment=translate_crop @ matrix
-        )
+        add_he(source, output, x0, y0)
     (output / "example.json").write_text(
         json.dumps(
             {
@@ -215,12 +220,30 @@ def prepare(source, output, *, include_he=True):
     print(f"Wrote {output}: {len(cells)} cells and {len(trx)} transcripts", flush=True)
 
 
+def ensure_dega_files(source, output, *, include_he=True):
+    """Reuse complete DegaFiles at ``output``; otherwise download the data and build them."""
+    manifest, example = output / "landscape_parameters.json", output / "example.json"
+    if output.exists():
+        if not (manifest.is_file() and example.is_file()):
+            raise FileExistsError(
+                f"{output} exists but is not complete DegaFiles from this script; "
+                "delete it or choose another --output."
+            )
+        print(f"Using existing DegaFiles in {output}")
+        if include_he and "aligned_he" not in json.loads(manifest.read_text()):
+            x0, y0, *_ = json.loads(example.read_text())["crop_pixels"]
+            add_he(source, output, x0, y0)
+        return
+    needed = [source / name for name in FILES]
+    needed += [source / f"{SAMPLE}_he_image.ome.tif", source / f"{SAMPLE}_he_imagealignment.csv"]
+    if not all(path.is_file() for path in needed):
+        download(source)
+    prepare(source, output, include_he=include_he)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--download", action="store_true")
     parser.add_argument("--source", type=Path, default=Path("data/xenium_h_and_e"))
     parser.add_argument("--output", type=Path, default=Path("data/xenium_he_dega"))
     args = parser.parse_args()
-    if args.download:
-        download(args.source)
-    prepare(args.source, args.output)
+    ensure_dega_files(args.source, args.output)

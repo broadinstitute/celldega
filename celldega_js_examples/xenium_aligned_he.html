@@ -24,7 +24,7 @@
       const base = '../data/xenium_he_dega';
       try {
         const example = await fetch(`${base}/example.json`).then(r => {
-          if (!r.ok) throw new Error('Run scripts/prepare_xenium_he_example.py first.');
+          if (!r.ok) throw new Error(`No DegaFiles at ${base}. Run: python scripts/prepare_xenium_he_example.py`);
           return r.json();
         });
         await celldega.landscape_ist(

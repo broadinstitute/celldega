@@ -37,10 +37,16 @@ FILES = [
     "cell_feature_matrix.h5",
     "transcripts.parquet",
     "morphology_focus/morphology_focus_0000.ome.tif",
+    # Archives Celldega's standard Xenium preprocessing (pre.main) extracts and checks for.
+    "cells.csv.gz",
+    "cells.zarr.zip",
+    "analysis.tar.gz",
+    "cell_feature_matrix.tar.gz",
 ]
 
 
 def download(destination):
+    """Fetch the H&E, alignment and only the needed Xenium outputs; safe to rerun."""
     destination.mkdir(parents=True, exist_ok=True)
     for suffix in ["he_image.ome.tif", "he_imagealignment.csv"]:
         target = destination / f"{SAMPLE}_{suffix}"
@@ -69,6 +75,9 @@ def download(destination):
             with archive.open(name) as source, partial.open("wb") as handle:
                 shutil.copyfileobj(source, handle)
             partial.replace(target)
+    # Extract cells.csv, cells.zarr, analysis and cell_feature_matrix, then verify.
+    pre._xenium_unzipper(str(destination))
+    pre._check_required_files("Xenium", str(destination))
 
 
 def read_crop(path, x0, y0, width, height):

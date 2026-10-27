@@ -1,7 +1,7 @@
 """Download the SpatialData Xenium example and build DegaFiles for its tutorial ROI.
 
 Run from the repository root with celldega[pre] installed:
-    python scripts/prepare_xenium_he_example.py
+    python scripts/prepare_xenium_he_example.py --serve
 
 Source: 10x Genomics, FFPE Human Lung Cancer, Xenium 2.0.0 (CC BY 4.0).
 See docs/python/aligned_he.md for attribution and coordinate conventions.
@@ -9,9 +9,13 @@ The crop matches SpatialData's global pixel ROI [20000, 8000]-[22000, 8500].
 """
 
 import argparse
+from contextlib import suppress
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import shutil
+import webbrowser
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -221,29 +225,45 @@ def prepare(source, output, *, include_he=True):
 
 
 def ensure_dega_files(source, output, *, include_he=True):
-    """Reuse complete DegaFiles at ``output``; otherwise download the data and build them."""
-    manifest, example = output / "landscape_parameters.json", output / "example.json"
-    if output.exists():
-        if not (manifest.is_file() and example.is_file()):
-            raise FileExistsError(
-                f"{output} exists but is not complete DegaFiles from this script; "
-                "delete it or choose another --output."
-            )
-        print(f"Using existing DegaFiles in {output}")
-        if include_he and "aligned_he" not in json.loads(manifest.read_text()):
-            x0, y0, *_ = json.loads(example.read_text())["crop_pixels"]
-            add_he(source, output, x0, y0)
-        return
+    """Download any missing 10x files, then reuse complete DegaFiles at ``output`` or build them."""
     needed = [source / name for name in FILES]
     needed += [source / f"{SAMPLE}_he_image.ome.tif", source / f"{SAMPLE}_he_imagealignment.csv"]
     if not all(path.is_file() for path in needed):
         download(source)
-    prepare(source, output, include_he=include_he)
+    manifest, example = output / "landscape_parameters.json", output / "example.json"
+    if not output.exists():
+        prepare(source, output, include_he=include_he)
+        return
+    if not (manifest.is_file() and example.is_file()):
+        raise FileExistsError(
+            f"{output} exists but is not complete DegaFiles from this script; "
+            "delete it or choose another --output."
+        )
+    print(f"Using existing DegaFiles in {output}")
+    if include_he and "aligned_he" not in json.loads(manifest.read_text()):
+        x0, y0, *_ = json.loads(example.read_text())["crop_pixels"]
+        add_he(source, output, x0, y0)
+
+
+def serve_example(port=8765):
+    """Serve the repo over HTTP (browsers block the page's module/fetch on file://)."""
+    root = Path(__file__).resolve().parent.parent
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", port), partial(SimpleHTTPRequestHandler, directory=root)
+    )
+    url = f"http://127.0.0.1:{port}/celldega_js_examples/xenium_aligned_he.html"
+    print(f"Serving {url} (Ctrl+C to stop)", flush=True)
+    webbrowser.open(url)
+    with suppress(KeyboardInterrupt):
+        server.serve_forever()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=Path("data/xenium_h_and_e"))
     parser.add_argument("--output", type=Path, default=Path("data/xenium_he_dega"))
+    parser.add_argument("--serve", action="store_true", help="serve and open the example page")
     args = parser.parse_args()
     ensure_dega_files(args.source, args.output)
+    if args.serve:
+        serve_example()

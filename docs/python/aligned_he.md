@@ -77,15 +77,14 @@ affine alignment is locally imperfect.
 From the repository root, with the development environment active:
 
 ```bash
-python scripts/prepare_xenium_he_example.py
 npm run build
-python -m http.server 8765 --bind 127.0.0.1
+python scripts/prepare_xenium_he_example.py --serve
 ```
 
-Open [the local example](http://127.0.0.1:8765/celldega_js_examples/xenium_aligned_he.html)
-over HTTP (opening the file directly with `file://` is blocked by the browser).
-If complete DegaFiles already exist in the output folder the script reuses them;
-otherwise it downloads about 2 GB of original H&E, DAPI, cell, expression
+`--serve` opens [the local example](http://127.0.0.1:8765/celldega_js_examples/xenium_aligned_he.html)
+over HTTP (opening the page directly with `file://` is blocked by the browser).
+The script first downloads any missing 10x files, then reuses complete DegaFiles
+in the output folder or builds them. It downloads about 2 GB of original H&E, DAPI, cell, expression
 and transcript data to `data/xenium_h_and_e`, using HTTP ranges to skip unused
 large archive entries. It prepares `data/xenium_he_dega` from the tutorial's
 2,000 × 500 pixel region (`x=20000..22000`, `y=8000..8500`). It uses the original

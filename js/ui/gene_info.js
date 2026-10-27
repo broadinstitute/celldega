@@ -103,8 +103,15 @@ const tooltip_timer_by_root = new WeakMap();
  * @param {HTMLElement} root - Widget root containing `.deck-tooltip`.
  * @param {string|null} gene - Gene under the pointer, or null when leaving.
  * @param {() => string} build_html - Re-builds the full tooltip HTML.
+ * @param {(tooltip: HTMLElement) => void} [on_patched] - Called after the
+ *   tooltip is patched (e.g. to re-fit it, since it just grew).
  */
-export const refresh_gene_tooltip_async = (root, gene, build_html) => {
+export const refresh_gene_tooltip_async = (
+  root,
+  gene,
+  build_html,
+  on_patched
+) => {
   if (!root) return;
 
   tooltip_gene_by_root.set(root, gene || null);
@@ -129,6 +136,7 @@ export const refresh_gene_tooltip_async = (root, gene, build_html) => {
           if (!tooltip || tooltip.style.display === 'none') return;
 
           tooltip.innerHTML = build_html();
+          on_patched?.(tooltip);
         })
         .catch(() => {
           /* handled/logged inside uniprot_get_request */

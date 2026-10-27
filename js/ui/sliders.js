@@ -1,5 +1,6 @@
 import {
   get_point_cloud_cell_radius,
+  refresh_cell_layer_data,
   update_cell_layer_radius,
 } from '../deck-gl/layers/cell_layer';
 import { update_opacity_single_image_layer } from '../deck-gl/layers/image_layers';
@@ -9,8 +10,18 @@ import {
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { update_nbhd_layer_opacity } from '../deck-gl/layers/nbhd_layer';
 import { update_trx_layer_radius } from '../deck-gl/layers/trx_layer';
+import { rescale_cell_exp_array } from '../global_variables/cell_exp_array';
 import { is_orbit_technology } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
+import { register_ui_cleanup } from '../utils/ui_cleanup';
+
+import {
+  has_gene_selection,
+  is_trx_force_shown,
+  sync_trx_slider,
+  trx_forced_size_scale,
+  update_expression_note,
+} from './trx_handle';
 
 const clamp_to_byte = (value) => {
   return Math.max(0, Math.min(255, Math.round(value)));
@@ -223,6 +234,37 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   refresh_layer(viz_state, layers_obj, 'cell_layer');
 };
 
+// Zoomed out, the TRX slider sets the expression drawn at full cell opacity,
+// as a percent of the max (100 = the max, the default scaling).
+const opacity_slider_scale = (value) => Math.max(1, Number(value)) / 100;
+
+/** Set `cats.cell_exp_scale` and recolor the cells to match. */
+const set_cell_exp_scale = (layers_obj, viz_state, scale) => {
+  const { cats } = viz_state;
+  cats.cell_exp_scale = scale;
+  update_expression_note(viz_state);
+  if (cats.cat === 'cluster' || viz_state.cell_opacity_frame) return;
+
+  // At most one rescale per frame while dragging.
+  viz_state.cell_opacity_frame = requestAnimationFrame(() => {
+    viz_state.cell_opacity_frame = null;
+    rescale_cell_exp_array(cats);
+    refresh_cell_layer_data(layers_obj, viz_state, {
+      updateTriggers: {
+        getFillColor: [viz_state.selection_token, cats.cell_exp_scale],
+      },
+    });
+    refresh_layer(viz_state, layers_obj, 'cell_layer');
+  });
+};
+
+const cell_opacity_slider_callback = (layers_obj, viz_state) =>
+  set_cell_exp_scale(
+    layers_obj,
+    viz_state,
+    opacity_slider_scale(viz_state.sliders.trx.value)
+  );
+
 const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
   // Repurposed for neighborhood-cloud only: an independent opacity control
   // for gene-shapes mode (disabled/enabled opposite the NBHD slider, see
@@ -235,6 +277,11 @@ const trx_slider_callback = async (deck_ist, layers_obj, viz_state) => {
       viz_state.sliders.trx.value / 100
     );
     refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
+
+  if (viz_state.trx_slider_mode === 'opacity') {
+    cell_opacity_slider_callback(layers_obj, viz_state);
     return;
   }
 
@@ -334,7 +381,7 @@ export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
       // rather than the unrelated legacy per-transcript radius default.
       ini_value = viz_state.nbhd_cloud?.is_nbhd_cloud
         ? 75
-        : viz_state.genes.trx_ini_raidus * 100;
+        : viz_state.genes.trx_ini_radius * 100;
       callback = () => trx_slider_callback(inst_deck, layers_obj, viz_state);
       break;
     case 'nbhd':
@@ -422,4 +469,221 @@ export const toggle_slider = (slider, state) => {
   }
 
   slider.disabled = !state;
+};
+
+/**
+ * TRX slider position for full transcript size in close-up, the top of its
+ * range. Gene selections slide to it (see ini_selected_gene_trx_focus).
+ */
+export const TRX_FOCUS_SLIDER_VALUE = 100;
+const TRX_FOCUS_DURATION_MS = 300;
+
+/**
+ * Top of the TRX size slider (full transcript size): larger while transcripts
+ * are forced at intermediate zoom (see trx_handle.js).
+ */
+const trx_size_slider_max = (viz_state) =>
+  Math.round(
+    TRX_FOCUS_SLIDER_VALUE *
+      (is_trx_force_shown(viz_state) ? trx_forced_size_scale(viz_state) : 1)
+  );
+
+/**
+ * Transcript size once the size slider's top changes from `old_max` to
+ * `max`: with genes selected, full size stays full size; otherwise the size
+ * is kept, within range.
+ */
+const resize_trx_size = (viz_state, value, old_max, max) =>
+  has_gene_selection(viz_state) && value >= old_max
+    ? max
+    : Math.min(value, max);
+
+/** Ease-in-out cubic on t in [0, 1]. */
+const ease_in_out = (t) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+/**
+ * Enlarge transcripts while a gene is selected, then restore the previous
+ * size when the selection clears. Selecting a gene (bar, search, transcript
+ * click, or a linked Clustergram) animates the TRX slider to full size, the
+ * top of its range, which is larger at intermediate zoom with transcripts
+ * forced; full size then stays full size as the view enters or leaves that
+ * zoom (see resize_trx_size). Clearing the selection jumps straight back to
+ * wherever the slider was before, since every gene's transcripts reappear at
+ * that moment and shrinking them all in an animation reads as a glitch.
+ * Dragging the slider during the animation stops it, and the user's value
+ * wins.
+ *
+ * Neighborhood-cloud repurposes the TRX slider as an opacity control, so it is
+ * left alone there.
+ */
+export const ini_selected_gene_trx_focus = (
+  inst_deck,
+  layers_obj,
+  viz_state
+) => {
+  const slider = viz_state.sliders?.trx;
+  if (!slider || viz_state.nbhd_cloud?.is_nbhd_cloud) return;
+
+  // Slider value from before the gene was selected; null when not focused.
+  let restore_value = null;
+  let frame_id = null;
+
+  const cancel_animation = () => {
+    if (frame_id !== null) cancelAnimationFrame(frame_id);
+    frame_id = null;
+  };
+
+  // Zoomed out the slider shows cell opacity, so the transcript size lives in
+  // trx_slider_values (see ini_trx_slider_modes) and is applied directly.
+  const sliding_size = () => viz_state.trx_slider_mode !== 'opacity';
+  const current_size = () =>
+    sliding_size() ? Number(slider.value) : viz_state.trx_slider_values.size;
+
+  const apply_value = (value) => {
+    if (!layers_obj.trx_layer) return;
+    if (sliding_size()) {
+      set_slider_value(slider, value);
+      trx_slider_callback(inst_deck, layers_obj, viz_state);
+    } else {
+      viz_state.trx_slider_values.size = value;
+      update_trx_layer_radius(layers_obj, value / 100);
+    }
+  };
+
+  const animate_to = (target) => {
+    cancel_animation();
+    const start = current_size();
+    if (!Number.isFinite(start) || start === target || !sliding_size()) {
+      apply_value(target);
+      return;
+    }
+    const start_time = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start_time) / TRX_FOCUS_DURATION_MS);
+      apply_value(start + (target - start) * ease_in_out(t));
+      frame_id = t < 1 ? requestAnimationFrame(step) : null;
+    };
+    frame_id = requestAnimationFrame(step);
+  };
+
+  // Programmatic value changes don't fire 'input', so this is the user dragging.
+  const on_user_input = () => cancel_animation();
+  slider.addEventListener('input', on_user_input);
+
+  const unsubscribe = viz_state.obs_store.selected_genes.subscribe(
+    (selected_genes) => {
+      const focused =
+        Array.isArray(selected_genes) && selected_genes.length > 0;
+      if (focused && restore_value === null) {
+        restore_value = current_size();
+        animate_to(trx_size_slider_max(viz_state));
+      } else if (!focused && restore_value !== null) {
+        // Within range: it may be from intermediate zoom's wider one.
+        const target = Math.min(restore_value, trx_size_slider_max(viz_state));
+        restore_value = null;
+        cancel_animation();
+        apply_value(target);
+      }
+    },
+    { immediate: false }
+  );
+
+  register_ui_cleanup(viz_state, () => {
+    cancel_animation();
+    slider.removeEventListener('input', on_user_input);
+    unsubscribe?.();
+  });
+};
+
+/**
+ * Widen the TRX size slider while transcripts are forced at intermediate zoom
+ * (see trx_handle.js), and narrow it back after, shrinking transcripts that
+ * were made larger than the close-up max. Full size with genes selected
+ * stays full size (see resize_trx_size).
+ */
+export const sync_trx_slider_range = (layers_obj, viz_state) => {
+  const slider = viz_state.sliders?.trx;
+  if (!slider || viz_state.trx_slider_mode !== 'size') return;
+
+  const value = Number(slider.value);
+  const old_max = Number(slider.max);
+  const max = trx_size_slider_max(viz_state);
+  slider.max = String(max);
+  const size = resize_trx_size(viz_state, value, old_max, max);
+  set_slider_value(slider, size);
+  if (size !== value) {
+    update_trx_layer_radius(layers_obj, size / 100);
+    refresh_layer(viz_state, layers_obj, 'trx_layer');
+  }
+};
+
+/**
+ * Switch the Landscape's TRX slider between its two jobs as the view enters
+ * and leaves close-up: transcript size in close-up, cell expression opacity
+ * zoomed out (see trx_handle.js). Each job keeps its own slider position, and
+ * the opacity applies only zoomed out.
+ */
+export const ini_trx_slider_modes = (layers_obj, viz_state) => {
+  const slider = viz_state.sliders?.trx;
+  if (!slider || viz_state.nbhd_cloud?.is_nbhd_cloud) return;
+
+  viz_state.trx_slider_values = { size: Number(slider.value), opacity: 100 };
+
+  const apply_mode = (close_up) => {
+    const mode = close_up ? 'size' : 'opacity';
+    if (mode !== viz_state.trx_slider_mode) {
+      if (viz_state.trx_slider_mode) {
+        viz_state.trx_slider_values[viz_state.trx_slider_mode] = Number(
+          slider.value
+        );
+      }
+      viz_state.trx_slider_mode = mode;
+      const max = mode === 'size' ? trx_size_slider_max(viz_state) : 100;
+      slider.max = String(max);
+      let value = viz_state.trx_slider_values[mode];
+      if (mode === 'size') {
+        // Saved in close-up's range: the wider one ends before close_up does.
+        const size = resize_trx_size(
+          viz_state,
+          value,
+          TRX_FOCUS_SLIDER_VALUE,
+          max
+        );
+        if (size !== value) update_trx_layer_radius(layers_obj, size / 100);
+        value = size;
+      }
+      set_slider_value(slider, value);
+      // The opacity scale applies only while the slider shows it, so close-up
+      // cells use the full range.
+      const scale = mode === 'opacity' ? opacity_slider_scale(value) : 1;
+      if ((viz_state.cats.cell_exp_scale ?? 1) !== scale) {
+        set_cell_exp_scale(layers_obj, viz_state, scale);
+      }
+      slider.title =
+        mode === 'size' ? 'Transcript size' : 'Cell expression opacity';
+      if (mode === 'size') {
+        toggle_slider(slider, layers_obj.trx_layer?.props?.visible !== false);
+      }
+    }
+    sync_trx_slider(viz_state);
+    update_expression_note(viz_state);
+  };
+  apply_mode(Boolean(viz_state.close_up));
+
+  // The note's count changes once a new selection's expression has loaded,
+  // which is when selected_cats is set.
+  const refresh = () => {
+    sync_trx_slider(viz_state);
+    update_expression_note(viz_state);
+  };
+  const unsubscribes = [
+    viz_state.obs_store.close_up.subscribe(apply_mode, { immediate: false }),
+    viz_state.obs_store.selected_genes.subscribe(refresh, { immediate: false }),
+    viz_state.obs_store.selected_cats.subscribe(refresh, { immediate: false }),
+  ];
+  register_ui_cleanup(viz_state, () => {
+    cancelAnimationFrame(viz_state.cell_opacity_frame);
+    unsubscribes.forEach((unsubscribe) => unsubscribe?.());
+  });
 };

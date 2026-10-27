@@ -4,6 +4,93 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.28.0] - Unreleased
+
+### Added
+
+- Landscape: shift-click cluster bars to select several clusters at once;
+  shift-click a selected cluster again to remove it. A plain click still
+  selects a single cluster.
+- Landscape and Yearbook: select several genes by shift-clicking gene bars
+  or typing a comma-separated list in the gene search, which autocompletes
+  the gene after the last comma; the bars and the search box stay in sync.
+  Enter applies the genes it recognizes and keeps the current selection if
+  it recognizes none (e.g. a typo). Cells show the summed raw expression of
+  the selected genes, and at close zoom each gene's transcripts are shown in
+  its own color. Up to 20 genes are shown at once: a larger selection (e.g.
+  a Clustergram row dendrogram cut) shows its 20 highest-expressed genes,
+  with a note in the gene panel. Clustergram row dendrogram selections of
+  several genes now use this view instead of falling back to cluster colors.
+- Landscape: the TRX button loads transcripts and cell boundaries on demand
+  at intermediate zoom. Below `max_tiles_to_view` tiles they load
+  automatically, as before. Up to `intermediate_zoom_limit` times that many
+  tiles (default 9, a view 3 times wider), TRX turns gray and clicking it
+  loads them anyway (blue once loaded, dimmed while loading), turning off
+  neighborhoods and region editing as TRX does in close-up. They keep
+  updating as you pan until you click TRX again, hide transcripts (TRX off
+  in close-up, or region editing), or zoom out further. Beyond that
+  (including a new Landscape's tissue-wide view), TRX is faded and not
+  clickable. While transcripts are loaded this way, cells keep their cluster
+  colors with genes selected (the transcripts show the genes), and the TRX
+  slider can make transcripts larger than in close-up, by as much as the
+  view is wider (3 times by default). In close-up, TRX is likewise dimmed
+  while the view's transcripts load, e.g. after zooming in or panning.
+- Landscape: zooming stops one zoom level past the tissue-wide view and at
+  about 10 µm across the map's shorter side; set `min_zoom`/`max_zoom` to
+  change either. The limits follow the map's size and the current dataset
+  when switching datasets, and never cut off the current view. Panning is not
+  limited.
+- Landscape and Yearbook: the CELL slider at 0 hides cell centroids, leaving
+  cell boundaries (and transcripts) visible.
+- Landscape: the TRX slider sets transcript size in close-up and, zoomed out,
+  the expression at which cells reach full opacity for the selected gene(s),
+  shown as a note at the top of the gene panel. Each role keeps its own slider
+  position; zoomed out with no gene selected, the slider is disabled. The
+  opacity setting applies only zoomed out: close-up cells use the full
+  expression range.
+- Landscape and Yearbook: cell outlines scale with zoom, so they stay thin when
+  zoomed out (no thicker than before when zoomed in).
+- Landscape and Yearbook: hovering a gene bar shows the gene's UniProt name
+  and description, and hovering a cluster bar shows its name and cell count.
+- Landscape and Yearbook: selecting a gene (bar, search, transcript click, or
+  a linked Clustergram) smoothly enlarges transcripts to full size, and
+  clearing the selection snaps back to the previous TRX slider size. Dragging
+  the slider during the transition keeps the user's value. Full size is the
+  top of the TRX slider; in a Landscape that includes its wider range at
+  intermediate zoom, and full size stays full size as the view enters or
+  leaves intermediate zoom.
+
+### Changed
+
+- Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
+  selection another way) keeps the bar panels' scroll position instead of
+  scrolling them back to the top.
+
+### Fixed
+
+- Landscape and Yearbook bar plots no longer clip the last bars (the least
+  abundant clusters or genes) when a list has more than about 14 entries.
+- Landscape: clicking a transcript no longer leaves cell colors from the
+  previous gene, and a Clustergram row dendrogram selection no longer leaves
+  the transcript filter on the previously selected gene.
+- The gene search no longer selects a shorter gene while typing a longer one
+  (e.g. "ACE" on the way to "ACE2").
+- Landscape gene tooltips wrap at a fixed width and stay inside the widget,
+  flipping to the left of or above the cursor near the right and bottom
+  edges. Transcript tooltips appear once their UniProt text has loaded, at
+  their final position, instead of jumping as they resize. UniProt lookups
+  give up after 5 seconds, so tooltips still appear when the network hangs.
+- Landscape and Yearbook: the TRX slider starts at the actual initial
+  transcript size instead of the middle of its range, so the first drag (or
+  clearing a gene selection) no longer jumps transcripts to a larger size.
+- Landscape and Yearbook: a gene whose expression is still loading no longer
+  overrides a cluster clicked, or a selection cleared, in the meantime, which
+  could hide every cell and cell outline. This holds wherever the gene comes
+  from: a bar, the gene search, a transcript, a linked Clustergram or Enrich,
+  the Yearbook query box, or restoring the selection after switching datasets.
+- Landscape and Yearbook: the gene panel shows a gene's UniProt name and
+  description as text instead of inserting them as HTML.
+
 ## [0.27.0]
 
 ### Added

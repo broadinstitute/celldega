@@ -3,16 +3,15 @@ import * as d3 from 'd3';
 import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
+  attach_bar_tooltip,
   bar_callback_cat,
+  bar_svg_height,
+  BAR_HEIGHT,
   make_bar_container,
   bar_callback_gene,
   get_bar_highlight_opacity,
@@ -23,6 +22,7 @@ import { make_logo_button } from './logo';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
+  ini_selected_gene_trx_focus,
   ini_slider,
   ini_slider_params,
 } from './sliders';
@@ -724,7 +724,8 @@ export const make_yearbook_ui_container = (
     viz_state.cats.color_dict_cluster,
     deck_yearbook,
     layers_obj,
-    viz_state
+    viz_state,
+    { tooltip: 'cluster' }
   );
 
   viz_state.containers.bar_gene = make_bar_container();
@@ -742,7 +743,8 @@ export const make_yearbook_ui_container = (
     viz_state.genes.color_dict_gene,
     deck_yearbook,
     layers_obj,
-    viz_state
+    viz_state,
+    { tooltip: 'gene' }
   );
 
   // Apply the current selection highlight to a set of bar groups: full opacity +
@@ -769,10 +771,9 @@ export const make_yearbook_ui_container = (
       const names = Array.isArray(selected_cats) ? selected_cats : [];
       apply_bar_selection_highlight(svg.selectAll('g'), names);
 
-      if (names.length === 0) {
-        container.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
+      // Clearing the selection keeps the scroll position, so a bar just
+      // deselected stays in view.
+      if (names.length === 0) return;
 
       if (names.length === 1) {
         const inst_cat = String(names[0]);
@@ -819,10 +820,17 @@ export const make_yearbook_ui_container = (
 
   // New bar data subscriber (updates bars based on viewport)
   const subscriber_new_bar_data =
-    ({ svg, color_dict, get_selected_array, bar_callback, container }) =>
+    ({
+      svg,
+      color_dict,
+      get_selected_array,
+      bar_callback,
+      container,
+      tooltip,
+    }) =>
     (bar_data) => {
-      const bar_height = 15;
-      const svg_height = bar_height * (bar_data.length + 1);
+      const bar_height = BAR_HEIGHT;
+      const svg_height = bar_svg_height(bar_data.length);
       svg.attr('height', svg_height);
 
       const max_bar_width = 90;
@@ -847,6 +855,8 @@ export const make_yearbook_ui_container = (
         .on('click', (event, d) =>
           bar_callback(event, d, deck_yearbook, layers_obj, viz_state)
         );
+
+      attach_bar_tooltip(bars_enter, tooltip, viz_state);
 
       bars_enter
         .append('rect')
@@ -939,6 +949,7 @@ export const make_yearbook_ui_container = (
       get_selected_array: () => viz_state.cats.selected_cats || [],
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
+      tooltip: 'cluster',
     }),
     { immediate: false }
   );
@@ -950,6 +961,7 @@ export const make_yearbook_ui_container = (
       get_selected_array: () => viz_state.genes.selected_genes || [],
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
+      tooltip: 'gene',
     }),
     { immediate: false }
   );
@@ -958,6 +970,7 @@ export const make_yearbook_ui_container = (
   cell_container.appendChild(viz_state.containers.bar_cluster);
 
   ini_slider('trx', deck_yearbook, layers_obj, viz_state);
+  ini_selected_gene_trx_focus(deck_yearbook, layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 
@@ -967,34 +980,6 @@ export const make_yearbook_ui_container = (
   // Gene search
   set_gene_search('ist', deck_yearbook, layers_obj, viz_state);
   viz_state.genes.gene_search.style.marginLeft = '0px';
-
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
-          }
-        }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
-
-      viz_state.genes.gene_text_box.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
 
   ui_container.appendChild(ctrl_container);
 

@@ -31,6 +31,7 @@ describe('update_ist_landscape_from_cgm routes neighborhood-cloud clicks to its 
     // link helpers it now calls into -- only their own leaf dependencies
     // (deck.gl layer builders, network fetches) are shimmed below.
     const source = [
+      readStripped('../global_variables/select_genes.js'),
       readStripped('../widget_interactions/nbhd_cloud_link.js'),
       readStripped('../widget_interactions/update_ist_landscape_from_cgm.js'),
     ].join('\n');
@@ -42,7 +43,10 @@ describe('update_ist_landscape_from_cgm routes neighborhood-cloud clicks to its 
         calls.generic.push('update_selected_genes');
         obs_store.selected_genes.set(selected);
       };
-      const update_cell_exp_array = async () => { calls.generic.push('update_cell_exp_array'); };
+      const update_cell_exp_array = async () => {
+        calls.generic.push('update_cell_exp_array');
+        return true;
+      };
       const handleAsyncError = (error) => { throw error; };
       const refresh_layer = (_viz_state, _layers_obj, name) => { calls.refreshed.push(name); };
 

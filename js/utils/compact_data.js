@@ -17,6 +17,8 @@ export const createEmptyCellCompact = () => ({
  * for the new dataset before this runs, and the viewport cell bars count from it.
  */
 export const clearDatasetTileData = (viz_state) => {
+  // Invalidate outstanding viewport/path loads before clearing their data.
+  viz_state.viewport_request_id = (viz_state.viewport_request_id || 0) + 1;
   viz_state.genes.trx_data = [];
   viz_state.genes.trx_gene_ids = new Int32Array();
   viz_state.cats.polygon_cell_names = [];

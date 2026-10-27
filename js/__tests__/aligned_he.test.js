@@ -139,7 +139,7 @@ test('Landscape switches only backgrounds; RGB, format, IMG visibility and overl
   expect(layers.trx_layer).toBe(transcripts);
 });
 
-test('Yearbook keeps H&E selected on paging and preserves portrait IDs on opacity updates', async () => {
+test('Yearbook keeps H&E selected on paging and gives each portrait a fresh, distinct ID on opacity updates', async () => {
   const api = makeAPI();
   const viz = state();
   const portraits = [
@@ -174,7 +174,17 @@ test('Yearbook keeps H&E selected on paging and preserves portrait IDs on opacit
   api.update_opacity_single_image_layer(viz, layers, 'DAPI', 2, {
     DAPI: [0, 0, 255],
   });
-  expect(layers.image_layers.map((l) => l.id)).toEqual(ids);
+  const updated = layers.image_layers.map((l) => l.id);
+  // Only the fluorescence layers get new IDs (forcing deck.gl to re-render
+  // cached tiles); they stay portrait-specific, so none collide.
+  expect(updated[0]).not.toBe(ids[0]);
+  expect(updated[0]).toContain(ids[0]);
+  expect(updated[1]).toBe(ids[1]);
+  expect(new Set(updated).size).toBe(updated.length);
+  api.update_opacity_single_image_layer(viz, layers, 'DAPI', 3, {
+    DAPI: [0, 0, 255],
+  });
+  expect(layers.image_layers[0].id).toBe(`${ids[0]}-op3`);
   change(select, 'primary');
   api.toggle_visibility_single_image_layer(layers, 'DAPI', false);
   expect(layers.image_layers.every((l) => !l.props.visible)).toBe(true);
@@ -262,7 +272,7 @@ test.each([
   }
 );
 
-test('fluorescence opacity updates only the matching channel and keeps its ID', async () => {
+test('fluorescence opacity updates only the matching channel and re-renders via a new ID', async () => {
   const api = makeAPI();
   const viz = state();
   viz.img.image_info.push({
@@ -276,7 +286,8 @@ test('fluorescence opacity updates only the matching channel and keeps its ID', 
     DAPI: [0, 0, 255],
   });
   expect(layers.image_layers[0]).not.toBe(dapi);
-  expect(layers.image_layers[0].id).toBe(dapi.id);
+  expect(layers.image_layers[0].id).toBe(`${dapi.id}-op2`);
+  expect(layers.image_layers[0].props.renderSubLayers).toBe('fluorescence');
   expect(layers.image_layers[1]).toBe(dna);
   expect(layers.image_layers[2]).toBe(he);
 });

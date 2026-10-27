@@ -9,6 +9,8 @@ describe('linked Clustergram gene selection for Landscape', () => {
     refreshed: [],
     selectedCats: [],
   };
+  // When the expression load lands, and whether a newer load replaced it.
+  const control = { applied: true, pending: null };
 
   beforeAll(() => {
     const fs = require('fs');
@@ -21,6 +23,7 @@ describe('linked Clustergram gene selection for Landscape', () => {
         .replace(/^export const /gm, 'const ');
 
     const source = [
+      readStripped('../global_variables/select_genes.js'),
       readStripped('../widget_interactions/nbhd_cloud_link.js'),
       readStripped('../widget_interactions/update_ist_landscape_from_cgm.js'),
     ].join('\n');
@@ -38,6 +41,8 @@ describe('linked Clustergram gene selection for Landscape', () => {
       ) => {
         calls.expression.push({ gene, cbgReader });
         calls.events.push('expression');
+        if (control.pending) await control.pending;
+        return control.applied;
       };
       const handleAsyncError = (error) => { throw error; };
       const refresh_layer = (_vizState, _layersObj, name) => {
@@ -51,10 +56,11 @@ describe('linked Clustergram gene selection for Landscape', () => {
 
     const code = `${shims}\n${source}\nmodule.exports = { update_ist_landscape_from_cgm, sync_focused_gene_to_landscape };`;
     const module = { exports: {} };
-    new Function('module', 'exports', 'calls', code)(
+    new Function('module', 'exports', 'calls', 'control', code)(
       module,
       module.exports,
-      calls
+      calls,
+      control
     );
     ({ update_ist_landscape_from_cgm, sync_focused_gene_to_landscape } =
       module.exports);
@@ -65,9 +71,16 @@ describe('linked Clustergram gene selection for Landscape', () => {
     calls.expression.length = 0;
     calls.refreshed.length = 0;
     calls.selectedCats.length = 0;
+    control.applied = true;
+    control.pending = null;
   });
 
-  const makeVizState = (selectedCells = []) => {
+  const ROW_LABEL = {
+    type: 'row_label',
+    value: { entity: 'gene', attr: 'name', name: 'Matn1' },
+  };
+
+  const makeVizState = (selectedCells = [], trigger = ROW_LABEL) => {
     let cells = selectedCells;
     const selectedCellSets = [];
     const cbgReader = { id: 'existing-cbg-reader' };
@@ -76,13 +89,7 @@ describe('linked Clustergram gene selection for Landscape', () => {
       selectedCellSets,
       cbgReader,
       model: {
-        get: (key) =>
-          key === 'update_trigger'
-            ? {
-                type: 'row_label',
-                value: { entity: 'gene', attr: 'name', name: 'Matn1' },
-              }
-            : undefined,
+        get: (key) => (key === 'update_trigger' ? trigger : undefined),
       },
       cats: { cat: 'cluster', selected_cats: [] },
       genes: {},
@@ -144,6 +151,77 @@ describe('linked Clustergram gene selection for Landscape', () => {
     await update_ist_landscape_from_cgm(null, {}, vizState);
 
     expect(calls.refreshed).toEqual([]);
+  });
+
+  const hold_expression = () => {
+    let release;
+    control.pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    return () => release();
+  };
+
+  // What a cluster bar click does (bar_callback_cat): no expression load.
+  const click_cluster = (vizState, cluster) => {
+    vizState.cats.cat = 'cluster';
+    vizState.cats.selected_cats = [cluster];
+  };
+
+  test('leaves a cluster clicked while the gene loads selected', async () => {
+    const vizState = makeVizState();
+    const release = hold_expression();
+    const update = update_ist_landscape_from_cgm(null, {}, vizState);
+
+    click_cluster(vizState, '3');
+    release();
+    await update;
+    expect(calls.selectedCats).toEqual([]);
+    expect(vizState.cats).toMatchObject({
+      cat: 'cluster',
+      selected_cats: ['3'],
+    });
+  });
+
+  test('leaves the selection to a newer gene load', async () => {
+    const vizState = makeVizState();
+    control.applied = false;
+
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(calls.selectedCats).toEqual([]);
+  });
+
+  test('clears the shown gene without loading its expression', async () => {
+    const vizState = makeVizState();
+    vizState.cats.cat = 'Matn1';
+
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(calls.expression).toEqual([]);
+    expect(calls.selectedCats).toEqual([[]]);
+    expect(vizState.cats.cat).toBe('cluster');
+  });
+
+  test('a gene x cluster matrix click yields to a cluster clicked meanwhile', async () => {
+    const vizState = makeVizState([], {
+      type: 'mat_value',
+      value: {
+        row: { entity: 'gene', attr: 'name', name: 'Matn1' },
+        col: { entity: 'cell', attr: 'leiden', name: '5' },
+      },
+    });
+    vizState.obs_store.selected_cells.set = () => {};
+
+    // Without a newer click, the gene's cells in the cluster are shown.
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(calls.selectedCats).toEqual([['5']]);
+
+    calls.selectedCats.length = 0;
+    const release = hold_expression();
+    const update = update_ist_landscape_from_cgm(null, {}, vizState);
+    click_cluster(vizState, '3');
+    release();
+    await update;
+    expect(calls.selectedCats).toEqual([]);
+    expect(vizState.cats.selected_cats).toEqual(['3']);
   });
 
   test('turns a browser-linked Enrich focus into a Landscape gene update', () => {

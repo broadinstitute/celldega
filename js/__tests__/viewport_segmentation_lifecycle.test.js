@@ -21,7 +21,11 @@ const observable = (initial) => {
   };
 };
 
-describe('viewport segmentation request ordering', () => {
+const trxSource = fs
+  .readFileSync(path.join(__dirname, '../ui/trx_handle.js'), 'utf8')
+  .replace(/^export const /gm, 'const ');
+
+describe.each([false, true])('viewport ordering (forced: %s)', (forced) => {
   let calc_viewport;
   let updatePaths;
   let updateTranscripts;
@@ -55,7 +59,9 @@ describe('viewport segmentation request ordering', () => {
       'visibleTiles',
       'update_path_layer_data',
       'update_trx_layer_data',
-      `${source}\nreturn calc_viewport;`
+      'sync_trx_slider_range',
+      'is_cluster_color_mode',
+      `${trxSource}\n${source}\nreturn calc_viewport;`
     )(
       () => false,
       (a, b) => JSON.stringify(a) === JSON.stringify(b),
@@ -64,7 +70,9 @@ describe('viewport segmentation request ordering', () => {
       (tiles) => tiles.map(({ tileX }) => tileX).join(','),
       (minX) => [{ tileX: Math.round((minX + 5) / 100), tileY: 0 }],
       updatePaths,
-      updateTranscripts
+      updateTranscripts,
+      jest.fn(),
+      () => true
     );
     viz = {
       img: { landscape_parameters: { tile_size: 100 } },
@@ -72,7 +80,8 @@ describe('viewport segmentation request ordering', () => {
       cats: { cluster_counts: [] },
       combo_data: {},
       global_base_url: '/dataset',
-      max_tiles_to_view: 5,
+      max_tiles_to_view: forced ? 1 : 5,
+      trx_forced: forced,
       close_up: false,
       obs_store: {
         close_up: observable(false),
@@ -89,8 +98,10 @@ describe('viewport segmentation request ordering', () => {
     const old = deferred();
     updateTranscripts.mockImplementationOnce(() => old.promise);
     const first = calc_viewport(view(0), deck, layers, viz);
+    expect(viz.trx_loading).toBe(true);
     await calc_viewport(view(100), deck, layers, viz);
     expect(viz.viewport_cache.visibleTileKey).toBe('1');
+    expect(viz.trx_loading).toBe(false);
 
     old.resolve();
     await first;
@@ -108,6 +119,7 @@ describe('viewport segmentation request ordering', () => {
     });
     const first = calc_viewport(view(0), deck, layers, viz);
     await started.promise;
+    expect(viz.trx_loading).toBe(true);
     await calc_viewport(view(100), deck, layers, viz);
     old.resolve(true);
     await first;
@@ -118,6 +130,7 @@ describe('viewport segmentation request ordering', () => {
     updatePaths.mockResolvedValueOnce(false);
     await calc_viewport(view(0), deck, layers, viz);
     expect(viz.viewport_cache.visibleTileKey).toBeNull();
+    expect(viz.trx_loading).toBe(false);
     await calc_viewport(view(0), deck, layers, viz);
     expect(updatePaths).toHaveBeenCalledTimes(2);
     expect(viz.viewport_cache.visibleTileKey).toBe('0');
@@ -166,5 +179,27 @@ describe('viewport segmentation request ordering', () => {
     await calc_viewport(view(100), deck, layers, viz);
     expect(updatePaths).not.toHaveBeenCalled();
     expect(viz.viewport_cache.visibleTileKey).toBeNull();
+  });
+
+  test('an obsolete viewport cannot clear the current loading indicator', async () => {
+    const old = deferred();
+    const current = deferred();
+    updateTranscripts
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(current.promise);
+    const first = calc_viewport(view(0), deck, layers, viz);
+    const second = calc_viewport(view(100), deck, layers, viz);
+
+    old.resolve();
+    await first;
+    expect(viz.trx_loading).toBe(true);
+    expect(updatePaths).not.toHaveBeenCalled();
+    expect(viz.viewport_cache.visibleTileKey).toBeNull();
+
+    current.resolve();
+    await second;
+    expect(viz.trx_loading).toBe(false);
+    expect(updatePaths).toHaveBeenCalledTimes(1);
+    expect(viz.viewport_cache.visibleTileKey).toBe('1');
   });
 });

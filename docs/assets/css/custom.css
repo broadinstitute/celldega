@@ -112,3 +112,61 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
     line-height: 1.2;
     margin: 0 0 0.4em;
 }
+
+/* Header GitHub link (Material's repo_url widget), kept discreet: the outline
+   GitHub mark, then the live star and fork counts and the latest release, on
+   one line, all in the same size and color. The "GitHub" label is hidden. */
+.md-header__source {
+    width: auto;
+    padding-right: 0.6rem; /* keep the facts off the header's edge */
+}
+
+/* Material hides the link below 60em (it moves into the navigation drawer).
+   Show it on tablets too, where the header has room; phones keep the drawer. */
+@media screen and (min-width: 45em) {
+    .md-header__source {
+        display: block;
+    }
+}
+
+/* The Lucide outline GitHub icon is drawn with strokes, so don't fill it.
+   Smaller than Material's 1.2rem default to sit with the counts, and
+   re-centered in the 2.4rem-tall header row. */
+.md-source__icon svg {
+    fill: none;
+    width: 0.9rem;
+    height: 0.9rem;
+    margin-top: 0.75rem;
+}
+
+.md-source__repository {
+    display: inline-flex;
+    align-items: center;
+    max-width: none;
+    font-size: 0; /* hides the label; the facts set their own size */
+}
+
+.md-source__facts {
+    width: auto;
+    margin-top: 0;
+    align-items: center;
+    font-size: 0.65rem;
+    opacity: 1;
+}
+
+/* Center each fact's icon on its text. */
+.md-source__fact {
+    display: inline-flex;
+    align-items: center;
+}
+
+.md-source__fact::before {
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-right: 0.2rem;
+}
+
+/* Version last (it comes first in the markup). */
+.md-source__fact--version {
+    order: 1;
+}

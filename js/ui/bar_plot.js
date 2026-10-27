@@ -12,13 +12,114 @@ import {
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
+import { select_genes } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
 import { toggle_slider } from '../ui/sliders';
+import { sync_trx_button } from '../ui/trx_handle';
 import { refresh_layer } from '../utils/refresh_layer';
+import { register_ui_cleanup } from '../utils/ui_cleanup';
 
 export const make_bar_container = () => {
   return document.createElement('div');
+};
+
+/** Height of one bar's rect; bars are laid out every BAR_HEIGHT + 1 px. */
+export const BAR_HEIGHT = 15;
+
+/**
+ * SVG height that fits `num_bars` bars: each bar is offset 2px and spaced
+ * BAR_HEIGHT + 1 apart, so the last bar ends at (BAR_HEIGHT + 1) * n + 1.
+ * Sizing to BAR_HEIGHT * (n + 1) instead clipped the last bars (the rarest
+ * clusters) once a list had more than ~14 entries.
+ *
+ * @param {number} num_bars
+ * @returns {number}
+ */
+export const bar_svg_height = (num_bars) => (BAR_HEIGHT + 1) * num_bars + 2;
+
+/**
+ * Add `name` to `selected_names`, or remove it if already present (shift-click
+ * multi-select). Compares as strings, like the bar highlight.
+ *
+ * @param {Array<string|number>} selected_names
+ * @param {string|number} name
+ * @returns {Array<string|number>} A new array.
+ */
+export const toggle_bar_name = (selected_names, name) => {
+  const names = Array.isArray(selected_names) ? selected_names : [];
+  const key = String(name);
+  return names.some((value) => String(value) === key)
+    ? names.filter((value) => String(value) !== key)
+    : [...names, name];
+};
+
+/**
+ * Tooltip HTML for a cluster bar: the cluster name and its cell count, plus a
+ * shift-click hint where multi-select is available.
+ *
+ * @param {{name: string|number, value: number}} d
+ * @param {{multi_select?: boolean}} [options]
+ * @returns {string}
+ */
+export const cluster_bar_tooltip_html = (d, { multi_select = false } = {}) => {
+  const count = Number(d?.value);
+  const count_line = Number.isFinite(count)
+    ? `<br>cells: ${count.toLocaleString()}`
+    : '';
+  const hint = multi_select
+    ? '<br><i>Shift-click to select multiple clusters</i>'
+    : '';
+  return `<span style="color: #7fb0ff;">cluster: ${escape_html(d?.name)}</span>${count_line}${hint}`;
+};
+
+// Multi-select is a Landscape feature; Yearbook queries one cluster at a time.
+const supports_cluster_multi_select = (viz_state) => !viz_state.yearbook;
+
+/**
+ * Show a hover tooltip on bar groups: UniProt name/description for gene bars,
+ * name and cell count for cluster bars. One tooltip element per widget, removed
+ * when the widget is finalized.
+ *
+ * @param {d3.Selection} bars - Bar `g` groups (data-bound).
+ * @param {'gene'|'cluster'|null} kind
+ * @param {object} viz_state
+ */
+export const attach_bar_tooltip = (bars, kind, viz_state) => {
+  if (kind !== 'gene' && kind !== 'cluster') return;
+
+  if (!viz_state.bar_tooltip) {
+    viz_state.bar_tooltip = make_gene_hover_tooltip();
+    register_ui_cleanup(viz_state, () => {
+      viz_state.bar_tooltip?.destroy();
+      viz_state.bar_tooltip = null;
+    });
+  }
+
+  // Read the tooltip off viz_state at event time (it is recreated per widget).
+  bars
+    .on('mouseenter.tooltip', (event, d) => {
+      const tooltip = viz_state.bar_tooltip;
+      if (!tooltip || !d) return;
+      if (kind === 'gene') {
+        tooltip.show(
+          String(d.name),
+          event,
+          viz_state.nbhd_cloud?.is_nbhd_cloud
+            ? ''
+            : '<br><i>Shift-click to select multiple genes</i>'
+        );
+      } else {
+        tooltip.show_html(
+          cluster_bar_tooltip_html(d, {
+            multi_select: supports_cluster_multi_select(viz_state),
+          }),
+          event
+        );
+      }
+    })
+    .on('mousemove.tooltip', (event) => viz_state.bar_tooltip?.move(event))
+    .on('mouseleave.tooltip', () => viz_state.bar_tooltip?.hide());
 };
 
 /**
@@ -90,12 +191,26 @@ export const bar_callback_cat = (
     trx_layer: false,
   });
 
+  // Shift-click adds/removes a cluster from the current cluster selection; a
+  // selected gene (cat !== 'cluster') is replaced by a fresh selection.
+  const multi_select =
+    Boolean(_event?.shiftKey) && supports_cluster_multi_select(_viz_state);
+  const current_clusters =
+    _viz_state.cats.cat === 'cluster' ? _viz_state.cats.selected_cats : [];
+  const new_selected_cats = multi_select
+    ? toggle_bar_name(current_clusters, d.name)
+    : [d.name];
+
   update_cat(_viz_state.cats, 'cluster');
-  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
+  update_selected_cats(
+    _viz_state.cats,
+    new_selected_cats,
+    _viz_state.obs_store
+  );
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 
-  // toggle gene bars based on reset_cat
-  if (_viz_state.cats.reset_cat) {
+  // toggle gene bars based on whether any cluster is still selected
+  if (_viz_state.cats.selected_cats.length === 0) {
     _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
   } else {
     _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
@@ -150,8 +265,8 @@ export const bar_callback_gene = async (
 
   // ensure that trx button, slider, and bars are active
   _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
-
   toggle_slider(_viz_state.sliders.trx, true);
+  sync_trx_button(_viz_state, _layers_obj);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
 
   toggle_trx_layer_visibility(_layers_obj, true);
@@ -168,39 +283,20 @@ export const bar_callback_gene = async (
     }
   }
 
-  const inst_gene = d.name;
-  const reset_gene = inst_gene === _viz_state.cats.cat;
-  const new_cat = reset_gene ? 'cluster' : inst_gene;
+  // Shift-click adds/removes a gene (cells show the summed expression); a
+  // plain click selects just this gene, or clears it if it's the only one.
+  const current_genes = _viz_state.genes.selected_genes ?? [];
+  const new_genes = _event?.shiftKey
+    ? toggle_bar_name(current_genes, d.name)
+    : current_genes.length === 1 && current_genes[0] === d.name
+      ? []
+      : [d.name];
 
-  if (reset_gene) {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-  } else {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-  }
+  _viz_state.cats.svg_bar_cluster
+    .selectAll('rect')
+    .style('opacity', new_genes.length === 0 ? 1.0 : 0.2);
 
-  update_cat(_viz_state.cats, new_cat);
-
-  _viz_state.obs_store.deck_check.set({
-    ..._viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    trx_layer: false,
-  });
-
-  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
-  await update_cell_exp_array(
-    _viz_state.cats,
-    _viz_state.genes,
-    _viz_state.global_base_url,
-    inst_gene,
-    _viz_state.seg.version,
-    _viz_state.vector_name_integer,
-    _viz_state.aws,
-    _viz_state.row_group_readers?.cbg
-  );
-
-  // update selected_cats after update_cell_exp_array has been run
-  // can clean up and move more logic to observability
-  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
+  await select_genes(_viz_state, new_genes);
 };
 
 export const bar_callback_nbhd = (
@@ -399,7 +495,8 @@ export const make_bar_graph = (
   color_dict,
   deck_ist,
   layers_obj,
-  viz_state
+  viz_state,
+  { tooltip = null } = {}
 ) => {
   bar_container.className = 'bar_container';
   bar_container.style.width = '107px';
@@ -418,8 +515,8 @@ export const make_bar_graph = (
     }
   });
 
-  const bar_height = 15;
-  const svg_height = bar_height * (bar_data.length + 1);
+  const bar_height = BAR_HEIGHT;
+  const svg_height = bar_svg_height(bar_data.length);
 
   svg_bar
     .attr('width', 100)
@@ -455,6 +552,8 @@ export const make_bar_graph = (
     .on('click', (event, d) =>
       click_callback(event, d, deck_ist, layers_obj, viz_state)
     );
+
+  attach_bar_tooltip(bar, tooltip, viz_state);
 
   bar
     .append('rect')

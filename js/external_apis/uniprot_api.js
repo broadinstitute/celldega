@@ -14,6 +14,15 @@ const uniprot_pending = new Map();
 const is_mock_gene = (gene_symbol) => /^MockGene\d+$/i.test(gene_symbol);
 
 /**
+ * Longest a lookup (both requests) may take. A request that hangs, e.g. behind
+ * a firewall that drops packets, would otherwise never settle, and transcript
+ * tooltips wait for the lookup before appearing.
+ */
+export const UNIPROT_TIMEOUT_MS = 5000;
+
+const is_timeout = (error) => error?.name === 'AbortError';
+
+/**
  * Strip Celldega's display-only multi-omic modality suffix before lookup.
  *
  * Feature-stacked matrices use IDs such as ``CDH1::rna`` so same-named
@@ -46,11 +55,17 @@ export const uniprot_get_request = async (gene_symbol) => {
     const num_matches = 100;
     const url_accession = `https://www.ebi.ac.uk/proteins/api/proteins?offset=0&size=${num_matches}&exact_gene=${query_symbol}&organism=${organism}`;
 
+    // A timed-out lookup is cached like any other failure.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), UNIPROT_TIMEOUT_MS);
+    const { signal } = controller;
+
     try {
       const response = await fetch(url_accession, {
         headers: {
           Accept: 'application/json',
         },
+        signal,
       });
 
       const data = await response.json();
@@ -70,7 +85,7 @@ export const uniprot_get_request = async (gene_symbol) => {
         const base_url_info = `https://rest.uniprot.org/uniprotkb/${inst_accession}.json`;
 
         try {
-          const response_info = await fetch(base_url_info);
+          const response_info = await fetch(base_url_info, { signal });
           const data_info = await response_info.json();
 
           const full_name =
@@ -85,21 +100,28 @@ export const uniprot_get_request = async (gene_symbol) => {
             description,
           };
         } catch (error) {
-          handleAsyncError(error, {
-            context: `fetching detailed info for ${query_symbol}`,
-            url: base_url_info,
-            logUnexpected: true,
-            throwOnAuth: false,
-          });
+          // Timeouts aren't logged: offline, every gene would log one.
+          if (!is_timeout(error)) {
+            handleAsyncError(error, {
+              context: `fetching detailed info for ${query_symbol}`,
+              url: base_url_info,
+              logUnexpected: true,
+              throwOnAuth: false,
+            });
+          }
         }
       }
     } catch (error) {
-      handleAsyncError(error, {
-        context: `searching for gene ${query_symbol}`,
-        url: url_accession,
-        logUnexpected: true,
-        throwOnAuth: false,
-      });
+      if (!is_timeout(error)) {
+        handleAsyncError(error, {
+          context: `searching for gene ${query_symbol}`,
+          url: url_accession,
+          logUnexpected: true,
+          throwOnAuth: false,
+        });
+      }
+    } finally {
+      clearTimeout(timeout);
     }
 
     uniprot_data[gene_symbol] = gene_data;

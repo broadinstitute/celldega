@@ -56,3 +56,13 @@ export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
   // Update obs_store
   obs_store.selected_cats.set(cats.selected_cats);
 };
+
+/**
+ * Set selected_cats to exactly `new_selected_cats`, skipping
+ * update_selected_cats' "same array toggles off" heuristic.
+ */
+export const force_set_selected_cats = (cats, new_selected_cats, obs_store) => {
+  cats.reset_cat = new_selected_cats.length === 0;
+  cats.selected_cats = new_selected_cats;
+  obs_store.selected_cats.set(cats.selected_cats);
+};

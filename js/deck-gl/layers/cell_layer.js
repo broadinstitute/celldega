@@ -324,7 +324,7 @@ const shouldCompactPointCloudCells = (context) => {
   }
 
   if (context.isClusterMode) {
-    return context.selectedCats.length > 0;
+    return context.clusterFilter.length > 0;
   }
 
   return true;
@@ -1089,6 +1089,9 @@ export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
   } else {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       getRadius: radius,
+      // At least a pixel wide when zoomed out, unless the slider is at 0,
+      // which hides centroids (e.g. to see boundaries and transcripts).
+      radiusMinPixels: radius > 0 ? 1 : 0,
     });
   }
 };

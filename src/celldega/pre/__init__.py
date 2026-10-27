@@ -24,6 +24,7 @@ from skimage.io import imread, imsave
 import tifffile
 import zarr
 
+from .aligned_he import add_aligned_he
 from .atera import (
     ATERA_MORPHOLOGY_DIR,
     atera_cluster_signatures,
@@ -2072,6 +2073,7 @@ def add_clustering_from_adata(
 
 __all__ = [
     "_to_geometry",
+    "add_aligned_he",
     "add_clustering_from_adata",
     "boundary_tile",
     "get_image_info",

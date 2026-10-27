@@ -900,7 +900,7 @@ export const yearbook = async (
     }
 
     layers_obj.path_layer = layers_obj.path_layer.clone({
-      id: `path-layer-${selected_cats_name}`,
+      updateTriggers: { getColor: [selected_cats, viz_state.cats.cat] },
     });
 
     viz_state.obs_store.deck_check.set({
@@ -1317,6 +1317,7 @@ export const yearbook = async (
       return viz_state.yearbook.query || {};
     },
     finalize: () => {
+      viz_state.disposed = true;
       run_ui_cleanups(viz_state);
       viz_state.cache?.cell?.clear?.();
       viz_state.cache?.trx?.clear?.();

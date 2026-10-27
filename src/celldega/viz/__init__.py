@@ -7,6 +7,7 @@ import json
 from ipywidgets import HBox, Layout, VBox, jsdlink, jslink
 
 from .cloud import CellCloud, NeighborhoodCloud
+from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
 from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
@@ -405,6 +406,7 @@ __all__ = [
     "Clustergram",
     "Composition",
     "Enrich",
+    "Landmark",
     "Landscape",
     "NeighborhoodCloud",
     "Yearbook",

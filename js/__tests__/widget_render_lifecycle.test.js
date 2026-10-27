@@ -26,11 +26,13 @@ describe('anywidget render lifecycle', () => {
       'render_yearbook',
       'render_matrix_new',
       'render_enrich',
+      'render_landmark',
       'handleValidationWarning',
       'handleAsyncError',
       `${render_source}; return render;`
     );
     render = factory(
+      renderer,
       renderer,
       renderer,
       renderer,

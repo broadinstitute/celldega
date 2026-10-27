@@ -22,10 +22,10 @@ There are three ways to choose which cells `Yearbook` displays, in increasing
 order of power:
 
 1. **An explicit id list** — `cells=["cell_1", "cell_2", ...]`.
-2. **A selection** — `selection=...`, accepting a plain id list, a
-   JSON-ready dict with `ids` (plus any provenance), or an object exposing
-   `to_json()` / `to_dict()` that returns one. The payload is kept on the
-   widget for provenance.
+2. **A back-end selection** — `selection=...`, accepting a
+   [`celldega.select.Selection`](../python/select/api.md), a JSON-ready
+   selection dict, or a plain id list. This is the recommended way to drive
+   the grid from a Python `AnnData` object.
 3. **A stateless front-end query** — `front_end_query=...`, evaluated in the
    browser against the dataset's LandscapeFiles, needing only a `base_url`
    and no Python `AnnData`.

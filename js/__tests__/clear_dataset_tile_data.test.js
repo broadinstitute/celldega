@@ -75,4 +75,11 @@ describe('clearDatasetTileData', () => {
     delete viz_state.viewport_cache;
     expect(() => clearDatasetTileData(viz_state)).not.toThrow();
   });
+
+  test('invalidates tile requests that started before the dataset switch', () => {
+    const viz_state = makeVizState();
+    viz_state.viewport_request_id = 4;
+    clearDatasetTileData(viz_state);
+    expect(viz_state.viewport_request_id).toBe(5);
+  });
 });

@@ -993,12 +993,10 @@ export const landscape_ist = async (
   );
 
   subscribe(viz_state.obs_store.selected_cats, (selected_cats) => {
-    const selected_cats_name = selected_cats.join('-');
-
     refresh_cell_layer();
 
     layers_obj.path_layer = layers_obj.path_layer.clone({
-      id: `path-layer-${selected_cats_name}`,
+      updateTriggers: { getColor: [selected_cats, viz_state.cats.cat] },
     });
     viz_state.obs_store.deck_check.set({
       ...viz_state.obs_store.deck_check.get(),
@@ -1415,6 +1413,7 @@ export const landscape_ist = async (
     finalize: () => {
       if (finalized) return;
       finalized = true;
+      viz_state.disposed = true;
 
       pending_timeouts.forEach((timeout_id) => clearTimeout(timeout_id));
       pending_timeouts.clear();

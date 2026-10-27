@@ -38,8 +38,12 @@ current multiplier.
 
 Drag to rotate continuously around both orbit axes, including past the poles.
 
-Build the underlying point-cloud DegaFiles with
-[`celldega.align.write_alignment_point_cloud`](../python/align/api.md).
+Build the underlying point-cloud DegaFiles from an `AnnData` (x/y in
+`obsm["spatial"]`, z in an `obs` column such as `"Z"`) with
+[`celldega.pre.write_point_cloud_dataset`](../python/pre/api.md). Passing
+`name="..."` writes a named position variant (e.g. one alignment of the same
+cells) that `CellCloud(alignment="...")` switches to; see
+[File Formats](../overview/file_formats.md#point-cloud-degafiles).
 `CellCloud` can also be linked to a `Clustergram`, exactly like `Landscape`
 — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 

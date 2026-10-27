@@ -1,4 +1,4 @@
-"""Build a coverage-preserving CCLE MuData/DatasetCollection archive."""
+"""Build a coverage-preserving CCLE MuData archive."""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ from mudata import MuData
 import numpy as np
 import pandas as pd
 
-from celldega.dataset import DatasetCollection
 
 
 # Large source files and derived archives live under the repository's ignored
@@ -95,7 +94,7 @@ def harmonize_annotation_colors(modalities: dict[str, AnnData]) -> None:
     Celldega's ``Matrix`` reads ``adata.uns['<field>_colors']`` together with
     categorical ``adata.obs[field]``. Keeping both aligned in every native
     assay prevents a lineage, disease, or subtype from changing color between
-    independent Clustergrams and DatasetCollection-derived views.
+    independent Clustergrams and MuData-derived views.
     """
     for field in COLOR_ANNOTATIONS:
         values = [
@@ -338,8 +337,8 @@ def build_collection(
     include_crispr: bool = True,
     include_proteomics_ms: bool | None = None,
     overwrite: bool = False,
-) -> DatasetCollection:
-    """Build and write the first CCLE multi-omic DatasetCollection.
+) -> MuData:
+    """Build and write the first CCLE multi-omic MuData archive.
 
     The top-level axis is the union of annotated DepMap models.  Each AnnData
     modality maintains its own observation axis, so later comparisons must ask
@@ -372,8 +371,8 @@ def build_collection(
     modalities = {name: _make_modality(table, metadata, name) for name, table in tables.items()}
     harmonize_annotation_colors(modalities)
 
-    # This native MuData path is essential: DatasetCollection(mdata=...) does
-    # not pad assays that are missing a model with artificial zero rows.
+    # Each modality keeps its own observation axis: assays that are missing a
+    # model are never padded with artificial zero rows.
     mdata = MuData(modalities)
     union = pd.Index(mdata.obs_names.astype(str), name="ModelID")
     mdata.obs = metadata.reindex(union).copy()
@@ -382,24 +381,21 @@ def build_collection(
         "sources": SOURCES,
         "missingness_policy": "Unmeasured assays are absent from their modality, never zero-filled.",
         "analysis_note": "Use an explicit matched cohort for every cross-modality comparison.",
+        "dataset_col": "ModelID",
+        "name": "CCLE multi-omics",
+        "source": "DepMap 24Q2 / CCLE",
+        "builder": "ccle_multiomics.prepare.build_collection",
     }
-    collection = DatasetCollection(
-        mdata=mdata,
-        dataset_col="ModelID",
-        name="CCLE multi-omics",
-        source="DepMap 24Q2 / CCLE",
-        provenance={"sources": SOURCES, "builder": "ccle_multiomics.prepare.build_collection"},
-    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    collection.write(output_path)
+    mdata.write(output_path)
     output_path.with_suffix(".qc.json").write_text(
         json.dumps(_qc_summary(modalities, metadata), indent=2, sort_keys=True) + "\n"
     )
-    return collection
+    return mdata
 
 
-def load_collection(path: str | Path = DEFAULT_OUTPUT) -> DatasetCollection:
-    """Load the persisted CCLE DatasetCollection with canonical top-level metadata.
+def load_collection(path: str | Path = DEFAULT_OUTPUT) -> MuData:
+    """Load the persisted CCLE MuData archive with canonical top-level metadata.
 
     MuData 0.3 defaults to rebuilding ``mdata.obs`` by pulling every modality's
     repeated annotations into prefixed columns on read.  The archive already has
@@ -412,12 +408,12 @@ def load_collection(path: str | Path = DEFAULT_OUTPUT) -> DatasetCollection:
         # is neither needed nor desirable for this archive.
         warnings.filterwarnings("ignore", message="var_names are not unique")
         with mudata.set_options(pull_on_update=False):
-            collection = DatasetCollection.read(Path(path))
+            collection = mudata.read_h5mu(Path(path))
     harmonize_annotation_colors(collection.mod)
     return collection
 
 
-def shared_model_ids(collection: DatasetCollection, modalities: Iterable[str]) -> pd.Index:
+def shared_model_ids(collection: MuData, modalities: Iterable[str]) -> pd.Index:
     """Return a consciously requested shared ModelID cohort."""
     requested = list(modalities)
     if not requested:

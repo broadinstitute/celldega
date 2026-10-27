@@ -9,8 +9,7 @@
     (480-gene panel), aligned in 3D in two steps (Leiden cluster centroids, then neighborhood overlap) and colored
     by Leiden cluster. Drag to orbit around the brain and scroll to zoom. Data generated in collaboration with the
     <a href="https://alleninstitute.org/" target="_blank">Allen Institute</a>. See the
-    <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/">Align</a> and
-    <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/">Viz</a> tutorials, and the
+    <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/">Viz</a> tutorial and the
     <a href="https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud" target="_blank">celldega_xenium_E15.5_cell_cloud</a>
     DegaFiles repository.
 </div>

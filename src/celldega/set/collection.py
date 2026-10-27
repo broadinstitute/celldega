@@ -32,8 +32,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from celldega.clust.matrix import marker_ranks_to_uns
-from celldega.clust.utils import compute_marker_ranks
+from celldega.clust import compute_marker_ranks, marker_ranks_to_uns
 from celldega.collection import CelldegaCollection
 
 
@@ -430,7 +429,7 @@ class SetCollection(CelldegaCollection):
             ...                     fraction_expressing_layer="fraction_expressing",
             ...                     rank_genes_groups=True,
             ...                     rank_genes_groups_layer="X")
-            >>> mat = dega.clust.Matrix(collection=setc, color_by="expression",
+            >>> mat = dega.clust.Matrix(mdata=setc, color_by="expression",
             ...                         size_by_layer="fraction_expressing")
             >>> mat.cluster(view="rank_genes_groups")
         """

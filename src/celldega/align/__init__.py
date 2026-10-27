@@ -44,6 +44,8 @@ only showing up downstream. (3)
 ``AnnData``, aligning ``obsm["spatial"]`` and assigning a Z coordinate;
 `landmarks_initial`/`landmarks_aligned`/fit parameters are also recorded in
 the output's ``uns["align_serial_slices"]`` for at-a-glance provenance.
+The aligned ``AnnData`` is a plain 3D point cloud: write it to DegaFiles for a
+Celldega ``CellCloud`` with ``celldega.pre.write_point_cloud_dataset``.
 Planned: a reference/atlas-registration method sharing the same
 landmark-based core (star topology onto one fixed reference, vs.
 :func:`align_serial_slices`'s neighbor-chain) and image-based
@@ -59,10 +61,8 @@ from celldega.align._transform import (
     save_transform,
 )
 from celldega.align.landmarks import calc_landmarks
-from celldega.align.nbhd_cloud import write_nbhd_cloud
 from celldega.align.neighborhood import neighborhood_alignment, transform_shapes
 from celldega.align.plot import plot_alignment
-from celldega.align.point_cloud import write_alignment_point_cloud
 from celldega.align.serial_slices import (
     SerialAlignmentTransform,
     align_serial_slices,
@@ -83,6 +83,4 @@ __all__ = [
     "plot_alignment",
     "save_transform",
     "transform_shapes",
-    "write_alignment_point_cloud",
-    "write_nbhd_cloud",
 ]

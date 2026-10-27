@@ -21,7 +21,7 @@ from celldega.align.neighborhood import (
     transform_shapes,
 )
 from celldega.align.serial_slices import SerialAlignmentTransform
-from celldega.nbhd.utils import _stamp_z
+from celldega.nbhd import stamp_z
 
 
 # --- composition / delta helpers -------------------------------------------------
@@ -367,7 +367,7 @@ def test_transform_shapes_applies_per_slice_transform_and_preserves_area():
 
 def test_transform_shapes_preserves_z_stamp():
     reference = _reference_clusters()
-    stamped = {k: _stamp_z(g, 42.0) for k, g in reference.items()}
+    stamped = {k: stamp_z(g, 42.0) for k, g in reference.items()}
     shapes = _shapes_gdf({"s0": stamped})
     offset = _offset_transform(8.0, 4.0, -2.0)
     transform = _identity_initial(["s0"], transforms={"s0": offset})

@@ -15,9 +15,10 @@ composition, and set-to-set overlap are all derived from it.
 
 ```python
 import celldega as dega
+import celldega as dega
 
 # Build one SetCollection per clustering "opinion" (the cells define the sets)
-clust = dega.set.SetCollection(adata, set_col="leiden", name="leiden")
+clust = dega.SetCollection(adata, set_col="leiden", name="leiden")
 
 # Per-set expression signature (pseudobulk), with fraction expressing stored on
 # the same set × gene modality for a Clustergram size channel. modality_name is
@@ -43,7 +44,7 @@ expression.layers["fraction_expressing"] # fraction in [0, 1], same axes
 # the collection's .h5mu file. Matrix consumes them but does not calculate or own
 # a separate copy.
 mat = dega.clust.Matrix(
-    collection=clust,
+    mdata=clust,
     color_by="expression",
     size_by_layer="fraction_expressing",
 )
@@ -54,17 +55,17 @@ clust.calc_population(adata, category="cell_type")
 
 # Cross-algorithm comparison: membership IoU between two SetCollections that
 # share the same cells (different obs). Rectangular modality on `clust`.
-clust_b = dega.set.SetCollection(adata, set_col="spagcn", name="spagcn")
+clust_b = dega.SetCollection(adata, set_col="spagcn", name="spagcn")
 clust.calc_overlap(clust_b)
 
 # Consensus across algorithms: concatenate, self-overlap (square relation),
 # make it a clusterable modality, then cut the dendrogram via the Matrix.
-combined = dega.set.concat_sets([clust, clust_b])
+combined = dega.concat_sets([clust, clust_b])
 combined.calc_overlap()                        # -> combined.relations["overlap"]
 combined.add_relation_modality("overlap")      # -> combined.mod["overlap_relation"]
 
 clust.write("clusters.h5mu")
-loaded = dega.set.SetCollection.read("clusters.h5mu")
+loaded = dega.SetCollection.read("clusters.h5mu")
 ```
 
 Hierarchical clustering of any modality is done with the `Matrix` /

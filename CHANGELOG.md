@@ -6,8 +6,68 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.28.0] - Unreleased
 
+### Breaking
+
+- Methods are separated from data structures, the way Scanpy's functions are
+  separate from AnnData. Celldega's functions work directly on scverse
+  `AnnData`/`MuData` and `GeoDataFrame` neighborhoods and return new objects.
+  The collections (`CelldegaCollection`, `DatasetCollection`, `SetCollection`,
+  `NeighborhoodCollection`), `select`, and `align` stay in their own modules
+  and can be passed to those functions in place of plain objects.
+- `NeighborhoodCollection` stores data only. Its `calc_population`,
+  `calc_signature`, `calc_overlap`, `calc_bordering`,
+  `calc_transcript_assignment`, and `calc_gradient` methods are removed: pass
+  the collection to the `nbhd.calc_nbhd_*` functions and `nbhd.calc_gradient`
+  and store the results with `add_mod`, the new `add_relation`, or `obs`. The
+  new `subset` replaces the methods' `drop_missing=True` behavior. Subsetting
+  a collection that has both modalities and relations no longer fails.
+- `align.write_alignment_point_cloud` and `align.write_nbhd_cloud` are removed;
+  DegaFiles are written by `pre.write_point_cloud_dataset` (from an aligned
+  `AnnData`) and `pre.write_nbhd_cloud_dataset` (from shapes made by
+  `nbhd.alpha_shape_cell_clusters_by_slice`).
+- Removed the per-gene alpha shapes (`iter_gene_alpha_shapes`,
+  `iter_gene_alpha_shapes_by_slice`, `alpha_shape_gene_expression_by_slice`,
+  `pre.write_gene_shapes`, `pre.write_gene_shapes_streaming`). Gene coloring in
+  a NeighborhoodCloud comes from the per-gene cell scatter
+  (`pre.write_gene_cell_scatter`).
+- `Matrix(collection=...)` is now `Matrix(mdata=...)` (a `MuData`, or any object
+  exposing `.mod`).
+- `nbhd.calc_nbhd_overlap` / `calc_nbhd_bordering` take `nbhd_col` instead of
+  `name_col`; `nbhd._stamp_z` and `nbhd._get_gdf_trx` are now `nbhd.stamp_z`
+  and `nbhd.read_transcripts`.
+
 ### Added
 
+- Neighborhood calculations are public functions again:
+  - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
+    `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
+    (a `MuData` input to `calc_nbhd_by_gene` returns one neighborhood-level
+    modality per input modality);
+  - `calc_nbhd_overlap` and `calc_nbhd_bordering` take the neighborhoods and
+    return a square neighborhood-by-neighborhood `AnnData`;
+  - `calc_nbhd_transcript_assignment` takes transcripts (`gdf_trx` or
+    `data_dir`) and returns a per-neighborhood `DataFrame`.
+
+  Outputs carry axis entities, so `Matrix` links them to Landscape
+  neighborhoods without extra arguments.
+- Alpha shapes and hextiles accept `MuData` too. The `calc_nbhd_*` functions,
+  `calc_gradient`, `Landscape(nbhd=...)`, and the `pre` neighborhood-cloud
+  writers accept any object exposing `to_geodataframe()` in place of a
+  neighborhood `GeoDataFrame`.
+- `Matrix(adata, groupby="leiden")` builds a marker-gene dot plot from a
+  cell-level `AnnData`: `scanpy.get.aggregate` gives the mean expression
+  (color) and fraction of cells with expression > 0 (dot size), and scanpy's
+  `rank_genes_groups` results (reused, or computed with
+  `rank_genes_groups=True`) drive `cluster(view="rank_genes_groups")`.
+  `size_by_layer` also works with a plain `AnnData`.
+- `Composition(adata, groupby="sample_id", category="cell_type")` builds the
+  composition view straight from a cell-level `AnnData`.
+- `pre.write_point_cloud_dataset` writes a cell-level `AnnData` to point-cloud
+  DegaFiles for `CellCloud`, including named position variants
+  (`CellCloud(alignment=...)`). The point-cloud and neighborhood-cloud DegaFiles
+  layouts are documented under File Formats.
+- `pre.write_nbhd_cloud_dataset` and its parts take a neighborhood
+  `GeoDataFrame` (e.g. from `nbhd.alpha_shape_cell_clusters_by_slice`).
 - Landscape: shift-click cluster bars to select several clusters at once;
   shift-click a selected cluster again to remove it. A plain click still
   selects a single cluster.
@@ -65,9 +125,18 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
   selection another way) keeps the bar panels' scroll position instead of
   scrolling them back to the top.
+- The `Landmark` widget is marked as an alpha feature: its traits and output
+  may change without notice.
 
 ### Fixed
 
+- `nbhd.alpha_shape_cell_clusters_by_slice` colors shapes from
+  `uns[f"{cluster_attr}_colors"]`, or a distinct fallback palette when none
+  are stored, instead of drawing them black.
+- `nbhd.hextile_niche(dissolve=False)` no longer fails when the hextile index
+  is named like a column.
+- `nbhd.filter_alpha_shapes` strips the alpha suffix from names built with a
+  float alpha (e.g. `150.0`).
 - Landscape and Yearbook bar plots no longer clip the last bars (the least
   abundant clusters or genes) when a list has more than about 14 entries.
 - Landscape: clicking a transcript no longer leaves cell colors from the

@@ -2,12 +2,11 @@ from importlib import import_module
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import align, clust, collection, dataset, select, set, viz
+from celldega import align, clust, collection, dataset, nbhd, select, set, viz
 from celldega.align import align_serial_slices
 from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
-from celldega.nbhd import alpha_shape
-from celldega.nbhd.collection import NeighborhoodCollection
+from celldega.nbhd import NeighborhoodCollection, alpha_shape
 from celldega.pre import landscape
 from celldega.qc import qc_segmentation
 from celldega.set import SetCollection, concat_sets
@@ -54,7 +53,9 @@ __all__ = [
     "concat_sets",
     "dataset",
     "landscape",
+    "nbhd",
     "qc_segmentation",
     "select",
     "set",
+    "viz",
 ]

@@ -13,7 +13,6 @@ Comprehensive tutorials that walk through complete workflows:
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
 - [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and uses plain AnnData for expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
-- [Broad-Allen Dev Mouse Brain E15.5 Align](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) - Aligns 43 Xenium sections of an E15.5 mouse brain (3.8M cells, 480 genes) into a 3D stack in two steps, Leiden cluster centroids then neighborhood (alpha-shape) overlap, and shows how to write CellCloud DegaFiles
 - [Broad-Allen Dev Mouse Brain E15.5 Viz](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) - Visualizes the aligned E15.5 brain as a 3D CellCloud linked to the cluster composition of every slice and to a gene-expression Clustergram
 
 ## Brief Notebooks
@@ -29,17 +28,14 @@ Focused examples demonstrating specific features:
 - [Landscape-Heatmap Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization
 - [UMAP-Cluster Pancreas Xenium](brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) - UMAP clustering with Xenium pancreas data
 - [Custom Segmentation](brief_notebooks/Custom_Segmentation.ipynb) - Using custom cell segmentation with Celldega
-- [NeighborhoodCollection Population Space](brief_notebooks/NeighborhoodCollection_Population_Space.ipynb) - Creating a neighborhood collection and calculating a neighborhood-by-population modality
 - [Gradient Neighborhood Pancreas Islets](brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb) - Building inward/outward gradient rings around pancreatic islets and profiling cell-type proportion and hormone expression with distance from the islet edge
-- [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
-- [SetCollection Cluster Space](brief_notebooks/SetCollection_Cluster_Space.ipynb) - Building a SetCollection from a Xenium clustering and clustering its per-set gene-expression signature
 
 <!-- CCLE multi-omics tutorials temporarily hidden
 
 ## CCLE Multi-omics Tutorials
 
-This numbered series demonstrates coverage-preserving `MuData` and
-`DatasetCollection` workflows for bulk cancer cell lines. It begins with a
+This numbered series demonstrates coverage-preserving `MuData` workflows for
+bulk cancer cell lines. It begins with a
 global hierarchical map, compares independent RNA, RPPA, and metabolomics
 spaces, then examines recurring programs and a lung SCLC/NSCLC example.
 

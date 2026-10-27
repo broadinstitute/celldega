@@ -140,10 +140,10 @@ def transform_shapes(
     companion to
     :meth:`~celldega.align.serial_slices.SerialAlignmentTransform.apply_to_points`).
     Any Z coordinate is passed through unchanged, so note it does *not* restamp
-    the aligned per-slice Z — for a 3D NeighborhoodCloud, write the shapes with
-    :func:`~celldega.align.write_nbhd_cloud` (which recomputes from the aligned
-    coordinates and stamps Z consistently) rather than feeding transformed
-    shapes directly. The ``area`` column, if present, is recomputed from the
+    the aligned per-slice Z — for a 3D NeighborhoodCloud, recompute the shapes
+    from the aligned cells with ``celldega.nbhd.alpha_shape_cell_clusters_by_slice``
+    (which stamps Z consistently) rather than feeding transformed shapes
+    directly. The ``area`` column, if present, is recomputed from the
     transformed (rigid, so area-preserving) geometry.
 
     Args:

@@ -479,7 +479,7 @@ def calc_alignment_transform(
             ``manual_landmark_weight``. Set ``False`` to weight every
             landmark equally (``manual_landmark_weight`` has no effect).
         manual_landmark_weight: How a landmark with no cell count (e.g. one
-            placed with :class:`~celldega.viz.Landmark`) is weighted when
+            placed by hand) is weighted when
             ``weight_by_adjacent_counts`` is ``True``. Its count is filled
             in from the automated counts sharing this fit step: their mean
             (``"equal"``, default — a manual landmark carries as much

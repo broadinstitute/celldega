@@ -67,6 +67,7 @@ const style_bar_box = (container) => {
   container.style.border = '1px solid #d3d3d3';
 };
 
+// Alpha feature: the Landmark widget may change without notice.
 export const landmark = async (model, el) => {
   el.innerHTML = '';
 

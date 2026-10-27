@@ -5,14 +5,14 @@ measurements to demonstrate Celldega's hierarchical Clustergram workflow on
 multi-omics data. It is an analysis example rather than a single-cell workflow.
 
 The preparation chapter builds a native `MuData` with one observation axis per
-assay and wraps it in a `DatasetCollection`. RNA, RPPA, metabolomics, CRISPR,
+assay. RNA, RPPA, metabolomics, CRISPR,
 and optional mass-spectrometry proteomics therefore retain their genuine
 coverage. Cross-assay comparisons request an explicit shared model cohort
 instead of treating an unmeasured assay as zero.
 
 | Chapter | Focus |
 | --- | --- |
-| 00 | Build or load the local MuData/DatasetCollection archive |
+| 00 | Build or load the local MuData archive |
 | 01 | Independent global Ward Clustergrams plus an equal-feature RNA/RPPA/metabolomics stack |
 | 02 | Pan-CCLE agreement among the independent spaces and an equal-feature stacked Clustergram |
 | 03 | Tissue-specific hierarchies and recurring RNA programs |

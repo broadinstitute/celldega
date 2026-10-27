@@ -6,9 +6,10 @@ The `select` module provides a small query and sampling layer over AnnData. It i
 - In what stable order should those ids be shown?
 - What query and sampler produced that order?
 
-The main class is `Selector`, used from the `dega.select` namespace:
+The main class is `Selector`, used from the `celldega.select` namespace:
 
 ```python
+import celldega as dega
 import celldega as dega
 
 selector = dega.select.Selector(adata)
@@ -273,7 +274,7 @@ or Gaussian sampling, stratified balancing, captured scores and provenance).
 
 Use the **front-end** path for lightweight, AnnData-free browsing directly from
 a dataset URL — for example "show cells in cluster 8" or "rank cells by `BRCA1`
-expression". See the [Front-End Query](../viz/api.md#front-end-query) section
+expression". See the [Front-End Query](https://broadinstitute.github.io/celldega/python/viz/api/#front-end-query) section
 of the viz docs for the supported dict shapes.
 
 The two map onto each other. A single-gene front-end query

@@ -331,7 +331,7 @@ class CellCloud(_SpatialWidget):
     Renders a pre-built point-cloud DegaFiles directory — cell positions from
     ``cell_metadata.parquet`` (or ``cell_metadata_<alignment>.parquet`` when
     ``alignment`` is set), colored by cluster/gene. Build one with
-    :func:`celldega.align.write_alignment_point_cloud`.
+    :func:`celldega.pre.write_point_cloud_dataset`.
 
     Args:
         base_url (str or list): DegaFiles URL(s), as in ``Landscape``.
@@ -442,8 +442,9 @@ class NeighborhoodCloud(_SpatialWidget):
     Renders a pre-built neighborhood-cloud DegaFiles directory: one precomputed
     alpha-shape polygon per (cluster, slice), cheap to display regardless of
     dataset size, with real cell centroids loaded on demand when a cluster is
-    selected. Build one with :func:`celldega.align.write_nbhd_cloud` (or
-    :func:`celldega.pre.write_nbhd_cloud_dataset`).
+    selected. Build one with :func:`celldega.pre.write_nbhd_cloud_dataset`
+    from per-slice alpha shapes
+    (:func:`celldega.nbhd.alpha_shape_cell_clusters_by_slice`).
 
     The neighborhood geometry lives entirely on disk under the DegaFiles
     ``nbhd_cloud/`` tree and is fetched by the front-end; this widget carries

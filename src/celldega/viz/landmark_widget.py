@@ -1,5 +1,7 @@
 """Interactive landmark-marking widget for alignment.
 
+Alpha feature: the widget, its traits, and its output may change without notice.
+
 :class:`Landmark` pairs with :class:`~celldega.viz.widget.Landscape`: it
 renders two side-by-side 2D point-cloud viewports (cell centroids from each
 slice's own ``obsm["spatial"]``, always in micron/data space — pixel-space
@@ -184,6 +186,8 @@ def _slice_centroids(
 class Landmark(CelldegaWidget):
     """A widget for interactively marking corresponding landmark points across
     dataset slices, for procrustes/thin-plate-spline alignment.
+
+    Alpha feature: the widget, its traits, and its output may change without notice.
 
     Args:
         adatas: A single ``AnnData`` with ``slice_attr`` given, or a list of

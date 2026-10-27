@@ -208,7 +208,7 @@ def test_calc_signature_attaches_and_persists_rank_genes_groups(tmp_path):
     # is the whole point of attaching it here rather than after the fact.
     from celldega.clust import Matrix
 
-    mat = Matrix(collection=clust, color_by="expression")
+    mat = Matrix(mdata=clust, color_by="expression")
     mat.cluster(view="rank_genes_groups", levels=[1, 2])
     assert [view["level_unit"] for view in mat.views] == ["per_cluster"] * len(mat.views)
     assert mat.views
@@ -221,7 +221,7 @@ def test_calc_signature_attaches_and_persists_rank_genes_groups(tmp_path):
     assert "fraction_expressing" in loaded.mod["expression"].layers
 
     reloaded_mat = Matrix(
-        collection=loaded,
+        mdata=loaded,
         color_by="expression",
         size_by_layer="fraction_expressing",
     )
@@ -462,7 +462,7 @@ def test_calc_signature_assigns_each_gene_its_best_scoring_set(tmp_path):
 
     # The marker column and the set ids are ordinary Matrix attributes.
     mat = Matrix(
-        collection=reloaded,
+        mdata=reloaded,
         color_by="expression",
         col_attr=["leiden"],
         row_attr=["leiden_marker"],

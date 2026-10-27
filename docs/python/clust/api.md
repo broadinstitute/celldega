@@ -14,17 +14,30 @@ mat.norm("row", by="zscore")
 mat.cluster()
 ```
 
-For a `SetCollection` signature, the main expression matrix and a same-shaped
-size channel can be selected without creating a second signature modality:
+For a marker-gene dot plot, pass a cell-level `AnnData` with `groupby`. Matrix
+aggregates the cells with `scanpy.get.aggregate` (mean expression drives
+color, the fraction of cells expressing drives dot size) and reuses scanpy's
+`rank_genes_groups` results for the RANK slider's marker views:
 
 ```python
-mat = dega.clust.Matrix(
-    collection=setc,
-    color_by="expression",
-    size_by_layer="fraction_expressing",
-)
+import scanpy as sc
+
+sc.tl.rank_genes_groups(adata, groupby="leiden")
+mat = dega.clust.Matrix(adata, groupby="leiden")
 mat.norm("row", by="zscore")
 mat.cluster(view="rank_genes_groups", levels=[1, 3, 5, 10, 25, 50])
+cgm = dega.viz.Clustergram(matrix=mat)
+```
+
+Pass `rank_genes_groups=True` (or a dict of `sc.tl.rank_genes_groups` keyword
+arguments) to compute the ranks on the fly, and `layer=` to aggregate a layer
+instead of `X`. The same `groupby` path works for samples or any other cell
+grouping.
+
+Precomputed modalities in a `MuData` can drive color and size directly:
+
+```python
+mat = dega.clust.Matrix(mdata=mdata, color_by="expression", size_by="fraction")
 ```
 
 `cluster()` is the canonical clustering method and returns `self` for chaining.

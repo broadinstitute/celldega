@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 
-from celldega.dataset import DatasetCollection
 
 from .features import stacked_feature_id
 from .prepare import apply_modality_colors, inherit_annotation_colors
@@ -172,7 +171,7 @@ def select_ranked_features(
 
 
 def stack_selected_features(
-    collection: DatasetCollection,
+    collection: MuData,
     selections: Mapping[str, pd.DataFrame],
     model_ids: Sequence[str] | pd.Index,
 ) -> AnnData:

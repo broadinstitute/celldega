@@ -52,14 +52,13 @@ from .landscape import (
 from .nbhd_cloud import (
     write_cell_clusters_meta,
     write_gene_cell_scatter,
-    write_gene_shapes,
-    write_gene_shapes_streaming,
     write_meta_gene_for_nbhd_cloud,
     write_meta_slice,
     write_nbhd_cloud_cells,
     write_nbhd_cloud_dataset,
     write_nbhd_cloud_shapes_and_features,
 )
+from .point_cloud import POINT_CLOUD_MANIFEST_NAMES, write_point_cloud_dataset
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
 
@@ -2072,6 +2071,7 @@ def add_clustering_from_adata(
 
 
 __all__ = [
+    "POINT_CLOUD_MANIFEST_NAMES",
     "_to_geometry",
     "add_aligned_he",
     "add_clustering_from_adata",
@@ -2079,19 +2079,20 @@ __all__ = [
     "get_image_info",
     "landscape",
     "main",
+    "make_meta_gene",
     "make_trx_tiles",
     "nbhd_cloud",
+    "point_cloud",
     "read_cbg_mtx",
     "resolve_xenium_morphology_ome_path",
     "trx_tile",
     "write_cell_clusters_meta",
     "write_gene_cell_scatter",
-    "write_gene_shapes",
-    "write_gene_shapes_streaming",
     "write_identity_transform",
     "write_meta_gene_for_nbhd_cloud",
     "write_meta_slice",
     "write_nbhd_cloud_cells",
     "write_nbhd_cloud_dataset",
     "write_nbhd_cloud_shapes_and_features",
+    "write_point_cloud_dataset",
 ]

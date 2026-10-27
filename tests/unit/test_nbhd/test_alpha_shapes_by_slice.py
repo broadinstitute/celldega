@@ -4,8 +4,7 @@ import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
-from celldega.nbhd import alpha_shape_cell_clusters_by_slice
-from celldega.nbhd.utils import _stamp_z
+from celldega.nbhd import alpha_shape_cell_clusters_by_slice, stamp_z
 
 
 def _synthetic_multi_slice_adata(seed=0, n_slices=2, n_clusters=2, n_per_cluster=30):
@@ -164,11 +163,11 @@ def test_alpha_shape_cell_clusters_by_slice_progress_every_n_skips_slices(capsys
 
 def test_stamp_z_sets_constant_z_on_every_vertex():
     poly = Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
-    stamped = _stamp_z(poly, 42.0)
+    stamped = stamp_z(poly, 42.0)
 
     assert stamped.has_z
     assert {round(z, 3) for _x, _y, z in stamped.exterior.coords} == {42.0}
 
 
 def test_stamp_z_passes_through_none():
-    assert _stamp_z(None, 5.0) is None
+    assert stamp_z(None, 5.0) is None

@@ -178,6 +178,10 @@ export const update_opacity_single_image_layer = (
                 ),
               }
             : {
+                // TileLayer caches rendered tile sublayers and ignores a new
+                // renderSubLayers, so a new id (keeping the portrait/dataset
+                // part) forces a fresh render.
+                id: `${layer.id.replace(/-op[\d.]+$/, '')}-op${opacity}`,
                 renderSubLayers: create_render_tile_sublayers(
                   viz_state.dimensions,
                   color,

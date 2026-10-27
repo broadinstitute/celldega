@@ -83,7 +83,7 @@ python -m http.server 8765 --bind 127.0.0.1
 ```
 
 Open [the local example](http://127.0.0.1:8765/celldega_js_examples/xenium_aligned_he.html).
-The script downloads approximately 1.9 GB of original H&E, DAPI, cell, expression
+The script downloads about 2 GB of original H&E, DAPI, cell, expression
 and transcript data to `data/xenium_h_and_e`, using HTTP ranges to skip unused
 large archive entries. It prepares `data/xenium_he_dega` from the tutorial's
 2,000 × 500 pixel region (`x=20000..22000`, `y=8000..8500`). It uses the original

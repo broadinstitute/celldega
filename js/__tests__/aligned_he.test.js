@@ -26,7 +26,8 @@ const makeAPI = () => {
     strip('../deck-gl/utils/layers_ist.js'),
     `return { make_image_layers, make_yearbook_image_layers,
       toggle_visibility_image_layers, toggle_visibility_single_image_layer,
-      update_opacity_single_image_layer, make_image_source_control, set_image_info, get_layers_list };`,
+      update_opacity_single_image_layer, make_image_source_control, set_image_info, get_layers_list,
+      get_aligned_he, get_image_sources, is_active_image_source, is_rgb_image };`,
   ].join('\n');
   return new Function(
     'TileLayer',
@@ -244,12 +245,77 @@ test('fluorescence channel selection survives switching backgrounds', async () =
   expect(layers.image_layers.every((l) => !l.props.visible)).toBe(true);
 });
 
-test('legacy single histology images keep RGB rendering when opacity changes', async () => {
+test('legacy single histology images keep RGB rendering and ignore opacity sliders', async () => {
   const api = makeAPI();
   const viz = state(false);
   viz.img.image_info = [{ name: 'h_and_e', button_name: 'H&E' }];
   const layers = { image_layers: await api.make_image_layers(viz) };
+  const [before] = layers.image_layers;
   api.update_opacity_single_image_layer(viz, layers, 'H&E', 2, {});
+  expect(layers.image_layers[0]).toBe(before);
   expect(layers.image_layers[0].props.renderSubLayers).toBe('rgb');
-  expect(layers.image_layers[0].props.opacity).toBe(0.4);
+});
+
+test('fluorescence opacity updates only the matching channel and keeps its ID', async () => {
+  const api = makeAPI();
+  const viz = state();
+  viz.img.image_info.push({
+    name: 'dna',
+    button_name: 'DNA',
+    color: [0, 255, 0],
+  });
+  const layers = { image_layers: await api.make_image_layers(viz) };
+  const [dapi, dna, he] = layers.image_layers;
+  api.update_opacity_single_image_layer(viz, layers, 'DAPI', 2, {
+    DAPI: [0, 0, 255],
+  });
+  expect(layers.image_layers[0]).not.toBe(dapi);
+  expect(layers.image_layers[0].id).toBe(dapi.id);
+  expect(layers.image_layers[1]).toBe(dna);
+  expect(layers.image_layers[2]).toBe(he);
+});
+
+describe('image source helpers', () => {
+  test.each([
+    [undefined, undefined, true],
+    [undefined, 'primary', true],
+    ['primary', undefined, true],
+    ['he', 'he', true],
+    ['he', undefined, false],
+    ['primary', 'he', false],
+  ])('is_active_image_source(%s, %s) -> %s', (layer, active, expected) => {
+    expect(makeAPI().is_active_image_source(layer, active)).toBe(expected);
+  });
+
+  test.each([
+    [undefined, null],
+    [{}, null],
+    [{ name: '' }, null],
+    [{ name: 42 }, null],
+    [{ name: 'h_and_e' }, { name: 'h_and_e' }],
+  ])('get_aligned_he(%j)', (aligned_he, expected) => {
+    const img = { landscape_parameters: { aligned_he } };
+    expect(makeAPI().get_aligned_he(img)).toEqual(expected);
+  });
+
+  test('get_image_sources tags sources without mutating image_info', () => {
+    const api = makeAPI();
+    const { img } = state();
+    const sources = api.get_image_sources(img);
+    expect(sources.map((s) => [s.name, s.image_source])).toEqual([
+      ['dapi', 'primary'],
+      ['h_and_e', 'he'],
+    ]);
+    expect(img.image_info[0].image_source).toBeUndefined();
+  });
+
+  test('is_rgb_image recognises the aligned source and legacy names', () => {
+    const api = makeAPI();
+    expect(api.is_rgb_image({ image_source: 'he', name: 'x' })).toBe(true);
+    expect(api.is_rgb_image({ name: 'h_and_e' })).toBe(true);
+    expect(api.is_rgb_image({ name: 'h&e' })).toBe(true);
+    expect(api.is_rgb_image({ name: 'dapi', image_source: 'primary' })).toBe(
+      false
+    );
+  });
 });

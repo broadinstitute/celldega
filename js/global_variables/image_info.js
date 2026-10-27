@@ -50,6 +50,10 @@ export const get_aligned_he = (img) => {
   return he && typeof he.name === 'string' && he.name.length > 0 ? he : null;
 };
 
+// A layer without a source belongs to the primary (fluorescence) set.
+export const is_active_image_source = (image_source, active_source) =>
+  (image_source || 'primary') === (active_source || 'primary');
+
 export const is_rgb_image = (info) =>
   info.image_source === 'he' || ['h_and_e', 'h&e'].includes(info.name);
 

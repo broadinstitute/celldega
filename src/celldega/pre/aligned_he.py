@@ -26,7 +26,9 @@ def _reference_dimensions(path, params):
 
 def _load_rgb(image_path, pyvips):
     image = pyvips.Image.new_from_file(str(image_path), access="random")
-    # OME-TIFF can store R, G and B as separate grayscale pages.
+    # OME-TIFF can store R, G and B as separate grayscale pages. pyvips reads only
+    # page 0, so tifffile is used purely to inspect the metadata (axes/shape) and
+    # confirm that pages 1 and 2 are the other colour planes; pyvips reads all pixels.
     if image.bands == 1 and image_path.suffix.lower() in {".tif", ".tiff"}:
         with tifffile.TiffFile(image_path) as tif:
             series = tif.series[0]

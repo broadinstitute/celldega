@@ -3,6 +3,7 @@ import { TileLayer } from 'deck.gl';
 import { options } from '../../global_variables/fetch_options';
 import {
   get_image_sources,
+  is_active_image_source,
   is_rgb_image,
 } from '../../global_variables/image_info';
 import { getModelMatrixProps } from '../../utils/rotation';
@@ -81,7 +82,10 @@ const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
     imageSource: info.image_source,
     imageButtonName: info.button_name,
     isRgbImage: is_rgb_image(info),
-    visible: info.image_source === (viz_state.img.image_source || 'primary'),
+    visible: is_active_image_source(
+      info.image_source,
+      viz_state.img.image_source
+    ),
     tileSize: viz_state.dimensions.tileSize,
     refinementStrategy: 'no-overlap',
     minZoom: -7,
@@ -121,8 +125,10 @@ export const toggle_visibility_image_layers = (
       visible:
         visible &&
         (!preserve_channels || layer.props.channelVisible !== false) &&
-        (layer.props.imageSource || 'primary') ===
-          (layers_obj.image_source || 'primary'),
+        is_active_image_source(
+          layer.props.imageSource,
+          layers_obj.image_source
+        ),
     })
   );
 };
@@ -143,8 +149,10 @@ export const toggle_visibility_single_image_layer = (
           channelVisible: visible,
           visible:
             visible &&
-            (layer.props.imageSource || 'primary') ===
-              (layers_obj.image_source || 'primary'),
+            is_active_image_source(
+              layer.props.imageSource,
+              layers_obj.image_source
+            ),
         })
       : layer
   );
@@ -159,23 +167,16 @@ export const update_opacity_single_image_layer = (
 ) => {
   const color = image_layer_colors[name];
 
+  // RGB images keep their original colours; only fluorescence channels have
+  // an opacity slider, so RGB layers are left untouched.
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
-    matches_image_button(layer, name)
+    matches_image_button(layer, name) && !layer.props.isRgbImage
       ? layer.clone({
-          ...(layer.props.isRgbImage
-            ? {
-                opacity: Math.min(1, opacity / 5),
-                renderSubLayers: create_simple_render_tile_sublayers(
-                  viz_state.dimensions
-                ),
-              }
-            : {
-                renderSubLayers: create_render_tile_sublayers(
-                  viz_state.dimensions,
-                  color,
-                  opacity
-                ),
-              }),
+          renderSubLayers: create_render_tile_sublayers(
+            viz_state.dimensions,
+            color,
+            opacity
+          ),
         })
       : layer
   );
@@ -259,8 +260,10 @@ export const make_yearbook_image_layers = async (
         imageSource: info.image_source,
         imageButtonName: info.button_name,
         isRgbImage: is_rgb_image(info),
-        visible:
-          info.image_source === (viz_state.img.image_source || 'primary'),
+        visible: is_active_image_source(
+          info.image_source,
+          viz_state.img.image_source
+        ),
         tileSize: viz_state.dimensions.tileSize,
         refinementStrategy: 'no-overlap',
         minZoom: -7,

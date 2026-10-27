@@ -140,3 +140,53 @@ def test_failed_tiling_leaves_existing_dataset_unchanged(tmp_path, monkeypatch):
         "dapi.dzi",
         "dapi_files",
     ]
+
+
+def test_rgba_is_flattened_onto_white(tmp_path):
+    setup_dega(tmp_path)
+    image = np.zeros((48, 64, 4), dtype=np.uint8)
+    image[..., :3] = [20, 40, 60]
+    image[:24, :, 3] = 255  # top half opaque, bottom half fully transparent
+    source = tmp_path / "he.tif"
+    tifffile.imwrite(source, image, photometric="rgb", extrasamples=[2])
+    pre.add_aligned_he(tmp_path, source)
+    np.testing.assert_allclose(read_tile(tmp_path)[4, 4], [20, 40, 60], atol=5)
+    # Tile (0, 1) starts at y=32, inside the transparent half.
+    np.testing.assert_allclose(read_tile(tmp_path, 0, 1)[8, 4], [255, 255, 255], atol=5)
+
+
+def test_alignment_accepts_string_path_and_nested_list(tmp_path):
+    setup_dega(tmp_path)
+    source = tmp_path / "he.tif"
+    tifffile.imwrite(source, np.full((48, 64, 3), 90, dtype=np.uint8), photometric="rgb")
+    csv = tmp_path / "alignment.csv"
+    np.savetxt(csv, np.eye(3), delimiter=",")
+    entry = pre.add_aligned_he(tmp_path, source, alignment=str(csv))
+    assert entry["alignment"] == np.eye(3).tolist()
+
+
+def test_requires_reference_image(tmp_path):
+    (tmp_path / "landscape_parameters.json").write_text(json.dumps({"image_info": []}))
+    source = tmp_path / "he.tif"
+    tifffile.imwrite(source, np.zeros((8, 8, 3), dtype=np.uint8), photometric="rgb")
+    with pytest.raises(ValueError, match="reference image"):
+        pre.add_aligned_he(tmp_path, source)
+
+
+def test_rejects_16_bit_rgb(tmp_path):
+    setup_dega(tmp_path)
+    source = tmp_path / "he16.tif"
+    tifffile.imwrite(source, np.zeros((48, 64, 3), dtype=np.uint16), photometric="rgb")
+    with pytest.raises(ValueError, match="8-bit"):
+        pre.add_aligned_he(tmp_path, source)
+
+
+def test_reference_dimensions_fall_back_to_manifest_without_dzi(tmp_path):
+    params = setup_dega(tmp_path)
+    (tmp_path / "pyramid_images/dapi.dzi").unlink()
+    params["image_dimensions"] = {"width": 64, "height": 48, "tile_size": 32}
+    (tmp_path / "landscape_parameters.json").write_text(json.dumps(params))
+    source = tmp_path / "he.tif"
+    tifffile.imwrite(source, np.zeros((48, 64, 3), dtype=np.uint8), photometric="rgb")
+    pre.add_aligned_he(tmp_path, source)
+    assert (tmp_path / "pyramid_images/h_and_e.dzi").exists()

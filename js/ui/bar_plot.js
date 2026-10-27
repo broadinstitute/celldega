@@ -538,7 +538,7 @@ export const make_bar_graph = (
 
   const x_new = d3
     .scaleLinear()
-    // `|| 1` guards an all-zero domain (e.g. every bar is zero) --
+    // `|| 1` guards an all-zero domain (e.g. no landmarks marked yet) --
     // otherwise a zero-width domain divides by zero and every bar gets a
     // NaN width instead of rendering at 0.
     .domain([0, d3.max(bar_data_values) || 1])

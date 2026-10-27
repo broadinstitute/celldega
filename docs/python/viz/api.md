@@ -20,7 +20,7 @@ which cells it shows, in increasing order of power:
 2. **A selection** — `selection=...`. Accepts a plain id list, a JSON-ready
    dict with `ids` (plus any provenance such as the query that produced them),
    or any object exposing `to_json()` / `to_dict()` that returns one (e.g. a
-   `dega-collection` selection). The payload is stored on the widget for
+   `celldega.select` selection). The payload is stored on the widget for
    provenance.
 3. **A stateless front-end query** — `front_end_query=...`. Evaluated in the
    browser against the dataset's LandscapeFiles, so it needs only a `base_url`

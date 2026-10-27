@@ -12,8 +12,7 @@ exclude_docs: |
   # uncomment their nav entries below to restore them.
   examples/ccle_multiomics.md
   examples/tutorial_notebooks/CCLE_Multiomics_*.ipynb
-  # Alignment tutorials live with the dega-collection package; local drafts
-  # here use APIs that are no longer part of Celldega.
+  # Alignment tutorial drafts, not yet updated to the current APIs.
   examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
   examples/tutorial_notebooks/1.0_Preprocess_and_Align.ipynb
   examples/tutorial_notebooks/2.0_Viz_CellCloud.ipynb
@@ -56,9 +55,14 @@ nav:
       - Enrich: visualizations/enrich.md
   - Python API:
       - python/index.md
+      - align: python/align/api.md
       - clust: python/clust/api.md
+      - collection: python/collection/api.md
+      - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
       - pre: python/pre/api.md
+      - select: python/select/api.md
+      - set: python/set/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:

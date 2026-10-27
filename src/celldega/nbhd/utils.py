@@ -62,7 +62,7 @@ def _as_nbhd_gdf(
 
     Accepts a ``GeoDataFrame`` or any object exposing ``to_geodataframe()`` or a
     ``geometry``/``gdf`` ``GeoDataFrame`` attribute (e.g. a
-    ``dega_collection.NeighborhoodCollection``). For such objects their
+    ``celldega.nbhd.NeighborhoodCollection``). For such objects their
     ``nbhd_col`` attribute is tried when the requested column is absent.
 
     Parameters

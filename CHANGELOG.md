@@ -8,15 +8,23 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Breaking
 
-- Higher-level data structures and the tools that query and align them moved
-  to the separate `dega-collection` package, the way AnnData lives apart from
-  Scanpy. Celldega now works directly on scverse `AnnData`/`MuData` and
-  `GeoDataFrame` neighborhoods. Removed from Celldega: `celldega.collection`
-  (`CelldegaCollection`), `celldega.dataset` (`DatasetCollection`),
-  `celldega.set` (`SetCollection`, `concat_sets`), `NeighborhoodCollection`,
-  `celldega.select`, and `celldega.align` (including `align_serial_slices`).
-- Removed the `Landmark` widget, including the `landmark` / `render_landmark`
-  exports of the JavaScript bundle.
+- Methods are separated from data structures, the way Scanpy's functions are
+  separate from AnnData. Celldega's functions work directly on scverse
+  `AnnData`/`MuData` and `GeoDataFrame` neighborhoods and return new objects.
+  The collections (`CelldegaCollection`, `DatasetCollection`, `SetCollection`,
+  `NeighborhoodCollection`), `select`, and `align` stay in their own modules
+  and can be passed to those functions in place of plain objects.
+- `NeighborhoodCollection` stores data only. Its `calc_population`,
+  `calc_signature`, `calc_overlap`, `calc_bordering`,
+  `calc_transcript_assignment`, and `calc_gradient` methods are removed: pass
+  the collection to the `nbhd.calc_nbhd_*` functions and `nbhd.calc_gradient`
+  and store the results with `add_mod`, the new `add_relation`, or `obs`. The
+  new `subset` replaces the methods' `drop_missing=True` behavior. Subsetting
+  a collection that has both modalities and relations no longer fails.
+- `align.write_alignment_point_cloud` and `align.write_nbhd_cloud` are removed;
+  DegaFiles are written by `pre.write_point_cloud_dataset` (from an aligned
+  `AnnData`) and `pre.write_nbhd_cloud_dataset` (from shapes made by
+  `nbhd.alpha_shape_cell_clusters_by_slice`).
 - Removed the per-gene alpha shapes (`iter_gene_alpha_shapes`,
   `iter_gene_alpha_shapes_by_slice`, `alpha_shape_gene_expression_by_slice`,
   `pre.write_gene_shapes`, `pre.write_gene_shapes_streaming`). Gene coloring in
@@ -117,6 +125,8 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
   selection another way) keeps the bar panels' scroll position instead of
   scrolling them back to the top.
+- The `Landmark` widget is marked as an alpha feature: its traits and output
+  may change without notice.
 
 ### Fixed
 

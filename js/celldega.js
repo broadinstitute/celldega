@@ -12,6 +12,7 @@ import {
   handleAsyncError,
   handleValidationWarning,
 } from './temp_utils/errorHandler';
+import { landmark } from './viz/landmark';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { matrix_viz } from './viz/matrix_viz';
@@ -231,6 +232,8 @@ const render_yearbook = async ({ model, el }) => {
   );
 };
 
+const render_landmark = async ({ model, el }) => landmark(model, el);
+
 const render_matrix_new = async ({ model, el }) => {
   // let network = model.get('network');
   let network;
@@ -308,6 +311,9 @@ async function render({ model, el }) {
         break;
       case 'Enrich':
         cleanup = await render_enrich({ model, el });
+        break;
+      case 'Landmark':
+        cleanup = await render_landmark({ model, el });
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {
@@ -408,6 +414,7 @@ const matrix_from_dega_files = async (
 };
 
 export default {
+  landmark,
   landscape_ist,
   landscape_h_e,
   matrix_viz,
@@ -415,6 +422,7 @@ export default {
   networkFromDegaFiles,
   yearbook,
   render,
+  render_landmark,
   render_landscape_ist,
   render_landscape_h_e,
   render_landscape,

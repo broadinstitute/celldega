@@ -340,6 +340,9 @@ class CellCloud(_SpatialWidget):
             DegaFiles — except when ``use_adata_3d_centroids`` is set.
         alignment (str, optional): Named alignment variant; cell positions are
             read from ``cell_metadata_<alignment>.parquet``.
+        cell_size (float): Default cell diameter in microns, assuming centroid
+            coordinates are in microns. Default: 10. The CELL slider multiplies
+            this diameter (0-2x, with 1x at its initial midpoint).
         use_adata_3d_centroids (bool): When an ``adata`` with ``obsm["spatial"]``
             is given, render its centroids (``obs[z_key]`` for Z, falling back to
             0) instead of the on-disk geometry — to preview a candidate alignment
@@ -358,6 +361,8 @@ class CellCloud(_SpatialWidget):
     technology = traitlets.Unicode("point-cloud").tag(sync=True)
     manifest_name = traitlets.Unicode("cell_cloud.json").tag(sync=True)
 
+    cell_size = traitlets.Float(10.0, min=0.0).tag(sync=True)
+
     # 3D orbit camera
     rotation_orbit = traitlets.Float(0).tag(sync=True)
     rotation_x = traitlets.Float(0).tag(sync=True)
@@ -369,6 +374,12 @@ class CellCloud(_SpatialWidget):
 
     use_adata_3d_centroids = traitlets.Bool(True).tag(sync=True)
     centroids_url = traitlets.Unicode("").tag(sync=True)
+
+    @traitlets.validate("cell_size")
+    def _validate_cell_size(self, proposal):
+        if not np.isfinite(proposal["value"]):
+            raise traitlets.TraitError("cell_size must be finite and non-negative")
+        return proposal["value"]
 
     def _consume_extra_kwargs(self, kwargs) -> dict:
         # z_key only affects adata centroid extraction, but pop it always so it

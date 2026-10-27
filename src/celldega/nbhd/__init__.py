@@ -10,7 +10,7 @@ from .alpha_shapes import (
     iter_gene_alpha_shapes_by_slice,
 )
 from .collection import NeighborhoodCollection
-from .gradient import _get_micron_per_pixel
+from .gradient import _get_micron_per_pixel, calc_gradient
 from .hextile import generate_hextile, hextile_niche
 from .utils import (
     _add_centroids_to_obsm,
@@ -34,6 +34,7 @@ __all__ = [
     "alpha_shape_cell_clusters",
     "alpha_shape_cell_clusters_by_slice",
     "alpha_shape_gene_expression_by_slice",
+    "calc_gradient",
     "filter_alpha_shapes",
     "generate_hextile",
     "hextile_niche",

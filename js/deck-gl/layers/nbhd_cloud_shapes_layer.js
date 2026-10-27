@@ -99,15 +99,16 @@ export const reorder_nbhd_cloud_features_for_camera = (
 // camera -- only rotationX (elevation/pitch) does (deck.gl's OrbitViewport
 // builds its view matrix as rotateX(rotationX) then rotateZ(rotationOrbit)
 // for a Z-up orbit axis, which is this view's default). A small deadband
-// around the horizon avoids flip-flopping the sort while the camera sits
-// near rotationX = 0.
+// around each horizon avoids flip-flopping the sort during continuous spins.
 const CAMERA_SIDE_DEADBAND_DEGREES = 2;
 
 export const get_nbhd_cloud_camera_side = (rotationX, previousSide) => {
-  if (Math.abs(rotationX) < CAMERA_SIDE_DEADBAND_DEGREES) {
+  const pitch = ((((rotationX + 180) % 360) + 360) % 360) - 180;
+  const horizon_distance = Math.min(Math.abs(pitch), 180 - Math.abs(pitch));
+  if (horizon_distance < CAMERA_SIDE_DEADBAND_DEGREES) {
     return previousSide ?? 'above';
   }
-  return rotationX > 0 ? 'above' : 'below';
+  return pitch > 0 ? 'above' : 'below';
 };
 
 // Applied to every shape outside the selected cluster (bar click or direct

@@ -24,10 +24,19 @@ import celldega as dega
 cell_cloud = dega.viz.CellCloud(
     base_url="https://your-landscape-files-url",
     adata=adata,
+    cell_size=10,  # Default cell diameter in microns
     rotation_x=90,
 )
 cell_cloud
 ```
+
+`cell_size` sets the default cell diameter (10 µm by default), assuming the
+centroid coordinates are in microns. The **CELL** slider scales this diameter
+from 0× to 2×; its initial midpoint is 1×. You can also update
+`cell_cloud.cell_size` after displaying the widget, preserving the slider's
+current multiplier.
+
+Drag to rotate continuously around both orbit axes, including past the poles.
 
 Build the underlying point-cloud DegaFiles with
 [`celldega.align.write_alignment_point_cloud`](../python/align/api.md).

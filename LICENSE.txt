@@ -30,4 +30,4 @@ ENHANCEMENTS, OR MODIFICATIONS OF THIS SOFTWARE.
 derivative works thereof will include the following acknowledgment:  The Software
 used in this research was created by Nicolas Fernandez of The Broad Institute, Inc.
 © 2024 The Broad Institute, Inc.
-Commercial entities: please contact OSAP@broadinstitute.org for licensing opportunities.
+Commercial entities: please contact partnering@broadinstitute.org for licensing opportunities.

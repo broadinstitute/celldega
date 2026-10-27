@@ -5,8 +5,8 @@ A "gradient" is a set of fixed-width bands measured from the boundary of an inpu
 geometry (e.g. a tumor alpha shape). Outward bands grow away from the ROI, inward
 bands erode into it, and each band carries a signed micron distance so downstream
 analyses can correlate cell composition or gene expression with distance from the
-ROI edge. The bands are returned as a tidy ``GeoDataFrame`` that plugs directly
-into :class:`~celldega.nbhd.collection.NeighborhoodCollection`.
+ROI edge. :func:`calc_gradient` returns a tidy ``GeoDataFrame`` for spatial joins
+with cell coordinates, or for use with ``NeighborhoodCollection``.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def _points_from_reference(clip_reference: Any) -> np.ndarray:
             "clip_reference AnnData needs obsm['spatial'] or x/y centroid columns in obs"
         )
 
-    if isinstance(clip_reference, (gpd.GeoDataFrame, gpd.GeoSeries)):
+    if isinstance(clip_reference, gpd.GeoDataFrame | gpd.GeoSeries):
         geom = (
             clip_reference.geometry
             if isinstance(clip_reference, gpd.GeoDataFrame)
@@ -144,7 +144,7 @@ def _resolve_clip_boundary(
     fly. Returns ``None`` when no clipping is requested.
     """
     if clip_boundary is not None:
-        if isinstance(clip_boundary, (gpd.GeoDataFrame, gpd.GeoSeries)):
+        if isinstance(clip_boundary, gpd.GeoDataFrame | gpd.GeoSeries):
             return (
                 clip_boundary.geometry.unary_union
                 if isinstance(clip_boundary, gpd.GeoDataFrame)
@@ -177,7 +177,7 @@ def _ring_colors(hue: float, n: int) -> list[str]:
     return colors
 
 
-def _calc_gradient(
+def calc_gradient(
     source: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry | NeighborhoodCollection,
     direction: str = "both",
     bin_width: float = 10,
@@ -192,11 +192,9 @@ def _calc_gradient(
     add_colors: bool = True,
     nbhd_col: str = "name",
 ) -> gpd.GeoDataFrame:
-    """Engine behind :meth:`NeighborhoodCollection.calc_gradient`.
+    """Generate gradient bands as a GeoDataFrame, without requiring a collection.
 
-    Generates concentric gradient rings outward from and/or inward into an ROI.
-    This is internal; use ``NeighborhoodCollection.calc_gradient(obs_name=...)``
-    as the public entry point.
+    Also supplies the geometry for ``NeighborhoodCollection.calc_gradient``.
 
     Starting from the boundary of the merged ``source`` geometry, this builds
     fixed-width bands every ``bin_width`` microns out to ``max_dist``:
@@ -262,12 +260,17 @@ def _calc_gradient(
             without a resolvable ``scale_um_per_pixel``.
 
     Examples:
-        Prefer the public method, which anchors on a named neighborhood and
-        returns a new gradient collection::
+        Build bands from an alpha-shape GeoDataFrame in micron coordinates::
 
-            >>> grad_nbhd = nbhd.calc_gradient(
-            ...     obs_name="9", direction="both", bin_width=50, max_dist=200
+            >>> rings = dega.nbhd.calc_gradient(
+            ...     footprints, direction="both", bin_width=25, max_dist=200,
+            ...     clip_reference=adata,
             ... )
+
+        ``adata.obsm["spatial"]`` supplies tissue coordinates for clipping.
+        Multiple footprints are unioned before buffering, so adjacent regions
+        do not produce overlapping band interiors. Shared band boundaries still
+        require a tie-breaking rule when assigning cells with ``gpd.sjoin``.
     """
     if direction not in _VALID_DIRECTIONS:
         raise ValueError(f"direction must be one of {_VALID_DIRECTIONS}, got {direction!r}")
@@ -358,3 +361,7 @@ def _calc_gradient(
         gdf_rings["color"] = gdf_rings["ring_range_um"].map(color_map).fillna("#cccccc")
 
     return gdf_rings
+
+
+# Preserve the internal entry point used by existing collections and callers.
+_calc_gradient = calc_gradient

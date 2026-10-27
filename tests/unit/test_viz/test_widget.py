@@ -339,6 +339,29 @@ def test_composition_normalized_false_for_counts_output() -> None:
     assert comp.composition_normalized is False
 
 
+def test_composition_anndata_entities_link_cell_types_and_distance_bands() -> None:
+    population = AnnData(
+        X=np.array([[0.6, 0.4], [0.2, 0.8]]),
+        obs=pd.DataFrame({"n_cells": [10, 20]}, index=["inside", "outside"]),
+        var=pd.DataFrame(index=["Podocyte", "Endothelial"]),
+    )
+    comp = Composition(
+        population,
+        cluster=False,
+        row_entity={"entity": "cell", "attr": "cell_type"},
+        col_entity="nbhd",
+    )
+
+    assert json.loads(comp.row_entity) == {"entity": "cell", "attr": "cell_type"}
+    assert json.loads(comp.col_entity) == {"entity": "nbhd", "attr": "name"}
+    assert comp._matrix.export_viz_parquet()["col_entity"] == {
+        "entity": "nbhd",
+        "attr": "name",
+    }
+    assert comp.composition_col_weights == {"inside": 10.0, "outside": 20.0}
+    assert comp.composition_normalized is True
+
+
 def test_composition_col_weights_default_empty_for_dataframe_input() -> None:
     # A bare DataFrame carries no per-group cell-count metadata.
     df = pd.DataFrame(

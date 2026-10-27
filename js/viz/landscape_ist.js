@@ -13,6 +13,7 @@ import {
 import { set_views } from '../deck-gl/core/views';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
 import {
+  get_point_cloud_cell_radius,
   ini_cell_layer,
   new_toggle_cell_layer_visibility,
   prime_cell_layer_transitions,
@@ -20,6 +21,7 @@ import {
   reveal_cell_layer_after_prime,
   set_cell_layer_onclick,
   toggle_spatial_umap,
+  update_cell_layer_radius,
   update_cell_pickable_state,
 } from '../deck-gl/layers/cell_layer';
 import {
@@ -35,6 +37,7 @@ import {
   build_nbhd_cloud_slice_z_order,
   fetch_available_gene_scatter,
   fetch_available_gene_shapes,
+  get_nbhd_cloud_camera_side,
   ini_nbhd_cloud_shapes_layer,
   reorder_nbhd_cloud_features_for_camera,
   set_nbhd_cloud_shapes_layer_onclick,
@@ -241,7 +244,8 @@ export const landscape_ist = async (
   base_urls = [],
   cell_name_prefix = false,
   centroids = {},
-  use_adata_3d_centroids = false
+  use_adata_3d_centroids = false,
+  cell_size = 10
 ) => {
   if (width === 0) {
     width = '100%';
@@ -337,6 +341,7 @@ export const landscape_ist = async (
   viz_state.nbhd.edit = nbhd_edit;
 
   viz_state.spatial = {};
+  viz_state.spatial.cell_size = cell_size;
 
   // later we will parse the region from the s3 url
 
@@ -660,10 +665,7 @@ export const landscape_ist = async (
     viz_state.nbhd_cloud.selected_gene = null;
     viz_state.nbhd_cloud.gene_shapes_mode = false;
     viz_state.nbhd_cloud.gene_scatter_mode = false;
-    // Matches get_nbhd_cloud_camera_side's default so the very first
-    // camera-side check (before any rotation) is a no-op rather than an
-    // immediate, needless reorder.
-    viz_state.nbhd_cloud.camera_side = 'above';
+    viz_state.nbhd_cloud.camera_side = get_nbhd_cloud_camera_side(rotation_x);
 
     // Apply the same draw-order fix the camera-side flip uses right away,
     // so "smaller neighborhoods draw on top within a slice" holds from the
@@ -1038,16 +1040,27 @@ export const landscape_ist = async (
       const cells = viz_state.model.get('selected_cells') || [];
       viz_state.obs_store.selected_cells.set(cells);
     };
+    const on_cell_size = () => {
+      viz_state.spatial.cell_size = viz_state.model.get('cell_size') ?? 10;
+      update_cell_layer_radius(
+        layers_obj,
+        get_point_cloud_cell_radius(viz_state),
+        viz_state
+      );
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+    };
 
     viz_state.model.on('change:update_trigger', on_update_trigger);
     viz_state.model.on('change:focused_gene', on_focused_gene);
     viz_state.model.on('change:cell_clusters', on_cell_clusters);
     viz_state.model.on('change:selected_cells', on_selected_cells);
+    viz_state.model.on('change:cell_size', on_cell_size);
     cleanup_callbacks.push(() => {
       viz_state.model.off?.('change:update_trigger', on_update_trigger);
       viz_state.model.off?.('change:focused_gene', on_focused_gene);
       viz_state.model.off?.('change:cell_clusters', on_cell_clusters);
       viz_state.model.off?.('change:selected_cells', on_selected_cells);
+      viz_state.model.off?.('change:cell_size', on_cell_size);
     });
   }
 

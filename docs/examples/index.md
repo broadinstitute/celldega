@@ -2,23 +2,28 @@
 
 These example notebooks demonstrate how to use Celldega for spatial transcriptomics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
 
-## Tutorials
+## Spatial Transcriptomics Tutorials
 
 Comprehensive tutorials that walk through complete workflows:
 
+- [Atera Kidney Landscape-Clustergram](tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) - Direct Scanpy and AnnData steps for default clusters, linked dotplot Clustergrams, and cell-type composition across podocyte-defined glomerular gradients
 - [Atera Breast Cancer Landscape-Clustergram](tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb) - Loads a precomputed Scanpy clustering (or optionally recomputes it) and creates linked Landscape, Clustergram, and Enrich widgets
-- [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Builds a SetCollection from a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
+- [Atera Breast Cancer Neighborhood Exploration](tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb) - Continues the Atera tutorial with hextile niches linked to cell-type composition and alpha-shape overlap linked to a separate Landscape
+- [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Uses Scanpy and plain AnnData to summarize a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 - [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
-- [Chromium Pre-process](tutorial_notebooks/Scanpy_Chromium.ipynb) - Pre-processing Chromium single-cell RNA-seq data
-- [Single-cell Clustergram Chromium](tutorial_notebooks/Single-Cell_Clustergram_Chromium.ipynb) - Creating clustergram visualizations for single-cell data
+- [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and uses plain AnnData for expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
+- [Broad-Allen Dev Mouse Brain E15.5 Align](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) - Aligns 43 Xenium sections of an E15.5 mouse brain (3.8M cells, 480 genes) into a 3D stack in two steps, Leiden cluster centroids then neighborhood (alpha-shape) overlap, and shows how to write CellCloud DegaFiles
+- [Broad-Allen Dev Mouse Brain E15.5 Viz](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) - Visualizes the aligned E15.5 brain as a 3D CellCloud linked to the cluster composition of every slice and to a gene-expression Clustergram
 
 ## Brief Notebooks
 
 Focused examples demonstrating specific features:
 
 - [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
+- [Landscape from a Local Server](brief_notebooks/Landscape_Local_Server.ipynb) - Viewing locally stored DegaFiles in a Landscape with `dega.viz.get_local_server()`
 - [Atera Viz](brief_notebooks/Atera_viz.ipynb) - Linked Landscape and Clustergram visualization of a Xenium breast cancer dataset
+- [Atera Pre-process](brief_notebooks/Atera_Pre-process.ipynb) - Making DegaFiles from a 10x Atera output bundle with `dega.pre.main` and viewing them in a Landscape
 - [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
 - [CellCloud Thick MERFISH](brief_notebooks/Landscape-3D_thick_MERFISH.ipynb) - 3D orbit-camera CellCloud view of thick-tissue MERFISH data
 - [Landscape-Heatmap Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization
@@ -28,6 +33,29 @@ Focused examples demonstrating specific features:
 - [Gradient Neighborhood Pancreas Islets](brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb) - Building inward/outward gradient rings around pancreatic islets and profiling cell-type proportion and hormone expression with distance from the islet edge
 - [DatasetCollection Population Space](brief_notebooks/DatasetCollection_Population_Space.ipynb) - Creating toy dataset-level data and calculating dataset-by-population modalities
 - [SetCollection Cluster Space](brief_notebooks/SetCollection_Cluster_Space.ipynb) - Building a SetCollection from a Xenium clustering and clustering its per-set gene-expression signature
+
+<!-- CCLE multi-omics tutorials temporarily hidden
+
+## CCLE Multi-omics Tutorials
+
+This numbered series demonstrates coverage-preserving `MuData` and
+`DatasetCollection` workflows for bulk cancer cell lines. It begins with a
+global hierarchical map, compares independent RNA, RPPA, and metabolomics
+spaces, then examines recurring programs and a lung SCLC/NSCLC example.
+
+- [CCLE multi-omics overview](ccle_multiomics.md)
+- [00: Prepare archive](tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb)
+- [01: Global hierarchy](tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb)
+- [02: Cross-omic concordance](tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb)
+- [03: Tissue gene programs](tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb)
+- [04: Lung multi-omic subclustering](tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb)
+- [05: Pan-CCLE multi-omic consensus](tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb)
+- [06: Hematologic multi-omic subclustering](tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb)
+- [07: Tissue mixing and provenance review](tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb)
+- [08: RNA-anchored multi-omic characterization](tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb)
+- [09: CST lung TMT PTM integration](tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb)
+
+-->
 
 ## Running the Notebooks
 

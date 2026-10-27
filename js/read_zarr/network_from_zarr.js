@@ -93,7 +93,13 @@ const unpack_views = (descriptions, packed) => {
  */
 export const makeNetworkFromZarr = (zarr) => {
   const open_store = (url, fetchOptions) => {
-    const store = new zarr.FetchStore(String(url).replace(/\/+$/, ''), {
+    // Drop trailing slashes with a scan rather than /\/+$/, which backtracks
+    // quadratically on long runs of '/'.
+    let href = String(url);
+    let end = href.length;
+    while (end > 0 && href[end - 1] === '/') end -= 1;
+    href = href.slice(0, end);
+    const store = new zarr.FetchStore(href, {
       fetch: (request) => fetch(new Request(request, fetchOptions)),
     });
     // AnnData consolidates metadata, so one request covers every node.

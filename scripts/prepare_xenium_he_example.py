@@ -245,12 +245,18 @@ def ensure_dega_files(source, output, *, include_he=True):
         add_he(source, output, x0, y0)
 
 
+class NoCacheHandler(SimpleHTTPRequestHandler):
+    """Static handler that disables caching so a rebuilt celldega.js is always reloaded."""
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
 def serve_example(port=8765):
     """Serve the repo over HTTP (browsers block the page's module/fetch on file://)."""
     root = Path(__file__).resolve().parent.parent
-    server = ThreadingHTTPServer(
-        ("127.0.0.1", port), partial(SimpleHTTPRequestHandler, directory=root)
-    )
+    server = ThreadingHTTPServer(("127.0.0.1", port), partial(NoCacheHandler, directory=root))
     url = f"http://127.0.0.1:{port}/celldega_js_examples/xenium_aligned_he.html"
     print(f"Serving {url} (Ctrl+C to stop)", flush=True)
     webbrowser.open(url)

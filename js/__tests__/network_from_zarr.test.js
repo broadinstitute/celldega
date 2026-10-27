@@ -176,7 +176,7 @@ describe('networkFromZarr', () => {
     const urls = [];
     const zarr = {
       ...fake_zarr(store_nodes()),
-      FetchStore: function (url) {
+      FetchStore (url) {
         urls.push(url);
       },
       withMaybeConsolidatedMetadata: async () => ({}),

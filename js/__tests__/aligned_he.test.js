@@ -245,16 +245,22 @@ test('fluorescence channel selection survives switching backgrounds', async () =
   expect(layers.image_layers.every((l) => !l.props.visible)).toBe(true);
 });
 
-test('legacy single histology images keep RGB rendering and ignore opacity sliders', async () => {
-  const api = makeAPI();
-  const viz = state(false);
-  viz.img.image_info = [{ name: 'h_and_e', button_name: 'H&E' }];
-  const layers = { image_layers: await api.make_image_layers(viz) };
-  const [before] = layers.image_layers;
-  api.update_opacity_single_image_layer(viz, layers, 'H&E', 2, {});
-  expect(layers.image_layers[0]).toBe(before);
-  expect(layers.image_layers[0].props.renderSubLayers).toBe('rgb');
-});
+test.each([
+  [2, 0.4],
+  [5, 1],
+  [10, 1],
+])(
+  'RGB opacity slider value %s fades the layer to %s and stays RGB',
+  async (slider, expected) => {
+    const api = makeAPI();
+    const viz = state(false);
+    viz.img.image_info = [{ name: 'h_and_e', button_name: 'H&E' }];
+    const layers = { image_layers: await api.make_image_layers(viz) };
+    api.update_opacity_single_image_layer(viz, layers, 'H&E', slider, {});
+    expect(layers.image_layers[0].props.renderSubLayers).toBe('rgb');
+    expect(layers.image_layers[0].props.opacity).toBeCloseTo(expected);
+  }
+);
 
 test('fluorescence opacity updates only the matching channel and keeps its ID', async () => {
   const api = makeAPI();

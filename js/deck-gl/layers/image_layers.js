@@ -46,10 +46,15 @@ const create_get_tile_data_from_parquet = (
   };
 };
 
+// Fluorescence layers start with opacityScale 5 (the IMG slider's midpoint,
+// value 50 / 10). deck.gl layer `opacity` is capped at 1, so RGB layers treat
+// this same midpoint as fully opaque and fade below it.
+const DEFAULT_IMAGE_OPACITY = 5;
+
 const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
 
-  const opacity = 5;
+  const opacity = DEFAULT_IMAGE_OPACITY;
 
   // Include dataset index and cache key in ID to force complete layer recreation
   const layerId = `${info.button_name}-ds${datasetIndex}${cacheKey ? `-${cacheKey}` : ''}`;
@@ -167,19 +172,24 @@ export const update_opacity_single_image_layer = (
 ) => {
   const color = image_layer_colors[name];
 
-  // RGB images keep their original colours; only fluorescence channels have
-  // an opacity slider, so RGB layers are left untouched.
-  layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
-    matches_image_button(layer, name) && !layer.props.isRgbImage
-      ? layer.clone({
-          renderSubLayers: create_render_tile_sublayers(
-            viz_state.dimensions,
-            color,
-            opacity
-          ),
-        })
-      : layer
-  );
+  layers_obj.image_layers = layers_obj.image_layers.map((layer) => {
+    if (!matches_image_button(layer, name)) {
+      return layer;
+    }
+    // RGB tiles can't be recoloured, so the slider fades the whole layer.
+    if (layer.props.isRgbImage) {
+      return layer.clone({
+        opacity: Math.min(1, opacity / DEFAULT_IMAGE_OPACITY),
+      });
+    }
+    return layer.clone({
+      renderSubLayers: create_render_tile_sublayers(
+        viz_state.dimensions,
+        color,
+        opacity
+      ),
+    });
+  });
 };
 
 /**
@@ -218,7 +228,7 @@ export const make_yearbook_image_layers = async (
     ];
 
     image_info.forEach((info) => {
-      const opacity = 5;
+      const opacity = DEFAULT_IMAGE_OPACITY;
       // Include portrait index in layer ID for proper updates
       const layerId = `yb-${info.button_name}-p${portrait_index}-${layerCacheKey}`;
 

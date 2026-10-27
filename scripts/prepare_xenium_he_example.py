@@ -23,7 +23,6 @@ import pyvips
 import requests
 from scipy.sparse import csc_matrix
 import tifffile
-import zarr
 
 from celldega import pre
 from celldega.pre.run_pre_processing import create_dummy_clusters
@@ -72,6 +71,31 @@ def download(destination):
             partial.replace(target)
 
 
+def read_crop(path, x0, y0, width, height):
+    """Decode only the tiles overlapping the crop (imagecodecs handles JPEG2000).
+
+    Decoding tiles directly avoids tifffile's zarr store, whose API differs
+    between tifffile/zarr versions, and avoids loading the full 1.7 GB image.
+    """
+    with tifffile.TiffFile(path) as tif:
+        page = tif.pages[0]
+        th, tw = page.tilelength, page.tilewidth
+        tiles_across = -(-page.imagewidth // tw)
+        crop = np.zeros((height, width), dtype=page.dtype)
+        for ty in range(y0 // th, (y0 + height - 1) // th + 1):
+            for tx in range(x0 // tw, (x0 + width - 1) // tw + 1):
+                index = ty * tiles_across + tx
+                tif.filehandle.seek(page.dataoffsets[index])
+                data = tif.filehandle.read(page.databytecounts[index])
+                tile = page.decode(data, index, jpegtables=page.jpegtables)[0].reshape(th, tw)
+                ys, xs = max(y0, ty * th), max(x0, tx * tw)
+                ye, xe = min(y0 + height, (ty + 1) * th), min(x0 + width, (tx + 1) * tw)
+                crop[ys - y0 : ye - y0, xs - x0 : xe - x0] = tile[
+                    ys - ty * th : ye - ty * th, xs - tx * tw : xe - tx * tw
+                ]
+    return crop
+
+
 def prepare(source, output, *, include_he=True):
     """Build the tutorial ROI; omit H&E to demonstrate its import separately."""
     if output.exists():
@@ -86,10 +110,7 @@ def prepare(source, output, *, include_he=True):
     transform = np.array([[1 / sx, 0, -x0], [0, 1 / sy, -y0], [0, 0, 1]])
     transform_path = output / "micron_to_image_transform.csv"
     np.savetxt(transform_path, transform)
-    # imagecodecs decodes Xenium's JPEG2000 TIFF tiles even when libvips lacks it.
-    with tifffile.TiffFile(morphology) as tif, tif.pages[0].aszarr() as store:
-        image = zarr.open(store, mode="r")
-        pixels = np.asarray(image[y0 : y0 + height, x0 : x0 + width])
+    pixels = read_crop(morphology, x0, y0, width, height)
     pixels = (pixels / max(1, pixels.max()) * 255).astype(np.uint8)
     crop = pyvips.Image.new_from_memory(pixels.tobytes(), width, height, 1, "uchar")
     crop.dzsave(str(output / "pyramid_images/dapi"), tile_size=512, overlap=0, suffix=".webp[Q=95]")

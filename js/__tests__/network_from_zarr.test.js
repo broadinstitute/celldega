@@ -176,8 +176,11 @@ describe('networkFromZarr', () => {
     const urls = [];
     const zarr = {
       ...fake_zarr(store_nodes()),
-      FetchStore(url) {
-        urls.push(url);
+      // A class, not a method: the reader calls `new zarr.FetchStore(...)`.
+      FetchStore: class {
+        constructor(url) {
+          urls.push(url);
+        }
       },
       withMaybeConsolidatedMetadata: async () => ({}),
     };

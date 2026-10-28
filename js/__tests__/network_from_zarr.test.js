@@ -171,4 +171,29 @@ describe('networkFromZarr', () => {
     const read = makeNetworkFromZarr(fake_zarr(store_nodes({ version: 2 })));
     await expect(read(store)).rejects.toThrow('unsupported store');
   });
+
+  it('opens URLs without their trailing slashes', async () => {
+    const urls = [];
+    const zarr = {
+      ...fake_zarr(store_nodes()),
+      // A class, not a method: the reader calls `new zarr.FetchStore(...)`.
+      FetchStore: class {
+        constructor(url) {
+          urls.push(url);
+        }
+      },
+      withMaybeConsolidatedMetadata: async () => ({}),
+    };
+    const read = makeNetworkFromZarr(zarr);
+
+    await read('https://example.org/cell_types.zarr//');
+    await read('https://example.org/cell_types.zarr');
+    await read('/'.repeat(50000));
+
+    expect(urls).toEqual([
+      'https://example.org/cell_types.zarr',
+      'https://example.org/cell_types.zarr',
+      '',
+    ]);
+  });
 });

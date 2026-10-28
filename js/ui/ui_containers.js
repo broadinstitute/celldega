@@ -218,9 +218,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .style('user-select', 'none')
       .style('font-family', MATRIX_UI_FONT_FAMILY);
 
-  // ROW / COL rows: order dropdown + dendrogram slider per axis.
+  // COL / ROW rows: order dropdown + dendrogram slider per axis. Columns come
+  // first, as their labels sit above the rows'.
   viz_state.dendro.sliders = {};
-  ['row', 'col'].forEach((axis) => {
+  ['col', 'row'].forEach((axis) => {
     append_label(axis === 'row' ? 'ROW:' : 'COL:');
 
     make_reorder_dropdown(grid, axis, deck_mat, layers_mat, viz_state);

@@ -179,6 +179,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Changed
 
+- Clustergram: the COL ordering controls come before the ROW controls,
+  matching the column labels above the rows.
 - Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
   selection another way) keeps the bar panels' scroll position instead of
   scrolling them back to the top.

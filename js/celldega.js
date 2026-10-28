@@ -8,6 +8,7 @@ import {
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
+import { annDataZarrSource } from './read_zarr/anndata_zarr';
 import { networkFromZarr } from './read_zarr/network_from_zarr';
 import {
   handleAsyncError,
@@ -64,6 +65,32 @@ const render_landscape_ist = async ({ model, el }) => {
   const umapBytes = model.get('umap_parquet');
   if (umapBytes && umapBytes.byteLength > 0) {
     umap_data = (await objects_from_parquet(umapBytes, 'cell_id')).result;
+  }
+
+  // Single-cell data from an AnnData Zarr store instead of DegaFiles. Metadata
+  // Python sent from an in-memory AnnData takes precedence over the store's.
+  const zarr_url = model.get('zarr_url');
+  let single_cell_source = null;
+  if (zarr_url) {
+    single_cell_source = await annDataZarrSource(zarr_url, {
+      layer: model.get('zarr_layer') || '',
+      cell_attr: model.get('cell_attr') || [],
+      cluster_attr: clusterAttr,
+    });
+    if (meta_cell_data.attr.length === 0) {
+      meta_cell_data = single_cell_source.meta_cell;
+    }
+    if (meta_cluster_data.attr.length === 0) {
+      meta_cluster_data = single_cell_source.meta_cluster;
+    }
+    if (Object.keys(umap_data).length === 0) {
+      umap_data = single_cell_source.umap ?? {};
+    }
+    if (meta_cell_data.attr.length === 0) {
+      throw new Error(
+        `[Landscape] cluster_attr "${clusterAttr}" is not an obs column of ${zarr_url}; pass cluster_attr=... or adata=...`
+      );
+    }
   }
 
   let centroids_data = {};
@@ -127,7 +154,8 @@ const render_landscape_ist = async ({ model, el }) => {
     cell_name_prefix,
     centroids_data,
     use_adata_3d_centroids,
-    cell_size
+    cell_size,
+    single_cell_source
   );
 };
 
@@ -463,6 +491,7 @@ const matrix_from_zarr = async (
 };
 
 export default {
+  annDataZarrSource,
   landmark,
   landscape_ist,
   landscape_h_e,

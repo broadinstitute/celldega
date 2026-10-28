@@ -7,6 +7,23 @@ import { hexToRgb } from '../utils/hexToRgb';
 
 import { options } from './fetch_options';
 
+/** Store gene colors (hex strings, in gene_names order) on `genes`. */
+export const apply_gene_colors = (genes, gene_names, colors) => {
+  genes.g_colorMapping_inv = [];
+
+  gene_names.forEach((geneName, index) => {
+    const rgb = hexToRgb(colors[index]);
+    genes.color_dict_gene[geneName] = rgb;
+
+    const geneId = genes.g_nameMapping?.[geneName];
+    if (geneId !== undefined) {
+      genes.g_colorMapping_inv[geneId] = rgb;
+    }
+  });
+
+  genes.gene_names = gene_names;
+};
+
 export const set_color_dict_gene = async (
   genes,
   base_url,
@@ -40,17 +57,5 @@ export const set_color_dict_gene = async (
     colors = [];
   }
 
-  genes.g_colorMapping_inv = [];
-
-  gene_names.forEach((geneName, index) => {
-    const rgb = hexToRgb(colors[index]);
-    genes.color_dict_gene[geneName] = rgb;
-
-    const geneId = genes.g_nameMapping?.[geneName];
-    if (geneId !== undefined) {
-      genes.g_colorMapping_inv[geneId] = rgb;
-    }
-  });
-
-  genes.gene_names = gene_names;
+  apply_gene_colors(genes, gene_names, colors);
 };

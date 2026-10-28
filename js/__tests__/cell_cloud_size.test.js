@@ -207,7 +207,8 @@ describe('CellCloud cell diameter and slider', () => {
         el: document.createElement('div'),
         model: { get: (name) => (name === 'cell_size' ? size : undefined) },
       });
-      expect(landscape.mock.calls[0].at(-1)).toBe(size ?? 10);
+      // cell_size precedes the optional single_cell_source argument.
+      expect(landscape.mock.calls[0].at(-2)).toBe(size ?? 10);
     }
   );
 });

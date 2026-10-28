@@ -131,6 +131,16 @@ All notable changes to Celldega are documented here. This project follows
   top of the TRX slider; in a Landscape that includes its wider range at
   intermediate zoom, and full size stays full size as the view enters or
   leaves intermediate zoom.
+- Single-cell Landscapes read from an AnnData Zarr store as an alternative to
+  DegaFiles: `Landscape(zarr_url=...)`, with an http(s) URL (e.g. Hugging Face)
+  or a local path served by a local server. Save the AnnData with
+  `adata.write_zarr` after adding a CSC copy of the counts (e.g.
+  `adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`); the browser
+  then fetches one gene at a time. `zarr_layer` names the layer (by default `X`
+  if it is CSC, else the only CSC layer). Optional `var["mean"]` and
+  `var["max"]` hold the gene statistics; cell attributes, cluster colors, and
+  the UMAP come from the store unless `adata` is passed too. In JavaScript,
+  `annDataZarrSource(url, options)` opens such a store.
 - Landscape XY view: plot the raw DegaFiles expression of two genes against
   each other, with cells animating between the spatial, UMAP, and XY layouts.
   The XY button (shown when the dataset has a UMAP and genes) opens gene inputs

@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 from typing import Any, Literal
 import urllib.error
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 import uuid
 import warnings
 
@@ -124,6 +124,35 @@ def _local_dir_for_url(url: str) -> "Path | None":
     return local_dir if local_dir.is_dir() else None
 
 
+_SHARED_LOCAL_SERVER_PORT: int | None = None
+
+
+def _zarr_store_url(zarr_url: Any) -> str:
+    """URL for an AnnData Zarr store: an http(s) URL as is, or a local path
+    served by one shared ``celldega.viz.get_local_server()`` (rooted at cwd)."""
+    global _SHARED_LOCAL_SERVER_PORT
+
+    text = os.fspath(zarr_url)
+    if urlparse(text).scheme in ("http", "https"):
+        return text.rstrip("/")
+    path = Path(text).expanduser().resolve()
+    if not path.is_dir():
+        raise FileNotFoundError(f"No Zarr store at {path}")
+    cwd = Path.cwd().resolve()
+    try:
+        relative = path.relative_to(cwd)
+    except ValueError:
+        raise ValueError(
+            f"zarr_url {path} is outside the working directory {cwd}, which the local "
+            "server serves; move the store under it or pass an http(s) URL."
+        ) from None
+    if _SHARED_LOCAL_SERVER_PORT is None:
+        from .local_server import get_local_server
+
+        _SHARED_LOCAL_SERVER_PORT = get_local_server()
+    return f"http://localhost:{_SHARED_LOCAL_SERVER_PORT}/{quote(relative.as_posix())}"
+
+
 def _coerce_transform_matrix(transform: Any) -> np.ndarray:
     matrix = np.asarray(transform, dtype=float)
     if matrix.shape == (2, 3):
@@ -232,6 +261,20 @@ class Landscape(CelldegaWidget):
             or a list of dicts with 'url' and 'label' keys for multiple datasets.
             Example: [{'url': 'http://...', 'label': 'Dataset1'}, ...]
             You can also pass a simple list of URL strings.
+        zarr_url (str or Path, optional): A single-cell AnnData Zarr store to read
+            instead of DegaFiles (``technology="Chromium"``, the default with
+            ``zarr_url``): an http(s) URL, e.g. on Hugging Face, or a local path
+            under the working directory, served by a local server. Gene
+            expression comes from a CSC matrix in the store, ``X`` or a layer
+            such as ``adata.layers["counts_csc"] = adata.layers["counts"].tocsc()``.
+            Optional ``var["mean"]`` and ``var["max"]`` hold the gene statistics
+            DegaFiles keep in ``meta_gene.parquet``; cell attributes, cluster
+            colors (``uns[f"{cluster_attr}_colors"]``), and ``obsm["X_umap"]`` come
+            from the store unless ``adata`` is passed too. Consolidate the store's
+            metadata (``zarr.consolidate_metadata``) so it opens in one request.
+        zarr_layer (str, optional): The ``zarr_url`` layer to read expression
+            from, or ``"X"``. By default, ``X`` if it is CSC, else the store's
+            only CSC layer.
         dataset_names (list, optional): Short names for the datasets to display in
             the dropdown selector. Should match the length of base_urls.
             Example: ['Brain', 'Kidney'] for two datasets.
@@ -275,6 +318,9 @@ class Landscape(CelldegaWidget):
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
+    # Single-cell data from an AnnData Zarr store instead of DegaFiles.
+    zarr_url = traitlets.Unicode("").tag(sync=True)
+    zarr_layer = traitlets.Unicode("").tag(sync=True)
     # List of dataset configurations: [{'url': str, 'label': str}, ...]
     base_urls = traitlets.List(trait=traitlets.Dict(), default_value=[]).tag(sync=True)
     cell_name_prefix = traitlets.Bool(False).tag(sync=True)
@@ -375,6 +421,18 @@ class Landscape(CelldegaWidget):
             cell_attr.append(cluster_attr)
 
         nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
+
+        if kwargs.get("zarr_url"):
+            if kwargs.get("base_url") or kwargs.get("base_urls"):
+                raise ValueError(
+                    "Pass either base_url (DegaFiles) or zarr_url (AnnData Zarr), not both."
+                )
+            technology = kwargs.setdefault("technology", "Chromium")
+            if technology != "Chromium":
+                raise ValueError("zarr_url supports technology='Chromium' only.")
+            kwargs["zarr_url"] = _zarr_store_url(kwargs["zarr_url"])
+            if transform is None:
+                transform = np.eye(3)
 
         # nbhd_edit can now be True even when nbhd data is provided,
         # allowing users to edit pre-loaded neighborhood polygons

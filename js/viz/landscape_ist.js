@@ -87,7 +87,7 @@ import {
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
-import { set_meta_gene } from '../global_variables/meta_gene';
+import { apply_meta_gene, set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
@@ -256,7 +256,10 @@ export const landscape_ist = async (
   cell_name_prefix = false,
   centroids = {},
   use_adata_3d_centroids = false,
-  cell_size = 10
+  cell_size = 10,
+  // An AnnData Zarr source (read_zarr/anndata_zarr.js) replaces the DegaFiles
+  // manifest, gene metadata, cell list, and per-gene expression.
+  single_cell_source = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -357,6 +360,8 @@ export const landscape_ist = async (
 
   viz_state.spatial = {};
   viz_state.spatial.cell_size = cell_size;
+
+  viz_state.single_cell_source = single_cell_source;
 
   // later we will parse the region from the s3 url
 
@@ -536,12 +541,17 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  await set_landscape_parameters(
-    viz_state.img,
-    base_url,
-    viz_state.aws,
-    manifest_name
-  );
+  if (single_cell_source) {
+    viz_state.img.landscape_parameters =
+      single_cell_source.landscape_parameters;
+  } else {
+    await set_landscape_parameters(
+      viz_state.img,
+      base_url,
+      viz_state.aws,
+      manifest_name
+    );
+  }
   const { landscape_parameters } = viz_state.img;
   const {
     technology: tech,
@@ -557,6 +567,9 @@ export const landscape_ist = async (
 
   // Initialize row group readers if using row group storage mode
   await initializeRowGroupReaders(viz_state, base_url);
+  if (single_cell_source) {
+    viz_state.row_group_readers = { cbg: single_cell_source.cbg_reader };
+  }
 
   const tmp_image_info = get_landscape_image_info(landscape_parameters);
   const image_name_for_dim = get_primary_image_name(landscape_parameters);
@@ -618,12 +631,19 @@ export const landscape_ist = async (
     : 0;
   viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
 
-  await set_meta_gene(
-    viz_state.genes,
-    base_url,
-    viz_state.seg.version,
-    viz_state.aws
-  );
+  if (single_cell_source) {
+    apply_meta_gene(viz_state.genes, single_cell_source.gene_names, {
+      mean: single_cell_source.gene_mean,
+      max: single_cell_source.gene_max,
+    });
+  } else {
+    await set_meta_gene(
+      viz_state.genes,
+      base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
+  }
 
   await set_cluster_metadata(viz_state);
 

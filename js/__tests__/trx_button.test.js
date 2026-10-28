@@ -7,10 +7,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const source = fs
-  .readFileSync(path.join(__dirname, '../ui/text_buttons.js'), 'utf8')
-  .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
-  .replace(/^export const /gm, 'const ');
+const source = ['../ui/nbhd_button.js', '../ui/text_buttons.js']
+  .map((file) =>
+    fs
+      .readFileSync(path.join(__dirname, file), 'utf8')
+      .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
+      .replace(/^export const /gm, 'const ')
+  )
+  .join('\n');
 
 const calls = [];
 const shims = `

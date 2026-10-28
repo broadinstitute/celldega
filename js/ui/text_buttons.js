@@ -22,19 +22,13 @@ import { refresh_row_label_visibility } from '../matrix/composition_data';
 import { crop_filter_signature } from '../matrix/crop_filter';
 import { refresh_layer } from '../utils/refresh_layer';
 
+import { set_nbhd_button_color } from './nbhd_button';
 import { toggle_slider } from './sliders';
 import { sync_trx_button } from './trx_handle';
 
 let is_visible;
 
 let img_layer_visible = true;
-
-const set_nbhd_button_color = (viz_state, color) => {
-  const button = viz_state.buttons?.buttons?.nbhd;
-  if (!button) return;
-  if (typeof button.style === 'function') button.style('color', color);
-  else d3.select(button).style('color', color);
-};
 
 export const get_img_layer_visible = () => img_layer_visible;
 

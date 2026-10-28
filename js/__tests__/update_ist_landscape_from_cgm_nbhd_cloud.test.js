@@ -33,10 +33,12 @@ describe('update_ist_landscape_from_cgm routes neighborhood-cloud clicks to its 
     const source = [
       readStripped('../global_variables/select_genes.js'),
       readStripped('../widget_interactions/nbhd_cloud_link.js'),
+      readStripped('../ui/nbhd_button.js'),
       readStripped('../widget_interactions/update_ist_landscape_from_cgm.js'),
     ].join('\n');
 
     const shims = `
+      const d3 = { select: (node) => node };
       const update_cat = (cats, cat) => { cats.cat = cat; calls.generic.push('update_cat'); };
       const update_selected_cats = () => { calls.generic.push('update_selected_cats'); };
       const update_selected_genes = (_genes, selected, obs_store) => {

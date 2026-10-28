@@ -139,8 +139,9 @@ All notable changes to Celldega are documented here. This project follows
   then fetches one gene at a time. `zarr_layer` names the layer (by default `X`
   if it is CSC, else the only CSC layer). Optional `var["mean"]` and
   `var["max"]` hold the gene statistics; cell attributes, cluster colors, and
-  the UMAP come from the store unless `adata` is passed too. In JavaScript,
-  `annDataZarrSource(url, options)` opens such a store.
+  the UMAP come from the store unless `adata` is passed too. Requests that
+  fail with a dropped connection or a server error are retried. In
+  JavaScript, `annDataZarrSource(url, options)` opens such a store.
 - Landscape XY view: plot the raw DegaFiles expression of two genes against
   each other, with cells animating between the spatial, UMAP, and XY layouts.
   The XY button, next to UMAP when the dataset has a UMAP and genes, plots the
@@ -204,6 +205,8 @@ All notable changes to Celldega are documented here. This project follows
   cells. Tile changes rebuild the path buffers together, stale requests cannot
   replace newer boundaries, and reported rendering errors trigger one automatic
   rebuild. Failed geometry loads clear cached cell data so they can be retried.
+- Landscape with `nbhd_edit=True`: clicking a Clustergram row or column no
+  longer logs "nbhd?.style is not a function" in the browser console.
 - Landscape: clicking a gene in Enrich colors cells by it even when the
   Landscape is displayed more than once (e.g. alone and in a linked layout).
   Each view handled the focus as a toggle, so a second view turned it back

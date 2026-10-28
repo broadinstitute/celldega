@@ -12,9 +12,9 @@ const load = (file, names, prelude = '') => {
 };
 
 // zarrita is ESM-only; the module's default reader is never called here.
-const { makeAnnDataZarrSource, fallback_colors } = load(
+const { makeAnnDataZarrSource, fallback_colors, fetch_with_retry } = load(
   '../read_zarr/anndata_zarr.js',
-  'makeAnnDataZarrSource, fallback_colors',
+  'makeAnnDataZarrSource, fallback_colors, fetch_with_retry',
   'const zarrita = {};'
 );
 
@@ -287,5 +287,52 @@ describe('update_cell_exp_array with a Zarr reader', () => {
     );
     expect(state.cell_exp_max).toBe(5);
     expect(state.cell_exp_array[1]).toBe(255);
+  });
+});
+
+describe('fetch_with_retry', () => {
+  // jsdom has no Request; the retry only needs to pass something through.
+  global.Request ??= class {
+    constructor(url) {
+      this.url = url;
+    }
+  };
+  const respond = (status) => ({ status });
+  const run = (outcomes) => {
+    const fetch_fn = jest.fn(async () => {
+      const next = outcomes.shift();
+      if (next instanceof Error) throw next;
+      return respond(next);
+    });
+    return { fetch_fn, options: { delay_ms: 0, fetch_fn } };
+  };
+
+  it('retries dropped connections and server errors', async () => {
+    const { fetch_fn, options } = run([
+      new TypeError('fetch failed'),
+      503,
+      200,
+    ]);
+    const response = await fetch_with_retry('chunk', {}, options);
+    expect(response.status).toBe(200);
+    expect(fetch_fn).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns 404s at once and gives up after the last attempt', async () => {
+    const missing = run([404]);
+    expect((await fetch_with_retry('chunk', {}, missing.options)).status).toBe(
+      404
+    );
+    expect(missing.fetch_fn).toHaveBeenCalledTimes(1);
+
+    const down = run([
+      new TypeError('a'),
+      new TypeError('b'),
+      new TypeError('c'),
+    ]);
+    await expect(fetch_with_retry('chunk', {}, down.options)).rejects.toThrow(
+      'c'
+    );
+    expect(down.fetch_fn).toHaveBeenCalledTimes(3);
   });
 });

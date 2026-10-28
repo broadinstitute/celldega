@@ -69,6 +69,31 @@ const plain_values = (data) =>
         typeof value === 'bigint' ? Number(value) : value
       );
 
+const FETCH_ATTEMPTS = 3;
+
+/**
+ * Fetch with retries for dropped connections and server errors (5xx), which
+ * local servers and hosted stores both produce now and then. Other responses,
+ * including 404s for absent nodes, return at once.
+ */
+export const fetch_with_retry = async (
+  request,
+  fetchOptions = {},
+  { attempts = FETCH_ATTEMPTS, delay_ms = 200, fetch_fn = fetch } = {}
+) => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await fetch_fn(new Request(request, fetchOptions));
+      if (response.status < 500 || attempt >= attempts) return response;
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, delay_ms * attempt));
+  }
+};
+
 /**
  * Build a reader around a zarrita module, so tests can pass an in-memory one.
  *
@@ -84,7 +109,7 @@ export const makeAnnDataZarrSource = (zarr) => {
     while (end > 0 && href[end - 1] === '/') end -= 1;
     href = href.slice(0, end);
     const store = new zarr.FetchStore(href, {
-      fetch: (request) => fetch(new Request(request, fetchOptions)),
+      fetch: (request) => fetch_with_retry(request, fetchOptions),
     });
     // With consolidated metadata (zarr.consolidate_metadata), one request
     // covers every node; without it, each node is fetched as it is opened.

@@ -45,6 +45,7 @@ describe('linked Clustergram gene selection for Landscape', () => {
         calls.events.push('selected-cats');
       };
       const update_selected_genes = () => {};
+      const set_nbhd_button_color = () => {};
       const update_cell_exp_array = async (
         _cats, _genes, _baseUrl, gene, _version, _integer, _aws, cbgReader
       ) => {

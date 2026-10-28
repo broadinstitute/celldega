@@ -21,6 +21,8 @@ import { publish_selected_cells } from '../umap/embedding_gates';
 import { refresh_layer } from '../utils/refresh_layer';
 import { register_ui_cleanup } from '../utils/ui_cleanup';
 
+import { set_nbhd_button_color } from './nbhd_button';
+
 export const make_bar_container = () => {
   return document.createElement('div');
 };
@@ -177,7 +179,7 @@ export const bar_callback_cat = (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(_viz_state, 'gray');
       toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
@@ -277,7 +279,7 @@ export const bar_callback_gene = async (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(_viz_state, 'gray');
       toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button

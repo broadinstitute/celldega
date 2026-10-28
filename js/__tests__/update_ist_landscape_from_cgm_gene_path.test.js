@@ -224,6 +224,28 @@ describe('linked Clustergram gene selection for Landscape', () => {
     expect(vizState.cats.selected_cats).toEqual(['3']);
   });
 
+  test('an Enrich gene click loads that gene through an AnnData Zarr reader', async () => {
+    const values = { focused_gene: 'CD3E', update_trigger: null };
+    const zarr_reader = { readGeneExpression: async () => ({}) };
+    const vizState = makeVizState();
+    vizState.row_group_readers = { cbg: zarr_reader };
+    vizState.model = {
+      get: (key) => values[key],
+      set: (key, value) => {
+        values[key] = value;
+      },
+      save_changes: () => {},
+    };
+
+    sync_focused_gene_to_landscape(vizState.model);
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+
+    expect(calls.expression).toEqual([
+      { gene: 'CD3E', cbgReader: zarr_reader },
+    ]);
+    expect(calls.selectedCats).toEqual([['CD3E']]);
+  });
+
   test('turns a browser-linked Enrich focus into a Landscape gene update', () => {
     const values = {
       focused_gene: 'GATA3',

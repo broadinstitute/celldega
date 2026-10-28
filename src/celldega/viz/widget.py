@@ -357,7 +357,6 @@ class Landscape(CelldegaWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
     xy_genes = traitlets.List(trait=traitlets.Unicode(), default_value=[], maxlen=2).tag(sync=True)
     xy_scale = traitlets.Enum(["linear", "log1p"], default_value="log1p").tag(sync=True)
-    xy_auto_switch = traitlets.Bool(False).tag(sync=True)
     # All drawn NBHDs keep their coordinate space. Only physical polygons
     # receive a tissue affine when exposed as a Python GeoDataFrame.
     gates = traitlets.Dict({"type": "FeatureCollection", "features": []}).tag(sync=True)

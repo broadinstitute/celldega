@@ -17,6 +17,7 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
 import { toggle_slider } from '../ui/sliders';
 import { sync_trx_button } from '../ui/trx_handle';
+import { publish_selected_cells } from '../umap/embedding_gates';
 import { refresh_layer } from '../utils/refresh_layer';
 import { register_ui_cleanup } from '../utils/ui_cleanup';
 
@@ -348,10 +349,15 @@ export const bar_callback_nbhd = (
 
     if (_viz_state.neighborhood_space) {
       const selected = new Set(_viz_state.obs_store.selected_nbhds.get());
-      const ids = (_viz_state.edit.feature_collection.features || [])
-        .filter((feature) => selected.has(feature.properties.name))
-        .flatMap((feature) => feature.properties.cell_ids || []);
-      _viz_state.obs_store.selected_cells.set([...new Set(ids)]);
+      const gates = (_viz_state.edit.feature_collection.features || []).filter(
+        (feature) => selected.has(feature.properties.name)
+      );
+      // NBHDs passed in from Python carry no membership; leave Python's
+      // selection alone for those, but clear it when nothing is selected.
+      if (!selected.size || gates.some((gate) => gate.properties.cell_ids)) {
+        const ids = gates.flatMap((gate) => gate.properties.cell_ids || []);
+        publish_selected_cells(_viz_state, [...new Set(ids)]);
+      }
     }
 
     if (_viz_state.obs_store.selected_nbhds.get().length > 0) {

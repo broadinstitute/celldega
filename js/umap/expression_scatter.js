@@ -158,39 +158,46 @@ export const initialize_expression_scatter = (
     update_space();
     return () => disposers.forEach((dispose) => dispose?.());
   }
-  const button = (text, title, click) => {
-    const element = document.createElement('button');
+  // Styled like the UMAP button (make_button), so the view modes line up.
+  const button = (text, title, width, click) => {
+    const element = document.createElement('div');
+    element.className = 'button';
     element.textContent = text;
     element.title = title;
     Object.assign(element.style, {
-      border: 'none',
-      background: 'transparent',
-      color: 'gray',
-      fontWeight: 'bold',
-      padding: '2px 4px',
+      width: `${width}px`,
+      textAlign: 'left',
       cursor: 'pointer',
+      fontSize: '12px',
+      fontWeight: 'bold',
+      color: 'gray',
+      marginTop: '5px',
+      marginLeft: '5px',
+      userSelect: 'none',
+      fontFamily:
+        '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif',
     });
     element.addEventListener('click', click);
     container.appendChild(element);
     return element;
   };
-  const xy_button = button('XY', 'Plot expression of two genes', () =>
-    obs.landscape_view.set('xy')
+  const xy_button = button(
+    'XY',
+    'Plot expression of two genes',
+    20,
+    on_xy_click
   );
-  const lin_button = button('LIN', 'Linear gene expression', () =>
+  const lin_button = button('LIN', 'Linear gene expression', 25, () =>
     publish('xy_scale', 'linear')
   );
-  const scale_divider = document.createElement('span');
-  scale_divider.textContent = '|';
-  scale_divider.style.fontSize = '9px';
-  container.appendChild(scale_divider);
-  const log_button = button('LOG', 'log(1 + gene expression)', () =>
+  const log_button = button('LOG', 'log(1 + gene expression)', 30, () =>
     publish('xy_scale', 'log1p')
   );
+  viz_state.buttons.buttons.xy = xy_button;
   const update_scale_controls = () => {
     const xy = obs.landscape_view.get() === 'xy';
-    xy_button.style.display = xy ? 'none' : '';
-    [lin_button, scale_divider, log_button].forEach((element) => {
+    xy_button.style.color = xy ? 'blue' : 'gray';
+    [lin_button, log_button].forEach((element) => {
       element.style.display = xy ? '' : 'none';
     });
     lin_button.style.color = scale === 'linear' ? 'blue' : 'gray';
@@ -199,11 +206,21 @@ export const initialize_expression_scatter = (
   const inputs = document.createElement('div');
   Object.assign(inputs.style, { display: 'none', fontSize: '11px' });
   viz_state.containers.image.appendChild(inputs);
+  // Both axis inputs autocomplete from one list of the dataset's genes.
+  const gene_list = document.createElement('datalist');
+  gene_list.id = `xy_genes_${dataset}_${Math.random().toString(36).slice(2)}`;
+  viz_state.genes.gene_names.forEach((gene) => {
+    const option = document.createElement('option');
+    option.value = gene;
+    gene_list.appendChild(option);
+  });
+  inputs.appendChild(gene_list);
   const axis_inputs = ['X', 'Y'].map((axis, i) => {
     const label = document.createElement('label');
     label.textContent = `${axis}: `;
     const input = document.createElement('input');
     input.setAttribute('aria-label', `${axis} gene`);
+    input.setAttribute('list', gene_list.id);
     input.placeholder = `${axis} gene`;
     input.style.cssText = 'width:65px;font-size:11px;box-sizing:border-box';
     input.value = genes[i] || '';
@@ -342,11 +359,27 @@ export const initialize_expression_scatter = (
     }
   };
 
+  // XY is entered only from its button. Selected genes (up to two) become the
+  // axes; otherwise the previous axes are kept.
+  function on_xy_click() {
+    const selected = (obs.selected_genes.get() || []).filter((gene) =>
+      known_genes.has(gene)
+    );
+    if (selected.length) {
+      genes = selected.slice(0, 2);
+      axis_inputs.forEach((input, i) => {
+        input.value = genes[i] || '';
+      });
+      publish('xy_genes', genes);
+    }
+    // Already in XY, new axes replot through the xy_genes listener.
+    if (obs.landscape_view.get() !== 'xy') obs.landscape_view.set('xy');
+  }
+
   const update_view = () => {
     const view = obs.landscape_view.get();
     update_scale_controls();
     inputs.style.display = view === 'xy' ? '' : 'none';
-    update_scale_controls();
     publish('landscape_state', view);
     if (view === 'xy') update_xy();
     else {
@@ -383,15 +416,6 @@ export const initialize_expression_scatter = (
     update_scale_controls();
     if (obs.landscape_view.get() === 'xy') update_xy();
   });
-  subscribe(obs.selected_genes, (selected) => {
-    if (
-      selected.length !== 2 ||
-      (!model?.get('xy_auto_switch') && obs.landscape_view.get() !== 'xy')
-    )
-      return;
-    publish('xy_genes', selected);
-    if (obs.landscape_view.get() !== 'xy') obs.landscape_view.set('xy');
-  });
 
   // Initialize gates without moving an already rendered UMAP on page load.
   update_scale_controls();
@@ -407,8 +431,10 @@ export const initialize_expression_scatter = (
     disposers.forEach((dispose) => dispose?.());
     xy_button.remove();
     lin_button.remove();
-    scale_divider.remove();
     log_button.remove();
+    if (viz_state.buttons.buttons.xy === xy_button) {
+      delete viz_state.buttons.buttons.xy;
+    }
     inputs.remove();
   };
 };

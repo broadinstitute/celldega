@@ -698,6 +698,13 @@ const cell_layer_onclick = async (
 
   const inst_cat = viz_state.cats.cell_cats[sourceIndex];
 
+  // A click replaces any highlighted cells (e.g. a Clustergram dendrogram
+  // selection) with the clicked cell's cluster, or clears both when that
+  // cluster was already selected (update_selected_cats toggles).
+  if (viz_state.obs_store.selected_cells.get()?.length) {
+    viz_state.obs_store.selected_cells.set([]);
+  }
+
   update_cat(viz_state.cats, 'cluster');
 
   viz_state.obs_store.deck_check.set({

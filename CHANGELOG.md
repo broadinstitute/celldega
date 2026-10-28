@@ -143,12 +143,12 @@ All notable changes to Celldega are documented here. This project follows
   `annDataZarrSource(url, options)` opens such a store.
 - Landscape XY view: plot the raw DegaFiles expression of two genes against
   each other, with cells animating between the spatial, UMAP, and XY layouts.
-  The XY button (shown when the dataset has a UMAP and genes) opens gene inputs
-  for each axis and a LIN/LOG toggle for linear or `log(1 + counts)` axes. In
-  Python, `Landscape.set_xy(x_gene, y_gene, scale="log1p")` switches to XY, and
-  the new `xy_genes`, `xy_scale`, and `xy_auto_switch` traits (with
-  `xy_auto_switch=True`, selecting exactly two genes switches to XY) and
-  `landscape_state="xy"` control it.
+  The XY button, next to UMAP when the dataset has a UMAP and genes, plots the
+  selected genes (or the previous axes); selecting genes alone never leaves the
+  UMAP. XY shows autocompleting gene inputs for each axis and a LIN/LOG toggle
+  for linear or `log(1 + counts)` axes. In Python,
+  `Landscape.set_xy(x_gene, y_gene, scale="log1p")` switches to XY, and the new
+  `xy_genes` and `xy_scale` traits and `landscape_state="xy"` control it.
 - Landscape: the NBHD editor draws polygons ("gates") in the UMAP and XY views
   as well as the spatial view. Each gate keeps its coordinate space and the IDs
   of the cells inside it, and is only drawn in the view it was made in. The
@@ -159,7 +159,9 @@ All notable changes to Celldega are documented here. This project follows
   `save_nbhds`, `load_nbhds`, and `select_nbhd` are aliases.
 - Landscape: cluster selections, linked Clustergram selections, and gates
   update the `selected_cells` trait, and `Landscape.get_selected_cells(adata)`
-  returns the selected cell IDs, or a copy of `adata` subset to them.
+  returns the selected cell IDs, or a copy of `adata` subset to them. A gate's
+  cells are not highlighted in the view. Clicking a cell clears highlighted
+  cells (e.g. a Clustergram dendrogram selection) and toggles its cluster.
 - `pre.add_aligned_he(path_dega_files, image_path, alignment=None)` adds an
   aligned H&E image (8-bit RGB or RGBA, including RGB OME-TIFF) to existing
   DegaFiles, optionally resampling it with a 3×3 affine or a Xenium Explorer

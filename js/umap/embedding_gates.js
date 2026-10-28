@@ -15,6 +15,17 @@ export const fingerprint = (values) => {
 
 export const space_key = (space) => JSON.stringify(space);
 
+// A gate's cells go to Python's `selected_cells` (Landscape.get_selected_cells)
+// without highlighting them in the view, which would hide or dim the rest.
+export const publish_selected_cells = (viz_state, ids) => {
+  const { model } = viz_state;
+  if (!model?.set) return;
+  viz_state.publishing_selection = true;
+  model.set('selected_cells', ids.map(String));
+  model.save_changes?.();
+  viz_state.publishing_selection = false;
+};
+
 const in_ring = ([x, y], ring) => {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -102,7 +113,7 @@ export const sync_embedding_gates = (viz_state) => {
     viz_state.publishing_gates = false;
   }
   const last = current[viz_state.edit.last_feature_index ?? current.length - 1];
-  if (last) viz_state.obs_store.selected_cells.set(last.properties.cell_ids);
+  if (last) publish_selected_cells(viz_state, last.properties.cell_ids);
   // Also keep the existing physical-neighborhood GeoDataFrame in sync. Its
   // Python observer applies the inverse tissue affine only to spatial polygons.
   return view !== 'spatial';

@@ -9,7 +9,7 @@ const read = (file) =>
     .replace(/^export const /gm, 'const ');
 const gates = new Function(`${read('umap/embedding_gates.js')}
   return { fingerprint, point_in_gate, gate_cell_ids, space_key,
-    sync_embedding_gates, show_space_gates };`)();
+    publish_selected_cells, sync_embedding_gates, show_space_gates };`)();
 const load = jest.fn();
 const scatter = new Function(
   'ViewMode',
@@ -64,7 +64,6 @@ const setup = ({ spatialOnly = false } = {}) => {
   const values = {
     xy_genes: [],
     xy_scale: 'log1p',
-    xy_auto_switch: true,
     gates: { type: 'FeatureCollection', features: [] },
   };
   const model = {
@@ -117,6 +116,7 @@ const setup = ({ spatialOnly = false } = {}) => {
       view_modes: document.createElement('div'),
       image: document.createElement('div'),
     },
+    buttons: { buttons: {} },
   };
   const layers = {
     cell_layer: new Layer({
@@ -173,18 +173,36 @@ describe('expression scatter and coordinate-aware gates', () => {
     );
   });
 
-  test('two selected genes enter XY, preserve sparse zeros, and can return to UMAP', async () => {
+  test('only the XY button enters XY, using the selected genes; zeros are kept', async () => {
     const { state, model, dispose } = setup();
+    // Selecting two genes colors cells but stays in the UMAP.
     state.obs_store.selected_genes.set(['A', 'B']);
+    await Promise.resolve();
+    expect(state.obs_store.landscape_view.get()).toBe('umap');
+    const buttons = state.containers.view_modes.querySelectorAll('.button');
+    expect(Array.from(buttons, (b) => b.textContent)).toEqual([
+      'XY',
+      'LIN',
+      'LOG',
+    ]);
+    expect(state.containers.view_modes.textContent).not.toContain('|');
+    expect(buttons[1].style.display).toBe('none');
+    expect(state.buttons.buttons.xy).toBe(buttons[0]);
+
+    buttons[0].click();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     expect(state.obs_store.landscape_view.get()).toBe('xy');
     expect(model.get('xy_genes')).toEqual(['A', 'B']);
-    const buttons = state.containers.view_modes.querySelectorAll('button');
-    expect(buttons[0].style.display).toBe('none');
-    expect(buttons[1].textContent).toBe('LIN');
-    expect(buttons[2].textContent).toBe('LOG');
+    expect(buttons[0].style.color).toBe('blue');
+    expect(buttons[1].style.display).toBe('');
+    const inputs = state.containers.image.querySelectorAll('input');
+    const options = state.containers.image.querySelectorAll('datalist option');
+    expect(Array.from(inputs, (input) => input.getAttribute('list'))).toEqual(
+      Array(2).fill(state.containers.image.querySelector('datalist').id)
+    );
+    expect(Array.from(options, (option) => option.value)).toEqual(['A', 'B']);
     expect(state.embedding_space).toMatchObject({
       kind: 'xy',
       genes: ['A', 'B'],
@@ -242,7 +260,7 @@ describe('expression scatter and coordinate-aware gates', () => {
     const second = layers.cell_layer.props.data.attributes.getPosition.value;
     expect(first).not.toBe(second);
     expect(Array.from(first)).not.toEqual(Array.from(second));
-    state.containers.view_modes.querySelectorAll('button')[1].click();
+    state.containers.view_modes.querySelectorAll('.button')[1].click();
     expect(model.get('xy_scale')).toBe('linear');
     dispose();
     raf.mockRestore();
@@ -254,6 +272,7 @@ describe('expression scatter and coordinate-aware gates', () => {
     const { state, dispose } = setup();
     state.vector_name_integer = true;
     state.obs_store.selected_genes.set(['A', 'B']);
+    state.buttons.buttons.xy.click();
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -275,6 +294,7 @@ describe('expression scatter and coordinate-aware gates', () => {
     );
     const { state, dispose } = setup();
     state.obs_store.selected_genes.set(['A', 'B']);
+    state.buttons.buttons.xy.click();
     state.obs_store.landscape_view.set('umap');
     complete.forEach((resolve) =>
       resolve({ cell_names: ['a'], cell_exp: [9] })
@@ -317,9 +337,9 @@ describe('expression scatter and coordinate-aware gates', () => {
   test('physical NBHDs sync vertices and membership without requiring UMAP or genes', () => {
     const { state, layers, model, dispose } = setup({ spatialOnly: true });
     expect(state.neighborhood_space.kind).toBe('spatial');
-    expect(state.containers.view_modes.querySelectorAll('button')).toHaveLength(
-      0
-    );
+    expect(
+      state.containers.view_modes.querySelectorAll('.button')
+    ).toHaveLength(0);
     const space = state.neighborhood_space;
     state.edit.feature_collection.features = [
       {
@@ -347,6 +367,9 @@ describe('expression scatter and coordinate-aware gates', () => {
       x: [[-1, 60, 60, -1, -1]],
       y: [[-1, -1, 60, 60, -1]],
     });
+    // The gate's cells reach Python without highlighting them in the view.
+    expect(model.get('selected_cells')).toEqual(['a', 'c']);
+    expect(state.obs_store.selected_cells.get()).toEqual([]);
     gates.show_space_gates(state, layers, {
       kind: 'umap',
       dataset: space.dataset,

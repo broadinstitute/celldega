@@ -8,7 +8,10 @@ import * as d3 from 'd3';
 import { is_orbit_technology } from '../../global_variables/image_info';
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
-import { sync_embedding_gates } from '../../umap/embedding_gates';
+import {
+  publish_selected_cells,
+  sync_embedding_gates,
+} from '../../umap/embedding_gates';
 import { hexToRgb, randomHexColor } from '../../utils/hexToRgb';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { get_layers_list } from '../utils/layers_ist';
@@ -234,7 +237,7 @@ const edit_layer_on_edit = async (
 const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
   const feature = viz_state.edit.feature_collection.features[event.index];
   if (viz_state.neighborhood_space && feature?.properties.cell_ids) {
-    viz_state.obs_store.selected_cells.set(feature.properties.cell_ids);
+    publish_selected_cells(viz_state, feature.properties.cell_ids);
   }
   if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
     // switch to modify mode

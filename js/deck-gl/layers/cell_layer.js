@@ -33,7 +33,6 @@ import { get_point_cloud_source_index } from '../utils/point_cloud_indices';
 
 import {
   CELL_COLOR_SIZE,
-  getCellRadiusScale,
   getVizCellColorContext,
   isCellVisible,
   update_cell_color_buffer,
@@ -561,16 +560,11 @@ export const get_scatterplot_cell_data = (viz_state) => {
       ? positions.value
       : new Float32Array(positions.value);
 
-  const context = getVizCellColorContext(viz_state);
   const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
   const radius = viz_state.spatial?.cell_radius ?? 5;
-  // UMAP points keep a pixel-sized backdrop at any zoom. Selected points
-  // grow above that baseline, including multi-cell dendrogram selections.
-  const baseRadius = isUmap ? radius / 5 : radius;
-  const radii = new Float32Array(fullCount);
-  for (let index = 0; index < fullCount; index++) {
-    radii[index] = baseRadius * getCellRadiusScale(context, index);
-  }
+  // UMAP points keep a pixel size at any zoom; selections change their color,
+  // not their size.
+  const radii = new Float32Array(fullCount).fill(isUmap ? radius / 5 : radius);
 
   return assert_binary_attribute_lengths('scatterplot-cell', {
     length: fullCount,

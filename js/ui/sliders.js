@@ -235,7 +235,9 @@ const cell_slider_callback = async (deck_ist, layers_obj, viz_state) => {
 };
 
 // Zoomed out, the TRX slider sets the expression drawn at full cell opacity,
-// as a percent of the max (100 = the max, the default scaling).
+// as a percent of the max (100 = the max, the default scaling). Past 100 it
+// dims the cells, for genes that many cells express highly.
+export const CELL_OPACITY_SLIDER_MAX = 150;
 const opacity_slider_scale = (value) => Math.max(1, Number(value)) / 100;
 
 /** Set `cats.cell_exp_scale` and recolor the cells to match. */
@@ -639,7 +641,10 @@ export const ini_trx_slider_modes = (layers_obj, viz_state) => {
         );
       }
       viz_state.trx_slider_mode = mode;
-      const max = mode === 'size' ? trx_size_slider_max(viz_state) : 100;
+      const max =
+        mode === 'size'
+          ? trx_size_slider_max(viz_state)
+          : CELL_OPACITY_SLIDER_MAX;
       slider.max = String(max);
       let value = viz_state.trx_slider_values[mode];
       if (mode === 'size') {

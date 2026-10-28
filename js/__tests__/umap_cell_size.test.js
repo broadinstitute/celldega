@@ -52,33 +52,33 @@ const makeState = () => ({
 const radii = (data) => Array.from(data.attributes.getRadius.value);
 
 describe('selected cells in UMAP views', () => {
-  test('a cluster selection enlarges every selected cell and dims the rest', () => {
+  test('a cluster selection dims the other cells without resizing any', () => {
     const state = makeState();
     state.cats.selected_cats = ['A'];
     const data = api.get_scatterplot_cell_data(state);
-    expect(radii(data)).toEqual([2.5, 1, 2.5]);
+    expect(radii(data)).toEqual([1, 1, 1]);
     expect(Array.from(data.attributes.getFillColor.value.slice(4, 8))).toEqual([
       128, 128, 128, 16,
     ]);
   });
 
-  test('a multi-cell dendrogram selection enlarges all its cells and clearing resets sizes', () => {
+  test('a multi-cell dendrogram selection keeps every cell at its size', () => {
     const state = makeState();
     const layers = { cell_layer: new Layer() };
     state.highlighted_cells = new Set(['a', 'b']);
     api.refresh_cell_layer_data(layers, state);
-    expect(radii(layers.cell_layer.props.data)).toEqual([2.5, 2.5, 1]);
+    expect(radii(layers.cell_layer.props.data)).toEqual([1, 1, 1]);
     expect(layers.cell_layer.props.radiusUnits).toBe('pixels');
     state.highlighted_cells.clear();
     api.refresh_cell_layer_data(layers, state);
     expect(radii(layers.cell_layer.props.data)).toEqual([1, 1, 1]);
   });
 
-  test('gene selection enlarges cells expressing the selected gene', () => {
+  test('gene coloring keeps every cell at its size', () => {
     const state = makeState();
     state.cats.cat = 'GeneA';
     state.cats.selected_cats = ['GeneA'];
-    expect(radii(api.get_scatterplot_cell_data(state))).toEqual([1, 2.5, 2.5]);
+    expect(radii(api.get_scatterplot_cell_data(state))).toEqual([1, 1, 1]);
   });
 
   test('XY and animated positions leave the original UMAP buffer intact', () => {
@@ -105,12 +105,12 @@ describe('selected cells in UMAP views', () => {
     expect(Array.from(umap)).toEqual([0, 0, 1, 1, 2, 2]);
   });
 
-  test('the cell slider scales selected points and can still hide every point', () => {
+  test('the cell slider sizes every point and can still hide them all', () => {
     const state = makeState();
     state.cats.selected_cats = ['A'];
     const layers = { cell_layer: new Layer() };
     api.update_cell_layer_radius(layers, 10, state);
-    expect(radii(layers.cell_layer.props.data)).toEqual([5, 2, 5]);
+    expect(radii(layers.cell_layer.props.data)).toEqual([2, 2, 2]);
     api.update_cell_layer_radius(layers, 0, state);
     expect(radii(layers.cell_layer.props.data)).toEqual([0, 0, 0]);
     expect(layers.cell_layer.props.radiusMinPixels).toBe(0);

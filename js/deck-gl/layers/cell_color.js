@@ -5,8 +5,6 @@ export const CELL_COLOR_SIZE = 4;
 // both the black canvas and a white page.
 export const DIMMED_CELL_COLOR = [128, 128, 128, 16];
 
-export const UMAP_SELECTED_RADIUS_SCALE = 2.5;
-
 export const is_cluster_color_mode = (cats) =>
   !cats.cat || cats.cat === 'cluster';
 
@@ -112,17 +110,6 @@ const isDimmedCell = (context, index) =>
   context.dimUnselected &&
   isOutsideSelection(context, index) &&
   (!context.isClusterMode || hasClusterColor(context, index));
-
-export const getCellRadiusScale = (context, index) => {
-  if (!context.dimUnselected || isOutsideSelection(context, index)) return 1;
-  const selected =
-    context.hasHighlights ||
-    (context.isClusterMode
-      ? context.clusterFilter.length > 0
-      : context.hasClusterFilter ||
-        toByte(context.cats.cell_exp_array?.[index]) > 0);
-  return selected ? UMAP_SELECTED_RADIUS_SCALE : 1;
-};
 
 export const isCellVisible = (context, index) => {
   if (isOutsideSelection(context, index)) {

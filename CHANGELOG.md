@@ -116,7 +116,8 @@ All notable changes to Celldega are documented here. This project follows
   cell boundaries (and transcripts) visible.
 - Landscape: the TRX slider sets transcript size in close-up and, zoomed out,
   the expression at which cells reach full opacity for the selected gene(s),
-  shown as a note at the top of the gene panel. Each role keeps its own slider
+  from 1% to 150% of the max (above 100%, it dims cells when many express the
+  gene highly), shown as a note at the top of the gene panel. Each role keeps its own slider
   position; zoomed out with no gene selected, the slider is disabled. The
   opacity setting applies only zoomed out: close-up cells use the full
   expression range.
@@ -186,8 +187,7 @@ All notable changes to Celldega are documented here. This project follows
   hiding them, so the selection stays in the context of the whole UMAP. The
   spatial view still hides them.
 - Landscape UMAP view: points have a fixed size in screen pixels at any zoom,
-  set by the CELL slider, and selected cells (clusters, cells expressing the
-  selected gene, or linked selections) are drawn 2.5 times larger.
+  set by the CELL slider. Selections change the cells' colors, not their size.
 - Landscape: cells stay visible while editing neighborhoods, and clicking CELL
   during editing leaves editing without hiding them.
 - Landscape cell tooltips show the selected gene's expression in the hovered

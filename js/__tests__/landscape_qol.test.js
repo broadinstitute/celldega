@@ -521,6 +521,11 @@ describe('ini_selected_gene_trx_focus', () => {
     viz_state.obs_store.close_up.set(false);
     expect(slider.value).toBe('40');
     expect(viz_state.cats.cell_exp_scale).toBe(0.4);
+
+    // Past 100, full opacity rises above the max, dimming the cells.
+    slider.value = '150';
+    sliders.trx_slider_callback(null, layers_obj, viz_state);
+    expect(viz_state.cats.cell_exp_scale).toBe(1.5);
   });
 
   it('uses the forced size range when entering close-up forced', () => {
@@ -541,7 +546,8 @@ describe('ini_selected_gene_trx_focus', () => {
     };
     const layers_obj = { trx_layer: { props: { visible: true } } };
     sliders.ini_trx_slider_modes(layers_obj, viz_state);
-    expect(slider.max).toBe('100');
+    // Zoomed out, the slider reaches past the max to dim cells.
+    expect(slider.max).toBe('150');
 
     viz_state.obs_store.close_up.set(true);
     expect(slider.max).toBe('300');

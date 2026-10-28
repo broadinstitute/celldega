@@ -131,6 +131,37 @@ All notable changes to Celldega are documented here. This project follows
   top of the TRX slider; in a Landscape that includes its wider range at
   intermediate zoom, and full size stays full size as the view enters or
   leaves intermediate zoom.
+- Landscape XY view: plot the raw DegaFiles expression of two genes against
+  each other, with cells animating between the spatial, UMAP, and XY layouts.
+  The XY button (shown when the dataset has a UMAP and genes) opens gene inputs
+  for each axis and a LIN/LOG toggle for linear or `log(1 + counts)` axes. In
+  Python, `Landscape.set_xy(x_gene, y_gene, scale="log1p")` switches to XY, and
+  the new `xy_genes`, `xy_scale`, and `xy_auto_switch` traits (with
+  `xy_auto_switch=True`, selecting exactly two genes switches to XY) and
+  `landscape_state="xy"` control it.
+- Landscape: the NBHD editor draws polygons ("gates") in the UMAP and XY views
+  as well as the spatial view. Each gate keeps its coordinate space and the IDs
+  of the cells inside it, and is only drawn in the view it was made in. The
+  `gates` trait holds them all; `Landscape.save_gates(path)` and
+  `load_gates(path)` write and read them as GeoJSON, `select_gate(name)`
+  restores a gate's view and selects its cells, and `nbhd_polygons` returns
+  them as a `GeoDataFrame` (spatial gates in tissue coordinates).
+  `save_nbhds`, `load_nbhds`, and `select_nbhd` are aliases.
+- Landscape: cluster selections, linked Clustergram selections, and gates
+  update the `selected_cells` trait, and `Landscape.get_selected_cells(adata)`
+  returns the selected cell IDs, or a copy of `adata` subset to them.
+- `pre.add_aligned_he(path_dega_files, image_path, alignment=None)` adds an
+  aligned H&E image (8-bit RGB or RGBA, including RGB OME-TIFF) to existing
+  DegaFiles, optionally resampling it with a 3×3 affine or a Xenium Explorer
+  alignment CSV. Landscape and Yearbook then show a Fluorescence / H&E
+  selector; both backgrounds use the same cell and transcript overlays.
+  Requires `celldega[pre]` and libvips. See *Add aligned H&E to DegaFiles* and
+  `notebooks/Xenium_Aligned_HE.ipynb`.
+- Tutorials: MIX-seq drug screen (single cell), Flex CITE-seq PBMC (RNA and
+  protein), and CST lung cancer PTM (multi-omic) Landscape-Clustergram-Enrich
+  notebooks, and a CITE-seq PBMC gallery entry whose Clustergram loads a
+  `Matrix` Zarr store from Hugging Face. A CELLxGENE Census PBMC notebook
+  (`notebooks/`) builds a Chromium Landscape and Clustergram from Census data.
 
 ### Changed
 
@@ -141,6 +172,11 @@ All notable changes to Celldega are documented here. This project follows
   from a linked Clustergram) dims the other cells to a faint gray instead of
   hiding them, so the selection stays in the context of the whole UMAP. The
   spatial view still hides them.
+- Landscape UMAP view: points have a fixed size in screen pixels at any zoom,
+  set by the CELL slider, and selected cells (clusters, cells expressing the
+  selected gene, or linked selections) are drawn 2.5 times larger.
+- Landscape: cells stay visible while editing neighborhoods, and clicking CELL
+  during editing leaves editing without hiding them.
 - Landscape cell tooltips show the selected gene's expression in the hovered
   cell (the summed expression when several genes are selected).
 - Clustergram tooltips show small nonzero values with two significant digits
@@ -151,6 +187,14 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Cell segmentation validates polygon offsets and uses logical Arrow lengths
+  instead of buffer capacity, preventing padded data from connecting unrelated
+  cells. Tile changes rebuild the path buffers together, stale requests cannot
+  replace newer boundaries, and reported rendering errors trigger one automatic
+  rebuild. Failed geometry loads clear cached cell data so they can be retried.
+- Chromium Landscapes no longer allocate millions of transcript-tile entries
+  when opening, which could exhaust the browser's memory. UMAP and XY views
+  skip transcript-tile work for spatial datasets too.
 - Clustergram: with more than two attribute bars on an axis, the column (or
   row) dendrogram fell outside the canvas, and from four column bars on, the
   last bar and its label were cut off. The matrix now shrinks to make room;
@@ -210,11 +254,6 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
-- Cell segmentation validates polygon offsets and uses logical Arrow lengths
-  instead of buffer capacity, preventing padded data from connecting unrelated
-  cells. Tile changes rebuild the path buffers together, stale requests cannot
-  replace newer boundaries, and reported rendering errors trigger one automatic
-  rebuild. Failed geometry loads clear cached cell data so they can be retried.
 - Xenium and Atera morphology image tiles are no longer too dim. Every channel
   is stretched to 8-bit at its instrument "Suggested LUT max" from the
   OME-XML, or, for bundles without one, the 99.9th percentile of tissue pixels.

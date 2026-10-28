@@ -784,7 +784,7 @@ def make_trx_tiles(
         transformation_matrix = np.loadtxt(path_transformation_matrix)
 
         gene_str_to_int_mapping = _get_name_mapping(
-            path_trx_tiles.replace("/transcript_tiles", ""),
+            str(tiles_path.parent),
             layer="transcript",
         )
 

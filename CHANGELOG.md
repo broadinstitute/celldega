@@ -210,7 +210,9 @@ All notable changes to Celldega are documented here. This project follows
 - Landscape: clicking a gene in Enrich colors cells by it even when the
   Landscape is displayed more than once (e.g. alone and in a linked layout).
   Each view handled the focus as a toggle, so a second view turned it back
-  off; an Enrich focus now always shows its gene.
+  off; an Enrich focus now always shows its gene, and clicking the bold gene
+  again (or Enrich's CLEAR) returns the cells to their cluster colors unless
+  another gene was selected since.
 - Chromium Landscapes no longer allocate millions of transcript-tile entries
   when opening, which could exhaust the browser's memory. UMAP and XY views
   skip transcript-tile work for spatial datasets too.

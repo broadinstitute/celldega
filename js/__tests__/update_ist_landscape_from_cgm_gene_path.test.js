@@ -262,6 +262,56 @@ describe('linked Clustergram gene selection for Landscape', () => {
     expect(vizState.cats.selected_cats).toEqual(['CD3E']);
   });
 
+  const linkedModel = (values) => ({
+    get: (key) => values[key],
+    set: (key, value) => {
+      values[key] = value;
+    },
+    save_changes: () => {},
+  });
+
+  test('clicking the bold gene in Enrich again clears it, once per Landscape', async () => {
+    const values = { focused_gene: 'CD79B', update_trigger: null };
+    const vizState = makeVizState();
+    vizState.model = linkedModel(values);
+    sync_focused_gene_to_landscape(vizState.model);
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.cats.cat).toBe('CD79B');
+
+    values.focused_gene = '';
+    // Two views of the Landscape each see the cleared focus; only the first
+    // finds Enrich's focus as the last trigger, and either clearing is a no-op
+    // the second time.
+    expect(sync_focused_gene_to_landscape(vizState.model)).toBe(true);
+    expect(sync_focused_gene_to_landscape(vizState.model)).toBe(false);
+    expect(values.update_trigger).toMatchObject({
+      value: { name: 'CD79B' },
+      unfocus: true,
+    });
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.cats.cat).toBe('cluster');
+    expect(vizState.cats.selected_cats).toEqual([]);
+    expect(calls.expression.map(({ gene }) => gene)).toEqual(['CD79B']);
+  });
+
+  test('an Enrich unfocus leaves a gene chosen since then alone', async () => {
+    const vizState = makeVizState([], {
+      type: 'row_label',
+      value: { entity: 'gene', attr: 'name', name: 'CD79B' },
+      unfocus: true,
+    });
+    vizState.cats.cat = 'MS4A1';
+    vizState.cats.selected_cats = ['MS4A1'];
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.cats.cat).toBe('MS4A1');
+    expect(calls.selectedCats).toEqual([]);
+
+    // Nothing to unfocus when Enrich's focus is no longer the last trigger.
+    const model = linkedModel({ focused_gene: '', update_trigger: ROW_LABEL });
+    expect(sync_focused_gene_to_landscape(model)).toBe(false);
+  });
+
   test('a repeated Clustergram row click still toggles its gene off', async () => {
     const vizState = makeVizState();
     await update_ist_landscape_from_cgm(null, {}, vizState);

@@ -1,4 +1,8 @@
-import { update_cat, update_selected_cats } from '../global_variables/cat';
+import {
+  force_set_selected_cats,
+  update_cat,
+  update_selected_cats,
+} from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import {
   is_current_gene_load,
@@ -128,6 +132,9 @@ export const sync_focused_gene_to_landscape = (model) => {
       attr: 'name',
       row_entity: 'gene',
     },
+    // Show the gene rather than toggle it: every view of this model (e.g. a
+    // Landscape displayed alone and in a linked layout) handles the focus.
+    focus: true,
   });
   model.save_changes?.();
   return true;
@@ -146,6 +153,7 @@ export const update_ist_landscape_from_cgm = async (
   const click_info = {
     type: raw_click.type || raw_click.click_type,
     value: raw_click.value || raw_click.click_value,
+    focus: Boolean(raw_click.focus),
   };
 
   const click_type = click_info.type?.replace('-', '_');
@@ -240,7 +248,11 @@ export const update_ist_landscape_from_cgm = async (
             layers_obj
           );
         } else {
-          new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+          // A row click toggles its gene; an Enrich focus always shows it.
+          new_cat =
+            !click_info.focus && inst_gene === viz_state.cats.cat
+              ? 'cluster'
+              : inst_gene;
 
           // Clear highlighted cells immediately (without triggering subscription refresh)
           // This prevents the old gene data from showing during loading
@@ -277,7 +289,9 @@ export const update_ist_landscape_from_cgm = async (
           clear_selected_cells_if_needed(viz_state);
 
           // Update selected_cats after cell_exp_array has been populated
-          update_selected_cats(
+          // update_selected_cats toggles a repeated selection off; a focus
+          // sets it exactly, so handling it again changes nothing.
+          (click_info.focus ? force_set_selected_cats : update_selected_cats)(
             viz_state.cats,
             new_cat === 'cluster' ? [] : [inst_gene],
             viz_state.obs_store

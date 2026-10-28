@@ -30,7 +30,16 @@ describe('linked Clustergram gene selection for Landscape', () => {
 
     const shims = `
       const update_cat = (cats, cat) => { cats.cat = cat; };
+      // Like the real one: re-selecting the same array toggles it off.
       const update_selected_cats = (cats, selected) => {
+        const same =
+          selected.length === cats.selected_cats.length &&
+          selected.every((value, i) => value === cats.selected_cats[i]);
+        cats.selected_cats = same ? [] : selected;
+        calls.selectedCats.push([...cats.selected_cats]);
+        calls.events.push('selected-cats');
+      };
+      const force_set_selected_cats = (cats, selected) => {
         cats.selected_cats = selected;
         calls.selectedCats.push([...selected]);
         calls.events.push('selected-cats');
@@ -244,6 +253,20 @@ describe('linked Clustergram gene selection for Landscape', () => {
       { gene: 'CD3E', cbgReader: zarr_reader },
     ]);
     expect(calls.selectedCats).toEqual([['CD3E']]);
+
+    // A second view of the same Landscape handles the same focus: the gene
+    // stays shown instead of toggling off.
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.cats.cat).toBe('CD3E');
+    expect(vizState.cats.selected_cats).toEqual(['CD3E']);
+  });
+
+  test('a repeated Clustergram row click still toggles its gene off', async () => {
+    const vizState = makeVizState();
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.cats.cat).toBe('cluster');
+    expect(vizState.cats.selected_cats).toEqual([]);
   });
 
   test('turns a browser-linked Enrich focus into a Landscape gene update', () => {
@@ -274,6 +297,7 @@ describe('linked Clustergram gene selection for Landscape', () => {
             attr: 'name',
             row_entity: 'gene',
           },
+          focus: true,
         },
       ],
     ]);

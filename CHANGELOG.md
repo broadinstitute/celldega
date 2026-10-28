@@ -204,6 +204,10 @@ All notable changes to Celldega are documented here. This project follows
   cells. Tile changes rebuild the path buffers together, stale requests cannot
   replace newer boundaries, and reported rendering errors trigger one automatic
   rebuild. Failed geometry loads clear cached cell data so they can be retried.
+- Landscape: clicking a gene in Enrich colors cells by it even when the
+  Landscape is displayed more than once (e.g. alone and in a linked layout).
+  Each view handled the focus as a toggle, so a second view turned it back
+  off; an Enrich focus now always shows its gene.
 - Chromium Landscapes no longer allocate millions of transcript-tile entries
   when opening, which could exhaust the browser's memory. UMAP and XY views
   skip transcript-tile work for spatial datasets too.

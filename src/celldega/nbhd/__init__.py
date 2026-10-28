@@ -11,6 +11,7 @@ from .alpha_shapes import (
     alpha_shape_cell_clusters_by_slice,
     filter_alpha_shapes,
 )
+from .collection import NeighborhoodCollection
 from .gradient import _get_micron_per_pixel, calc_gradient
 from .hextile import generate_hextile, hextile_niche
 from .neighborhoods import (
@@ -32,6 +33,7 @@ from .zonal_stats import calc_img_zonal_stats
 
 
 __all__ = [
+    "NeighborhoodCollection",
     "_add_centroids_to_obsm",
     "_dissolve_by_category",
     "_get_df_cell",

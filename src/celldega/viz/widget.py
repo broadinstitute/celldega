@@ -147,7 +147,7 @@ def _coerce_nbhd_for_landscape(
     meta_nbhd: pd.DataFrame | None = None,
 ) -> tuple[gpd.GeoDataFrame | None, pd.DataFrame | None]:
     """Coerce a GeoDataFrame or neighborhood-like object (e.g. a
-    ``dega_collection.NeighborhoodCollection``) into Landscape geometry."""
+    ``celldega.nbhd.NeighborhoodCollection``) into Landscape geometry."""
     if nbhd_like is None:
         return None, meta_nbhd
 
@@ -1077,7 +1077,7 @@ class Yearbook(CelldegaWidget):
             If not provided and no query is given, random cells will be selected.
         selection (Selection or dict or list, optional): Ordered selection of
             cells to display as portraits. Accepts a selection object exposing
-            ``to_json()``/``to_dict()`` (e.g. a ``dega_collection.select``
+            ``to_json()``/``to_dict()`` (e.g. a ``celldega.select``
             selection), a JSON-ready selection dict with ``ids``, or a plain
             list of cell ids. Yearbook uses its ids as the
             portrait cell order and stores the JSON-ready payload for provenance.

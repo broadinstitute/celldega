@@ -10,6 +10,7 @@ dist
 # So that notebooks are only included _intentionally_
 *.ipynb
 !notebooks/CELLxGENE_Census_PBMC_Landscape-Clustergram.ipynb
+!notebooks/Xenium_Aligned_HE.ipynb
 !docs/examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
 .cache
 site

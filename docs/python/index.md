@@ -6,9 +6,14 @@ computation, and interactive visualization. Every function works on standard
 scverse data structures (`AnnData`, `MuData`) and `GeoDataFrame` neighborhoods,
 and returns new objects of the same kinds.
 
-Higher-level data structures built on top of these (dataset, neighborhood, and
-set collections), cell selection queries, and serial-slice alignment live in the
-separate `dega-collection` package, much like AnnData lives apart from Scanpy.
+Higher-level data structures built on top of these live in their own modules,
+kept apart from the methods the way AnnData is kept apart from Scanpy:
+[`collection`](collection/api.md) (the shared `CelldegaCollection` base),
+[`dataset`](dataset/api.md) (`DatasetCollection`),
+[`set`](set/api.md) (`SetCollection`), and `nbhd.NeighborhoodCollection`.
+[`select`](select/api.md) queries them and [`align`](align/api.md) aligns
+serial slices. The collections store data; the `nbhd`, `clust`, `pre`, and `viz`
+functions accept them in place of plain objects.
 
 ## Installation
 

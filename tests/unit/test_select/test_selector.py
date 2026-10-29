@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-import sys
 import warnings
-from pathlib import Path
 
+from anndata import AnnData
 import numpy as np
 import pandas as pd
 import pytest
-from anndata import AnnData
-
-
-sys.path.insert(0, str(Path(__file__).parents[3] / "src"))
 
 
 @pytest.fixture
@@ -372,7 +367,7 @@ def test_gene_attribute_rejects_duplicate_var_names(selector_cls) -> None:
     adata = AnnData(X=np.ones((2, 2)), obs=obs, var=var)
     selector = selector_cls(adata)
 
-    with pytest.raises(ValueError, match="not unique in adata.var_names"):
+    with pytest.raises(ValueError, match=r"not unique in adata\.var_names"):
         selector.select(query=selector.gene("G") > 0)
 
 

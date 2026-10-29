@@ -3,24 +3,26 @@ import * as d3 from 'd3';
 import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
-import {
-  uniprot_data,
-  uniprot_get_request,
-} from '../external_apis/uniprot_api';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
   make_bar_graph,
+  attach_bar_tooltip,
   bar_callback_cat,
+  bar_svg_height,
+  BAR_HEIGHT,
   make_bar_container,
   bar_callback_gene,
+  get_bar_highlight_opacity,
 } from './bar_plot';
 import { set_gene_search } from './gene_search';
-import { logo } from './logo';
+import { make_image_source_control } from './image_source';
+import { make_logo_button } from './logo';
 import {
   make_img_layer_slider_callback,
   toggle_slider,
+  ini_selected_gene_trx_focus,
   ini_slider,
   ini_slider_params,
 } from './sliders';
@@ -281,6 +283,13 @@ export const make_ui_container = () => {
   ui_container.style.maxWidth = '100%';
   ui_container.style.margin = '0 auto';
 
+  // The control panel's columns have fixed pixel widths and don't wrap. When
+  // the host page is narrower than their combined width (e.g. embedded in a
+  // docs article column), scroll horizontally instead of squeezing/
+  // overlapping the logo button pinned at the right (see make_logo_button's
+  // flex-shrink:0).
+  ui_container.style.overflowX = 'auto';
+
   return ui_container;
 };
 
@@ -289,7 +298,12 @@ export const make_ctrl_container = () => {
   ctrl_container.style.display = 'flex';
   ctrl_container.style.flexDirection = 'row';
   ctrl_container.className = 'ctrl_container';
-  ctrl_container.style.width = '100%';
+  // flex (not a hard width:100%) so it shares ui_container's width with the
+  // non-shrinking logo button instead of competing with it for space.
+  // min-width:0 lets it shrink below its content size so the *row* (not the
+  // logo) is what scrolls when content is wider than the available space.
+  ctrl_container.style.flex = '1 1 auto';
+  ctrl_container.style.minWidth = '0';
   return ctrl_container;
 };
 
@@ -658,6 +672,12 @@ export const make_yearbook_ui_container = (
   });
 
   viz_state.containers.image.appendChild(img_layers_container);
+  make_image_source_control(
+    viz_state,
+    layers_obj,
+    viz_state.containers.image,
+    img_layers_container
+  );
 
   // Cell button
   make_button(
@@ -704,7 +724,8 @@ export const make_yearbook_ui_container = (
     viz_state.cats.color_dict_cluster,
     deck_yearbook,
     layers_obj,
-    viz_state
+    viz_state,
+    { tooltip: 'cluster' }
   );
 
   viz_state.containers.bar_gene = make_bar_container();
@@ -722,47 +743,59 @@ export const make_yearbook_ui_container = (
     viz_state.genes.color_dict_gene,
     deck_yearbook,
     layers_obj,
-    viz_state
+    viz_state,
+    { tooltip: 'gene' }
   );
+
+  // Apply the current selection highlight to a set of bar groups: full opacity +
+  // bold for the selected bar(s) (or all bars when nothing is selected), dimmed
+  // otherwise. Uses each group's opacity (not the rect fill) so it composes with
+  // the per-item fill colors and applies identically whether triggered by a
+  // selection change (bar click) or a data re-render -- the two paths sharing
+  // one mechanism is what keeps a click from leaving the bar coloring stale.
+  const apply_bar_selection_highlight = (bars, selected_names) => {
+    const names = (Array.isArray(selected_names) ? selected_names : []).map(
+      (name) => String(name)
+    );
+    const has_selection = names.length > 0;
+    bars
+      .attr('font-weight', (d) =>
+        has_selection && d && names.includes(String(d.name)) ? 'bold' : 'normal'
+      )
+      .attr('opacity', (d) => get_bar_highlight_opacity(names, d?.name));
+  };
 
   // Bar graph subscribers
   const make_bar_cat_subscriber = (svg, container) => {
     return (selected_cats) => {
-      if (!Array.isArray(selected_cats) || selected_cats.length === 0) {
-        svg.selectAll('g').attr('font-weight', 'normal').attr('opacity', 1.0);
-        container.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        svg
-          .selectAll('g')
-          .attr('font-weight', (d) =>
-            selected_cats.includes(d.name) ? 'bold' : 'normal'
-          )
-          .attr('opacity', (d) => (selected_cats.includes(d.name) ? 1.0 : 0.2));
+      const names = Array.isArray(selected_cats) ? selected_cats : [];
+      apply_bar_selection_highlight(svg.selectAll('g'), names);
 
-        if (selected_cats.length === 1) {
-          const inst_cat = selected_cats[0];
-          const selectedBar = svg.selectAll('g').filter(function () {
-            return d3.select(this).select('text').text() === inst_cat;
-          });
+      // Clearing the selection keeps the scroll position, so a bar just
+      // deselected stays in view.
+      if (names.length === 0) return;
 
-          if (!selectedBar.empty()) {
-            const barElement = selectedBar.node();
-            const containerRect = container.getBoundingClientRect();
-            const barRect = barElement.getBoundingClientRect();
+      if (names.length === 1) {
+        const inst_cat = String(names[0]);
+        const selectedBar = svg.selectAll('g').filter(function () {
+          return d3.select(this).select('text').text() === inst_cat;
+        });
 
-            const barTop = barRect.top;
-            const barBottom = barRect.bottom;
-            const containerTop = containerRect.top;
-            const containerBottom = containerRect.bottom;
+        if (!selectedBar.empty()) {
+          const barElement = selectedBar.node();
+          const containerRect = container.getBoundingClientRect();
+          const barRect = barElement.getBoundingClientRect();
 
-            const barFullyVisible =
-              barTop >= containerTop && barBottom <= containerBottom;
+          const barFullyVisible =
+            barRect.top >= containerRect.top &&
+            barRect.bottom <= containerRect.bottom;
 
-            if (!barFullyVisible) {
-              const offsetTop = barTop - containerTop;
-              const scrollTop = container.scrollTop + offsetTop;
-              container.scrollTo({ top: scrollTop, behavior: 'smooth' });
-            }
+          if (!barFullyVisible) {
+            const offsetTop = barRect.top - containerRect.top;
+            container.scrollTo({
+              top: container.scrollTop + offsetTop,
+              behavior: 'smooth',
+            });
           }
         }
       }
@@ -787,10 +820,17 @@ export const make_yearbook_ui_container = (
 
   // New bar data subscriber (updates bars based on viewport)
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container }) =>
+    ({
+      svg,
+      color_dict,
+      get_selected_array,
+      bar_callback,
+      container,
+      tooltip,
+    }) =>
     (bar_data) => {
-      const bar_height = 15;
-      const svg_height = bar_height * (bar_data.length + 1);
+      const bar_height = BAR_HEIGHT;
+      const svg_height = bar_svg_height(bar_data.length);
       svg.attr('height', svg_height);
 
       const max_bar_width = 90;
@@ -815,6 +855,8 @@ export const make_yearbook_ui_container = (
         .on('click', (event, d) =>
           bar_callback(event, d, deck_yearbook, layers_obj, viz_state)
         );
+
+      attach_bar_tooltip(bars_enter, tooltip, viz_state);
 
       bars_enter
         .append('rect')
@@ -844,23 +886,58 @@ export const make_yearbook_ui_container = (
         .duration(750)
         .attr('transform', (d, i) => `translate(2,${y_scale(i) + 2})`);
 
+      // Draw each bar at its full per-item color. The selection highlight is a
+      // separate, group-opacity pass (apply_bar_selection_highlight) so it never
+      // fights this fill -- baking a selection alpha into the fill here is what
+      // left the bar coloring stale after a click (which only updates the
+      // group-opacity highlight, not this fill).
       bars_merged
         .select('rect')
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
           const rgb = color_dict[d.name] || [0, 0, 0];
-          const opacity =
-            selected_array.length === 0 || selected_array.includes(d.name)
-              ? 1
-              : 0.1;
-          return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
+          return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
         });
 
       bars_merged.select('text').text((d) => d.name);
 
       bars.exit().transition().duration(750).attr('opacity', 0).remove();
 
-      if (container && !viz_state.close_up) {
+      // Re-apply the current selection highlight after the data-driven redraw.
+      // Read the selection live -- viz_state.genes.selected_genes /
+      // cats.selected_cats get reassigned (not mutated) on query, so a reference
+      // captured at subscribe time would be stale.
+      const selected_array =
+        (typeof get_selected_array === 'function'
+          ? get_selected_array()
+          : []) || [];
+      const selected_names = selected_array.map((name) => String(name));
+      apply_bar_selection_highlight(bars_merged, selected_names);
+
+      // Focus the queried gene/cluster: scroll its bar into view so the item of
+      // interest is visible without manual scrolling (e.g. running a gene query
+      // in the control panel jumps the gene bar graph to that gene). The scroll
+      // target is derived from the bar's row index rather than a
+      // getBoundingClientRect so it lands correctly even while the bars are still
+      // animating into place.
+      if (selected_names.length === 1 && container) {
+        const selected_index = bar_data.findIndex(
+          (d) => String(d.name) === selected_names[0]
+        );
+        if (selected_index >= 0) {
+          const bar_top = selected_index * (bar_height + 1);
+          const bar_bottom = bar_top + bar_height;
+          const view_top = container.scrollTop;
+          const view_bottom = view_top + container.clientHeight;
+          if (bar_top < view_top || bar_bottom > view_bottom) {
+            container.scrollTo({ top: bar_top, behavior: 'smooth' });
+          }
+        }
+      } else if (
+        selected_names.length === 0 &&
+        container &&
+        !viz_state.close_up
+      ) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
@@ -869,9 +946,10 @@ export const make_yearbook_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.cats.svg_bar_cluster,
       color_dict: viz_state.cats.color_dict_cluster,
-      selected_array: viz_state.cats.selected_cats,
+      get_selected_array: () => viz_state.cats.selected_cats || [],
       bar_callback: bar_callback_cat,
       container: viz_state.containers.bar_cluster,
+      tooltip: 'cluster',
     }),
     { immediate: false }
   );
@@ -880,9 +958,10 @@ export const make_yearbook_ui_container = (
     subscriber_new_bar_data({
       svg: viz_state.genes.svg_bar_gene,
       color_dict: viz_state.genes.color_dict_gene,
-      selected_array: viz_state.genes.selected_genes,
+      get_selected_array: () => viz_state.genes.selected_genes || [],
       bar_callback: bar_callback_gene,
       container: viz_state.containers.bar_gene,
+      tooltip: 'gene',
     }),
     { immediate: false }
   );
@@ -891,6 +970,7 @@ export const make_yearbook_ui_container = (
   cell_container.appendChild(viz_state.containers.bar_cluster);
 
   ini_slider('trx', deck_yearbook, layers_obj, viz_state);
+  ini_selected_gene_trx_focus(deck_yearbook, layers_obj, viz_state);
   trx_container.appendChild(trx_slider_container);
   trx_slider_container.appendChild(viz_state.sliders.trx);
 
@@ -900,34 +980,6 @@ export const make_yearbook_ui_container = (
   // Gene search
   set_gene_search('ist', deck_yearbook, layers_obj, viz_state);
   viz_state.genes.gene_search.style.marginLeft = '0px';
-
-  viz_state.obs_store.selected_genes.subscribe(async (selected_genes) => {
-    if (selected_genes.length === 1) {
-      const inst_gene = selected_genes[0];
-      viz_state.genes.gene_search_input.value = inst_gene;
-
-      if (inst_gene !== '') {
-        if (viz_state.genes.gene_names.includes(inst_gene)) {
-          viz_state.genes.gene_text_box.textContent = 'loading';
-          await uniprot_get_request(inst_gene);
-          const gene_data = uniprot_data[inst_gene];
-
-          if (gene_data && gene_data.name && gene_data.description) {
-            viz_state.genes.gene_text_box.innerHTML = `<span style="color: blue;">${gene_data.name}</span><br>${gene_data.description}`;
-          } else {
-            viz_state.genes.gene_text_box.textContent = '';
-          }
-        }
-      } else {
-        viz_state.genes.gene_text_box.textContent = '';
-      }
-
-      viz_state.genes.gene_text_box.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (selected_genes.length === 0) {
-      viz_state.genes.gene_search_input.value = '';
-      viz_state.genes.gene_text_box.textContent = '';
-    }
-  });
 
   ui_container.appendChild(ctrl_container);
 
@@ -952,24 +1004,7 @@ export const make_yearbook_ui_container = (
   ctrl_container.appendChild(pagination_container);
 
   // Logo
-  const logo_button = document.createElement('div');
-  logo_button.className = 'logo_button';
-  logo_button.style.marginTop = '5px';
-  logo_button.style.marginRight = '5px';
-  logo_button.style.cursor = 'pointer';
-
-  const logo_img = document.createElement('img');
-  logo_img.src = `data:image/png;base64,${logo}`;
-  logo_img.alt = 'Celldega logo';
-  logo_img.style.height = '17px';
-  logo_img.style.transition = 'transform 0.2s ease, filter 0.2s ease';
-
-  logo_button.onclick = () => {
-    window.open('https://broadinstitute.github.io/celldega/', '_blank');
-  };
-
-  logo_button.appendChild(logo_img);
-  ui_container.appendChild(logo_button);
+  ui_container.appendChild(make_logo_button('yearbook'));
 
   return ui_container;
 };

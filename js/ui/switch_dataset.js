@@ -26,7 +26,7 @@ import { set_dimensions } from '../global_variables/image_dimensions';
 import {
   get_landscape_image_info,
   get_primary_image_name,
-  is_point_cloud_technology,
+  is_orbit_technology,
   set_image_info,
   set_image_layer_colors,
   set_image_format,
@@ -35,13 +35,17 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
+import {
+  gene_selection_cat,
+  is_current_gene_load,
+} from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../read_parquet/get_scatter_data';
 import {
   buildCellCompactData,
+  clearDatasetTileData,
   createEmptyCellCompact,
-  createEmptyTrxCompact,
 } from '../utils/compact_data';
 
 import { set_image_layer_sliders } from './sliders';
@@ -80,35 +84,41 @@ const restore_persistent_state = async (viz_state, layers_obj, saved_state) => {
   );
 
   if (valid_genes.length > 0) {
-    const inst_gene = valid_genes[0];
-
     // Load gene expression data for the new dataset FIRST
     // This ensures cell_exp_array is populated before we update the layer
-    await update_cell_exp_array(
+    // (several genes are summed, as when they were selected)
+    const applied = await update_cell_exp_array(
       viz_state.cats,
       viz_state.genes,
       viz_state.global_base_url,
-      inst_gene,
+      valid_genes,
       viz_state.seg.version,
       viz_state.vector_name_integer,
       viz_state.aws,
       viz_state.row_group_readers?.cbg
     );
 
-    // Now update cat and selections AFTER expression data is loaded
-    update_cat(viz_state.cats, inst_gene);
-    update_selected_genes(viz_state.genes, valid_genes, viz_state.obs_store);
-    update_selected_cats(viz_state.cats, valid_genes, viz_state.obs_store);
+    // Selections were reset for the switch, so a cluster or gene selected
+    // while the expression loaded is newer and stays.
+    const untouched =
+      is_current_gene_load(viz_state.cats, applied, 'cluster') &&
+      viz_state.cats.selected_cats.length === 0;
+    if (untouched) {
+      // Now update cat and selections AFTER expression data is loaded
+      update_cat(viz_state.cats, gene_selection_cat(valid_genes));
+      update_selected_genes(viz_state.genes, valid_genes, viz_state.obs_store);
+      update_selected_cats(viz_state.cats, valid_genes, viz_state.obs_store);
 
-    // Image visibility is automatically updated via obs_store subscription
-    // when selected_genes changes (based on current close_up state)
+      // Image visibility is automatically updated via obs_store subscription
+      // when selected_genes changes (based on current close_up state)
 
-    // Force cell layer to refresh with new expression data
-    viz_state.selection_token = (viz_state.selection_token || 0) + 1;
-    refresh_cell_layer_data(layers_obj, viz_state, {
-      id: `cell-layer-gene-${inst_gene}-${viz_state.selection_token}`,
-    });
-    viz_state.layers_obj = layers_obj;
+      // Force cell layer to refresh with new expression data
+      viz_state.selection_token = (viz_state.selection_token || 0) + 1;
+      refresh_cell_layer_data(layers_obj, viz_state, {
+        id: `cell-layer-gene-${valid_genes.join('-')}-${viz_state.selection_token}`,
+      });
+      viz_state.layers_obj = layers_obj;
+    }
   } else {
     // No valid gene selection, check for cluster selection
     // Get available clusters in the new dataset
@@ -195,7 +205,7 @@ export const switch_dataset = async (
 
     const { landscape_parameters } = viz_state.img;
     const { technology: tech, image_format } = landscape_parameters;
-    const pointCloud = is_point_cloud_technology(tech);
+    const pointCloud = is_orbit_technology(tech);
     const has_image_layer = technology_has_image_layer(tech);
     const tmp_image_info = get_landscape_image_info(landscape_parameters);
     const image_name_for_dim = get_primary_image_name(landscape_parameters);
@@ -243,12 +253,17 @@ export const switch_dataset = async (
       viz_state.aws
     );
 
-    // Load new cell metadata
+    // Load new cell metadata. An alignment variant overrides only the
+    // cell_metadata positions file; clusters/genes still key off seg.version.
     let cell_url;
-    if (viz_state.seg.version === 'default') {
+    const cell_meta_version =
+      viz_state.alignment && viz_state.alignment !== 'default'
+        ? viz_state.alignment
+        : viz_state.seg.version;
+    if (!cell_meta_version || cell_meta_version === 'default') {
       cell_url = `${new_base_url}/cell_metadata.parquet`;
     } else {
-      cell_url = `${new_base_url}/cell_metadata_${viz_state.seg.version}.parquet`;
+      cell_url = `${new_base_url}/cell_metadata_${cell_meta_version}.parquet`;
     }
 
     const cell_arrow_table = await get_arrow_table(
@@ -360,6 +375,9 @@ export const switch_dataset = async (
     viz_state.spatial.data_height =
       viz_state.spatial.y_max - viz_state.spatial.y_min;
 
+    // Zoom limits for the new tissue's extent (the view itself is kept).
+    viz_state.update_zoom_limits?.();
+
     // Update cell layer with new data (clone, don't recreate)
     // Disable transitions for instant dataset switching
     refresh_cell_layer_data(layers_obj, viz_state, {
@@ -384,24 +402,16 @@ export const switch_dataset = async (
     // Create completely new image layers with unique IDs to force fresh tile fetching
     const new_image_layers = await make_image_layers(viz_state, new_index);
     layers_obj.image_layers = new_image_layers;
+    viz_state.update_image_source_control?.();
 
     // Update background layer extent if needed
     if (viz_state.dimensions) {
       layers_obj.background_layer = ini_background_layer(viz_state);
     }
 
-    // Clear transcript and path data for the new dataset
-    viz_state.genes.trx_data = [];
-    viz_state.genes.trx_gene_ids = new Int32Array();
-    viz_state.cats.polygon_cell_names = [];
-    viz_state.combo_data.trx = [];
-    viz_state.combo_data.trx_compact = createEmptyTrxCompact();
-    viz_state.combo_data.cell_compact = createEmptyCellCompact();
-    if (viz_state.viewport_cache) {
-      viz_state.viewport_cache.visibleTileKey = null;
-      viz_state.viewport_cache.lastGeneBarData = null;
-      viz_state.viewport_cache.lastCellBarData = null;
-    }
+    // Clear transcript and path data for the new dataset (keeps the cell_compact
+    // rebuilt above, which the zoomed-in cell bars count from)
+    clearDatasetTileData(viz_state);
 
     layers_obj.trx_layer = layers_obj.trx_layer.clone({
       id: `trx-layer-dataset-${new_index}`,

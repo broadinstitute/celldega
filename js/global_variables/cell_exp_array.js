@@ -23,7 +23,12 @@ function ensureExpressionArray(cats) {
   return cats.cell_exp_array;
 }
 
-function toExpressionByte(exp_value, max_exp) {
+// Exported for reuse by neighborhood-cloud gene-shapes coloring
+// (nbhd_cloud_shapes_layer.js), which normalizes shape opacity the same way
+// per-cell gene coloring does -- log1p ratio against a whole-tissue max, not
+// a plain linear ratio, so opacity doesn't wash out toward 0 for typical
+// (non-outlier) expression values.
+export function toExpressionByte(exp_value, max_exp) {
   if (
     !Number.isFinite(exp_value) ||
     !Number.isFinite(max_exp) ||
@@ -56,6 +61,78 @@ async function readGeneFromRowGroups(cbgReader, geneName) {
   return getGeneExpressionColumns(table, geneName);
 }
 
+// Recently loaded gene expression, so adding a gene to a multi-gene selection
+// doesn't refetch the genes already shown. One cache per widget (kept on its
+// `cats`): it goes away with the widget, and a new widget reads files rewritten
+// at the same URL afresh. Holds promises, so concurrent requests for one gene
+// share a fetch.
+const EXPRESSION_CACHE_LIMIT = 20;
+
+export const load_gene_expression = (
+  cache,
+  base_url,
+  version,
+  gene,
+  aws,
+  cbgReader
+) => {
+  const key = `${base_url}|${version}|${gene}`;
+  if (cache.has(key)) return cache.get(key);
+
+  const request = (async () => {
+    // An AnnData Zarr source returns integer cell indices and values directly.
+    if (cbgReader?.readGeneExpression)
+      return cbgReader.readGeneExpression(gene);
+    if (cbgReader) return readGeneFromRowGroups(cbgReader, gene);
+    // Traditional mode: fetch individual gene file
+    const folder = version === 'default' ? 'cbg' : `cbg_${version}`;
+    const exp_table = await get_arrow_table(
+      `${base_url}/${folder}/${gene}.parquet`,
+      options.fetch,
+      aws
+    );
+    return getGeneExpressionColumns(exp_table, gene);
+  })();
+
+  cache.set(key, request);
+  request.catch(() => cache.delete(key));
+  if (cache.size > EXPRESSION_CACHE_LIMIT) {
+    cache.delete(cache.keys().next().value);
+  }
+  return request;
+};
+
+/**
+ * Expression at which cells reach full opacity: the max, times the
+ * zoomed-out TRX slider's scale (`cats.cell_exp_scale`, 1 by default).
+ */
+export const cell_exp_display_max = (cats) =>
+  (cats.cell_exp_max ?? 0) * (cats.cell_exp_scale ?? 1);
+
+/** Recompute `cats.cell_exp_array` from the kept raw expression. */
+export const rescale_cell_exp_array = (cats) => {
+  const { cell_exp_raw: summed, cell_exp_included: included } = cats;
+  if (!summed) return;
+
+  const max_exp = cell_exp_display_max(cats);
+  const new_exp_array = ensureExpressionArray(cats);
+  for (let index = 0; index < summed.length; index += 1) {
+    if (included[index]) {
+      new_exp_array[index] = toExpressionByte(summed[index], max_exp);
+    }
+  }
+  cats.cell_exp_array = new_exp_array;
+};
+
+/**
+ * Fill `cats.cell_exp_array` with the expression of `inst_gene`, a gene name
+ * or a list of genes. Several genes are summed per cell (raw values), and the
+ * sum is scaled like a single gene, against the largest summed value instead
+ * of one gene's meta_gene max.
+ *
+ * @returns {Promise<boolean>} false when a newer call replaced this one while
+ *   it was loading (the array is then left to that call).
+ */
 export const update_cell_exp_array = async (
   cats,
   genes,
@@ -66,84 +143,64 @@ export const update_cell_exp_array = async (
   aws,
   cbgReader = null // Optional: row group reader for CBG data
 ) => {
-  let cell_names;
-  let cell_exp;
+  const gene_list = Array.isArray(inst_gene) ? inst_gene : [inst_gene];
+  const request_id = (cats.exp_request_id = (cats.exp_request_id ?? 0) + 1);
 
-  // Check if using row group mode
-  if (cbgReader) {
-    ({ cell_names, cell_exp } = await readGeneFromRowGroups(
-      cbgReader,
-      inst_gene
-    ));
-  } else {
-    // Traditional mode: fetch individual gene file
-    let file_path;
-    if (version === 'default') {
-      file_path = `${base_url}/cbg/${inst_gene}.parquet`;
-    } else {
-      file_path = `${base_url}/cbg_${version}/${inst_gene}.parquet`;
-    }
+  const cache = (cats.expression_cache ??= new Map());
+  const expression = await Promise.all(
+    gene_list.map((gene) =>
+      load_gene_expression(cache, base_url, version, gene, aws, cbgReader)
+    )
+  );
+  if (cats.exp_request_id !== request_id) return false;
 
-    const exp_table = await get_arrow_table(file_path, options.fetch, aws);
-    ({ cell_names, cell_exp } = getGeneExpressionColumns(exp_table, inst_gene));
-  }
-  const new_exp_array = ensureExpressionArray(cats);
-  const max_exp = Number(genes.meta_gene[inst_gene].max);
+  // An empty metadata selection means no cells, not an unrestricted view.
+  const allowedCellIds = cats.meta_cell_id_set ?? null;
+  const num_cells = cats.cell_names_array.length;
+  const summed = new Float64Array(num_cells);
+  const included = new Uint8Array(num_cells);
 
-  const allowedCellIds =
-    cats.meta_cell_id_set && cats.meta_cell_id_set.size > 0
-      ? cats.meta_cell_id_set
-      : null;
+  expression.forEach(({ cell_names, cell_exp }) => {
+    cell_names.forEach((raw_name, i) => {
+      const name = String(raw_name);
+      let index = -1;
+      let cell_name = name;
 
-  // Use Sets to track missing names (automatically keeps them unique)
-  const missingCellNames1 = new Set(); // For cell_name_to_index_map
-  const missingCellNames2 = new Set(); // For nameMapping_inv
-
-  cell_names.forEach((name, i) => {
-    name = String(name);
-    const exp_value = Number(cell_exp[i]);
-
-    if (!vector_name_integer) {
-      if (cats.cell_name_to_index_map.has(name)) {
-        const index = cats.cell_name_to_index_map.get(name);
-        const shouldInclude = !allowedCellIds || allowedCellIds.has(name);
-
-        if (shouldInclude) {
-          new_exp_array[index] = toExpressionByte(exp_value, max_exp);
-        }
+      if (!vector_name_integer) {
+        index = cats.cell_name_to_index_map.get(name) ?? -1;
       } else {
-        missingCellNames1.add(name);
-      }
-    } else {
-      const cellIndex = Number(name);
-      if (
-        Number.isInteger(cellIndex) &&
-        cellIndex >= 0 &&
-        cellIndex < cats.nameMapping_inv.length
-      ) {
-        const cellName = String(cats.nameMapping_inv[cellIndex]);
-        const shouldInclude = !allowedCellIds || allowedCellIds.has(cellName);
-
-        if (shouldInclude) {
-          new_exp_array[cellIndex] = toExpressionByte(exp_value, max_exp);
+        const cellIndex = Number(name);
+        if (
+          Number.isInteger(cellIndex) &&
+          cellIndex >= 0 &&
+          cellIndex < cats.nameMapping_inv.length
+        ) {
+          index = cellIndex;
+          cell_name = String(cats.nameMapping_inv[cellIndex]);
         }
-      } else {
-        missingCellNames2.add(name);
       }
-    }
+
+      if (index < 0 || index >= num_cells) return;
+      summed[index] += Number(cell_exp[i]) || 0;
+      if (!allowedCellIds || allowedCellIds.has(cell_name)) {
+        included[index] = 1;
+      }
+    });
   });
 
-  // Log missing names (if any) after processing all cells
-  if (missingCellNames1.size > 0) {
-    // console.log(`Cell names not found in cell_name_to_index_map (${missingCellNames1.size} unique names):`,
-    //             Array.from(missingCellNames1).slice(0, 5),
-    //             missingCellNames1.size > 5 ? '...' : '');
-  }
-  if (missingCellNames2.size > 0) {
-    // console.log(`Cell names not found in cats.nameMapping_inv (${missingCellNames2.size} unique names):`,
-    //             Array.from(missingCellNames2).slice(0, 5),
-    //             missingCellNames2.size > 5 ? '...' : '');
-  }
-
-  cats.cell_exp_array = new_exp_array;
+  // One gene keeps its whole-dataset max from meta_gene; a sum uses the
+  // largest summed value over all cells (the same whole-dataset reference),
+  // as does a gene whose source stores no max (e.g. a Zarr without var["max"]).
+  const stored_max =
+    gene_list.length === 1 ? Number(genes.meta_gene[gene_list[0]]?.max) : NaN;
+  cats.cell_exp_max = Number.isFinite(stored_max)
+    ? stored_max
+    : summed.reduce((max, value) => Math.max(max, value), 0);
+  // Kept so the zoomed-out TRX slider can rescale opacity without refetching,
+  // and so cell tooltips can report the expression with the genes it sums.
+  cats.cell_exp_raw = summed;
+  cats.cell_exp_included = included;
+  cats.cell_exp_genes = gene_list;
+  rescale_cell_exp_array(cats);
+  return true;
 };

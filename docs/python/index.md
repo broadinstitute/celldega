@@ -1,8 +1,19 @@
 # Python API Overview
 
-The Celldega Python API provides modules for collection schemas,
-dataset-level feature spaces, pre-processing spatial transcriptomics data, hierarchical bi-clustering
-analysis, neighborhood computation, and interactive visualization.
+The Celldega Python API provides modules for pre-processing spatial
+transcriptomics data, hierarchical bi-clustering analysis, neighborhood
+computation, and interactive visualization. Every function works on standard
+scverse data structures (`AnnData`, `MuData`) and `GeoDataFrame` neighborhoods,
+and returns new objects of the same kinds.
+
+Higher-level data structures built on top of these live in their own modules,
+kept apart from the methods the way AnnData is kept apart from Scanpy:
+[`collection`](collection/api.md) (the shared `CelldegaCollection` base),
+[`dataset`](dataset/api.md) (`DatasetCollection`),
+[`set`](set/api.md) (`SetCollection`), and `nbhd.NeighborhoodCollection`.
+[`select`](select/api.md) queries them and [`align`](align/api.md) aligns
+serial slices. The collections store data; the `nbhd`, `clust`, `pre`, and `viz`
+functions accept them in place of plain objects.
 
 ## Installation
 
@@ -23,83 +34,47 @@ precursor to interactive clustergram visualization. It supports:
 
 ```python
 import celldega as dega
+import scanpy as sc
 
 # Create and cluster a matrix
-mat = dega.clust.Matrix(adata, filter_genes=5000)
+mat = dega.clust.Matrix(adata)
+mat.filter("row", by="var", num=5000)
+mat.norm("col", by="total")
+mat.norm("row", by="zscore")
 mat.cluster()
 
 # Export for visualization
 cgm = dega.viz.Clustergram(matrix=mat)
-```
 
-### [Collection Module](collection/api.md)
-
-The `collection` module defines typed MuData profiles for aligned
-dataset-level and neighborhood-level data:
-
-- `dega.dataset.DatasetCollection` for dataset, sample, tissue section, or patient observations
-- `NeighborhoodCollection` for neighborhood or spatial-region observations
-
-```python
-import celldega as dega
-
-dset = dega.dataset.DatasetCollection(adata, dataset_col="sample_id")
-nbhd = dega.nbhd.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
-```
-
-### [Dataset Module](dataset/api.md)
-
-The `dataset` module contains dataset-level modality constructors and helpers for
-building `DatasetCollection` objects:
-
-- Dataset-by-population modality
-- Dataset/sample metadata aggregation into `DatasetCollection.obs`
-- Dataset-by-signature modality
-- Attachment of aligned modalities to `DatasetCollection.mod`
-- H5MU writing through the underlying MuData object
-
-```python
-import celldega as dega
-
-dset = dega.dataset.DatasetCollection(
-    adata,
-    dataset_col="sample_id",
-    obs_columns=["patient_id", "condition"],
-)
-
-dset.calc_population(adata, category="cell_type")
-population = dset.mod["population"]
-dset.write("dataset.h5mu")
+# Marker dot plot straight from a cell-level AnnData
+sc.tl.rank_genes_groups(adata, groupby="leiden")
+mat = dega.clust.Matrix(adata, groupby="leiden")
+mat.cluster(view="rank_genes_groups")
 ```
 
 ### [Nbhd Module](nbhd/api.md)
 
-The `nbhd` module contains functions for computing and analyzing tissue neighborhoods:
+The `nbhd` module builds tissue neighborhoods as `GeoDataFrame`s and summarizes
+cells within them:
 
+- Alpha shapes for cluster-based neighborhoods (per dataset or per slice)
 - Hexagonal tiling for regular neighborhood grids
-- Alpha shape computation for cluster-based neighborhoods
-- Gradient neighborhoods derived from initial region/neighborhood
-- Collection-backed neighborhood-by-gene and neighborhood-by-population modalities
-- Neighborhood overlap and bordering calculations
-- Collection-backed methods for constructing gene, population, and relation data
+- Gradient neighborhoods around a region of interest
+- Neighborhood-by-gene and neighborhood-by-population matrices from `AnnData` or `MuData`
+- Neighborhood overlap and bordering relations
 
 ```python
 import celldega as dega
 
 # Compute alpha shapes for cell clusters
-gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(
-    adata,
-    cat="leiden",
-    alphas=[100, 150, 200]
-)
+gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(adata, cat="leiden", alphas=[150])
 
 # Generate hexagonal tiles
 gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
 
-# Attach feature-space modalities to a NeighborhoodCollection
-nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
-nbhd.calc_signature(adata=adata, by="cell", modality_name="gene")
-nbhd.calc_population(adata, category="leiden", modality_name="population")
+# Summarize cells per neighborhood as new AnnData objects
+adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_hex, "cell", adata)
+adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_hex, category="leiden")
 ```
 
 
@@ -124,45 +99,20 @@ dega.pre.main(
 )
 ```
 
-### [Select Module](select/api.md)
-
-The `select` module provides a composable query and sampling layer over AnnData:
-
-- Metadata attributes from `obs`
-- Gene expression attributes
-- Boolean query expressions
-- Random and quantile-bin samplers for representative entity inspection
-
-```python
-import celldega as dega
-
-selector = dega.select.Selector(adata)
-
-q = (
-    (selector.attr("cluster") == "B cell")
-    & (selector.attr("sample_id").isin(["S1", "S2"]))
-)
-
-selection = selector.select(
-    query=q,
-    sampler=selector.samplers.quantile_bin(
-        attr=selector.gene("MS4A1"),
-        bin="high",
-        n=24,
-        seed=1,
-    ),
-)
-```
-
 ### [Viz Module](viz/api.md)
 
-The `viz` module provides Jupyter Widget classes for interactive visualization:
+The `viz` module provides Jupyter Widget classes for interactive
+visualization. See the [Visualizations](../visualizations/index.md) section
+for what each one shows and how it works:
 
 | Widget | Description |
 |--------|-------------|
 | `Landscape` | Main spatial visualization for segmented spatial data |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
+| `CellCloud` | 3D orbit view of cell centroids |
+| `NeighborhoodCloud` | 3D orbit view of tissue neighborhoods |
+| `Composition` | Category composition across groups (`Clustergram` variant) |
 | `Enrich` | Gene enrichment analysis |
 
 ```python

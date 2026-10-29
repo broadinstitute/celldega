@@ -1,4 +1,4 @@
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import { is_orbit_technology } from '../../global_variables/image_info';
 
 export const get_point_cloud_source_index = (viz_state, layerIndex) => {
   if (layerIndex === undefined || layerIndex < 0) {
@@ -6,7 +6,7 @@ export const get_point_cloud_source_index = (viz_state, layerIndex) => {
   }
 
   const technology = viz_state.img?.landscape_parameters?.technology;
-  if (!is_point_cloud_technology(technology)) {
+  if (!is_orbit_technology(technology)) {
     return layerIndex;
   }
 

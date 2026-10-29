@@ -64,7 +64,7 @@ export const landscape_h_e = async (
   viz_state.img.image_layer_colors = {};
   viz_state.img.image_layer_sliders = {};
 
-  await set_landscape_parameters(viz_state.img, base_url);
+  await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
 
   await set_dimensions(viz_state, base_url, 'h_and_e');
 

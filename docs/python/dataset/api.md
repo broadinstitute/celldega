@@ -14,8 +14,9 @@ dataset-level collection.
 
 ```python
 import celldega as dega
+import celldega as dega
 
-dset = dega.dataset.DatasetCollection(
+dset = dega.DatasetCollection(
     adata,
     dataset_col="sample_id",
     obs_columns=["patient_id", "condition"],
@@ -40,7 +41,7 @@ dset.calc_signature(
 cd8_t_expression = dset.mod["cd8_t_expression"]
 
 dset.write("dataset.h5mu")
-loaded = dega.dataset.DatasetCollection.read("dataset.h5mu")
+loaded = dega.DatasetCollection.read("dataset.h5mu")
 ```
 
 ::: celldega.dataset

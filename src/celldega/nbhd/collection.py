@@ -72,6 +72,20 @@ class NeighborhoodCollection(CelldegaCollection):
     ``mod`` and global observation relations live in ``relations``/``mdata.obsp``.
     Geometry is kept as a live ``GeoDataFrame`` in memory; durable geometry
     storage can be layered on later with WKB columns or GeoParquet sidecars.
+
+    The collection only stores data. Computation lives in ``celldega.nbhd``
+    functions, which accept the collection wherever they take a neighborhood
+    ``GeoDataFrame`` and return plain objects to store back::
+
+        nc = NeighborhoodCollection(gdf=gdf_alpha)
+        pop = dega.nbhd.calc_nbhd_by_pop(adata, nc, category="leiden")
+        nc.subset(pop.obs_names)  # optional: drop neighborhoods below min_cells
+        nc.add_mod("population", pop)
+        nc.add_mod("gene", dega.nbhd.calc_nbhd_by_gene(nc, adata=adata))
+        nc.add_relation("overlap", dega.nbhd.calc_nbhd_overlap(nc))
+        rings = NeighborhoodCollection(
+            gdf=dega.nbhd.calc_gradient(nc.gdf.loc[["9"]]), nbhd_type="gradient"
+        )
     """
 
     def __init__(
@@ -112,7 +126,7 @@ class NeighborhoodCollection(CelldegaCollection):
             nbhd_type: Label for how the neighborhoods were made (e.g.
                 ``"hextile"``, ``"alpha_shape"``); defaults to ``"neighborhood"``.
             data_dir: DegaFiles/instrument directory used as the default source
-                for the transcript- and transform-loading methods.
+                for :meth:`load_transformation_matrix`.
             source: Source descriptor recorded in provenance.
             name: Optional collection name.
             meta: Extra metadata merged into ``uns["celldega"]``.
@@ -204,118 +218,20 @@ class NeighborhoodCollection(CelldegaCollection):
         """
         return cls(gdf=gdf, nbhd_type=nbhd_type, **kwargs)
 
-    def calc_gradient(
-        self,
-        obs_name: str,
-        direction: str = "both",
-        bin_width: float = 10,
-        max_dist: float = 50,
-        nbhd_type: str = "gradient",
-        *,
-        technology: str | None = None,
-        scale_um_per_pixel: float | None = None,
-        is_pixel_space: bool = False,
-        clip_boundary: Any | None = None,
-        clip_reference: Any | None = None,
-        clip_alpha: float = 100,
-        **kwargs: Any,
-    ) -> NeighborhoodCollection:
-        """Calculate a gradient collection around one neighborhood in this collection.
-
-        Picks the neighborhood identified by ``obs_name`` and grows fixed-width
-        bands outward from and/or inward into it (see
-        the gradient engine), returning a **new**
-        gradient ``NeighborhoodCollection`` — one neighborhood (observation) per
-        ring, ordered inner-most to outer-most. From there the usual
-        ``calc_nbhd_by_*`` methods summarize cell composition or expression per
-        ring, profiling how the tissue changes with distance from that
-        neighborhood's boundary. A gradient is therefore always anchored to a
-        concrete neighborhood (e.g. a per-cluster alpha shape) rather than a
-        loose geometry.
-
-        Args:
-            obs_name: Identifier of the source neighborhood to anchor the gradient
-                on — matched against the collection's observation index (and, as a
-                fallback, the ``name`` column). Its geometry is the ROI.
-            direction: ``"outward"``, ``"inward"``, or ``"both"`` (default).
-            bin_width: Width of each ring in microns (default ``10``).
-            max_dist: Maximum distance from the neighborhood boundary in microns
-                (default ``50``).
-            nbhd_type: Label recorded on the new collection (default
-                ``"gradient"``).
-            technology: Imaging platform used to look up ``scale_um_per_pixel``
-                for pixel-space geometry (e.g. ``"Xenium"``).
-            scale_um_per_pixel: Microns per pixel; required (directly or via
-                ``technology``) when ``is_pixel_space=True``.
-            is_pixel_space: ``True`` if this collection's geometry is in pixel
-                units; ``False`` (default) if already in microns.
-            clip_boundary: Optional precomputed tissue boundary to clip outward
-                rings to (takes precedence over ``clip_reference``).
-            clip_reference: Optional source of cell positions (an ``AnnData``,
-                a ``GeoDataFrame``/``GeoSeries`` of cells, or an ``(N, 2)``
-                array) from which a tissue alpha shape is computed on the fly to
-                clip outward rings.
-            clip_alpha: Inverse-alpha for the on-the-fly alpha shape (default
-                ``100``).
-            **kwargs: Forwarded to the new :class:`NeighborhoodCollection`
-                (e.g. ``name``, ``data_dir``).
-
-        Returns:
-            A new ``NeighborhoodCollection`` whose observations are the gradient
-            rings around ``obs_name``.
-
-        Raises:
-            ValueError: If this collection has no geometry.
-            KeyError: If ``obs_name`` is not found.
-
-        Examples:
-            >>> # nbhd holds one alpha-shape neighborhood per cell-type cluster
-            >>> grad_nbhd = nbhd.calc_gradient(obs_name="9", direction="both",
-            ...                                bin_width=50, max_dist=200)
-            >>> grad_nbhd.calc_signature(adata, by="cell")
-            >>> grad_nbhd.obs[["direction", "dist_start_um"]].head(3)
-        """
-        from celldega.nbhd.gradient import _calc_gradient
-
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate a gradient")
-
-        gdf = self.gdf
-        key = str(obs_name)
-        mask = gdf.index.astype(str) == key
-        if not mask.any() and self.nbhd_col in gdf.columns:
-            mask = gdf[self.nbhd_col].astype(str) == key
-        if not mask.any():
-            available = list(gdf.index.astype(str)[:10])
-            raise KeyError(
-                f"obs_name {obs_name!r} not found in this collection. "
-                f"Available (first 10): {available}"
-            )
-
-        roi_geometry = gdf.loc[mask].geometry.unary_union
-
-        # Carry this collection's micron->pixel transform forward so the gradient
-        # rings can be rendered with ``to_pixel_gdf()``.
-        if self.transformation_matrix is not None and "transformation_matrix" not in kwargs:
-            kwargs["transformation_matrix"] = self.transformation_matrix
-
-        gdf_rings = _calc_gradient(
-            roi_geometry,
-            direction=direction,
-            bin_width=bin_width,
-            max_dist=max_dist,
-            technology=technology,
-            scale_um_per_pixel=scale_um_per_pixel,
-            is_pixel_space=is_pixel_space,
-            clip_boundary=clip_boundary,
-            clip_reference=clip_reference,
-            clip_alpha=clip_alpha,
-        )
-        return type(self)(gdf=gdf_rings, nbhd_type=nbhd_type, **kwargs)
-
     @property
     def geometry(self) -> gpd.GeoDataFrame | None:
         """Neighborhood geometry. Alias of :attr:`gdf` (single source of truth)."""
+        return self.gdf
+
+    def to_geodataframe(self) -> gpd.GeoDataFrame:
+        """Return the neighborhood geometry, one row per neighborhood.
+
+        This is the hook Celldega uses to accept a collection wherever it takes
+        a neighborhood ``GeoDataFrame`` (e.g. ``celldega.nbhd`` functions,
+        ``Landscape(nbhd=...)``).
+        """
+        if self.gdf is None:
+            raise ValueError("this collection has no geometry")
         return self.gdf
 
     def set_transformation_matrix(self, matrix: Any) -> np.ndarray:
@@ -390,249 +306,52 @@ class NeighborhoodCollection(CelldegaCollection):
         gdf["geometry_pixel"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
         return gdf
 
-    def calc_population(
-        self,
-        adata: AnnData,
-        category: str = "leiden",
-        modality_name: str = "population",
-        output: str = "proportion",
-        min_cells: int = 5,
-        drop_missing: bool = True,
-    ) -> None:
-        """Calculate a neighborhood-by-population modality and attach it to ``self.mod``.
+    def subset(self, obs_names: Any) -> None:
+        """Keep only the neighborhoods in ``obs_names``, in that order (in place).
 
-        Spatially assigns cells to neighborhoods and, per neighborhood, counts
-        cells per ``category`` value to form a neighborhood (rows) by population
-        (columns) feature matrix.
+        Modalities, geometry, square relations and memberships are subset
+        together so they stay aligned to the observation axis. Use it to drop
+        neighborhoods a ``celldega.nbhd`` function filtered out, e.g.
+        ``nc.subset(pop.obs_names)`` after ``calc_nbhd_by_pop(..., min_cells=5)``.
 
         Args:
-            adata: Cell-level ``AnnData`` with spatial coordinates in
-                ``obsm["spatial"]`` and ``category`` in ``obs``.
-            category: ``obs`` column naming the population/cell-type/cluster.
-            modality_name: Key for the modality in ``self.mod``.
-            output: ``"proportion"`` (within-neighborhood fractions) or
-                ``"counts"``.
-            min_cells: Minimum cells for a neighborhood to be included.
-            drop_missing: When ``True`` (default), neighborhoods with fewer than
-                ``min_cells`` cells are removed from the collection entirely so
-                the observation axis only contains neighborhoods with data. When
-                ``False``, the collection keeps all neighborhoods and the
-                modality is attached with zero-filled rows for those that fall
-                below ``min_cells``.
-
-        Returns:
-            ``None`` — the modality is attached to ``self.mod[modality_name]``.
-        """
-        from celldega.nbhd.neighborhoods import (
-            _calc_nbhd_by_pop,
-            _subset_neighborhood_collection_to_obs,
-        )
-
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate a population modality")
-
-        modality = _calc_nbhd_by_pop(
-            adata,
-            self.gdf,
-            category=category,
-            nbhd_col=self.nbhd_col,
-            min_cells=min_cells,
-            output=output,
-        )
-        if drop_missing:
-            _subset_neighborhood_collection_to_obs(self, pd.Index(modality.obs_names.astype(str)))
-        self.add_mod(modality_name, modality, var_entity_type="cell_population")
-
-    def calc_signature(
-        self,
-        adata: AnnData | None = None,
-        by: str = "cell",
-        modality_name: str | None = None,
-        min_cells: int = 1,
-        data_dir: str | None = None,
-        drop_missing: bool = True,
-    ) -> None:
-        """Calculate a neighborhood-by-gene modality and attach it to ``self.mod``.
-
-        Builds per-neighborhood gene expression — mean expression of contained
-        cells (``by="cell"``) or transcript counts (``by="cell-free"``).
-
-        Args:
-            adata: Cell-level ``AnnData`` (required when ``by="cell"``); needs
-                spatial coordinates in ``obsm["spatial"]``.
-            by: ``"cell"`` for cell-derived mean expression or ``"cell-free"``
-                for transcript counts.
-            modality_name: Key for the modality; defaults to ``"gene"``
-                (cell-derived) or ``"gene_cell_free"`` (transcript-derived).
-            min_cells: Minimum cells/transcripts for a neighborhood to be kept.
-            data_dir: Transcript directory for ``by="cell-free"``; defaults to
-                ``self.data_dir``.
-            drop_missing: When ``True`` (default), neighborhoods with fewer than
-                ``min_cells`` cells (or transcripts) are removed from the
-                collection entirely. When ``False``, the collection keeps all
-                neighborhoods and the modality is attached with zero-filled rows
-                for those that fall below ``min_cells``.
-
-        Returns:
-            ``None`` — the modality is attached to ``self.mod``.
+            obs_names: Neighborhood ids to keep.
 
         Raises:
-            ValueError: If ``adata`` is missing for ``by="cell"``, or ``data_dir``
-                is missing for ``by="cell-free"``.
+            ValueError: If any id is not in the collection.
         """
-        from celldega.nbhd.neighborhoods import (
-            _calc_nbhd_by_gene,
-            _subset_neighborhood_collection_to_obs,
-        )
+        from celldega.nbhd._glue import _subset_neighborhood_collection_to_obs
 
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate a gene modality")
+        _subset_neighborhood_collection_to_obs(self, pd.Index(pd.Index(obs_names).astype(str)))
 
-        resolved_data_dir = data_dir if data_dir is not None else self.data_dir
-        if by == "cell" and adata is None:
-            raise ValueError("adata is required when by='cell'")
-        if by == "cell-free" and resolved_data_dir is None:
-            raise ValueError("data_dir is required when by='cell-free'")
-
-        modality = _calc_nbhd_by_gene(
-            self.gdf,
-            by=by,
-            adata=adata,
-            data_dir=resolved_data_dir,
-            nbhd_col=self.nbhd_col,
-            min_cells=min_cells,
-        )
-        if drop_missing:
-            _subset_neighborhood_collection_to_obs(self, pd.Index(modality.obs_names.astype(str)))
-        self.add_mod(
-            modality_name or ("gene" if by == "cell" else "gene_cell_free"),
-            modality,
-            var_entity_type="gene",
-        )
-
-    def calc_overlap(
-        self,
-        metric: str = "iou",
-        key: str = "overlap",
-        category: str = "leiden",
-    ) -> sparse.spmatrix:
-        """Calculate a neighborhood-by-neighborhood overlap relation.
-
-        Computes pairwise geometric overlap between neighborhoods and stores the
-        square matrix in ``relations[key]`` (``mdata.obsp``).
+    def add_relation(self, key: str, relation: Any) -> sparse.csr_matrix:
+        """Store a square neighborhood-by-neighborhood relation in ``relations[key]``.
 
         Args:
-            metric: Overlap metric — ``"iou"`` (intersection over union),
-                ``"ioa"`` (intersection over the row neighborhood's area), or
-                ``"intersection"`` (raw intersection area).
-            key: Name for the relation in ``relations``.
-            category: Neighborhood category recorded on the computed result.
+            key: Name for the relation in ``relations`` (``mdata.obsp``).
+            relation: A square ``AnnData`` labelled by neighborhood id on both
+                axes (e.g. from ``celldega.nbhd.calc_nbhd_overlap`` or
+                ``calc_nbhd_bordering``), aligned to this collection's ``obs``
+                by id with absent neighborhoods as zero rows/columns; or a
+                matrix already in ``obs`` order.
 
         Returns:
             The stored sparse relation matrix.
 
         Raises:
-            ValueError: If geometry is not set.
+            ValueError: If a matrix is not ``(n_obs, n_obs)``.
         """
-        from celldega.nbhd.neighborhoods import _calc_nbhd_overlap, _relation_from_square_adata
+        if isinstance(relation, AnnData):
+            from celldega.nbhd._glue import _relation_from_square_adata
 
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate an overlap relation")
-
-        relation_adata = _calc_nbhd_overlap(
-            self.gdf[[self.nbhd_col, "geometry"]],
-            metric=metric,
-            name_col=self.nbhd_col,
-            category=category,
-        )
-        relation = _relation_from_square_adata(relation_adata, self)
-        self.relations[key] = relation
-        return relation
-
-    def calc_bordering(
-        self,
-        metric: str = "border_ratio",
-        key: str = "bordering",
-        category: str = "leiden",
-    ) -> sparse.spmatrix:
-        """Calculate a neighborhood-by-neighborhood bordering relation.
-
-        Computes pairwise border relationships between neighborhoods and stores
-        the square matrix in ``relations[key]`` (``mdata.obsp``).
-
-        Args:
-            metric: Border metric (e.g. ``"border_ratio"``, ``"binary"``).
-            key: Name for the relation in ``relations``.
-            category: Neighborhood category recorded on the computed result.
-
-        Returns:
-            The stored sparse relation matrix.
-
-        Raises:
-            ValueError: If geometry is not set.
-        """
-        from celldega.nbhd.neighborhoods import _calc_nbhd_bordering, _relation_from_square_adata
-
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate a bordering relation")
-
-        relation_adata = _calc_nbhd_bordering(
-            self.gdf[[self.nbhd_col, "geometry"]],
-            metric=metric,
-            name_col=self.nbhd_col,
-            category=category,
-        )
-        relation = _relation_from_square_adata(relation_adata, self)
-        self.relations[key] = relation
-        return relation
-
-    def calc_transcript_assignment(
-        self,
-        data_dir: str | None = None,
-    ) -> None:
-        """Add per-neighborhood transcript-assignment columns to ``obs``.
-
-        From ``transcripts.parquet`` in ``data_dir``, adds three ``obs`` columns
-        (on the underlying MuData) for each neighborhood:
-
-        - ``total_transcripts`` — transcripts falling inside the neighborhood.
-        - ``unassigned_transcripts`` — those with ``cell_id == "UNASSIGNED"``.
-        - ``transcript_assignment_proportion`` — assigned / total (``0.0`` when
-          the neighborhood has no transcripts).
-
-        Assumption: the transcript-to-cell assignment is **not computed here** —
-        it must already be present in the instrument data, with unassigned
-        transcripts marked by the ``"UNASSIGNED"`` sentinel (Xenium convention).
-        Only transcripts are needed — no ``adata`` or cell polygons.
-
-        Args:
-            data_dir: Directory containing ``transcripts.parquet``; defaults to
-                ``self.data_dir``.
-
-        Returns:
-            ``None`` — the three columns are added to ``self.obs``.
-
-        Raises:
-            ValueError: If geometry or a usable ``data_dir`` is missing, or the
-                transcripts lack a ``cell_id`` column. A complete absence of the
-                ``"UNASSIGNED"`` sentinel only warns.
-        """
-        from celldega.nbhd.neighborhoods import _calc_nbhd_transcript_assignment
-        from celldega.nbhd.utils import _get_gdf_trx
-
-        if self.gdf is None:
-            raise ValueError("gdf or geometry is required to calculate transcript assignment")
-        resolved_data_dir = data_dir if data_dir is not None else self.data_dir
-        if resolved_data_dir is None:
-            raise ValueError("data_dir is required to calculate transcript assignment")
-
-        gdf_trx = _get_gdf_trx(resolved_data_dir)
-        stats = _calc_nbhd_transcript_assignment(self.gdf, self.nbhd_col, gdf_trx)
-        stats = stats.reindex(self.obs.index.astype(str))
-        obs = self.obs.copy()
-        for col in stats.columns:
-            obs[col] = stats[col].to_numpy()
-        self.obs = obs
+            matrix = _relation_from_square_adata(relation, self)
+        else:
+            matrix = sparse.csr_matrix(relation)
+            n_obs = len(self.obs)
+            if matrix.shape != (n_obs, n_obs):
+                raise ValueError(f"relation must have shape ({n_obs}, {n_obs}), got {matrix.shape}")
+        self.relations[key] = matrix
+        return matrix
 
 
 __all__ = ["NeighborhoodCollection"]

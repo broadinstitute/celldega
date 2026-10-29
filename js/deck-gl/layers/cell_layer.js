@@ -11,9 +11,15 @@ import {
   set_cell_names_array,
   set_cell_name_to_index_map,
 } from '../../global_variables/cell_names_array';
-import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
+import {
+  apply_gene_colors,
+  set_color_dict_gene,
+} from '../../global_variables/color_dict_gene';
 import { options } from '../../global_variables/fetch_options';
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import {
+  is_neighborhood_cloud_technology,
+  is_orbit_technology,
+} from '../../global_variables/image_info';
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
@@ -111,7 +117,13 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
 };
 
 const is_point_cloud_viz = (viz_state) =>
-  is_point_cloud_technology(viz_state.img?.landscape_parameters?.technology);
+  is_orbit_technology(viz_state.img?.landscape_parameters?.technology);
+
+// PointCloudLayer's pointSize is a radius in coordinate units. CellCloud's
+// cell_size is a diameter in microns; the slider's midpoint is a 1× multiplier.
+export const get_point_cloud_cell_radius = (viz_state) =>
+  ((viz_state.spatial?.cell_size ?? 10) / 2) *
+  (Number(viz_state.sliders?.cell?.value ?? 50) / 50);
 
 export const set_spatial_bounds_from_flat_coordinates = (
   viz_state,
@@ -272,7 +284,33 @@ export const set_point_cloud_umap_positions_from_names = (
   );
 };
 
+export const set_point_cloud_centroid_positions_from_names = (
+  viz_state,
+  cellNames,
+  numRows = cellNames.length
+) => {
+  const positions = new Float32Array(numRows * POINT_CLOUD_POSITION_SIZE);
+  const centroids = viz_state.centroids3d?.centroids || {};
+
+  for (let index = 0; index < numRows; index++) {
+    const coords = centroids[cellNames[index]];
+    const offset = index * POINT_CLOUD_POSITION_SIZE;
+    positions[offset] = Number(coords?.[0]) || 0;
+    positions[offset + 1] = Number(coords?.[1]) || 0;
+    positions[offset + 2] = Number(coords?.[2]) || 0;
+  }
+
+  viz_state.spatial.cell_centroid_positions = positions;
+};
+
 const get_point_cloud_positions = (viz_state) => {
+  // A centroid override (Landscape(adata=..., use_adata_3d_centroids=True)) is a
+  // static, per-widget choice made once at construction — not a runtime toggle
+  // like umap_state — so it always wins over the on-disk/umap positions once set.
+  if (viz_state.spatial.cell_centroid_positions) {
+    return viz_state.spatial.cell_centroid_positions;
+  }
+
   if (
     viz_state.obs_store?.umap_state?.get() &&
     viz_state.spatial.cell_umap_positions
@@ -289,7 +327,7 @@ const shouldCompactPointCloudCells = (context) => {
   }
 
   if (context.isClusterMode) {
-    return context.selectedCats.length > 0;
+    return context.clusterFilter.length > 0;
   }
 
   return true;
@@ -472,6 +510,14 @@ export const set_scatterplot_umap_positions_from_names = (
 };
 
 const get_scatterplot_positions = (viz_state) => {
+  const animated = viz_state.spatial.embedding_animation_positions;
+  if (animated) return { value: animated, size: 2 };
+  if (
+    viz_state.obs_store?.landscape_view?.get() === 'xy' &&
+    viz_state.spatial.cell_xy_scatter_positions
+  ) {
+    return { value: viz_state.spatial.cell_xy_scatter_positions, size: 2 };
+  }
   if (
     viz_state.obs_store?.umap_state?.get() &&
     viz_state.spatial.cell_umap_scatter_positions
@@ -490,6 +536,16 @@ const get_scatterplot_positions = (viz_state) => {
   );
 };
 
+const scatterplot_view_props = (viz_state) => {
+  const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
+  const radius = viz_state.spatial?.cell_radius ?? 5;
+  return {
+    radiusUnits: isUmap ? 'pixels' : 'common',
+    radiusMinPixels: isUmap || radius === 0 ? 0 : 1,
+    modelMatrix: isUmap ? null : (viz_state.rotation?.modelMatrix ?? null),
+  };
+};
+
 export const get_scatterplot_cell_data = (viz_state) => {
   const positions = get_scatterplot_positions(viz_state);
   const positionSize = positions.size || 2;
@@ -503,6 +559,12 @@ export const get_scatterplot_cell_data = (viz_state) => {
     positions.value instanceof Float32Array
       ? positions.value
       : new Float32Array(positions.value);
+
+  const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
+  const radius = viz_state.spatial?.cell_radius ?? 5;
+  // UMAP points keep a pixel size at any zoom; selections change their color,
+  // not their size.
+  const radii = new Float32Array(fullCount).fill(isUmap ? radius / 5 : radius);
 
   return assert_binary_attribute_lengths('scatterplot-cell', {
     length: fullCount,
@@ -520,6 +582,7 @@ export const get_scatterplot_cell_data = (viz_state) => {
         size: CELL_COLOR_SIZE,
         type: 'unorm8',
       },
+      getRadius: { value: radii, size: 1 },
     },
   });
 };
@@ -572,6 +635,7 @@ export const refresh_cell_layer_data = (
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     transitions: false,
     ...stableLayerProps,
+    ...(!isPointCloud ? scatterplot_view_props(viz_state) : {}),
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
       : get_scatterplot_cell_data(viz_state),
@@ -580,7 +644,13 @@ export const refresh_cell_layer_data = (
       getPosition: [viz_state.obs_store.umap_state.get()],
       ...(isPointCloud
         ? { getColor: [viz_state.selection_token] }
-        : { getFillColor: [viz_state.selection_token] }),
+        : {
+            getFillColor: [viz_state.selection_token],
+            getRadius: [
+              viz_state.selection_token,
+              viz_state.spatial?.cell_radius,
+            ],
+          }),
       ...extraUpdateTriggers,
     },
   });
@@ -622,6 +692,13 @@ const cell_layer_onclick = async (
 
   const inst_cat = viz_state.cats.cell_cats[sourceIndex];
 
+  // A click replaces any highlighted cells (e.g. a Clustergram dendrogram
+  // selection) with the clicked cell's cluster, or clears both when that
+  // cluster was already selected (update_selected_cats toggles).
+  if (viz_state.obs_store.selected_cells.get()?.length) {
+    viz_state.obs_store.selected_cells.set([]);
+  }
+
   update_cat(viz_state.cats, 'cluster');
 
   viz_state.obs_store.deck_check.set({
@@ -634,32 +711,199 @@ const cell_layer_onclick = async (
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 };
 
-export const ini_cell_layer = async (base_url, viz_state) => {
-  let cell_url;
-  const pointCloud = is_point_cloud_viz(viz_state);
-
-  if (viz_state.seg.version === 'default') {
-    cell_url = `${base_url}/cell_metadata.parquet`;
-  } else {
-    cell_url = `${base_url}/cell_metadata_${viz_state.seg.version}.parquet`;
-  }
-
-  const cell_arrow_table = await get_arrow_table(
-    cell_url,
-    options.fetch,
-    viz_state.aws
-  );
-
-  set_cell_names_array(viz_state.cats, cell_arrow_table);
-
-  viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
-
+// `neighborhood-cloud` has no whole-dataset `cell_metadata.parquet` /
+// `cell_clusters/cluster.parquet` (unlike point-cloud, which this function was
+// originally written for) — real cells only ever load on demand, for one
+// selected neighborhood at a time, via `nbhd_cloud_cell_layer.js`. Fetching
+// those files here would 404 and, worse,
+// `set_spatial_bounds_from_flat_coordinates` would then compute an initial
+// camera from zero cells (zero-width bounds -> `Infinity` zoom), breaking
+// OrbitView's projection entirely. Instead, derive sane initial spatial
+// bounds from `nbhd_cloud.shapes_features`/`meta_slice` (already fetched at
+// init) and return an inert, empty `PointCloudLayer` — a placeholder until
+// a neighborhood bar click populates it.
+const ini_neighborhood_cloud_inert_cell_layer = async (base_url, viz_state) => {
+  // `set_color_dict_gene` fetches meta_gene.parquet and builds
+  // `genes.color_dict_gene` -- normally called from the point-cloud branch
+  // below (which this technology skips entirely), but the gene *bar graph*
+  // (built unconditionally in ui_containers.js from `genes.top_gene_counts`,
+  // itself populated by `set_meta_gene` regardless of technology) needs it
+  // too, or every bar's fill accessor reads `color_dict_gene[d.name][0]` on
+  // undefined and throws.
   await set_color_dict_gene(
     viz_state.genes,
     base_url,
     viz_state.seg.version,
     viz_state.aws
   );
+
+  // Slice *centroids* cluster tightly near the tissue's middle (they're each
+  // slice's mean cell position) and badly underestimate the true spatial
+  // extent -- for this dataset, ~221x470 units vs. the real ~2550x4168 unit
+  // shape geometry, an order of magnitude off. That made the initial camera
+  // frame a tiny sliver of empty space. Use the actual alpha-shape geometry
+  // (already fetched into `nbhd_cloud.shapes_features`) for the X/Y extent
+  // instead; slice Z values are still a reliable, cheap source for the Z
+  // extent (each slice's Z genuinely is a single constant coordinate).
+  const shapeFeatures = viz_state.nbhd_cloud?.shapes_features || [];
+  const metaSlice = viz_state.nbhd_cloud?.meta_slice || [];
+
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  let yMin = Infinity;
+  let yMax = -Infinity;
+
+  const walkCoords = (coords) => {
+    if (typeof coords[0] === 'number') {
+      const [x, y] = coords;
+      if (x < xMin) xMin = x;
+      if (x > xMax) xMax = x;
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+      return;
+    }
+    coords.forEach(walkCoords);
+  };
+
+  shapeFeatures.forEach((feature) => {
+    if (feature.geometry?.coordinates) {
+      walkCoords(feature.geometry.coordinates);
+    }
+  });
+
+  if (Number.isFinite(xMin) && Number.isFinite(xMax)) {
+    viz_state.spatial.x_min = xMin;
+    viz_state.spatial.x_max = xMax;
+    viz_state.spatial.y_min = yMin;
+    viz_state.spatial.y_max = yMax;
+  } else {
+    viz_state.spatial.x_min = 0;
+    viz_state.spatial.x_max = 1;
+    viz_state.spatial.y_min = 0;
+    viz_state.spatial.y_max = 1;
+  }
+
+  if (metaSlice.length > 0) {
+    const zs = metaSlice.map((s) => s.centroid_z);
+    viz_state.spatial.z_min = Math.min(...zs);
+    viz_state.spatial.z_max = Math.max(...zs);
+  } else {
+    viz_state.spatial.z_min = 0;
+    viz_state.spatial.z_max = 1;
+  }
+
+  viz_state.spatial.center_x =
+    (viz_state.spatial.x_max + viz_state.spatial.x_min) / 2;
+  viz_state.spatial.center_y =
+    (viz_state.spatial.y_max + viz_state.spatial.y_min) / 2;
+  viz_state.spatial.center_z =
+    (viz_state.spatial.z_max + viz_state.spatial.z_min) / 2;
+  // Guard against a degenerate (zero-width) extent producing an Infinity
+  // zoom below -- the exact failure mode this whole function exists to avoid.
+  viz_state.spatial.data_width = Math.max(
+    viz_state.spatial.x_max - viz_state.spatial.x_min,
+    1
+  );
+  viz_state.spatial.data_height = Math.max(
+    viz_state.spatial.y_max - viz_state.spatial.y_min,
+    1
+  );
+
+  const canvas_width = viz_state.root.clientWidth;
+  const canvas_height = viz_state.containers.root_dim.height;
+  viz_state.spatial.scale_x = canvas_width / viz_state.spatial.data_width;
+  viz_state.spatial.scale_y = canvas_height / viz_state.spatial.data_height;
+  viz_state.spatial.scale = Math.min(
+    viz_state.spatial.scale_x,
+    viz_state.spatial.scale_y
+  );
+
+  viz_state.spatial.ini_zoom = Math.log2(viz_state.spatial.scale) * 1.01;
+  viz_state.spatial.ini_x = viz_state.spatial.center_x;
+  viz_state.spatial.ini_y = viz_state.spatial.center_y;
+  viz_state.spatial.ini_z = viz_state.spatial.center_z;
+
+  viz_state.cats.cell_names_array = [];
+  viz_state.cats.cell_name_to_index_map = new Map();
+  viz_state.cats.dict_cell_cats = {};
+  viz_state.cats.has_dict_cell_cats = false;
+  viz_state.combo_data.cell_compact = createEmptyCellCompact();
+
+  return new PointCloudLayer({
+    id: 'cell-layer',
+    sizeUnits: 'meters',
+    pointSize: 5,
+    pickable: false,
+    data: {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(0), size: 3 },
+        getColor: { value: new Uint8Array(0), size: 4, type: 'unorm8' },
+      },
+    },
+    opacity: 0,
+    ...getModelMatrixProps(viz_state.rotation),
+  });
+};
+
+export const ini_cell_layer = async (base_url, viz_state) => {
+  if (
+    is_neighborhood_cloud_technology(
+      viz_state.img?.landscape_parameters?.technology
+    )
+  ) {
+    return ini_neighborhood_cloud_inert_cell_layer(base_url, viz_state);
+  }
+
+  let cell_url;
+  const pointCloud = is_point_cloud_viz(viz_state);
+
+  // An alignment variant overrides only the cell_metadata positions file;
+  // clusters/genes still load from their segmentation-driven paths.
+  const cell_meta_version =
+    viz_state.alignment && viz_state.alignment !== 'default'
+      ? viz_state.alignment
+      : viz_state.seg.version;
+  if (!cell_meta_version || cell_meta_version === 'default') {
+    cell_url = `${base_url}/cell_metadata.parquet`;
+  } else {
+    cell_url = `${base_url}/cell_metadata_${cell_meta_version}.parquet`;
+  }
+
+  const source = viz_state.single_cell_source;
+  if (source) {
+    // AnnData Zarr: cells are the obs index, at the same placeholder (0, 0)
+    // positions pre.make_chromium_from_anndata writes; the UMAP places them.
+    viz_state.cats.cell_names_array = source.cell_names;
+    viz_state.cats.nameMapping_inv = source.cell_names;
+    viz_state.spatial.cell_scatter_data = {
+      length: source.cell_names.length,
+      attributes: {
+        getPosition: {
+          value: new Float64Array(source.cell_names.length * 2),
+          size: 2,
+        },
+      },
+    };
+    apply_gene_colors(viz_state.genes, source.gene_names, source.gene_colors);
+  } else {
+    const cell_arrow_table = await get_arrow_table(
+      cell_url,
+      options.fetch,
+      viz_state.aws
+    );
+
+    set_cell_names_array(viz_state.cats, cell_arrow_table);
+
+    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
+
+    await set_color_dict_gene(
+      viz_state.genes,
+      base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
+  }
 
   if (pointCloud && viz_state.vector_name_integer) {
     viz_state.cats.cell_name_to_index_map = new Map();
@@ -675,6 +919,9 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
     // Use helper to handle cell_name_prefix matching
     const cell_name_prefix = viz_state.cell_name_prefix || false;
+    // Preserve the AnnData subset when expression or boundaries are displayed.
+    // Store the on-disk IDs after resolving any metadata name prefix.
+    viz_state.cats.meta_cell_id_set = new Set();
 
     viz_state.cats.cell_cats = viz_state.cats.cell_names_array.map((name) => {
       const attrs = get_meta_cell_attrs(
@@ -682,9 +929,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         viz_state.cats.meta_cell,
         cell_name_prefix
       );
+      if (attrs !== undefined) {
+        viz_state.cats.meta_cell_id_set.add(String(name));
+      }
       return attrs?.[inst_index] ?? 'N.A.';
     });
   } else {
+    viz_state.cats.meta_cell_id_set = null;
     const cluster_url = `${base_url}/cell_clusters${viz_state.seg.version && viz_state.seg.version !== 'default' ? `_${viz_state.seg.version}` : ''}/cluster.parquet`;
     const cluster_arrow_table = await get_arrow_table(
       cluster_url,
@@ -707,6 +958,13 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   const dim =
     viz_state.spatial.cell_scatter_data.attributes.getPosition.size || 2;
   const numRows = viz_state.spatial.cell_scatter_data.length;
+
+  // A centroid override (Landscape(adata=..., use_adata_3d_centroids=True)) only
+  // applies to point-cloud views — 2D views always use the on-disk x/y.
+  const use_centroids =
+    pointCloud &&
+    Boolean(viz_state.centroids3d?.requested) &&
+    Boolean(viz_state.centroids3d?.has_centroids);
 
   viz_state.combo_data.cell_compact = pointCloud
     ? createEmptyCellCompact()
@@ -731,6 +989,26 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       dim,
       numRows
     );
+
+    if (use_centroids) {
+      set_point_cloud_centroid_positions_from_names(
+        viz_state,
+        viz_state.cats.cell_names_array,
+        numRows
+      );
+
+      // The bounds/center/zoom computed above reflect the on-disk backdrop's
+      // geometry, not the centroid positions actually being rendered — recompute
+      // from the centroid buffer so the initial camera frames the real data.
+      set_spatial_bounds_from_flat_coordinates(
+        viz_state,
+        viz_state.spatial.cell_centroid_positions,
+        POINT_CLOUD_POSITION_SIZE,
+        numRows
+      );
+    } else {
+      viz_state.spatial.cell_centroid_positions = null;
+    }
   }
 
   if (viz_state.umap.has_umap) {
@@ -820,7 +1098,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     cell_layer = new PointCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',
-      pointSize: 5,
+      pointSize: get_point_cloud_cell_radius(viz_state),
       pickable: true,
       data: pointCloudData,
       transitions,
@@ -834,7 +1112,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   } else {
     cell_layer = new ScatterplotLayer({
       id: 'cell-layer',
-      radiusMinPixels: 1,
+      ...scatterplot_view_props(viz_state),
       getRadius: 5.0,
       pickable: true,
       data: get_scatterplot_cell_data(viz_state),
@@ -842,8 +1120,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
         getFillColor: [viz_state.selection_token],
+        getRadius: [viz_state.selection_token],
       },
-      ...getModelMatrixProps(viz_state.rotation),
     });
   }
 
@@ -863,16 +1141,17 @@ export const new_toggle_cell_layer_visibility = (layers_obj, visible) => {
   });
 };
 
-const POINT_SIZE_SCALE_FACTOR = 2;
-
 export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
   if (is_point_cloud_viz(viz_state)) {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      pointSize: radius / POINT_SIZE_SCALE_FACTOR,
+      pointSize: radius,
     });
   } else {
+    viz_state.spatial.cell_radius = radius;
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       getRadius: radius,
+      ...scatterplot_view_props(viz_state),
+      data: get_scatterplot_cell_data(viz_state),
     });
   }
 };
@@ -921,6 +1200,7 @@ export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   } else {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       data: get_scatterplot_cell_data(viz_state),
+      ...scatterplot_view_props(viz_state),
       transitions,
       updateTriggers: {
         ...layers_obj.cell_layer.props.updateTriggers,

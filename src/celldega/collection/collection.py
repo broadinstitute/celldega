@@ -98,17 +98,21 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
     target_rows = [i for i, name in enumerate(target_index) if name in source_lookup]
     source_rows = [source_lookup[name] for name in target_index if name in source_lookup]
 
-    if sparse.issparse(adata.X):
-        X = sparse.lil_matrix(shape, dtype=adata.X.dtype)
+    def _align_matrix(matrix: Any) -> Any:
+        if sparse.issparse(matrix):
+            aligned_matrix = sparse.lil_matrix(shape, dtype=matrix.dtype)
+            if source_rows:
+                aligned_matrix[target_rows, :] = matrix[source_rows, :]
+            return aligned_matrix.tocsr()
+        aligned_matrix = np.zeros(shape, dtype=matrix.dtype)
         if source_rows:
-            X[target_rows, :] = adata.X[source_rows, :]
-        X = X.tocsr()
-    else:
-        X = np.zeros(shape, dtype=adata.X.dtype)
-        if source_rows:
-            X[target_rows, :] = np.asarray(adata.X[source_rows, :])
+            aligned_matrix[target_rows, :] = np.asarray(matrix[source_rows, :])
+        return aligned_matrix
 
-    return AnnData(X=X, obs=aligned_obs, var=adata.var.copy(), uns=dict(adata.uns))
+    X = _align_matrix(adata.X)
+    layers = {key: _align_matrix(values) for key, values in adata.layers.items()}
+
+    return AnnData(X=X, obs=aligned_obs, var=adata.var.copy(), layers=layers, uns=dict(adata.uns))
 
 
 class CelldegaCollection:

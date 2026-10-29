@@ -7,6 +7,8 @@ import pandas as pd
 from shapely.geometry import MultiPolygon, Point, Polygon
 from tqdm import tqdm
 
+from .atera import is_atera_store, read_atera_cell_polygons
+
 
 def _get_name_mapping(path_dega_files, layer, segmentation="default"):
     """
@@ -252,6 +254,10 @@ def get_cell_polygons(
 
         cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
 
+    elif technology == "Xenium" and is_atera_store(path_cell_boundaries):
+        cells_orig = read_atera_cell_polygons(path_cell_boundaries)
+        cells_orig.rename(columns={"geometry": "geometry_micron"}, inplace=True)
+
     elif technology == "Xenium":
         xenium_cells = pd.read_parquet(path_cell_boundaries)
         grouped = xenium_cells.groupby("cell_id")[["vertex_x", "vertex_y"]].agg(
@@ -374,7 +380,7 @@ def make_cell_boundary_tiles(
 
         # Convert string index to integer index
         cell_str_to_int_mapping = _get_name_mapping(
-            path_output.replace("/cell_segmentation", ""),
+            str(Path(path_output).parent),
             layer="boundary",
         )
 

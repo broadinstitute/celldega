@@ -1,0 +1,54 @@
+# CellCloud
+
+`CellCloud` is a 3D, orbit-camera spatial view of cell centroids — for
+inspecting a dataset's overall shape (thick tissue, multi-slice alignments)
+rather than the tile-based 2D detail `Landscape` is optimized for. It
+replaces `Landscape`'s older `technology="point-cloud"` mode.
+
+## What it shows
+
+- Cell **centroids** in 3D, colored by cluster/category or gene expression,
+  rendered as a rotatable/orbit-able point cloud rather than tiled polygons.
+- The same **CELL** color/size controls as `Landscape`, minus the
+  tile-specific image and transcript layers (there's no underlying image
+  pyramid or per-transcript layer in this view).
+- Support for **named alignment variants** — e.g. previewing a candidate
+  slice alignment by pointing at `cell_metadata_<alignment>.parquet` instead
+  of rebuilding DegaFiles.
+
+## Usage
+
+```python
+import celldega as dega
+
+cell_cloud = dega.viz.CellCloud(
+    base_url="https://your-landscape-files-url",
+    adata=adata,
+    cell_size=10,  # Default cell diameter in microns
+    rotation_x=90,
+)
+cell_cloud
+```
+
+`cell_size` sets the default cell diameter (10 µm by default), assuming the
+centroid coordinates are in microns. The **CELL** slider scales this diameter
+from 0× to 2×; its initial midpoint is 1×. You can also update
+`cell_cloud.cell_size` after displaying the widget, preserving the slider's
+current multiplier.
+
+Drag to rotate continuously around both orbit axes, including past the poles.
+
+Build the underlying point-cloud DegaFiles from an `AnnData` (x/y in
+`obsm["spatial"]`, z in an `obs` column such as `"Z"`) with
+[`celldega.pre.write_point_cloud_dataset`](../python/pre/api.md). Passing
+`name="..."` writes a named position variant (e.g. one alignment of the same
+cells) that `CellCloud(alignment="...")` switches to; see
+[File Formats](../overview/file_formats.md#point-cloud-degafiles).
+`CellCloud` can also be linked to a `Clustergram`, exactly like `Landscape`
+— see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
+
+For the full list of constructor arguments, see the
+[Viz Module API reference](../python/viz/api.md).
+
+!!! note
+    Screenshots and an example video are coming soon.

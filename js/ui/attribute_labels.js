@@ -1,8 +1,13 @@
-import * as d3 from 'd3';
 import { TextLayer } from 'deck.gl';
 
-import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
+import {
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from '../deck-gl/matrix/dendro_layers';
 import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import { refresh_row_label_visibility } from '../matrix/composition_data';
+
+import { deselect_reorder_buttons } from './text_buttons';
 
 /**
  * Generates ordering based on category values for an axis.
@@ -109,10 +114,7 @@ const reorder_by_attribute = (
     }
 
     // Deselect all reorder buttons for this axis
-    d3.select(viz_state.el)
-      .selectAll(`.button-${axis}`)
-      .classed('active', false)
-      .style('border-color', viz_state.buttons.gray);
+    deselect_reorder_buttons(viz_state, axis);
 
     // Update layers
     layers_mat.mat_layer = layers_mat.mat_layer.clone({
@@ -144,6 +146,13 @@ const reorder_by_attribute = (
         },
       });
     }
+
+    // Composition mode: row labels are positioned by their actual segment
+    // (which moves on either a row or a column reorder) and filtered by fit,
+    // so refresh on any reorder. No-op outside composition mode. Same for the
+    // row dendrogram, whose leaves come from the rightmost bar's segments.
+    refresh_row_label_visibility(layers_mat, viz_state);
+    refresh_composition_dendro(layers_mat, viz_state);
 
     // Hide dendro when not in clust order
     toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
@@ -194,12 +203,12 @@ const get_row_attr_label_data = (viz_state) => {
  *
  * Column bars y position in cols view:
  * - Canvas y = col_cat_offset * (attr_index + 1.5) - 30 + cat_shift_col
- * - Cols view target.y = label_col_y (25)
- * - DOM y = col_region/2 + (canvas_y - 25)
+ * - Cols view target.y = cols_target_y (see matrix/geometry.js)
+ * - DOM y = col_region/2 + (canvas_y - cols_target_y)
  *
  * For col_attr_labels view with centered target (1:1 mapping):
  * - DOM y = canvas_y (since target is at center)
- * - So we need canvas_y = col_region/2 + (bar_canvas_y - label_col_y)
+ * - So we need canvas_y = col_region/2 + (bar_canvas_y - cols_target_y)
  *
  * @param {Object} d - The label data
  * @param {Object} viz_state - The visualization state
@@ -216,11 +225,11 @@ const col_attr_label_get_position = (d, viz_state) => {
     30 +
     viz_state.viz.cat_shift_col;
 
-  // Convert to DOM y (cols view has target.y = label_col_y)
-  // DOM y = col_region/2 + (bar_canvas_y - label_col_y)
+  // Convert to DOM y (cols view has target.y = cols_target_y)
+  // DOM y = col_region/2 + (bar_canvas_y - cols_target_y)
   // For our centered view, canvas y = DOM y
   const pos_y =
-    viz_state.viz.col_region / 2 + (bar_canvas_y - viz_state.viz.label_col_y);
+    viz_state.viz.col_region / 2 + (bar_canvas_y - viz_state.viz.cols_target_y);
 
   return [pos_x, pos_y];
 };
@@ -327,7 +336,8 @@ const col_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
     (viz_state.labels.clicks.col_attr || 0) + 1;
 
   if (viz_state.labels.clicks.col_attr === 1) {
-    setTimeout(() => {
+    viz_state.labels.attr_click_timeouts ||= {};
+    viz_state.labels.attr_click_timeouts.col = setTimeout(() => {
       viz_state.labels.clicks.col_attr = 0;
     }, DOUBLE_CLICK_DELAY);
   } else if (viz_state.labels.clicks.col_attr === 2) {
@@ -355,7 +365,8 @@ const row_attr_label_onclick = (event, deck_mat, layers_mat, viz_state) => {
     (viz_state.labels.clicks.row_attr || 0) + 1;
 
   if (viz_state.labels.clicks.row_attr === 1) {
-    setTimeout(() => {
+    viz_state.labels.attr_click_timeouts ||= {};
+    viz_state.labels.attr_click_timeouts.row = setTimeout(() => {
       viz_state.labels.clicks.row_attr = 0;
     }, DOUBLE_CLICK_DELAY);
   } else if (viz_state.labels.clicks.row_attr === 2) {
@@ -476,7 +487,9 @@ export const initialize_attribute_labels = (
         manual_store.subscribe(
           () => {
             // Delay refresh slightly to allow attribute definitions to update
-            setTimeout(() => {
+            clearTimeout(viz_state.labels._attr_refresh_timer);
+            viz_state.labels._attr_refresh_timer = setTimeout(() => {
+              if (viz_state.finalized) return;
               refresh_attr_label_layers(deck_mat, layers_mat, viz_state);
             }, 150);
           },

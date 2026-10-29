@@ -1,4 +1,4 @@
-import { is_point_cloud_technology } from '../../global_variables/image_info';
+import { is_orbit_technology } from '../../global_variables/image_info';
 
 const CAMERA_PICKING_RESTORE_DELAY_MS = 250;
 const HOVER_PICKING_RESTORE_DELAY_MS = 100;
@@ -7,7 +7,7 @@ const HOVER_REASON = 'hover';
 
 const is_point_cloud_viz = (viz_state) => {
   const technology = viz_state.img?.landscape_parameters?.technology;
-  return is_point_cloud_technology(technology);
+  return is_orbit_technology(technology);
 };
 
 const ensurePickabilityState = (viz_state) => {

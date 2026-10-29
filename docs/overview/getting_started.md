@@ -2,6 +2,14 @@
 
 Celldega is a spatial analysis and visualization library developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org). It enables researchers to easily visualize large spatial transcriptomics (ST) datasets alongside single-cell and spatial analysis workflows.
 
+## Video Tutorial
+
+This narrated tutorial links a Landscape, Clustergram, and Enrich to analyze a Visium HD human colorectal cancer dataset. Follow along in the [Visium HD Human CRC Landscape-Clustergram-Enrich](../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) notebook.
+
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+    <iframe src="https://www.youtube.com/embed/IjGsIykVIUE" title="Visium HD human colorectal cancer tutorial in Celldega" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
+</div>
+
 ## Overview
 
 Celldega provides:
@@ -42,6 +50,7 @@ Celldega supports multiple spatial transcriptomics platforms:
 - **Xenium** (10x Genomics)
 - **MERSCOPE** (Vizgen)
 - **Visium HD** (10x Genomics)
+- **CosMx** (NanoString)
 - **Chromium** (single-cell RNA-seq)
 - **Custom point-cloud data**
 
@@ -137,12 +146,11 @@ Try Celldega in Google Colab without any installation:
 
 Explore Celldega as a standalone JavaScript library:
 
-- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq)
+- [Celldega Landscape Xenium ObservableHQ](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs)
 
 ## Next Steps
 
 - [Installation](installation.md) - Detailed installation instructions
-- [Usage](usage.md) - In-depth usage guide
 - [File Formats](file_formats.md) - LandscapeFiles format specification
 - [Python API](../python/index.md) - Full Python API reference
 - [JavaScript API](../javascript/index.md) - JavaScript API for web applications

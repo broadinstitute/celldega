@@ -1,0 +1,42 @@
+# Enrich
+
+`Enrich` is an informational widget for gene set enrichment analysis: given a
+list of genes (e.g. the top marker genes for a cluster), it looks up
+enriched terms against public gene-set libraries via the
+[Enrichr](https://maayanlab.cloud/Enrichr/) API.
+
+## What it shows
+
+- A **library selector** for choosing which Enrichr gene-set library to query
+  (e.g. `CellMarker_2024`).
+- A **bar chart** of the top enriched terms for the current gene list,
+  ranked by score. Clicking a bar highlights the genes it's associated with.
+- A **gene list panel** — clicking a gene shows detail about that gene and
+  highlights it across the term bar chart.
+- A link to view the full result set on Enrichr.
+
+## Usage
+
+```python
+import celldega as dega
+
+enrich = dega.viz.Enrich(width=650, height=650)
+enrich.gene_list = ["BRCA1", "TP53", "EGFR"]
+enrich
+```
+
+`Enrich` is commonly driven by a gene list derived from a `Clustergram` or
+`Landscape` selection (e.g. marker genes for a clicked cluster). Use
+`dega.viz.clustergram_enrich(cgm)` or
+`dega.viz.spatial_clustergram(spatial, cgm, enrich=True)` to create that link.
+The core Clustergram-to-Enrich gene-list link runs in the browser, so it also
+works in a statically embedded documentation notebook without a live Python
+kernel. Clustergram keeps this enrichment set separate from its focused gene:
+clicking one row can focus that gene across the linked views without replacing
+the multi-gene enrichment query. Dendrogram/crop selections and a column's
+top-marker selection update the enrichment set. For the full list of
+constructor arguments, see the
+[Viz Module API reference](../python/viz/api.md).
+
+!!! note
+    Screenshots and an example video are coming soon.

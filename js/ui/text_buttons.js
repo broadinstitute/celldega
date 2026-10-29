@@ -1,14 +1,30 @@
 import * as d3 from 'd3';
 
+import { calc_viewport } from '../deck-gl/core/calc_viewport';
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
 import { toggle_visibility_single_image_layer } from '../deck-gl/layers/image_layers';
+import { toggle_nbhd_cloud_shapes_layer_visibility } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_nbhd_layer_visibility } from '../deck-gl/layers/nbhd_layer';
 import { toggle_path_layer_visibility } from '../deck-gl/layers/path_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
-import { toggle_dendro_layer_visibility } from '../deck-gl/matrix/dendro_layers';
-import { get_mat_layers_list } from '../deck-gl/matrix/matrix_layers';
+import {
+  refresh_composition_dendro,
+  toggle_dendro_layer_visibility,
+} from '../deck-gl/matrix/dendro_layers';
+import {
+  col_label_color_triggers,
+  get_layer_update_triggers,
+  get_mat_layers_list,
+  mat_reorder_triggers,
+  row_label_color_triggers,
+} from '../deck-gl/matrix/matrix_layers';
+import { refresh_row_label_visibility } from '../matrix/composition_data';
+import { crop_filter_signature } from '../matrix/crop_filter';
+import { refresh_layer } from '../utils/refresh_layer';
 
+import { set_nbhd_button_color } from './nbhd_button';
 import { toggle_slider } from './sliders';
+import { sync_trx_button } from './trx_handle';
 
 let is_visible;
 
@@ -34,133 +50,268 @@ const toggle_visible_button = (event) => {
   return is_visible;
 };
 
-const reorder_button_callback = (
-  event,
-  axis,
-  deck_mat,
-  layers_mat,
-  viz_state
-) => {
-  const current = d3.select(event.currentTarget);
+/**
+ * Style a control-panel text button by active state: text color alone
+ * indicates state (blue = active, gray = inactive) — no border/background.
+ *
+ * @param {object} selection - d3 selection of the button element.
+ * @param {boolean} isActive - Whether the button is in the active state.
+ * @param {object} viz_state - Visualization state (for the color constants).
+ */
+export const apply_state_button_style = (selection, isActive, viz_state) =>
+  selection
+    .style(
+      'color',
+      isActive ? viz_state.buttons.text_active : viz_state.buttons.text_inactive
+    )
+    .style('cursor', 'pointer')
+    .style('font-weight', 'bold')
+    .style('user-select', 'none');
 
-  let button_name = current.text().toLowerCase();
+/**
+ * Reset every reorder button for an axis back to the inactive text color,
+ * e.g. when a different reorder mechanism (attribute double-click, custom
+ * label reorder) takes over ordering for that axis.
+ *
+ * @param {object} viz_state - Visualization state.
+ * @param {string} axis - "row" or "col".
+ */
+export const deselect_reorder_buttons = (viz_state, axis) => {
+  d3.select(viz_state.el)
+    .selectAll(`.button-${axis}`)
+    .classed('active', false)
+    .style('color', viz_state.buttons.text_inactive);
 
-  // quick fix for naming mismatch
-  if (button_name === 'var') {
-    button_name = 'rankvar';
-  } else if (button_name === 'sum') {
-    button_name = 'rank';
-  }
-
-  const is_active = current.classed('active');
-
-  if (is_active === false) {
-    current.classed('active', true);
-
-    d3.select(viz_state.el)
-      .selectAll(`.button-${axis}`)
-      .classed('active', false)
-      .style('border-color', viz_state.buttons.gray);
-
-    current
-      .style('border-color', viz_state.buttons.blue)
-      .classed('active', true);
-
-    viz_state.order.current[axis] = button_name;
-
-    layers_mat.mat_layer = layers_mat.mat_layer.clone({
-      updateTriggers: {
-        getPosition: [viz_state.order.current.row, viz_state.order.current.col],
-      },
-    });
-
-    if (axis === 'row') {
-      layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
-        updateTriggers: {
-          getPosition: viz_state.order.current.row,
-        },
-      });
-
-      // reorder cat_layer
-      layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
-        updateTriggers: {
-          getPosition: viz_state.order.current.row,
-        },
-      });
-    } else {
-      layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-        updateTriggers: {
-          getPosition: viz_state.order.current.col,
-        },
-      });
-
-      // reorder cat_layer
-      layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
-        updateTriggers: {
-          getPosition: viz_state.order.current.col,
-        },
-      });
-    }
-
-    toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
-
-    deck_mat.setProps({
-      layers: get_mat_layers_list(layers_mat),
-    });
+  // The order dropdown has no "nothing selected" state, so it shows CUSTOM.
+  const dropdown = viz_state.reorder_dropdowns?.[axis];
+  if (dropdown) {
+    dropdown.value = 'custom';
+    dropdown.style.color = viz_state.buttons.text_inactive;
   }
 };
 
-export const make_reorder_button = (
+const BUTTON_FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+// Display label -> internal order name (viz_state.order.current values).
+const REORDER_OPTIONS = [
+  { label: 'CLUST', order: 'clust' },
+  { label: 'SUM', order: 'rank' },
+  { label: 'VAR', order: 'rankvar' },
+  { label: 'INI', order: 'ini' },
+];
+
+/**
+ * Reorder one axis of the matrix to `order_name` ('clust', 'rank', 'rankvar',
+ * or 'ini') and refresh every layer that depends on that order.
+ */
+const apply_reorder = (axis, order_name, deck_mat, layers_mat, viz_state) => {
+  viz_state.order.current[axis] = order_name;
+
+  layers_mat.mat_layer = layers_mat.mat_layer.clone({
+    updateTriggers: mat_reorder_triggers(viz_state),
+  });
+
+  if (axis === 'row') {
+    layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.row_label_layer),
+        getPosition: [
+          viz_state.order.current.row,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+
+    // reorder cat_layer
+    layers_mat.row_cat_layer = layers_mat.row_cat_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.row_cat_layer),
+        getPosition: [
+          viz_state.order.current.row,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+  } else {
+    layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_label_layer),
+        getPosition: [
+          viz_state.order.current.col,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+
+    // reorder cat_layer
+    layers_mat.col_cat_layer = layers_mat.col_cat_layer.clone({
+      updateTriggers: {
+        ...get_layer_update_triggers(layers_mat.col_cat_layer),
+        getPosition: [
+          viz_state.order.current.col,
+          crop_filter_signature(viz_state),
+        ],
+      },
+    });
+  }
+
+  // A button reorder replaces any double-click custom order, so re-trigger
+  // both axes' label colors: the blue reorder-driver label (valid only
+  // while the sorted axis is still 'custom') reverts to black.
+  layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.row_label_layer),
+      getColor: row_label_color_triggers(viz_state),
+    },
+  });
+  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.col_label_layer),
+      getColor: col_label_color_triggers(viz_state),
+    },
+  });
+
+  // Composition mode: row labels are positioned by their actual segment
+  // (which moves on either a row or a column reorder) and filtered by fit,
+  // so refresh on any reorder. No-op outside composition mode. Same for the
+  // row dendrogram, whose leaves come from the rightmost bar's segments.
+  refresh_row_label_visibility(layers_mat, viz_state);
+  refresh_composition_dendro(layers_mat, viz_state);
+
+  toggle_dendro_layer_visibility(layers_mat, viz_state, axis);
+
+  deck_mat.setProps({
+    layers: get_mat_layers_list(layers_mat),
+  });
+};
+
+/**
+ * Order selector for one matrix axis: a native <select> styled like the text
+ * reorder buttons it replaces (bold 9px uppercase, blue while an order is
+ * applied, gray once a custom order takes over), with no dropdown arrow.
+ *
+ * @returns {HTMLSelectElement}
+ */
+export const make_reorder_dropdown = (
   container,
-  text,
-  active,
-  width = 40,
   axis,
   deck_mat,
   layers_mat,
   viz_state
 ) => {
-  const button_class = `button-${axis}`;
+  const select = document.createElement('select');
+  select.className = `reorder-dropdown-${axis}`;
+  select.title = 'Order';
 
-  let color;
-  if (active === true) {
-    color = viz_state.buttons.blue;
-  } else {
-    color = viz_state.buttons.gray;
-  }
+  REORDER_OPTIONS.forEach(({ label, order }) => {
+    const option = document.createElement('option');
+    option.value = order;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+  // Shown (never pickable) after a label double-click or attribute reorder.
+  const custom = document.createElement('option');
+  custom.value = 'custom';
+  custom.textContent = 'CUSTOM';
+  custom.hidden = true;
+  custom.disabled = true;
+  select.appendChild(custom);
 
-  // Keep original uppercase text for display
-  const display_text = text.toUpperCase();
+  const current = viz_state.order?.current?.[axis] || 'clust';
+  select.value = REORDER_OPTIONS.some((o) => o.order === current)
+    ? current
+    : 'clust';
 
-  d3.select(container)
+  Object.assign(select.style, {
+    appearance: 'none',
+    webkitAppearance: 'none',
+    MozAppearance: 'none',
+    border: 'none',
+    background: 'transparent',
+    padding: '0',
+    margin: '0',
+    fontFamily: BUTTON_FONT_FAMILY,
+    fontSize: '9px',
+    fontWeight: 'bold',
+    color: viz_state.buttons.text_active,
+    cursor: 'pointer',
+    outline: 'none',
+    userSelect: 'none',
+  });
+
+  select.addEventListener('change', () => {
+    select.style.color = viz_state.buttons.text_active;
+    apply_reorder(axis, select.value, deck_mat, layers_mat, viz_state);
+  });
+
+  viz_state.reorder_dropdowns = viz_state.reorder_dropdowns || {};
+  viz_state.reorder_dropdowns[axis] = select;
+  container.appendChild(select);
+  return select;
+};
+
+/**
+ * A row of mutually-exclusive text-toggle options rendered as
+ * "LABEL_A | LABEL_B" (e.g. "HEIGHT | OPACITY"), the active option in blue,
+ * the rest gray. The "|" separators are static, non-interactive.
+ *
+ * @param {HTMLElement} container - Parent element to append into.
+ * @param {Array<{label: string, value: *}>} options - Options, in display order.
+ * @param {*} initialValue - Which option's `value` starts active.
+ * @param {(value: *) => void} onSelect - Called with the newly active option's value.
+ * @param {object} viz_state - Visualization state (for color constants).
+ * @returns {{container: HTMLElement, setActive: (value: *) => void}}
+ */
+export const make_text_toggle_group = (
+  container,
+  options,
+  initialValue,
+  onSelect,
+  viz_state
+) => {
+  const row = d3
+    .select(container)
     .append('div')
-    .classed(button_class, true)
-    .classed('active', active)
-    .text(display_text)
-    .style('width', `${width}px`)
-    .style('height', '16px')
     .style('display', 'inline-flex')
     .style('align-items', 'center')
-    .style('justify-content', 'center')
-    .style('text-align', 'center')
-    .style('cursor', 'pointer')
-    .style('font-size', '9px')
-    .style('font-weight', 'bold')
-    .style('color', '#47515b')
-    .style('border', '2px solid')
-    .style('border-color', color)
-    .style('border-radius', '10px')
     .style('margin-top', '4px')
     .style('margin-left', '3px')
-    .style('padding', '2px 4px')
-    .style('user-select', 'none')
-    .style(
-      'font-family',
-      '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif'
-    )
-    .on('click', (event) =>
-      reorder_button_callback(event, axis, deck_mat, layers_mat, viz_state)
+    .style('font-family', BUTTON_FONT_FAMILY);
+
+  const spans = [];
+
+  const setActive = (activeValue) => {
+    spans.forEach(({ value, selection }) =>
+      apply_state_button_style(selection, value === activeValue, viz_state)
     );
+  };
+
+  options.forEach((opt, i) => {
+    if (i > 0) {
+      row
+        .append('div')
+        .text('|')
+        .style('color', 'black')
+        .style('font-size', '9px')
+        .style('font-weight', 'bold')
+        .style('margin', '0 3px');
+    }
+    const selection = row
+      .append('div')
+      .text(opt.label.toUpperCase())
+      .style('display', 'inline-flex')
+      .style('font-size', '9px')
+      .on('click', () => {
+        setActive(opt.value);
+        onSelect(opt.value);
+      });
+    spans.push({ value: opt.value, selection });
+  });
+
+  setActive(initialValue);
+
+  return { container: row.node(), setActive };
 };
 
 const ist_img_button_callback = async (
@@ -182,29 +333,60 @@ const ist_img_button_callback = async (
   set_img_layer_visible(show);
 };
 
-const trx_button_callback_ist = async (
-  event,
-  deck_ist,
-  layers_obj,
-  viz_state
-) => {
-  toggle_visible_button(event);
-  toggle_slider(viz_state.sliders.trx, is_visible);
-  toggle_trx_layer_visibility(layers_obj, is_visible);
-
-  if (is_visible) {
+/**
+ * Shown transcripts take over from neighborhoods and region editing and light
+ * up the gene bars; hidden, the gene bars dim.
+ */
+const sync_trx_exclusivity = (layers_obj, viz_state, visible) => {
+  if (visible) {
     toggle_nbhd_layer_visibility(layers_obj, false);
     viz_state.obs_store.viz_nbhd_layer.set(false);
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(viz_state, 'gray');
     }
 
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
   } else {
     viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
   }
+};
+
+const trx_button_callback_ist = async (
+  event,
+  deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  // Past the close-up limit, TRX is a handle that loads transcripts (and
+  // boundaries) on demand -- see trx_handle.js. Too far out it does nothing.
+  if (viz_state.trx_zone === 'far') return;
+  if (viz_state.trx_zone === 'forceable') {
+    viz_state.trx_forced = !viz_state.trx_forced;
+    if (viz_state.trx_forced) {
+      toggle_trx_layer_visibility(layers_obj, true);
+      toggle_slider(viz_state.sliders.trx, true);
+      sync_trx_exclusivity(layers_obj, viz_state, true);
+    }
+    sync_trx_button(viz_state, layers_obj);
+    if (viz_state.last_viewport_params) {
+      await calc_viewport(
+        viz_state.last_viewport_params,
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+    }
+    return;
+  }
+
+  toggle_visible_button(event);
+  toggle_slider(viz_state.sliders.trx, is_visible);
+  toggle_trx_layer_visibility(layers_obj, is_visible);
+  // Dimmed while loading only when on.
+  sync_trx_button(viz_state, layers_obj);
+  sync_trx_exclusivity(layers_obj, viz_state, is_visible);
 
   viz_state.obs_store.deck_check.set({
     ...viz_state.obs_store.deck_check.get(),
@@ -220,7 +402,17 @@ const trx_button_callback_ist = async (
 };
 
 const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
-  toggle_visible_button(event);
+  // During NBHD editing cells remain visible as drawing context. Clicking
+  // CELL exits that context without toggling the highlighted cells off.
+  if (
+    viz_state.obs_store.viz_edit_layer.get() ||
+    viz_state.obs_store.viz_nbhd_layer.get()
+  ) {
+    is_visible = true;
+    d3.select(event.currentTarget).style('color', 'blue');
+  } else {
+    toggle_visible_button(event);
+  }
   toggle_slider(viz_state.sliders.cell, is_visible);
 
   new_toggle_cell_layer_visibility(layers_obj, is_visible);
@@ -232,7 +424,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     viz_state.obs_store.viz_edit_layer.set(false);
 
     if (viz_state.nbhd.is_nbhd) {
-      viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(viz_state, 'gray');
     }
 
     viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
@@ -261,6 +453,16 @@ const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
   toggle_visible_button(event);
 
   toggle_slider(viz_state.sliders.nbhd, is_visible);
+
+  if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    // neighborhood-cloud has no exclusive "active layer" concept -- shapes
+    // and cells coexist via the zoom crossfade, so this only needs to
+    // show/hide the shapes layer itself, not juggle image/cell/path/trx
+    // layer visibility the way the legacy 2D nbhd feature does below.
+    toggle_nbhd_cloud_shapes_layer_visibility(layers_obj, is_visible);
+    refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+    return;
+  }
 
   toggle_nbhd_layer_visibility(layers_obj, is_visible);
 

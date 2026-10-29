@@ -1,24 +1,62 @@
-export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
+import {
+  get_composition_layout,
+  rightmost_composition_col,
+} from './composition_data';
+import {
+  get_axis_center_position,
+  get_axis_edge_positions,
+  get_axis_slot_size,
+  is_axis_index_visible,
+} from './crop_filter';
+
+/**
+ * Slice an axis's linkage at a distance threshold and stamp the resulting group
+ * id onto each node as `group_links` (what the dendrogram trapezoids are built
+ * from).
+ *
+ * @param {object} viz_state - Visualization state.
+ * @param {string} axis - "row" or "col".
+ * @param {number} dist_thresh - Linkage distance to cut at.
+ * @param {Array<number>} [leaf_map] - Maps a scipy leaf id to a node index.
+ *   Needed when `viz_state.linkage[axis]` came from a rank view: that linkage
+ *   was computed over the view's *submatrix*, so its leaf ids are positions
+ *   within the view rather than node indices. Defaults to whatever view is
+ *   currently applied, so callers that don't know about views (dendrogram init,
+ *   the Dendro slider) stay correct automatically; the full-matrix linkage maps
+ *   leaf ids to node indices one-to-one.
+ */
+export const alt_slice_linkage = (viz_state, axis, dist_thresh, leaf_map) => {
   let clust_a;
   let clust_b;
+
+  const inst_nodes = viz_state[`${axis}_nodes`];
+  const active_map =
+    leaf_map === undefined ? viz_state.rank_view?.leaf_map?.[axis] : leaf_map;
+  const leaves = Array.isArray(active_map)
+    ? active_map
+    : inst_nodes.map((_, index) => index);
 
   const group_dict = {};
 
   // initialize group_links and dictionary
-  viz_state[`${axis}_nodes`].forEach((x, i) => {
-    group_dict[i] = [i];
-    x.group_links = i;
+  leaves.forEach((node_index, leaf_id) => {
+    group_dict[leaf_id] = [node_index];
+    if (inst_nodes[node_index]) {
+      inst_nodes[node_index].group_links = leaf_id;
+    }
   });
 
   // the max individual cluster id
-  const max_clust_id = viz_state[`${axis}_nodes`].length;
+  const max_clust_id = leaves.length;
 
   const min_dist = 0;
 
   let new_clust_id;
 
   viz_state.linkage[axis].forEach((x, i) => {
-    if (x[2] > min_dist && x[2] < dist_thresh) {
+    // Identical leaves merge at zero. Skipping those merges loses their
+    // membership when a later node refers to the resulting cluster id.
+    if (x[2] >= min_dist && x[2] < dist_thresh) {
       // get cluster that are being combined together
       clust_a = x[0];
       clust_b = x[1];
@@ -28,8 +66,8 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
       // make new array, concat lower level cluster, delete lower level clusters
       group_dict[new_clust_id] = [];
       group_dict[new_clust_id] = group_dict[new_clust_id].concat(
-        group_dict[clust_a],
-        group_dict[clust_b]
+        group_dict[clust_a] || [],
+        group_dict[clust_b] || []
       );
 
       delete group_dict[clust_a];
@@ -39,15 +77,17 @@ export const alt_slice_linkage = (viz_state, axis, dist_thresh) => {
 
   // Make flat dictionary
   const flat_group_dict = {};
-  Object.entries(group_dict).forEach(([inst_cluster, nodes]) => {
-    nodes.forEach((x) => {
+  Object.entries(group_dict).forEach(([inst_cluster, node_indices]) => {
+    node_indices.forEach((x) => {
       flat_group_dict[x] = inst_cluster;
     });
   });
 
   // state is being saved to the nodes under the key group_links
-  viz_state[`${axis}_nodes`].forEach((x, i) => {
-    x.group_links = flat_group_dict[i];
+  leaves.forEach((node_index) => {
+    if (inst_nodes[node_index]) {
+      inst_nodes[node_index].group_links = flat_group_dict[node_index];
+    }
   });
 };
 
@@ -55,44 +95,48 @@ export const calc_dendro_triangles = (viz_state, axis) => {
   const triangle_info = {};
 
   const inst_nodes = viz_state[`${axis}_nodes`];
+  const is_composition = viz_state.mat.viz_mode === 'composition';
 
-  // var heat_shift
-  let heat_size;
-  let tri_width;
-  const num_labels = viz_state.mat[`num_${axis}s`]; // params.labels['num_'+axis]
-
-  if (axis === 'row') {
-    heat_size = viz_state.viz.mat_width; // params.viz_dim.heat_size.y
-    tri_width = heat_size / num_labels;
-  } else {
-    heat_size = viz_state.viz.mat_height; // params.viz_dim.heat_size.x
-    tri_width = heat_size / num_labels;
-  }
-
-  const inst_order = viz_state.order.current[axis]; // params.order.inst[axis]
+  // Composition mode: row (population) leaf spans come from that row's
+  // actual stacked-bar segment in the rightmost bar (non-uniform,
+  // value-driven heights), not a uniform per-row slot. Column (dataset) leaf
+  // spans stay uniformly spaced (columns are always evenly spaced) but need
+  // the same small gap `build_composition_layout` renders between bars, or
+  // the trapezoid edges visibly overshoot each bar.
+  const composition_layout = is_composition
+    ? get_composition_layout(viz_state)
+    : null;
+  const rightmost_col = is_composition
+    ? rightmost_composition_col(viz_state)
+    : null;
 
   inst_nodes.forEach((inst_node, index) => {
-    // var order_index = inst_node[inst_order]
+    if (!is_axis_index_visible(viz_state, axis, index)) {
+      return;
+    }
 
-    // new way of getting group
-    ////////////////////////////////////////////
     const inst_group = inst_node.group_links;
 
     let inst_top;
+    let inst_bot;
 
-    if (axis === 'row') {
-      const inst_row_index =
-        viz_state.mat.num_rows - viz_state.mat.orders.row[inst_order][index];
-
-      inst_top = viz_state.viz.row_offset * (inst_row_index + 1.0);
+    if (axis === 'row' && is_composition) {
+      const seg = composition_layout[`${index}_${rightmost_col}`];
+      if (!seg) return;
+      inst_top = seg.position[1] - seg.half[1];
+      inst_bot = seg.position[1] + seg.half[1];
+    } else if (axis === 'row') {
+      const edges = get_axis_edge_positions(viz_state, 'row', index);
+      if (!edges) return;
+      [inst_top, inst_bot] = edges;
     } else {
-      const inst_col_index =
-        viz_state.mat.num_cols - viz_state.mat.orders.col[inst_order][index];
-
-      inst_top = viz_state.viz.col_offset * (inst_col_index + 0.0);
+      const center = get_axis_center_position(viz_state, 'col', index);
+      if (center === null) return;
+      const gap_factor = is_composition ? 0.95 : 1.0; // matches composition_data.js's bar gap
+      const half = (get_axis_slot_size(viz_state, 'col') * gap_factor) / 2;
+      inst_top = center - half;
+      inst_bot = center + half;
     }
-
-    const inst_bot = inst_top + tri_width;
 
     let inst_name = inst_node.name;
 
@@ -110,11 +154,13 @@ export const calc_dendro_triangles = (viz_state, axis) => {
         pos_mid: (inst_top + inst_bot) / 2,
         name: inst_group,
         all_names: [],
+        all_indices: [],
         axis,
       };
     }
 
     triangle_info[inst_group].all_names.push(inst_name);
+    triangle_info[inst_group].all_indices.push(index);
 
     if (inst_top < triangle_info[inst_group].pos_top) {
       triangle_info[inst_group].name_top = inst_name;
@@ -157,6 +203,11 @@ export const ini_dendro = (viz_state) => {
 
   viz_state.dendro.group_info = {};
 
+  viz_state.dendro.highlight = { row: null, col: null };
+  viz_state.dendro.selected_polygon = { row: null, col: null };
+  viz_state.dendro._highlight_rev = 0;
+  viz_state.dendro._hover_timer = null;
+
   viz_state.dendro.default_link_level = 0.5;
 
   viz_state.dendro.output_label_format = 'list';
@@ -174,7 +225,7 @@ export const ini_dendro = (viz_state) => {
   axes.forEach((axis) => {
     link_mat = viz_state.linkage[axis];
     viz_state.dendro.max_linkage_dist[axis] =
-      link_mat[link_mat.length - 1][2] + 0.01;
+      (link_mat[link_mat.length - 1]?.[2] || 0) + 0.01;
     dist_thresh =
       viz_state.dendro.max_linkage_dist[axis] *
       viz_state.dendro.default_link_level;
@@ -207,7 +258,7 @@ export const calc_dendro_polygons = (viz_state, axis) => {
 
       viz_state.dendro.polygons[axis].push({
         coordinates: triangle,
-        properties: { ...group, axis, is_focused: false }, // Attach group data and axis
+        properties: { ...group, axis, is_focused: false, is_selected: false }, // Attach group data and axis
       });
     } else if (axis === 'col') {
       const height = pos_bot - pos_top; // Increase width for better visibility
@@ -225,7 +276,7 @@ export const calc_dendro_polygons = (viz_state, axis) => {
 
       viz_state.dendro.polygons[axis].push({
         coordinates: triangle,
-        properties: { ...group, axis, is_focused: false }, // Attach group data and axis
+        properties: { ...group, axis, is_focused: false, is_selected: false }, // Attach group data and axis
       });
     }
   });

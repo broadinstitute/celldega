@@ -10,6 +10,10 @@ export const on_view_state_change = debounce(
       calc_viewport(viewState, deck_ist, layers_obj, viz_state);
     }
 
+    if (viz_state.scale_bar) {
+      viz_state.obs_store.scale_bar_view_state.set(viewState);
+    }
+
     if (typeof viz_state.custom_callbacks.view_change === 'function') {
       viz_state.custom_callbacks.view_change(
         viewState,

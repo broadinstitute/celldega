@@ -1,5 +1,7 @@
 import { SolidPolygonLayer } from 'deck.gl';
 
+import { getModelMatrixProps } from '../../utils/rotation';
+
 // Function to create a background layer
 export const ini_background_layer = (viz_state) => {
   const background_color = [0, 0, 0, 255];
@@ -21,6 +23,7 @@ export const ini_background_layer = (viz_state) => {
     getPolygon: (d) => d.polygon,
     getFillColor: background_color,
     pickable: false,
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return background_layer;

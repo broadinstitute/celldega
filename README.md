@@ -2,10 +2,16 @@
 
 [![PyPI version](https://badge.fury.io/py/celldega.svg)](https://badge.fury.io/py/celldega)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://broadinstitute.github.io/celldega/)
 
 > **Interactive spatial‑omics analysis & visualisation toolkit for single‑cell and spatial transcriptomics data**
+## Celldega
+![Demo](docs/assets/img/Xenium_HCRC_Landscape-Clustergram.gif)
+
+## Celldega Demo Video
+
+https://github.com/user-attachments/assets/ce43a3a0-8aff-4424-be74-8bb06c29a9c9
+
 
 **Celldega** combines scalable computational pipelines with GPU‑accelerated, web‑native visualisations so you can explore **millions of cells and transcripts** directly inside Jupyter Lab, VS Code, or any modern browser. Built for researchers working with Xenium, Visium HD, MERFISH, and other spatial omics technologies.
 

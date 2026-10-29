@@ -6,6 +6,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import sys
+import types
+
+fake_module = types.ModuleType("celldega.pre.run_pre_processing")
+fake_module.main = lambda *args, **kwargs: None
+sys.modules["celldega.pre.run_pre_processing"] = fake_module
+
 from celldega.pre import make_chromium_from_anndata
 
 

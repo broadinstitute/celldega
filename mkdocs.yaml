@@ -1,9 +1,38 @@
 site_name: Celldega Documentation
+repo_url: https://github.com/broadinstitute/celldega
+repo_name: GitHub
+
+# Keep large/data artifacts out of the built site (and off the gh-pages branch).
+# mkdocs copies everything under docs/ into site/ regardless of .gitignore,
+# so notebook data dirs and large files must be excluded here.
+exclude_docs: |
+  examples/**/data/
+  **/*.h5ad
+  # CCLE multi-omics tutorials temporarily hidden; remove these two lines and
+  # uncomment their nav entries below to restore them.
+  examples/ccle_multiomics.md
+  examples/tutorial_notebooks/CCLE_Multiomics_*.ipynb
+  # New single-cell and multi-omic tutorials temporarily hidden while they are
+  # revised; remove these lines and uncomment their nav entries below (and the
+  # entries in examples/index.md and the link in gallery_citeseq_pbmc.md) to
+  # restore them.
+  examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
+  examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
+  examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
+  # Alignment tutorial drafts, not yet updated to the current APIs.
+  examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
+  examples/tutorial_notebooks/1.0_Preprocess_and_Align.ipynb
+  examples/tutorial_notebooks/2.0_Viz_CellCloud.ipynb
+
 theme:
   name: material
   favicon: assets/img/celldega_logo_32x32_transparent.png
   logo: assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png
   # logo: assets/img/assets/img/celldega_logo_32x32_transparent.png
+  # Theme overrides: overrides/.icons holds the Lucide outline GitHub icon.
+  custom_dir: overrides
+  icon:
+    repo: lucide/github
   features:
     - navigation.indexes
 
@@ -21,12 +50,26 @@ nav:
       - Getting Started: overview/getting_started.md
       - Installation: overview/installation.md
       - File Formats: overview/file_formats.md
-      - Usage: overview/usage.md
+      - Row Group Storage: overview/row_groups.md
+  - Visualizations:
+      - visualizations/index.md
+      - Landscape: visualizations/landscape.md
+      - Yearbook: visualizations/yearbook.md
+      - CellCloud: visualizations/cell-cloud.md
+      - NeighborhoodCloud: visualizations/neighborhood-cloud.md
+      - Clustergram: visualizations/clustergram.md
+      - Composition: visualizations/composition.md
+      - Enrich: visualizations/enrich.md
   - Python API:
       - python/index.md
-      - pre: python/pre/api.md
+      - align: python/align/api.md
       - clust: python/clust/api.md
+      - collection: python/collection/api.md
+      - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
+      - pre: python/pre/api.md
+      - select: python/select/api.md
+      - set: python/set/api.md
       - viz: python/viz/api.md
 
   - JavaScript API:
@@ -34,27 +77,70 @@ nav:
       - API: javascript/api.md
   - Technologies:
       - technologies/index.md
-  - Cloud Environments:
-    - Terra.bio:
-        - cloud_env/Terra-segment.md
+  - Environments:
+      - cloud_env/index.md
   - Gallery:
       - gallery/index.md
-      - Xenium:
-          - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
-          - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
-          - Xenium Multi Dataset: gallery/gallery_xenium_multi.md
+      - Web Presentations:
+          - Broad Retreat 2024: https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/
+      - Imaging Spatial Transcriptomics:
+          - Atera:
+              - Atera Kidney non-diseased FFPE: gallery/gallery_atera_kidney.md
+              - Atera Xenium Breast Cancer: gallery/gallery_atera.md
+          - Xenium:
+              - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
+              - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
+              - Broad-Allen Dev Mouse Brain E15.5 3D: gallery/gallery_broad_allen_mouse_brain_3d.md
+              - Broad-Allen Dev Mouse Brain E15.5 Slice 35: gallery/gallery_broad_allen_mouse_brain_2d.md
+          - CosMx:
+              - CosMx Human Colon CRC: gallery/gallery_cosmx_human_colon.md
+      - Sequencing Spatial Transcriptomics:
+          - Visium HD:
+              - Visium HD Cell Segmentation Mouse Brain: gallery/gallery_visium_hd_cell_segmentation_mouse_brain.md
+      - Multi-Omic:
+          - CITE-seq PBMC Cell Types (RNA + Protein): gallery/gallery_citeseq_pbmc.md
   - Example Notebooks:
     - examples/index.md
-    - Tutorials:
+    - Spatial Transcriptomics Tutorials:
+      - Atera Kidney Landscape-Clustergram: examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
+      - Atera Breast Cancer Landscape-Clustergram: examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb
+      - Atera Breast Cancer Neighborhood Exploration: examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb
+      - Visium HD Human CRC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
-      - Scanpy_Chromium: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
-      - Single-cell Clustergram Chromium: examples/tutorial_notebooks/Single-cell_Clustergram_Chromium.ipynb
+      - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
+      - Broad-Allen Dev Mouse Brain E15.5 Viz: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
+    - Single Cell Tutorials:
+      - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      # New single-cell and multi-omic tutorials temporarily hidden (also
+      # excluded in exclude_docs above)
+      # - MIX-seq Drug Screen Landscape-Clustergram-Enrich: examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
+    # - Multi-Omic Tutorials:
+    #   - Flex CITE-seq PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
+    #   - CST Lung Cancer PTM Clustergram-Enrich: examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
-      - Landscape-Matrix View Xenium: examples/brief_notebooks/Landscape-Matrix_Xenium.ipynb
-      - Pre-Process LandscapeFiles: examples/brief_notebooks/Pre-process_Xenium_V1_human_Pancreas_FFPE_outs.ipynb
-      - UMAP-Cluster_Pancreas_Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
-      - Landscape-Clustergram_Visium-HD_Human_Lung_Cancer: examples/brief_notebooks/Landscape-Clustergram_Visium-HD_Human_Lung_Cancer.ipynb
+      - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb
+      - Atera Viz: examples/brief_notebooks/Atera_viz.ipynb
+      - Atera Pre-process: examples/brief_notebooks/Atera_Pre-process.ipynb
+      - Yearbook-Query: examples/brief_notebooks/Yearbook_Query.ipynb
+      - CellCloud Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
+      - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
+      - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
+      - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
+      - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
+    # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
+    # - CCLE Multi-omics Tutorials:
+    #   - Overview: examples/ccle_multiomics.md
+    #   - "00: Prepare archive": examples/tutorial_notebooks/CCLE_Multiomics_00_Prepare.ipynb
+    #   - "01: Global hierarchy": examples/tutorial_notebooks/CCLE_Multiomics_01_Global_Hierarchy.ipynb
+    #   - "02: Cross-omic concordance": examples/tutorial_notebooks/CCLE_Multiomics_02_Cross_Omic_Concordance.ipynb
+    #   - "03: Tissue gene programs": examples/tutorial_notebooks/CCLE_Multiomics_03_Tissue_Gene_Programs.ipynb
+    #   - "04: Lung multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_04_Lung_Multiomic_Subclustering.ipynb
+    #   - "05: Pan-CCLE multi-omic consensus": examples/tutorial_notebooks/CCLE_Multiomics_05_Pan_CCLE_Multiomic_Consensus.ipynb
+    #   - "06: Hematologic multi-omic subclustering": examples/tutorial_notebooks/CCLE_Multiomics_06_Hematologic_Multiomic_Subclustering.ipynb
+    #   - "07: Tissue mixing and provenance review": examples/tutorial_notebooks/CCLE_Multiomics_07_Tissue_Mixing_and_Provenance_Review.ipynb
+    #   - "08: RNA-anchored multi-omic characterization": examples/tutorial_notebooks/CCLE_Multiomics_08_RNA_Anchored_Multiomic_Characterization.ipynb
+    #   - "09: CST lung TMT PTM integration": examples/tutorial_notebooks/CCLE_Multiomics_09_CST_Lung_PTM_Integration.ipynb
 
 markdown_extensions:
   - toc
@@ -72,7 +158,11 @@ plugins:
         python:
           options:
             docstring_style: google
+            # Renders Sphinx roles (:func:`name`) in docstrings as inline code.
+            extensions:
+              - scripts/griffe_sphinx_roles.py:SphinxRoles
             show_root_toc_entry: true
+            show_source: false
   - mkdocs-jupyter:
       include_source: true
       include_requirejs: true
@@ -85,14 +175,22 @@ extra_javascript:
     type: module
   - path: assets/js/gallery_skin_cancer.js
     type: module
+  - path: assets/js/gallery_cosmx_colon.js
+    type: module
   - path: assets/js/google-analytics.js
   - path: assets/js/hide_notebook_sidebar.js
     type: module
   - path: assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js
     type: module
-  - path: assets/js/gallery_visium_hd_human_kidney.js
+  - path: assets/js/gallery_atera.js
     type: module
-  - path: assets/js/gallery_visium_hd_pancreas.js
+  - path: assets/js/gallery_atera_kidney.js
+    type: module
+  - path: assets/js/gallery_broad_allen_mouse_brain_3d.js
+    type: module
+  - path: assets/js/gallery_broad_allen_mouse_brain_2d.js
+    type: module
+  - path: assets/js/gallery_citeseq_pbmc.js
     type: module
 
 extra_css:

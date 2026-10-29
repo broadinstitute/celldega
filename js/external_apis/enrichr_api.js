@@ -1,7 +1,7 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const postGeneList = async (genes, background = null) => {
-  const url = 'https://amp.pharm.mssm.edu/Enrichr/addList';
+  const url = 'https://maayanlab.cloud/Enrichr/addList';
   const formData = new FormData();
   formData.append('list', genes.join('\n'));
   if (background && Array.isArray(background) && background.length > 0) {
@@ -25,7 +25,7 @@ export const postGeneList = async (genes, background = null) => {
 };
 
 export const fetchEnrichment = async (listId, library) => {
-  const url = `https://amp.pharm.mssm.edu/Enrichr/enrich?backgroundType=${library}&userListId=${listId}`;
+  const url = `https://maayanlab.cloud/Enrichr/enrich?backgroundType=${library}&userListId=${listId}`;
   try {
     const response = await fetch(url);
     return await response.json();

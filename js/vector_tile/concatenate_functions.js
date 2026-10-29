@@ -1,49 +1,55 @@
 export const concatenate_polygon_data = (dataObjects) => {
-  // Filter out undefined or null elements
-  dataObjects = dataObjects.filter(
-    (data) => data !== undefined && data !== null
-  );
+  const startIndices = [0];
+  const spans = [];
+  let coordinateCount = 0;
 
-  // Initialize concatenated data structure
-  const concatenatedData = {
-    length: 0,
-    startIndices: new Int32Array(),
-    attributes: {
-      getPolygon: {
-        value: new Float64Array(),
-        size: 2, // Assuming 'size' remains constant
-      },
-    },
-  };
-
-  // Iterate over each data object to combine them
-  dataObjects.forEach((data, index) => {
-    concatenatedData.length += data.length;
-
-    // Handle startIndices
-    const lastValue = concatenatedData.attributes.getPolygon.value.length / 2;
-    let adjustedStartIndices = data.startIndices;
-
-    if (index > 0) {
-      // Adjust startIndices (except for the first data object)
-      adjustedStartIndices = new Int32Array(data.startIndices.length);
-      for (let i = 0; i < data.startIndices.length; i++) {
-        adjustedStartIndices[i] = data.startIndices[i] + lastValue;
-      }
+  for (const data of dataObjects) {
+    if (!data) {
+      continue;
+    }
+    if (!Number.isSafeInteger(data.length) || data.length < 0) {
+      throw new Error('Invalid polygon row count');
     }
 
-    // Combine startIndices and coordinate values
-    concatenatedData.startIndices = new Int32Array([
-      ...concatenatedData.startIndices,
-      ...adjustedStartIndices.slice(index > 0 ? 1 : 0),
-    ]);
-    concatenatedData.attributes.getPolygon.value = new Float64Array([
-      ...concatenatedData.attributes.getPolygon.value,
-      ...data.attributes.getPolygon.value,
-    ]);
-  });
+    const offsets = data.startIndices || [];
+    const coordinates = data.attributes?.getPolygon?.value || [];
 
-  return concatenatedData;
+    // Arrow buffers may contain unused prefixes, suffixes or alignment padding.
+    // Copy only the logical rows. Invalid spans must not reach PathLayer, where
+    // they can turn unrelated cells into a single connected path.
+    for (let i = 0; i < data.length; i++) {
+      const start = offsets[i];
+      const end = offsets[i + 1];
+      if (
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(end) ||
+        start < 0 ||
+        end < start ||
+        end > coordinates.length / 2
+      ) {
+        throw new Error(`Invalid polygon coordinate offsets at row ${i}`);
+      }
+      spans.push({ coordinates, start: start * 2, end: end * 2 });
+      coordinateCount += (end - start) * 2;
+      startIndices.push(coordinateCount / 2);
+    }
+  }
+
+  const value = new Float64Array(coordinateCount);
+  let offset = 0;
+  for (const span of spans) {
+    const coordinates = span.coordinates.subarray
+      ? span.coordinates.subarray(span.start, span.end)
+      : span.coordinates.slice(span.start, span.end);
+    value.set(coordinates, offset);
+    offset += coordinates.length;
+  }
+
+  return {
+    length: startIndices.length - 1,
+    startIndices: new Int32Array(startIndices),
+    attributes: { getPolygon: { value, size: 2 } },
+  };
 };
 
 export const concatenate_arrow_tables = (tables) => {

@@ -64,7 +64,7 @@ export const landscape_h_e = async (
   viz_state.img.image_layer_colors = {};
   viz_state.img.image_layer_sliders = {};
 
-  await set_landscape_parameters(viz_state.img, base_url);
+  await set_landscape_parameters(viz_state.img, base_url, viz_state.aws);
 
   await set_dimensions(viz_state, base_url, 'h_and_e');
 
@@ -99,11 +99,8 @@ export const landscape_h_e = async (
   deck_sst.setProps({
     views: viz_state.views,
     layers: [layers_sst.simple_image_layer],
-    // getTooltip: (info) => make_tile_tooltip(info, viz_state),
     initialViewState: initial_view_state,
   });
-
-  // const ui_container = make_sst_ui_container(deck_sst, layers_sst, viz_state)
 
   // UI and Viz Container
   // el.appendChild(ui_container)

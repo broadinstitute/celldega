@@ -1,9 +1,17 @@
 import { ScatterplotLayer } from 'deck.gl';
 
-import { update_cat, update_selected_cats } from '../../global_variables/cat';
-import { update_cell_exp_array } from '../../global_variables/cell_exp_array';
-import { update_selected_genes } from '../../global_variables/selected_genes';
+import { select_genes } from '../../global_variables/select_genes';
+import { getModelMatrixProps } from '../../utils/rotation';
 import { grab_trx_tiles_in_view } from '../../vector_tile/transcripts/grab_trx_tiles_in_view';
+
+const getTranscriptGeneName = (genes, index) => {
+  const geneId = genes.trx_gene_ids?.[index];
+  if (geneId === undefined || geneId < 0) {
+    return null;
+  }
+
+  return genes.g_nameMapping_inv?.[geneId] ?? null;
+};
 
 const trx_layer_callback = async (
   info,
@@ -12,56 +20,38 @@ const trx_layer_callback = async (
   layers_obj,
   viz_state
 ) => {
-  const inst_gene = viz_state.genes.trx_names_array[info.index];
+  const inst_gene = getTranscriptGeneName(viz_state.genes, info.index);
 
   if (!inst_gene) {
     return;
   }
 
-  const reset_gene = inst_gene === viz_state.cats.cat;
-
-  const new_cat = reset_gene ? 'cluster' : inst_gene;
-
-  update_cat(viz_state.cats, new_cat);
-
-  viz_state.obs_store.deck_check.set({
-    ...viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    trx_layer: false,
-  });
-
-  update_selected_genes(viz_state.genes, [inst_gene], viz_state.obs_store);
-  // testing setting selected_cats to array with the selected gene for
-  // observable updates
-  update_selected_cats(viz_state.cats, [inst_gene], viz_state.obs_store);
-
-  await update_cell_exp_array(
-    viz_state.cats,
-    viz_state.genes,
-    viz_state.global_base_url,
-    inst_gene,
-    viz_state.seg.version,
-    viz_state.vector_name_integer,
-    viz_state.aws
-  );
+  // Select just this gene, or clear it if it's the only one selected.
+  const current = viz_state.genes.selected_genes ?? [];
+  const only_this_gene = current.length === 1 && current[0] === inst_gene;
+  await select_genes(viz_state, only_this_gene ? [] : [inst_gene]);
 };
 
-export const ini_trx_layer = (genes) => {
+export const ini_trx_layer = (viz_state) => {
+  const { genes } = viz_state;
+
   const trx_layer = new ScatterplotLayer({
     id: 'trx-layer',
     data: genes.trx_data,
     pickable: true,
     getFillColor: (i, d) => {
-      const inst_gene = genes.trx_names_array[d.index];
-      const inst_color = genes.color_dict_gene[inst_gene];
+      const geneId = genes.trx_gene_ids?.[d.index];
+      const inst_color = genes.g_colorMapping_inv?.[geneId] || [0, 0, 0];
       const inst_opacity =
-        genes.selected_genes.length === 0 ||
-        genes.selected_genes.includes(inst_gene)
+        !genes.selected_gene_ids ||
+        genes.selected_gene_ids.size === 0 ||
+        genes.selected_gene_ids.has(geneId)
           ? 255
-          : 5;
+          : 0;
 
       return [...inst_color, inst_opacity];
     },
+    ...getModelMatrixProps(viz_state.rotation),
   });
 
   return trx_layer;

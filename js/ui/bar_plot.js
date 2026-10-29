@@ -1,15 +1,163 @@
 import * as d3 from 'd3';
 
 import { new_toggle_cell_layer_visibility } from '../deck-gl/layers/cell_layer';
+import {
+  refresh_nbhd_cloud_cluster_cells,
+  refresh_nbhd_cloud_gene_cells,
+} from '../deck-gl/layers/nbhd_cloud_cell_layer';
+import {
+  apply_nbhd_cloud_slice_filter,
+  select_nbhd_cloud_gene,
+  toggle_nbhd_cloud_cluster_selection,
+} from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
-import { update_cell_exp_array } from '../global_variables/cell_exp_array';
+import { select_genes } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
+import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
 import { toggle_slider } from '../ui/sliders';
+import { sync_trx_button } from '../ui/trx_handle';
+import { publish_selected_cells } from '../umap/embedding_gates';
 import { refresh_layer } from '../utils/refresh_layer';
+import { register_ui_cleanup } from '../utils/ui_cleanup';
+
+import { set_nbhd_button_color } from './nbhd_button';
 
 export const make_bar_container = () => {
   return document.createElement('div');
+};
+
+/** Height of one bar's rect; bars are laid out every BAR_HEIGHT + 1 px. */
+export const BAR_HEIGHT = 15;
+
+/**
+ * SVG height that fits `num_bars` bars: each bar is offset 2px and spaced
+ * BAR_HEIGHT + 1 apart, so the last bar ends at (BAR_HEIGHT + 1) * n + 1.
+ * Sizing to BAR_HEIGHT * (n + 1) instead clipped the last bars (the rarest
+ * clusters) once a list had more than ~14 entries.
+ *
+ * @param {number} num_bars
+ * @returns {number}
+ */
+export const bar_svg_height = (num_bars) => (BAR_HEIGHT + 1) * num_bars + 2;
+
+/**
+ * Add `name` to `selected_names`, or remove it if already present (shift-click
+ * multi-select). Compares as strings, like the bar highlight.
+ *
+ * @param {Array<string|number>} selected_names
+ * @param {string|number} name
+ * @returns {Array<string|number>} A new array.
+ */
+export const toggle_bar_name = (selected_names, name) => {
+  const names = Array.isArray(selected_names) ? selected_names : [];
+  const key = String(name);
+  return names.some((value) => String(value) === key)
+    ? names.filter((value) => String(value) !== key)
+    : [...names, name];
+};
+
+/**
+ * Tooltip HTML for a cluster bar: the cluster name and its cell count, plus a
+ * shift-click hint where multi-select is available.
+ *
+ * @param {{name: string|number, value: number}} d
+ * @param {{multi_select?: boolean}} [options]
+ * @returns {string}
+ */
+export const cluster_bar_tooltip_html = (d, { multi_select = false } = {}) => {
+  const count = Number(d?.value);
+  const count_line = Number.isFinite(count)
+    ? `<br>cells: ${count.toLocaleString()}`
+    : '';
+  const hint = multi_select
+    ? '<br><i>Shift-click to select multiple clusters</i>'
+    : '';
+  return `<span style="color: #7fb0ff;">cluster: ${escape_html(d?.name)}</span>${count_line}${hint}`;
+};
+
+// Multi-select is a Landscape feature; Yearbook queries one cluster at a time.
+const supports_cluster_multi_select = (viz_state) => !viz_state.yearbook;
+
+/**
+ * Show a hover tooltip on bar groups: UniProt name/description for gene bars,
+ * name and cell count for cluster bars. One tooltip element per widget, removed
+ * when the widget is finalized.
+ *
+ * @param {d3.Selection} bars - Bar `g` groups (data-bound).
+ * @param {'gene'|'cluster'|null} kind
+ * @param {object} viz_state
+ */
+export const attach_bar_tooltip = (bars, kind, viz_state) => {
+  if (kind !== 'gene' && kind !== 'cluster') return;
+
+  if (!viz_state.bar_tooltip) {
+    viz_state.bar_tooltip = make_gene_hover_tooltip();
+    register_ui_cleanup(viz_state, () => {
+      viz_state.bar_tooltip?.destroy();
+      viz_state.bar_tooltip = null;
+    });
+  }
+
+  // Read the tooltip off viz_state at event time (it is recreated per widget).
+  bars
+    .on('mouseenter.tooltip', (event, d) => {
+      const tooltip = viz_state.bar_tooltip;
+      if (!tooltip || !d) return;
+      if (kind === 'gene') {
+        tooltip.show(
+          String(d.name),
+          event,
+          viz_state.nbhd_cloud?.is_nbhd_cloud
+            ? ''
+            : '<br><i>Shift-click to select multiple genes</i>'
+        );
+      } else {
+        tooltip.show_html(
+          cluster_bar_tooltip_html(d, {
+            multi_select: supports_cluster_multi_select(viz_state),
+          }),
+          event
+        );
+      }
+    })
+    .on('mousemove.tooltip', (event) => viz_state.bar_tooltip?.move(event))
+    .on('mouseleave.tooltip', () => viz_state.bar_tooltip?.hide());
+};
+
+/**
+ * Opacity for a bar given the current selection: full for the selected bar(s)
+ * (and for every bar when nothing is selected), dimmed otherwise. The highlight
+ * is applied via each bar group's opacity rather than the rect fill's own alpha
+ * so a selection change (bar click) and a data re-render can't fight over the
+ * same attribute and leave the bar coloring stale.
+ *
+ * @param {Array<string|number>} selected_names - currently selected bar names
+ * @param {string|number} bar_name - the bar being styled
+ * @returns {number} 1.0 (highlighted) or 0.2 (dimmed)
+ */
+export const get_bar_highlight_opacity = (selected_names, bar_name) => {
+  const names = (Array.isArray(selected_names) ? selected_names : []).map(
+    (name) => String(name)
+  );
+  if (names.length === 0) {
+    return 1.0;
+  }
+  return names.includes(String(bar_name)) ? 1.0 : 0.2;
+};
+
+// The NBHD slider controls cluster-color opacity; the repurposed TRX slider
+// controls gene opacity, for either gene mode (sliders.js) -- only one mode
+// is ever active at a time, so only one slider should ever be enabled.
+// Called after any action that can change `nbhd_cloud.gene_shapes_mode`/
+// `gene_scatter_mode` (cluster select, gene select, shape click).
+export const sync_nbhd_cloud_opacity_sliders = (viz_state) => {
+  const geneMode = Boolean(
+    viz_state.nbhd_cloud.gene_shapes_mode ||
+      viz_state.nbhd_cloud.gene_scatter_mode
+  );
+  toggle_slider(viz_state.sliders.nbhd, !geneMode);
+  toggle_slider(viz_state.sliders.trx, geneMode);
 };
 
 export const bar_callback_cat = (
@@ -20,7 +168,7 @@ export const bar_callback_cat = (
   _viz_state
 ) => {
   // ensure that cell button, slider and bars are active
-  _viz_state.buttons.buttons.cell.style('color', 'blue');
+  _viz_state.buttons?.buttons?.cell?.style?.('color', 'blue');
 
   toggle_slider(_viz_state.sliders.cell, true);
   _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
@@ -31,7 +179,8 @@ export const bar_callback_cat = (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      set_nbhd_button_color(_viz_state, 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
@@ -45,12 +194,26 @@ export const bar_callback_cat = (
     trx_layer: false,
   });
 
+  // Shift-click adds/removes a cluster from the current cluster selection; a
+  // selected gene (cat !== 'cluster') is replaced by a fresh selection.
+  const multi_select =
+    Boolean(_event?.shiftKey) && supports_cluster_multi_select(_viz_state);
+  const current_clusters =
+    _viz_state.cats.cat === 'cluster' ? _viz_state.cats.selected_cats : [];
+  const new_selected_cats = multi_select
+    ? toggle_bar_name(current_clusters, d.name)
+    : [d.name];
+
   update_cat(_viz_state.cats, 'cluster');
-  update_selected_cats(_viz_state.cats, [d.name], _viz_state.obs_store);
+  update_selected_cats(
+    _viz_state.cats,
+    new_selected_cats,
+    _viz_state.obs_store
+  );
   update_selected_genes(_viz_state.genes, [], _viz_state.obs_store);
 
-  // toggle gene bars based on reset_cat
-  if (_viz_state.cats.reset_cat) {
+  // toggle gene bars based on whether any cluster is still selected
+  if (_viz_state.cats.selected_cats.length === 0) {
     _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
   } else {
     _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
@@ -64,10 +227,49 @@ export const bar_callback_gene = async (
   _layers_obj,
   _viz_state
 ) => {
-  // ensure that trx button, slider, and bars are active
-  _viz_state.buttons.buttons.trx.style('color', 'blue');
+  if (_viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    const isReset = d.name === _viz_state.nbhd_cloud.selected_gene;
+    await select_nbhd_cloud_gene(d.name, _viz_state, _layers_obj);
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_shapes_layer');
+    refresh_layer(_viz_state, _layers_obj, 'nbhd_cloud_cell_layer');
+    sync_nbhd_cloud_opacity_sliders(_viz_state);
 
+    // A gene with neither a shape nor a cell scatter is a no-op
+    // (select_nbhd_cloud_gene leaves state untouched) -- don't relabel this
+    // bar as "selected" for a click that didn't actually do anything.
+    const isAvailable =
+      _viz_state.nbhd_cloud.available_gene_shapes?.has(d.name) ||
+      _viz_state.nbhd_cloud.available_gene_scatter?.has(d.name);
+    if (!isReset && !isAvailable) {
+      return;
+    }
+
+    // Drives the Uniprot gene-info panel (ui_containers.js's
+    // obs_store.selected_genes subscriber) -- nbhd-cloud's gene selection
+    // is otherwise entirely separate from this shared store, so without
+    // this the panel never updated for a gene picked via the gene bar.
+    update_selected_genes(
+      _viz_state.genes,
+      isReset ? [] : [d.name],
+      _viz_state.obs_store
+    );
+
+    _viz_state.genes.svg_bar_gene
+      .selectAll('rect')
+      .style('opacity', (bar) => (isReset || bar.name === d.name ? 1.0 : 0.2));
+    // Gene mode just cleared any cluster selection (select_nbhd_cloud_gene)
+    // -- the cluster bar's own highlight is this handler's responsibility,
+    // same as the gene bar's above.
+    _viz_state.nbhd_cloud.svg_bar_cluster
+      ?.selectAll('rect')
+      .style('opacity', 1.0);
+    return;
+  }
+
+  // ensure that trx button, slider, and bars are active
+  _viz_state.buttons?.buttons?.trx?.style?.('color', 'blue');
   toggle_slider(_viz_state.sliders.trx, true);
+  sync_trx_button(_viz_state, _layers_obj);
   _viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
 
   toggle_trx_layer_visibility(_layers_obj, true);
@@ -77,44 +279,27 @@ export const bar_callback_gene = async (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons.buttons.nbhd.style('color', 'gray');
+      set_nbhd_button_color(_viz_state, 'gray');
+      toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
     }
   }
 
-  const inst_gene = d.name;
-  const reset_gene = inst_gene === _viz_state.cats.cat;
-  const new_cat = reset_gene ? 'cluster' : inst_gene;
+  // Shift-click adds/removes a gene (cells show the summed expression); a
+  // plain click selects just this gene, or clears it if it's the only one.
+  const current_genes = _viz_state.genes.selected_genes ?? [];
+  const new_genes = _event?.shiftKey
+    ? toggle_bar_name(current_genes, d.name)
+    : current_genes.length === 1 && current_genes[0] === d.name
+      ? []
+      : [d.name];
 
-  if (reset_gene) {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-  } else {
-    _viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-  }
+  _viz_state.cats.svg_bar_cluster
+    .selectAll('rect')
+    .style('opacity', new_genes.length === 0 ? 1.0 : 0.2);
 
-  update_cat(_viz_state.cats, new_cat);
-
-  _viz_state.obs_store.deck_check.set({
-    ..._viz_state.obs_store.deck_check.get(),
-    cell_layer: false,
-    trx_layer: false,
-  });
-
-  update_selected_genes(_viz_state.genes, [inst_gene], _viz_state.obs_store);
-  await update_cell_exp_array(
-    _viz_state.cats,
-    _viz_state.genes,
-    _viz_state.global_base_url,
-    inst_gene,
-    _viz_state.seg.version,
-    _viz_state.vector_name_integer,
-    _viz_state.aws
-  );
-
-  // update selected_cats after update_cell_exp_array has been run
-  // can clean up and move more logic to observability
-  update_selected_cats(_viz_state.cats, [inst_gene], _viz_state.obs_store);
+  await select_genes(_viz_state, new_genes);
 };
 
 export const bar_callback_nbhd = (
@@ -127,7 +312,17 @@ export const bar_callback_nbhd = (
   if (_viz_state.nbhd.edit) {
     _viz_state.obs_store.viz_edit_layer.set(true);
 
-    _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+    // Safely style the NBHD button if it exists
+    // Note: edit buttons are DOM nodes, regular buttons are d3 selections
+    if (_viz_state.buttons?.buttons?.nbhd) {
+      const btn = _viz_state.buttons.buttons.nbhd;
+      if (typeof btn.style === 'function') {
+        btn.style('color', 'blue');
+      } else {
+        d3.select(btn).style('color', 'blue');
+      }
+    }
+    toggle_slider(_viz_state.sliders.nbhd, true);
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (
@@ -140,16 +335,32 @@ export const bar_callback_nbhd = (
       });
     } else {
       _viz_state.obs_store.selected_nbhds.set([_d.name]);
-      const featureIndex =
-        _viz_state.nbhd.feature_collection.features.findIndex(
-          (f) => f.properties.name === _d.name
-        );
-      _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
-        selectedFeatureIndexes: [featureIndex],
-      });
+      // Use edit.feature_collection for edit mode
+      const features = _viz_state.edit?.feature_collection?.features || [];
+      const featureIndex = features.findIndex(
+        (f) => f.properties.name === _d.name || f.properties.cat === _d.name
+      );
+      if (featureIndex >= 0) {
+        _layers_obj.edit_layer = _layers_obj.edit_layer.clone({
+          selectedFeatureIndexes: [featureIndex],
+        });
+      }
     }
 
     refresh_layer(_viz_state, _layers_obj, 'edit_layer');
+
+    if (_viz_state.neighborhood_space) {
+      const selected = new Set(_viz_state.obs_store.selected_nbhds.get());
+      const gates = (_viz_state.edit.feature_collection.features || []).filter(
+        (feature) => selected.has(feature.properties.name)
+      );
+      // NBHDs passed in from Python carry no membership; leave Python's
+      // selection alone for those, but clear it when nothing is selected.
+      if (!selected.size || gates.some((gate) => gate.properties.cell_ids)) {
+        const ids = gates.flatMap((gate) => gate.properties.cell_ids || []);
+        publish_selected_cells(_viz_state, [...new Set(ids)]);
+      }
+    }
 
     if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {
@@ -166,7 +377,16 @@ export const bar_callback_nbhd = (
     _viz_state.obs_store.viz_nbhd_layer.set(true);
     _viz_state.obs_store.viz_edit_layer.set(false);
 
-    _viz_state.buttons.buttons.nbhd.style('color', 'blue');
+    // Safely style the NBHD button if it exists
+    // Note: edit buttons are DOM nodes, regular buttons are d3 selections
+    if (_viz_state.buttons?.buttons?.nbhd) {
+      const btn = _viz_state.buttons.buttons.nbhd;
+      if (typeof btn.style === 'function') {
+        btn.style('color', 'blue');
+      } else {
+        d3.select(btn).style('color', 'blue');
+      }
+    }
 
     const prev_selected_nbhds = _viz_state.obs_store.selected_nbhds.get();
     if (
@@ -194,6 +414,95 @@ export const bar_callback_nbhd = (
   }
 };
 
+// Per-slice bar graph: clicking a slice isolates the 3D view to that
+// slice's shapes (every other slice's neighborhoods disappear entirely,
+// not just dimmed) -- click again to show every slice. A cluster selection
+// (NBHD bar / shape click) stays active across slices, so re-run the cell
+// display against whichever cluster is currently selected, narrowed to the
+// new slice filter.
+export const bar_callback_nbhd_cloud_slice = async (
+  _event,
+  d,
+  _deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  const { nbhd_cloud } = viz_state;
+  nbhd_cloud.selected_slice_ids ??= new Set();
+
+  if (
+    nbhd_cloud.selected_slice_ids.size === 1 &&
+    nbhd_cloud.selected_slice_ids.has(d.name)
+  ) {
+    nbhd_cloud.selected_slice_ids.clear();
+  } else {
+    nbhd_cloud.selected_slice_ids.clear();
+    nbhd_cloud.selected_slice_ids.add(d.name);
+  }
+
+  const hasSelection = nbhd_cloud.selected_slice_ids.size > 0;
+  nbhd_cloud.svg_bar_slice
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection || nbhd_cloud.selected_slice_ids.has(bar.name) ? 1.0 : 0.2
+    );
+
+  // Filters whichever feature set is currently relevant -- cluster shapes,
+  // or the selected gene's own shapes if gene-shapes mode is active -- so
+  // isolating a slice while viewing a gene doesn't silently swap back to
+  // (filtered) cluster shapes while leaving gene-shapes mode's state stuck on.
+  apply_nbhd_cloud_slice_filter(viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+
+  // Same "whichever is currently relevant" split for cells -- gene mode's
+  // cells (peppered, shape-backed, or scatter-only) live in a different
+  // per-gene cache than cluster cells, so re-filtering cluster cells here
+  // would silently do nothing while a gene mode is active (the bug: slice
+  // isolation had no visible effect on gene cells).
+  if (nbhd_cloud.gene_shapes_mode || nbhd_cloud.gene_scatter_mode) {
+    await refresh_nbhd_cloud_gene_cells(viz_state, layers_obj);
+  } else {
+    await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  }
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
+};
+
+// Per-cluster bar graph (one bar per cluster, area summed across every
+// slice's instance of it): click highlights that cluster's shapes across
+// every slice (others dim) and loads its cell centroids on demand -- click
+// again to clear both. Same effect as clicking one of that cluster's shapes
+// directly (nbhd_cloud_shapes_layer.js's onClick).
+export const bar_callback_nbhd_cloud_cluster = async (
+  _event,
+  d,
+  _deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  const clusterId = String(d.name);
+  toggle_nbhd_cloud_cluster_selection(clusterId, viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_shapes_layer');
+  sync_nbhd_cloud_opacity_sliders(viz_state);
+
+  const hasSelection =
+    (viz_state.nbhd_cloud.selected_cluster_ids?.size ?? 0) > 0;
+  viz_state.nbhd_cloud.svg_bar_cluster
+    .selectAll('rect')
+    .style('opacity', (bar) =>
+      !hasSelection ||
+      viz_state.nbhd_cloud.selected_cluster_ids.has(String(bar.name))
+        ? 1.0
+        : 0.2
+    );
+  // Cluster selection just cleared gene mode (toggle_nbhd_cloud_cluster_selection)
+  // -- the gene bar's own highlight is this handler's responsibility, same
+  // as the cluster bar's above.
+  viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
+
+  await refresh_nbhd_cloud_cluster_cells(viz_state, layers_obj);
+  refresh_layer(viz_state, layers_obj, 'nbhd_cloud_cell_layer');
+};
+
 export const make_bar_graph = (
   bar_container,
   click_callback,
@@ -202,7 +511,8 @@ export const make_bar_graph = (
   color_dict,
   deck_ist,
   layers_obj,
-  viz_state
+  viz_state,
+  { tooltip = null } = {}
 ) => {
   bar_container.className = 'bar_container';
   bar_container.style.width = '107px';
@@ -221,8 +531,8 @@ export const make_bar_graph = (
     }
   });
 
-  const bar_height = 15;
-  const svg_height = bar_height * (bar_data.length + 1);
+  const bar_height = BAR_HEIGHT;
+  const svg_height = bar_svg_height(bar_data.length);
 
   svg_bar
     .attr('width', 100)
@@ -244,7 +554,10 @@ export const make_bar_graph = (
 
   const x_new = d3
     .scaleLinear()
-    .domain([0, d3.max(bar_data_values)])
+    // `|| 1` guards an all-zero domain (e.g. no landmarks marked yet) --
+    // otherwise a zero-width domain divides by zero and every bar gets a
+    // NaN width instead of rendering at 0.
+    .domain([0, d3.max(bar_data_values) || 1])
     .range([0, max_bar_width]);
 
   const bar = svg_bar
@@ -256,10 +569,16 @@ export const make_bar_graph = (
       click_callback(event, d, deck_ist, layers_obj, viz_state)
     );
 
+  attach_bar_tooltip(bar, tooltip, viz_state);
+
   bar
     .append('rect')
     .attr('fill', (d) => {
-      const inst_rgb = color_dict[d.name];
+      // Fall back to a neutral gray instead of throwing when a bar's name has
+      // no entry in color_dict (e.g. a data-source mismatch between what
+      // populates the bar list and what populates its color lookup) --
+      // a missing color shouldn't crash the whole bar graph.
+      const inst_rgb = color_dict[d.name] || [128, 128, 128];
       return `rgb(${inst_rgb[0]}, ${inst_rgb[1]}, ${inst_rgb[2]})`;
     })
     .attr('width', (d) => x_new(d.value))

@@ -281,4 +281,85 @@ The `transcript_tiles` directory contains tiled parquet files that contain trans
 #### Image Transformation
 The `xenium_transform.csv` file contains the 3x3 image transformation matrix to transition from physical coordinates into image coordinates.
 
+### Row Group Storage Mode (Optional)
+
+Celldega supports an optional **row group storage mode** that consolidates thousands of individual tile files into a few large Parquet files using Apache Parquet's row group feature. This is particularly useful for:
+
+- **Cloud hosting platforms** with file count limits (GitHub, Hugging Face)
+- **Simplified data distribution** with fewer files to manage
+- **Efficient partial data loading** via HTTP Range Requests
+
+When enabled with `use_row_groups=True`, the file structure changes from thousands of individual files to:
+
+```
+landscape_files/
+├── cbg.parquet                    # All genes as row groups
+├── transcripts.parquet            # All transcript tiles as row groups
+├── cell_segmentation.parquet      # All cell tiles as row groups
+├── pyramid_images/
+│   ├── dapi.dzi                   # DZI metadata preserved
+│   ├── dapi.parquet               # All image tiles as row groups
+│   └── ...
+└── landscape_parameters.json      # Updated with row group configuration
+```
+
+Row groups use a **formula-based indexing scheme** (`row_group_index = tile_x * num_tiles_y + tile_y`) that allows the frontend to compute exactly which row groups to fetch without scanning file metadata.
+
+For detailed information, see [Row Group Storage Mode](row_groups.md).
+
 ### sST LandscapeFiles
+### Point-Cloud DegaFiles
+
+Written by [`celldega.pre.write_point_cloud_dataset`](../python/pre/api.md)
+and rendered by [`CellCloud`](../visualizations/cell-cloud.md). There is no
+image pyramid or transcript layer; cells are points with 3D positions.
+
+```
+point_cloud_files/
+├── cell_metadata.parquet               # name + geometry ([x, y, z] fixed-size list)
+├── cell_metadata_<name>.parquet        # optional named position variants
+├── cell_clusters/
+│   ├── cluster.parquet
+│   └── meta_cluster.parquet
+├── cbg/<gene>.parquet                  # expressing cells only, keyed by cell name
+├── meta_gene.parquet
+├── cell_cloud.json                     # manifest
+└── landscape_parameters.json           # same manifest, for older loaders
+```
+
+The manifest has `"technology": "point-cloud"`, `"use_int_index": false`
+(gene files are keyed by cell name), and an `"alignments"` list naming the
+position variants. `CellCloud(alignment="<name>")` reads positions from
+`cell_metadata_<name>.parquet` while clusters and genes keep loading from the
+shared files, so several 3D alignments of the same cells share one dataset.
+Variant names may contain only letters, digits, `.`, `_`, and `-`, and
+`default` is reserved.
+
+### Neighborhood-Cloud DegaFiles
+
+Written by [`celldega.pre.write_nbhd_cloud_dataset`](../python/pre/api.md) from
+a cell-level `AnnData` plus a `GeoDataFrame` of per-slice neighborhoods (e.g.
+[`celldega.nbhd.alpha_shape_cell_clusters_by_slice`](../python/nbhd/api.md)),
+and rendered by [`NeighborhoodCloud`](../visualizations/neighborhood-cloud.md).
+
+```
+nbhd_cloud_files/
+├── nbhd_cloud/
+│   ├── meta_slice.parquet              # slice_id, z, centroid_x/y/z, cell_count
+│   ├── meta_neighborhood.parquet       # neighborhood_id, cluster_id, slice_id, color, area, cell_count, inv_alpha
+│   ├── shapes/by_slice/slice_<id>.parquet   # one row per neighborhood, geometry_geojson (XYZ)
+│   └── cells/
+│       ├── by_cluster/cluster_<id>.parquet  # cell_id, x, y, z, cluster_id, slice_id
+│       └── by_gene/<gene>.parquet           # optional top-expressing cells per gene
+├── cell_clusters/meta_cluster.parquet
+├── meta_gene.parquet
+├── neighborhood_cloud.json             # manifest
+└── landscape_parameters.json           # same manifest, for older loaders
+```
+
+The neighborhood `GeoDataFrame` needs unique ids (`name`, or
+`neighborhood_id` / `nbhd_id`) and `slice_id`, `cluster_id`, `color`, and
+`cell_count` columns. Geometry is stored as a GeoJSON string column rather than
+GeoParquet so the browser can hand it straight to a deck.gl `GeoJsonLayer`.
+`cells/by_gene/` is written by `celldega.pre.write_gene_cell_scatter`, with
+`cells/by_gene/available_gene_scatter.json` listing the genes it covers.

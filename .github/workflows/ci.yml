@@ -43,12 +43,3 @@ jobs:
   build-and-test:
     needs: [quality, test-python, test-javascript]
     uses: ./.github/workflows/build-and-test.yml
-
-  # =============================================================================
-  # Automated Release - Triggered on version tags
-  # =============================================================================
-  release:
-    needs: [quality, test-python, test-javascript, build-and-test]
-    if: startsWith(github.ref, 'refs/tags/v')
-    uses: ./.github/workflows/release.yml
-    secrets: inherit

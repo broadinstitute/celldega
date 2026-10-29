@@ -1,4 +1,5 @@
 import { arrayBufferToArrowTable } from './arrayBufferToArrowTable';
+import { getRowKeyArray, getTableColumn } from './table_accessors';
 
 /**
  * Converts a Parquet-encoded ArrayBuffer into an object using the specified key field.
@@ -16,14 +17,22 @@ export const objects_from_parquet = async (
 
   if (fields.length < 2) return { result: {}, attr: [] };
 
-  if (!fields.includes(keyField)) {
-    throw new Error(
-      `Key field "${keyField}" not found in Parquet fields: ${fields.join(', ')}`
-    );
-  }
+  const keyCandidates = [
+    keyField,
+    '__index_level_0__',
+    'index',
+    'name',
+    'cell_id',
+    'cluster',
+    'leiden',
+  ];
+  const keyColumn = getTableColumn(table, keyCandidates);
 
-  const keyCol = table.getChild(keyField).toArray();
-  const valueFields = fields.filter((f) => f !== keyField);
+  const keyCol =
+    keyColumn.values.length > 0
+      ? keyColumn.values.map((value) => String(value))
+      : getRowKeyArray(table, keyCandidates);
+  const valueFields = fields.filter((f) => f !== keyColumn.name);
   const valueCols = valueFields.map((f) => table.getChild(f).toArray());
 
   const result = {};

@@ -1,3 +1,5 @@
+import { get_default_pan_x, get_default_pan_y } from '../../matrix/crop_filter';
+
 export const update_zoom_data = (
   viz_state,
   viewId,
@@ -5,29 +7,31 @@ export const update_zoom_data = (
   pan_curated
 ) => {
   const { zoom_data } = viz_state.zoom;
+  const default_pan_x = get_default_pan_x(viz_state);
+  const default_pan_y = get_default_pan_y(viz_state);
 
   zoom_data.matrix.pan_x = pan_curated[0];
   zoom_data.matrix.pan_y = pan_curated[1];
   zoom_data.matrix.zoom_x = zoom_curated[0];
   zoom_data.matrix.zoom_y = zoom_curated[1];
 
-  zoom_data.rows.pan_x = viz_state.zoom.ini_pan_x;
+  zoom_data.rows.pan_x = default_pan_x;
   zoom_data.rows.pan_y = pan_curated[1];
   zoom_data.rows.zoom_x = zoom_curated[0];
   zoom_data.rows.zoom_y = zoom_curated[1];
 
   zoom_data.cols.pan_x = pan_curated[0];
-  zoom_data.cols.pan_y = viz_state.zoom.ini_pan_y;
+  zoom_data.cols.pan_y = default_pan_y;
   zoom_data.cols.zoom_x = zoom_curated[0];
   zoom_data.cols.zoom_y = zoom_curated[1];
 
-  zoom_data.dendro_rows.pan_x = viz_state.zoom.ini_pan_x;
+  zoom_data.dendro_rows.pan_x = default_pan_x;
   zoom_data.dendro_rows.pan_y = pan_curated[1];
   zoom_data.dendro_rows.zoom_x = zoom_curated[0];
   zoom_data.dendro_rows.zoom_y = zoom_curated[1];
 
   zoom_data.dendro_cols.pan_x = pan_curated[0];
-  zoom_data.dendro_cols.pan_y = viz_state.zoom.ini_pan_y;
+  zoom_data.dendro_cols.pan_y = default_pan_y;
   zoom_data.dendro_cols.zoom_x = zoom_curated[0];
   zoom_data.dendro_cols.zoom_y = zoom_curated[1];
 };

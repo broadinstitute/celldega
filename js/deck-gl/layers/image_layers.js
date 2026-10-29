@@ -2,66 +2,141 @@ import { TileLayer } from 'deck.gl';
 
 import { options } from '../../global_variables/fetch_options';
 import {
+  get_image_sources,
+  is_active_image_source,
+  is_rgb_image,
+} from '../../global_variables/image_info';
+import { getModelMatrixProps } from '../../utils/rotation';
+import {
   create_get_tile_data,
   create_render_tile_sublayers,
+  create_simple_render_tile_sublayers,
 } from '../utils/tiles';
 
-import { make_simple_image_layer } from './simple_image_layer';
+/**
+ * Create a getTileData function that uses the parquet row group reader
+ * @param {Object} imageReader - ImageRowGroupReader instance
+ * @param {number} maxPyramidZoom - Maximum zoom level
+ * @param {string} channelName - Channel name for logging
+ * @returns {Function} - getTileData function for TileLayer
+ */
+const create_get_tile_data_from_parquet = (
+  imageReader,
+  maxPyramidZoom,
+  _channelName = 'unknown'
+) => {
+  return async ({ index }) => {
+    const { x, y, z } = index;
+    // deck.gl uses negative z values, convert to actual zoom level
+    const actualZoom = maxPyramidZoom + z;
 
-const make_image_layer = (viz_state, info) => {
+    const blobUrl = await imageReader.readTile(actualZoom, x, y);
+
+    if (!blobUrl) {
+      return null;
+    }
+
+    // Load the image from the blob URL
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = blobUrl;
+    });
+  };
+};
+
+const make_image_layer = (viz_state, info, datasetIndex = 0, cacheKey = '') => {
   const { max_pyramid_zoom } = viz_state.img.landscape_parameters;
 
   const opacity = 5;
 
+  // Include dataset index and cache key in ID to force complete layer recreation
+  const layerId = `${info.button_name}-ds${datasetIndex}${cacheKey ? `-${cacheKey}` : ''}`;
+
+  // Check if using row group mode and if we have a reader for this channel
+  const useRowGroups = viz_state.use_row_groups;
+  const imageReader = viz_state.row_group_readers?.images?.[info.name];
+
+  // Choose the appropriate getTileData function
+  let getTileData;
+  if (useRowGroups && imageReader) {
+    getTileData = create_get_tile_data_from_parquet(
+      imageReader,
+      max_pyramid_zoom,
+      info.name
+    );
+  } else {
+    getTileData = create_get_tile_data(
+      viz_state.global_base_url,
+      info.name,
+      info.image_format || viz_state.img.image_format,
+      max_pyramid_zoom,
+      options,
+      viz_state.aws
+    );
+  }
+
   const image_layer = new TileLayer({
-    id: info.button_name,
+    id: layerId,
+    imageSource: info.image_source,
+    imageButtonName: info.button_name,
+    isRgbImage: is_rgb_image(info),
+    visible: is_active_image_source(
+      info.image_source,
+      viz_state.img.image_source
+    ),
     tileSize: viz_state.dimensions.tileSize,
     refinementStrategy: 'no-overlap',
     minZoom: -7,
     maxZoom: 0,
-    maxCacheSize: 20,
+    maxCacheSize: 0, // Disable internal tile caching
+    maxRequests: 6, // Limit concurrent tile requests
     extent: [0, 0, viz_state.dimensions.width, viz_state.dimensions.height],
-    getTileData: create_get_tile_data(
-      viz_state.global_base_url,
-      info.name,
-      viz_state.img.image_format,
-      max_pyramid_zoom,
-      options,
-      viz_state.aws
-    ),
-    renderSubLayers: create_render_tile_sublayers(
-      viz_state.dimensions,
-      info.color,
-      opacity
-    ),
+    getTileData,
+    renderSubLayers: is_rgb_image(info)
+      ? create_simple_render_tile_sublayers(viz_state.dimensions)
+      : create_render_tile_sublayers(viz_state.dimensions, info.color, opacity),
+    ...getModelMatrixProps(viz_state.rotation),
   });
   return image_layer;
 };
 
-export const make_image_layers = async (viz_state) => {
-  const { image_info } = viz_state.img;
+export const make_image_layers = async (viz_state, datasetIndex = 0) => {
+  const image_info = get_image_sources(viz_state.img);
 
-  if (
-    image_info.length === 1 &&
-    (image_info[0].name === 'h_and_e' || image_info[0].name === 'h&e')
-  ) {
-    const layer = await make_simple_image_layer(viz_state, image_info[0]);
-    return [layer];
-  }
+  // Generate a unique cache key to force complete layer recreation
+  const cacheKey = Date.now().toString(36);
 
   const image_layers = image_info.map((info) =>
-    make_image_layer(viz_state, info)
+    make_image_layer(viz_state, info, datasetIndex, cacheKey)
   );
   return image_layers;
 };
 
-export const toggle_visibility_image_layers = (layers_obj, visible) => {
+export const toggle_visibility_image_layers = (
+  layers_obj,
+  visible,
+  preserve_channels = false
+) => {
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
     layer.clone({
-      visible,
+      channelVisible: preserve_channels ? layer.props.channelVisible : true,
+      visible:
+        visible &&
+        (!preserve_channels || layer.props.channelVisible !== false) &&
+        is_active_image_source(
+          layer.props.imageSource,
+          layers_obj.image_source
+        ),
     })
   );
 };
+
+const matches_image_button = (layer, name) =>
+  layer.props.imageButtonName
+    ? layer.props.imageButtonName === name
+    : layer.id.startsWith(name);
 
 export const toggle_visibility_single_image_layer = (
   layers_obj,
@@ -69,7 +144,17 @@ export const toggle_visibility_single_image_layer = (
   visible
 ) => {
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
-    layer.id.startsWith(name) ? layer.clone({ visible }) : layer
+    matches_image_button(layer, name)
+      ? layer.clone({
+          channelVisible: visible,
+          visible:
+            visible &&
+            is_active_image_source(
+              layer.props.imageSource,
+              layers_obj.image_source
+            ),
+        })
+      : layer
   );
 };
 
@@ -83,15 +168,128 @@ export const update_opacity_single_image_layer = (
   const color = image_layer_colors[name];
 
   layers_obj.image_layers = layers_obj.image_layers.map((layer) =>
-    layer.id.startsWith(name)
+    matches_image_button(layer, name)
       ? layer.clone({
-          renderSubLayers: create_render_tile_sublayers(
-            viz_state.dimensions,
-            color,
-            opacity
-          ),
-          id: `${name}-${opacity}`,
+          ...(layer.props.isRgbImage
+            ? {
+                opacity: Math.min(1, opacity / 5),
+                renderSubLayers: create_simple_render_tile_sublayers(
+                  viz_state.dimensions
+                ),
+              }
+            : {
+                // TileLayer caches rendered tile sublayers and ignores a new
+                // renderSubLayers, so a new id (keeping the portrait/dataset
+                // part) forces a fresh render.
+                id: `${layer.id.replace(/-op[\d.]+$/, '')}-op${opacity}`,
+                renderSubLayers: create_render_tile_sublayers(
+                  viz_state.dimensions,
+                  color,
+                  opacity
+                ),
+              }),
         })
       : layer
   );
+};
+
+/**
+ * Create image layers for yearbook.
+ * Creates one set of image layers per portrait, each with its own extent.
+ * This ensures tiles are loaded correctly for each discontiguous region.
+ *
+ * @param {Object} viz_state - Visualization state
+ * @param {Array<{cell_id: string, x: number, y: number}>} portrait_centers - Portrait centers
+ * @param {number} portrait_data_size - Portrait size in data coordinates
+ * @param {string} cacheKey - Cache key for layer IDs (page-based for reuse)
+ * @returns {Array} Image layers for all portraits
+ */
+export const make_yearbook_image_layers = async (
+  viz_state,
+  portrait_centers,
+  portrait_data_size,
+  cacheKey = null
+) => {
+  const image_info = get_image_sources(viz_state.img);
+  const { max_pyramid_zoom, tile_size } = viz_state.img.landscape_parameters;
+  const layerCacheKey = cacheKey || Date.now().toString(36);
+
+  const all_layers = [];
+  const half_size = portrait_data_size / 2;
+  // Padding should be generous to cover zoomed-in views and tile boundaries
+  const padding = Math.max(tile_size * 3, portrait_data_size * 0.5);
+
+  portrait_centers.forEach((center, portrait_index) => {
+    // Each portrait gets its own extent covering its visible area plus padding
+    const extent = [
+      Math.max(0, center.x - half_size - padding),
+      Math.max(0, center.y - half_size - padding),
+      Math.min(viz_state.dimensions.width, center.x + half_size + padding),
+      Math.min(viz_state.dimensions.height, center.y + half_size + padding),
+    ];
+
+    image_info.forEach((info) => {
+      const opacity = 5;
+      // Include portrait index in layer ID for proper updates
+      const layerId = `yb-${info.button_name}-p${portrait_index}-${layerCacheKey}`;
+
+      // Use simple rendering for H&E images (no color channel filtering)
+      // This preserves the original RGB colors of histology images
+      const renderSubLayers = is_rgb_image(info)
+        ? create_simple_render_tile_sublayers(viz_state.dimensions)
+        : create_render_tile_sublayers(
+            viz_state.dimensions,
+            info.color,
+            opacity
+          );
+
+      // Check if we should use row group mode for images
+      const useRowGroups = viz_state.use_row_groups;
+      const imageReader = viz_state.row_group_readers?.images?.[info.name];
+
+      // Choose the appropriate getTileData function
+      let getTileData;
+      if (useRowGroups && imageReader) {
+        getTileData = create_get_tile_data_from_parquet(
+          imageReader,
+          max_pyramid_zoom,
+          info.name
+        );
+      } else {
+        getTileData = create_get_tile_data(
+          viz_state.global_base_url,
+          info.name,
+          info.image_format || viz_state.img.image_format,
+          max_pyramid_zoom,
+          options,
+          viz_state.aws
+        );
+      }
+
+      const image_layer = new TileLayer({
+        id: layerId,
+        imageSource: info.image_source,
+        imageButtonName: info.button_name,
+        isRgbImage: is_rgb_image(info),
+        visible: is_active_image_source(
+          info.image_source,
+          viz_state.img.image_source
+        ),
+        tileSize: viz_state.dimensions.tileSize,
+        refinementStrategy: 'no-overlap',
+        minZoom: -7,
+        maxZoom: 0,
+        maxCacheSize: 50,
+        maxRequests: 6,
+        extent,
+        getTileData,
+        renderSubLayers,
+        ...getModelMatrixProps(viz_state.rotation),
+      });
+
+      all_layers.push(image_layer);
+    });
+  });
+
+  return all_layers;
 };

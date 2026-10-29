@@ -1,17 +1,28 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
 export const get_scatter_data = (arrow_table) => {
+  // Handle null or undefined table
+  if (!arrow_table) {
+    return {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(), size: 2 },
+      },
+    };
+  }
+
   try {
-    const flatCoordinateArray = arrow_table
-      .getChild('geometry')
-      .getChildAt(0)
-      .data.map((x) => x.values)
-      .reduce((acc, val) => {
-        const combined = new Float64Array(acc.length + val.length);
-        combined.set(acc);
-        combined.set(val, acc.length);
-        return combined;
-      }, new Float64Array(0));
+    const geometryColumn = arrow_table.getChild('geometry')?.getChildAt(0);
+    const chunks = geometryColumn?.data?.map((x) => x.values) || [];
+
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const flatCoordinateArray = new Float64Array(totalLength);
+
+    let offset = 0;
+    for (const chunk of chunks) {
+      flatCoordinateArray.set(chunk, offset);
+      offset += chunk.length;
+    }
 
     const size = flatCoordinateArray.length / arrow_table.numRows;
 
@@ -29,6 +40,11 @@ export const get_scatter_data = (arrow_table) => {
       logUnexpected: true,
       throwOnAuth: false,
     });
-    return [];
+    return {
+      length: 0,
+      attributes: {
+        getPosition: { value: new Float32Array(), size: 2 },
+      },
+    };
   }
 };

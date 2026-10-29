@@ -9,10 +9,14 @@ dist
 .DS_Store
 # So that notebooks are only included _intentionally_
 *.ipynb
+!notebooks/CELLxGENE_Census_PBMC_Landscape-Clustergram.ipynb
+!notebooks/Xenium_Aligned_HE.ipynb
+!docs/examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
 .cache
 site
 secret_*
 data
+analysis
 cache
 *.code-workspace
 
@@ -117,8 +121,12 @@ venv/
 env/
 ENV/
 
+uv.lock
+
 # Hatch environments
 .hatch/
 
 # Conda environments
 .conda/
+
+*.chat

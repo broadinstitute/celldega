@@ -15,6 +15,54 @@ source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/utils.sh"
 
 # =============================================================================
+# uv-based Python environment helpers
+#
+# The Python env is built with uv on a standalone CPython (never Anaconda's).
+# A venv created from Anaconda's interpreter drags in Anaconda's native libs
+# (e.g. libgio), which collide with the GDAL/GLib bundled by the geo wheels
+# (geopandas/pyogrio) and crash scanpy/geopandas at runtime. uv's
+# --python-preference only-managed guarantees a clean, self-contained base.
+# =============================================================================
+
+# Create (or reuse) the uv-managed virtual environment.
+create_python_env() {
+    mkdir -p "$VENV_BASE_DIR"
+
+    if [ -d "$VENV_PATH" ]; then
+        # Recreate if the existing env was built on Anaconda (the GLib/GDAL crash
+        # cause); otherwise reuse it.
+        if grep -qiE "anaconda|miniconda|/conda" "$VENV_PATH/pyvenv.cfg" 2>/dev/null; then
+            warning "Existing '$VENV_NAME' env is Anaconda-based - recreating on a clean Python"
+            rm -rf "$VENV_PATH"
+        else
+            warning "Environment '$VENV_NAME' already exists - using it"
+            return 0
+        fi
+    fi
+
+    uv venv "$VENV_PATH" --python "$PYTHON_VERSION" --python-preference only-managed
+    success "$MSG_PYTHON_ENV_CREATED"
+}
+
+# Install the package (+ dev extras) into the env with uv.
+install_python_packages() {
+    activate_python_env "$VENV_PATH"
+    uv pip install -e "$PYTHON_PACKAGE_SPEC"
+    success "$MSG_PYTHON_PACKAGES_INSTALLED"
+}
+
+# Register a Jupyter kernel for this env so notebooks run on it (not Anaconda's
+# base kernel). Non-fatal if ipykernel is unavailable.
+register_jupyter_kernel() {
+    if python -m ipykernel install --user --name "$VENV_NAME" \
+        --display-name "$KERNEL_DISPLAY_NAME" >/dev/null 2>&1; then
+        success "Registered Jupyter kernel '$KERNEL_DISPLAY_NAME'"
+    else
+        warning "Could not register Jupyter kernel (ipykernel missing?) - skipping"
+    fi
+}
+
+# =============================================================================
 # Main Setup (The Happy Path)
 # =============================================================================
 
@@ -59,28 +107,22 @@ main_setup() {
         warning "$ERR_NPM_OLD"
     fi
 
-    success "$MSG_SYSTEM_OK"
-
-    # Step 2: Create Python environment
-    info "$MSG_PYTHON_ENV_SETUP"
-
-    # Create base directory if it doesn't exist
-    mkdir -p "$VENV_BASE_DIR"
-
-    if [ -d "$VENV_PATH" ]; then
-        warning "Environment '$VENV_NAME' already exists - using it"
-    else
-        $python_cmd -m venv "$VENV_PATH"
-        success "$MSG_PYTHON_ENV_CREATED"
+    # Check uv (builds the Python env on a clean, standalone Python)
+    if ! command_exists uv; then
+        error "$ERR_UV_NOT_FOUND"
+        exit 1
     fi
 
-    # Step 3: Install Python packages
-    info "$MSG_PYTHON_PACKAGES"
-    activate_python_env "$VENV_PATH"
+    success "$MSG_SYSTEM_OK"
 
-    pip install $PIP_INSTALL_ARGS
-    pip install -e "$PYTHON_PACKAGE_SPEC" --quiet
-    success "$MSG_PYTHON_PACKAGES_INSTALLED"
+    # Step 2: Create Python environment (uv + standalone Python, not Anaconda)
+    info "$MSG_PYTHON_ENV_SETUP"
+    create_python_env
+
+    # Step 3: Install Python packages with uv, then register a Jupyter kernel
+    info "$MSG_PYTHON_PACKAGES"
+    install_python_packages
+    register_jupyter_kernel
 
     # Step 4: Install JavaScript packages
     info "$MSG_JS_PACKAGES"
@@ -120,6 +162,13 @@ show_status() {
         fi
     else
         echo "❌ Python: Not found"
+    fi
+
+    # uv check
+    if command_exists uv; then
+        echo "✅ uv: $(uv --version)"
+    else
+        echo "❌ uv: Not found (install: curl -LsSf https://astral.sh/uv/install.sh | sh)"
     fi
 
     # Node check
@@ -268,10 +317,22 @@ verbose_setup() {
         exit 1
     fi
 
+    # Detailed uv check
+    if command_exists uv; then
+        log_info "Found uv: $(uv --version)"
+    else
+        log_error "uv not found"
+        echo "$ERR_UV_NOT_FOUND"
+        exit 1
+    fi
+
     # Create environment with detailed logging
     if [ -d "$VENV_PATH" ]; then
         log_warning "Virtual environment '$VENV_NAME' already exists"
-        if confirm "Do you want to recreate it?" "N"; then
+        if grep -qiE "anaconda|miniconda|/conda" "$VENV_PATH/pyvenv.cfg" 2>/dev/null; then
+            log_warning "It is Anaconda-based (the GLib/GDAL crash cause) - recreating"
+            rm -rf "$VENV_PATH"
+        elif confirm "Do you want to recreate it?" "N"; then
             log_info "Removing existing environment..."
             rm -rf "$VENV_PATH"
         else
@@ -283,19 +344,19 @@ verbose_setup() {
         # Create base directory if it doesn't exist
         mkdir -p "$VENV_BASE_DIR"
 
-        run_command "Creating virtual environment '$VENV_NAME'" \
-            python3 -m venv "$VENV_PATH" || python -m venv "$VENV_PATH"
+        run_command "Creating virtual environment '$VENV_NAME' (uv, standalone Python)" \
+            uv venv "$VENV_PATH" --python "$PYTHON_VERSION" --python-preference only-managed
     fi
 
     # Activate and install with detailed output
     log_step "Activating virtual environment"
     activate_python_env "$VENV_PATH"
 
-    run_command "Upgrading pip" \
-        pip install --upgrade pip
+    run_command "Installing Python dependencies (uv)" \
+        uv pip install -e "$PYTHON_PACKAGE_SPEC"
 
-    run_command "Installing Python dependencies" \
-        pip install -e "$PYTHON_PACKAGE_SPEC"
+    run_command "Registering Jupyter kernel '$KERNEL_DISPLAY_NAME'" \
+        python -m ipykernel install --user --name "$VENV_NAME" --display-name "$KERNEL_DISPLAY_NAME"
 
     run_command "Installing JavaScript dependencies" \
         npm install

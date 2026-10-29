@@ -19,7 +19,12 @@ Comprehensive tutorials that walk through complete workflows:
 Tutorials that explore single-cell RNA-seq data with UMAP Landscapes linked to Clustergrams:
 
 - [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Downloads a 10x PBMC count matrix, clusters cells with Scanpy, and uses plain AnnData for expression signatures, fraction expressing, and marker-ranked Clustergram views linked to a UMAP Landscape and Enrich, plus a single-cell Clustergram linked to Enrich
+<!-- Temporarily hidden while revised (see exclude_docs in mkdocs.yaml):
 - [MIX-seq Drug Screen Landscape-Clustergram-Enrich](tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb) - Explores the McFarland et al. 2020 screen of 13 drugs across about 170 pooled cancer cell lines: cell line identity, the drug responses within one cell line, and the response to the BRAF inhibitor dabrafenib across 94 cell lines, the analysis behind Fig. 3 of the pertpy paper
+-->
+
+<!-- New multi-omic tutorials temporarily hidden while they are revised (see
+exclude_docs in mkdocs.yaml).
 
 ## Multi-Omic Tutorials
 
@@ -27,6 +32,7 @@ Tutorials that combine several omics measured on the same samples:
 
 - [Flex CITE-seq PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb) - Explores RNA and 184 surface proteins in 12,242 PBMCs across levels of the cell hierarchy: QC-guided filtering with a UMAP linked to a cluster Clustergram, cell types compared across RNA and protein, and single-cell Clustergrams of B-cell subtypes and suspected B + T doublets
 - [CST Lung Cancer PTM Clustergram-Enrich](tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb) - Reproduces the Clustergrammer lung cancer case study with a MuData of phosphorylation, methylation, acetylation, and gene expression across 37 cell lines: a Clustergram for each PTM type, stacked PTM, gene expression (linked to Enrich), and merged PTM-expression Clustergrams, plus a comparison of the cell line clusters found by each omic
+-->
 
 ## Brief Notebooks
 

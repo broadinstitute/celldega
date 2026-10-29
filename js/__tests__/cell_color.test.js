@@ -109,7 +109,7 @@ describe('cell color selection semantics', () => {
   });
 
   describe('in the UMAP view', () => {
-    const DIMMED = [128, 128, 128, 64];
+    const DIMMED = [128, 128, 128, 16];
     const colors_for = (cats, { umap = true, highlighted = new Set() } = {}) =>
       Array.from(
         update_cell_color_buffer({

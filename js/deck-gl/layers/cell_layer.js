@@ -11,7 +11,10 @@ import {
   set_cell_names_array,
   set_cell_name_to_index_map,
 } from '../../global_variables/cell_names_array';
-import { set_color_dict_gene } from '../../global_variables/color_dict_gene';
+import {
+  apply_gene_colors,
+  set_color_dict_gene,
+} from '../../global_variables/color_dict_gene';
 import { options } from '../../global_variables/fetch_options';
 import {
   is_neighborhood_cloud_technology,
@@ -507,6 +510,14 @@ export const set_scatterplot_umap_positions_from_names = (
 };
 
 const get_scatterplot_positions = (viz_state) => {
+  const animated = viz_state.spatial.embedding_animation_positions;
+  if (animated) return { value: animated, size: 2 };
+  if (
+    viz_state.obs_store?.landscape_view?.get() === 'xy' &&
+    viz_state.spatial.cell_xy_scatter_positions
+  ) {
+    return { value: viz_state.spatial.cell_xy_scatter_positions, size: 2 };
+  }
   if (
     viz_state.obs_store?.umap_state?.get() &&
     viz_state.spatial.cell_umap_scatter_positions
@@ -525,6 +536,16 @@ const get_scatterplot_positions = (viz_state) => {
   );
 };
 
+const scatterplot_view_props = (viz_state) => {
+  const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
+  const radius = viz_state.spatial?.cell_radius ?? 5;
+  return {
+    radiusUnits: isUmap ? 'pixels' : 'common',
+    radiusMinPixels: isUmap || radius === 0 ? 0 : 1,
+    modelMatrix: isUmap ? null : (viz_state.rotation?.modelMatrix ?? null),
+  };
+};
+
 export const get_scatterplot_cell_data = (viz_state) => {
   const positions = get_scatterplot_positions(viz_state);
   const positionSize = positions.size || 2;
@@ -538,6 +559,12 @@ export const get_scatterplot_cell_data = (viz_state) => {
     positions.value instanceof Float32Array
       ? positions.value
       : new Float32Array(positions.value);
+
+  const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
+  const radius = viz_state.spatial?.cell_radius ?? 5;
+  // UMAP points keep a pixel size at any zoom; selections change their color,
+  // not their size.
+  const radii = new Float32Array(fullCount).fill(isUmap ? radius / 5 : radius);
 
   return assert_binary_attribute_lengths('scatterplot-cell', {
     length: fullCount,
@@ -555,6 +582,7 @@ export const get_scatterplot_cell_data = (viz_state) => {
         size: CELL_COLOR_SIZE,
         type: 'unorm8',
       },
+      getRadius: { value: radii, size: 1 },
     },
   });
 };
@@ -607,6 +635,7 @@ export const refresh_cell_layer_data = (
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     transitions: false,
     ...stableLayerProps,
+    ...(!isPointCloud ? scatterplot_view_props(viz_state) : {}),
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
       : get_scatterplot_cell_data(viz_state),
@@ -615,7 +644,13 @@ export const refresh_cell_layer_data = (
       getPosition: [viz_state.obs_store.umap_state.get()],
       ...(isPointCloud
         ? { getColor: [viz_state.selection_token] }
-        : { getFillColor: [viz_state.selection_token] }),
+        : {
+            getFillColor: [viz_state.selection_token],
+            getRadius: [
+              viz_state.selection_token,
+              viz_state.spatial?.cell_radius,
+            ],
+          }),
       ...extraUpdateTriggers,
     },
   });
@@ -656,6 +691,13 @@ const cell_layer_onclick = async (
   }
 
   const inst_cat = viz_state.cats.cell_cats[sourceIndex];
+
+  // A click replaces any highlighted cells (e.g. a Clustergram dendrogram
+  // selection) with the clicked cell's cluster, or clears both when that
+  // cluster was already selected (update_selected_cats toggles).
+  if (viz_state.obs_store.selected_cells.get()?.length) {
+    viz_state.obs_store.selected_cells.set([]);
+  }
 
   update_cat(viz_state.cats, 'cluster');
 
@@ -828,22 +870,40 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     cell_url = `${base_url}/cell_metadata_${cell_meta_version}.parquet`;
   }
 
-  const cell_arrow_table = await get_arrow_table(
-    cell_url,
-    options.fetch,
-    viz_state.aws
-  );
+  const source = viz_state.single_cell_source;
+  if (source) {
+    // AnnData Zarr: cells are the obs index, at the same placeholder (0, 0)
+    // positions pre.make_chromium_from_anndata writes; the UMAP places them.
+    viz_state.cats.cell_names_array = source.cell_names;
+    viz_state.cats.nameMapping_inv = source.cell_names;
+    viz_state.spatial.cell_scatter_data = {
+      length: source.cell_names.length,
+      attributes: {
+        getPosition: {
+          value: new Float64Array(source.cell_names.length * 2),
+          size: 2,
+        },
+      },
+    };
+    apply_gene_colors(viz_state.genes, source.gene_names, source.gene_colors);
+  } else {
+    const cell_arrow_table = await get_arrow_table(
+      cell_url,
+      options.fetch,
+      viz_state.aws
+    );
 
-  set_cell_names_array(viz_state.cats, cell_arrow_table);
+    set_cell_names_array(viz_state.cats, cell_arrow_table);
 
-  viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
+    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
 
-  await set_color_dict_gene(
-    viz_state.genes,
-    base_url,
-    viz_state.seg.version,
-    viz_state.aws
-  );
+    await set_color_dict_gene(
+      viz_state.genes,
+      base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
+  }
 
   if (pointCloud && viz_state.vector_name_integer) {
     viz_state.cats.cell_name_to_index_map = new Map();
@@ -1052,7 +1112,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   } else {
     cell_layer = new ScatterplotLayer({
       id: 'cell-layer',
-      radiusMinPixels: 1,
+      ...scatterplot_view_props(viz_state),
       getRadius: 5.0,
       pickable: true,
       data: get_scatterplot_cell_data(viz_state),
@@ -1060,8 +1120,8 @@ export const ini_cell_layer = async (base_url, viz_state) => {
       updateTriggers: {
         getPosition: [viz_state.obs_store.umap_state.get()],
         getFillColor: [viz_state.selection_token],
+        getRadius: [viz_state.selection_token],
       },
-      ...getModelMatrixProps(viz_state.rotation),
     });
   }
 
@@ -1087,11 +1147,11 @@ export const update_cell_layer_radius = (layers_obj, radius, viz_state) => {
       pointSize: radius,
     });
   } else {
+    viz_state.spatial.cell_radius = radius;
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       getRadius: radius,
-      // At least a pixel wide when zoomed out, unless the slider is at 0,
-      // which hides centroids (e.g. to see boundaries and transcripts).
-      radiusMinPixels: radius > 0 ? 1 : 0,
+      ...scatterplot_view_props(viz_state),
+      data: get_scatterplot_cell_data(viz_state),
     });
   }
 };
@@ -1140,6 +1200,7 @@ export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   } else {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       data: get_scatterplot_cell_data(viz_state),
+      ...scatterplot_view_props(viz_state),
       transitions,
       updateTriggers: {
         ...layers_obj.cell_layer.props.updateTriggers,

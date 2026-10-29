@@ -8,6 +8,10 @@ import * as d3 from 'd3';
 import { is_orbit_technology } from '../../global_variables/image_info';
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
+import {
+  publish_selected_cells,
+  sync_embedding_gates,
+} from '../../umap/embedding_gates';
 import { hexToRgb, randomHexColor } from '../../utils/hexToRgb';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { get_layers_list } from '../utils/layers_ist';
@@ -66,6 +70,7 @@ const calc_region_areas = (featureCollection) => {
 };
 
 export const sync_region_to_model = (viz_state) => {
+  if (sync_embedding_gates(viz_state)) return;
   if (viz_state.model?.set) {
     if (viz_state.nbhd?.edit) {
       viz_state.model.set('nbhd_geojson', {});
@@ -141,6 +146,7 @@ const edit_layer_on_edit = async (
   edit_info
 ) => {
   const { updatedData, editType, featureIndexes } = edit_info;
+  viz_state.edit.last_feature_index = featureIndexes?.[0];
 
   viz_state.edit.feature_collection = updatedData;
 
@@ -229,6 +235,10 @@ const edit_layer_on_edit = async (
 };
 
 const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
+  const feature = viz_state.edit.feature_collection.features[event.index];
+  if (viz_state.neighborhood_space && feature?.properties.cell_ids) {
+    publish_selected_cells(viz_state, feature.properties.cell_ids);
+  }
   if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
     // switch to modify mode
     layers_obj.edit_layer = layers_obj.edit_layer.clone({

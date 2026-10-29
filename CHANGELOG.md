@@ -48,8 +48,9 @@ All notable changes to Celldega are documented here. This project follows
   an AnnData Zarr store, and `Matrix.read_zarr` restores it without
   re-clustering, ready for `Clustergram(matrix=...)`. In JavaScript,
   `matrix_from_zarr(el, { url, width, height, ... })` renders the same store in
-  a browser (new `zarrita` dependency) and `networkFromZarr(url)` returns its
-  `network` object.
+  a browser (new `zarrita` dependency), opening at a precomputed view level
+  with `rank_dim` like Python's `Clustergram(rank_dim=...)`, and
+  `network_from_zarr(url)` returns its `network` object.
 - Neighborhood calculations are public functions again:
   - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
     `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
@@ -116,7 +117,8 @@ All notable changes to Celldega are documented here. This project follows
   cell boundaries (and transcripts) visible.
 - Landscape: the TRX slider sets transcript size in close-up and, zoomed out,
   the expression at which cells reach full opacity for the selected gene(s),
-  shown as a note at the top of the gene panel. Each role keeps its own slider
+  from 1% to 150% of the max (above 100%, it dims cells when many express the
+  gene highly), shown as a note at the top of the gene panel. Each role keeps its own slider
   position; zoomed out with no gene selected, the slider is disabled. The
   opacity setting applies only zoomed out: close-up cells use the full
   expression range.
@@ -131,9 +133,63 @@ All notable changes to Celldega are documented here. This project follows
   top of the TRX slider; in a Landscape that includes its wider range at
   intermediate zoom, and full size stays full size as the view enters or
   leaves intermediate zoom.
+- Single-cell Landscapes read from an AnnData Zarr store as an alternative to
+  DegaFiles: `Landscape(zarr_url=...)`, with an http(s) URL (e.g. Hugging Face)
+  or a local path served by a local server. Save the AnnData with
+  `adata.write_zarr` after adding a CSC copy of the counts (e.g.
+  `adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`); the browser
+  then fetches one gene at a time. `zarr_layer` names the layer (by default `X`
+  if it is CSC, else the only CSC layer). Optional `var["mean"]` and
+  `var["max"]` hold the gene statistics; cell attributes, cluster colors, and
+  the UMAP come from the store unless `adata` is passed too. Requests that
+  fail with a dropped connection or a server error are retried. In
+  JavaScript, `anndata_zarr_source(url, options)` opens such a store.
+- JavaScript: `landscape(el, options)` and `clustergram(el, options)` render
+  visualizations in a web page without Python. `landscape` takes the Python
+  `Landscape`'s arguments, for example a single-cell `zarr_url`; `clustergram`
+  takes a `network` object, a Matrix Zarr `url`, or DegaFiles. Both return the
+  visualization with its `model`, and `link_models(source, key, target, key)`
+  links them like `jslink`, e.g. Clustergram clicks to a Landscape.
+  `matrix_from_zarr` and `matrix_from_dega_files` now call `clustergram`;
+  `network_from_dega_files` is a snake_case alias of `networkFromDegaFiles`.
+- Landscape XY view: plot the raw DegaFiles expression of two genes against
+  each other, with cells animating between the spatial, UMAP, and XY layouts.
+  The XY button, next to UMAP when the dataset has a UMAP and genes, plots the
+  selected genes (or the previous axes); selecting genes alone never leaves the
+  UMAP. XY shows autocompleting gene inputs for each axis and a LIN/LOG toggle
+  for linear or `log(1 + counts)` axes. In Python,
+  `Landscape.set_xy(x_gene, y_gene, scale="log1p")` switches to XY, and the new
+  `xy_genes` and `xy_scale` traits and `landscape_state="xy"` control it.
+- Landscape: the NBHD editor draws polygons ("gates") in the UMAP and XY views
+  as well as the spatial view. Each gate keeps its coordinate space and the IDs
+  of the cells inside it, and is only drawn in the view it was made in. The
+  `gates` trait holds them all; `Landscape.save_gates(path)` and
+  `load_gates(path)` write and read them as GeoJSON, `select_gate(name)`
+  restores a gate's view and selects its cells, and `nbhd_polygons` returns
+  them as a `GeoDataFrame` (spatial gates in tissue coordinates).
+  `save_nbhds`, `load_nbhds`, and `select_nbhd` are aliases.
+- Landscape: cluster selections, linked Clustergram selections, and gates
+  update the `selected_cells` trait, and `Landscape.get_selected_cells(adata)`
+  returns the selected cell IDs, or a copy of `adata` subset to them. A gate's
+  cells are not highlighted in the view. Clicking a cell clears highlighted
+  cells (e.g. a Clustergram dendrogram selection) and toggles its cluster.
+- `pre.add_aligned_he(path_dega_files, image_path, alignment=None)` adds an
+  aligned H&E image (8-bit RGB or RGBA, including RGB OME-TIFF) to existing
+  DegaFiles, optionally resampling it with a 3×3 affine or a Xenium Explorer
+  alignment CSV. Landscape and Yearbook then show a Fluorescence / H&E
+  selector; both backgrounds use the same cell and transcript overlays.
+  Requires `celldega[pre]` and libvips. See *Add aligned H&E to DegaFiles* and
+  `notebooks/Xenium_Aligned_HE.ipynb`.
+- Tutorials: MIX-seq drug screen (single cell), Flex CITE-seq PBMC (RNA and
+  protein), and CST lung cancer PTM (multi-omic) Landscape-Clustergram-Enrich
+  notebooks, and a CITE-seq PBMC gallery entry whose Clustergram loads a
+  `Matrix` Zarr store from Hugging Face. A CELLxGENE Census PBMC notebook
+  (`notebooks/`) builds a Chromium Landscape and Clustergram from Census data.
 
 ### Changed
 
+- Clustergram: the COL ordering controls come before the ROW controls,
+  matching the column labels above the rows.
 - Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
   selection another way) keeps the bar panels' scroll position instead of
   scrolling them back to the top.
@@ -141,6 +197,10 @@ All notable changes to Celldega are documented here. This project follows
   from a linked Clustergram) dims the other cells to a faint gray instead of
   hiding them, so the selection stays in the context of the whole UMAP. The
   spatial view still hides them.
+- Landscape UMAP view: points have a fixed size in screen pixels at any zoom,
+  set by the CELL slider. Selections change the cells' colors, not their size.
+- Landscape: cells stay visible while editing neighborhoods, and clicking CELL
+  during editing leaves editing without hiding them.
 - Landscape cell tooltips show the selected gene's expression in the hovered
   cell (the summed expression when several genes are selected).
 - Clustergram tooltips show small nonzero values with two significant digits
@@ -151,6 +211,22 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Cell segmentation validates polygon offsets and uses logical Arrow lengths
+  instead of buffer capacity, preventing padded data from connecting unrelated
+  cells. Tile changes rebuild the path buffers together, stale requests cannot
+  replace newer boundaries, and reported rendering errors trigger one automatic
+  rebuild. Failed geometry loads clear cached cell data so they can be retried.
+- Landscape with `nbhd_edit=True`: clicking a Clustergram row or column no
+  longer logs "nbhd?.style is not a function" in the browser console.
+- Landscape: clicking a gene in Enrich colors cells by it even when the
+  Landscape is displayed more than once (e.g. alone and in a linked layout).
+  Each view handled the focus as a toggle, so a second view turned it back
+  off; an Enrich focus now always shows its gene, and clicking the bold gene
+  again (or Enrich's CLEAR) returns the cells to their cluster colors unless
+  another gene was selected since.
+- Chromium Landscapes no longer allocate millions of transcript-tile entries
+  when opening, which could exhaust the browser's memory. UMAP and XY views
+  skip transcript-tile work for spatial datasets too.
 - Clustergram: with more than two attribute bars on an axis, the column (or
   row) dendrogram fell outside the canvas, and from four column bars on, the
   last bar and its label were cut off. The matrix now shrinks to make room;
@@ -210,11 +286,6 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
-- Cell segmentation validates polygon offsets and uses logical Arrow lengths
-  instead of buffer capacity, preventing padded data from connecting unrelated
-  cells. Tile changes rebuild the path buffers together, stale requests cannot
-  replace newer boundaries, and reported rendering errors trigger one automatic
-  rebuild. Failed geometry loads clear cached cell data so they can be retried.
 - Xenium and Atera morphology image tiles are no longer too dim. Every channel
   is stretched to 8-bit at its instrument "Suggested LUT max" from the
   OME-XML, or, for bundles without one, the 99.9th percentile of tissue pixels.

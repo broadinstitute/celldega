@@ -87,7 +87,7 @@ import {
 } from '../global_variables/image_info';
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
-import { set_meta_gene } from '../global_variables/meta_gene';
+import { apply_meta_gene, set_meta_gene } from '../global_variables/meta_gene';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { colorToRgba } from '../matrix/cat_data';
 import { create_obs_store } from '../obs_store/obs_store';
@@ -109,6 +109,7 @@ import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import { initialize_expression_scatter } from '../umap/expression_scatter';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -255,7 +256,10 @@ export const landscape_ist = async (
   cell_name_prefix = false,
   centroids = {},
   use_adata_3d_centroids = false,
-  cell_size = 10
+  cell_size = 10,
+  // An AnnData Zarr source (read_zarr/anndata_zarr.js) replaces the DegaFiles
+  // manifest, gene metadata, cell list, and per-gene expression.
+  single_cell_source = null
 ) => {
   if (width === 0) {
     width = '100%';
@@ -357,6 +361,8 @@ export const landscape_ist = async (
   viz_state.spatial = {};
   viz_state.spatial.cell_size = cell_size;
 
+  viz_state.single_cell_source = single_cell_source;
+
   // later we will parse the region from the s3 url
 
   if ('accessKeyId' in creds) {
@@ -398,6 +404,8 @@ export const landscape_ist = async (
     };
 
     viz_state.nbhd.feature_collection = viz_state.nbhd.ini_feature_collection;
+    viz_state.nbhd.bar_data = [];
+    viz_state.nbhd.color_dict = {};
   } else {
     viz_state.nbhd.is_nbhd = true;
 
@@ -500,7 +508,7 @@ export const landscape_ist = async (
     requested: use_adata_3d_centroids,
   };
 
-  const isUmapInit = landscape_state === 'umap';
+  const isUmapInit = ['umap', 'xy'].includes(landscape_state);
   viz_state.obs_store.umap_state.set(isUmapInit);
   // 'nbhd' is not a spatial/umap view; keep landscape_view valid and remember to
   // reveal the neighborhood layer once the UI (buttons/sliders/bars) is built.
@@ -533,12 +541,17 @@ export const landscape_ist = async (
 
   set_options(token);
 
-  await set_landscape_parameters(
-    viz_state.img,
-    base_url,
-    viz_state.aws,
-    manifest_name
-  );
+  if (single_cell_source) {
+    viz_state.img.landscape_parameters =
+      single_cell_source.landscape_parameters;
+  } else {
+    await set_landscape_parameters(
+      viz_state.img,
+      base_url,
+      viz_state.aws,
+      manifest_name
+    );
+  }
   const { landscape_parameters } = viz_state.img;
   const {
     technology: tech,
@@ -554,6 +567,9 @@ export const landscape_ist = async (
 
   // Initialize row group readers if using row group storage mode
   await initializeRowGroupReaders(viz_state, base_url);
+  if (single_cell_source) {
+    viz_state.row_group_readers = { cbg: single_cell_source.cbg_reader };
+  }
 
   const tmp_image_info = get_landscape_image_info(landscape_parameters);
   const image_name_for_dim = get_primary_image_name(landscape_parameters);
@@ -615,12 +631,19 @@ export const landscape_ist = async (
     : 0;
   viz_state.rotation = build_rotation_state(rotate, [centerX, centerY]);
 
-  await set_meta_gene(
-    viz_state.genes,
-    base_url,
-    viz_state.seg.version,
-    viz_state.aws
-  );
+  if (single_cell_source) {
+    apply_meta_gene(viz_state.genes, single_cell_source.gene_names, {
+      mean: single_cell_source.gene_mean,
+      max: single_cell_source.gene_max,
+    });
+  } else {
+    await set_meta_gene(
+      viz_state.genes,
+      base_url,
+      viz_state.seg.version,
+      viz_state.aws
+    );
+  }
 
   await set_cluster_metadata(viz_state);
 
@@ -946,6 +969,8 @@ export const landscape_ist = async (
     (visible) => {
       update_edit_visitility(layers_obj, visible);
       if (visible) {
+        new_toggle_cell_layer_visibility(layers_obj, true);
+        viz_state.buttons.buttons.cell.style('color', 'blue');
         viz_state.obs_store.viz_nbhd_layer.set(false);
         toggle_nbhd_layer_visibility(layers_obj, false);
         toggle_trx_layer_visibility(layers_obj, false);
@@ -1133,6 +1158,7 @@ export const landscape_ist = async (
     const on_cell_clusters = () =>
       update_cell_clusters(deck_ist, layers_obj, viz_state);
     const on_selected_cells = () => {
+      if (viz_state.publishing_selection) return;
       const cells = viz_state.model.get('selected_cells') || [];
       viz_state.obs_store.selected_cells.set(cells);
     };
@@ -1194,17 +1220,25 @@ export const landscape_ist = async (
   subscribe(
     viz_state.obs_store.landscape_view,
     (view) => {
-      const isUmap = view === 'umap';
+      const isUmap = view === 'umap' || view === 'xy';
       viz_state.obs_store.umap_state.set(isUmap);
 
       if (viz_state.scale_bar) {
         viz_state.scale_bar.setVisible(!isUmap);
       }
 
-      toggle_spatial_umap(deck_ist, layers_obj, viz_state);
+      // XY owns its position animation. Starting a GPU transition here as
+      // well would race the expression buffers and can blank the scatter.
+      const expression_switch = viz_state.expression_scatter_enabled && isUmap;
+      if (!isUmap) viz_state.spatial.embedding_animation_positions = null;
+      if (!expression_switch)
+        toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
       if (isUmap) {
-        viz_state.buttons.buttons.umap.style('color', 'blue');
+        viz_state.buttons.buttons.umap.style(
+          'color',
+          view === 'umap' ? 'blue' : 'gray'
+        );
         if (!isChromium) {
           viz_state.buttons.buttons.spatial.style('color', 'gray');
           viz_state.buttons.buttons.img.style('color', 'gray');
@@ -1282,6 +1316,17 @@ export const landscape_ist = async (
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }, 40);
     });
+  }
+
+  if (!is_orbit_technology(currentTechnology)) {
+    cleanup_callbacks.push(
+      initialize_expression_scatter(
+        viz_state,
+        layers_obj,
+        () => refresh_layer(viz_state, layers_obj, 'cell_layer'),
+        deck_ist
+      )
+    );
   }
 
   // Callback registries for external listeners

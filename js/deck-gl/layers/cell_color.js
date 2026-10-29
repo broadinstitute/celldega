@@ -3,7 +3,7 @@ export const CELL_COLOR_SIZE = 4;
 // In UMAP views, cells outside a selection stay as a faint backdrop so the
 // selected cells keep the context of the whole embedding. Mid-gray reads on
 // both the black canvas and a white page.
-export const DIMMED_CELL_COLOR = [128, 128, 128, 64];
+export const DIMMED_CELL_COLOR = [128, 128, 128, 16];
 
 export const is_cluster_color_mode = (cats) =>
   !cats.cat || cats.cat === 'cluster';

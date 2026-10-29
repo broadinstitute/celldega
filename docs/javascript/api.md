@@ -3,6 +3,92 @@
 The JavaScript component of Celldega is used within the Jupyter Widgets framework to provide interactive visualization in the context of a Jupyter notebook but can also be used as a standalone JavaScript library.
 
 
+## Visualizations without Python: `landscape`, `clustergram`, and `link_models`
+
+`landscape` and `clustergram` render Celldega visualizations in a plain web
+page, without a Python kernel, from data on any static file server that allows
+cross-origin requests (a local server, a bucket, or Hugging Face). Each takes
+the container element and an options object, and returns the visualization
+with its `model` and a `finalize()` method. The lower-level `landscape_ist` and
+`matrix_viz` renderers, documented below, remain available.
+
+### `landscape(el, options)`
+
+The options are the Python `Landscape`'s arguments, with the same defaults, for
+example:
+
+- `zarr_url` (`string`): a single-cell AnnData Zarr store (see
+  `Landscape(zarr_url=...)`), or
+- `base_url` (`string`): DegaFiles;
+- `cluster_attr` (`string`, `'leiden'` by default) and `cell_attr`
+  (`string[]`): the cell attributes to show, with `cluster_attr` coloring the
+  cells;
+- `technology` (`'Chromium'` by default with `zarr_url`, otherwise `'Xenium'`),
+  `ini_x`, `ini_y`, `ini_zoom`, `height`, `width`, `dataset_name`, and the
+  Landscape's other arguments.
+
+Passing both `zarr_url` and `base_url` is an error.
+
+### `clustergram(el, options)`
+
+Pass exactly one data source:
+
+- `network` (`object`): a Clustergram network object, like a Clustergrammer
+  network JSON;
+- `url` (`string`): a clustered Matrix saved with `Matrix.write_zarr`, which
+  `Matrix.read_zarr` also loads in Python; or
+- `base_url` (`string`) and `name` (`string`, `'default'` by default): a
+  Clustergram in DegaFiles.
+
+The other options are `width` and `height` (500 by default), `viz_mode`
+(`'heatmap'` or `'dotplot'`, the latter by default when the data has a size
+matrix), `rank_dim` (see [`matrix_from_zarr`](#matrix_from_zarr-api-documentation-experimental)),
+the `row_label_callback`, `col_label_callback`, and `col_dendro_callback` click
+callbacks, and `fetchOptions` for every request.
+
+### `link_models(source, source_key, target, target_key)`
+
+Copies one visualization's model value to another whenever it changes, like
+ipywidgets' `jslink` in one direction, and returns a function that removes the
+link. Linking a Clustergram's `click_info` to a Landscape's `update_trigger`
+does what `spatial_clustergram` does in Python: clicking a gene colors the
+cells by it, and clicking a cluster selects its cells.
+
+### Example: a single-cell Landscape and Clustergram from Hugging Face
+
+```javascript
+import celldega from 'celldega';
+
+const HF_URL =
+    'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/pbmc3k';
+
+const landscape = await celldega.landscape(document.getElementById('landscape'), {
+    zarr_url: `${HF_URL}/pbmc3k.zarr`,
+    cluster_attr: 'leiden',
+    ini_zoom: -4.5,
+    ini_x: 5000,
+    ini_y: 5000,
+});
+const clustergram = await celldega.clustergram(document.getElementById('matrix'), {
+    url: `${HF_URL}/pbmc3k_leiden_markers.zarr`,
+    rank_dim: 10,
+});
+celldega.link_models(clustergram.model, 'click_info', landscape.model, 'update_trigger');
+```
+
+The repository's `celldega_js_examples/single_cell_from_zarr.html` and
+`clustergram_from_zarr.html` are complete pages.
+
+### Data readers
+
+- `network_from_zarr(url)` returns the `network` object of a clustered Matrix
+  Zarr store, and `network_from_dega_files(base_url, name)` (also available as
+  `networkFromDegaFiles`) that of a DegaFiles Clustergram.
+- `anndata_zarr_source(url, options)` opens a single-cell AnnData Zarr store
+  for a Landscape: its cells, genes, metadata, and a reader that fetches one
+  gene at a time.
+
+
 ## `landscape_ist` API Documentation
 
 The `landscape_ist` function initializes and renders an interactive spatial transcriptomics (IST) landscape visualization. This API is designed to work with Deck.gl and includes customizable visualization options, dynamic data updates, and UI interactions.
@@ -214,7 +300,8 @@ await matrix_viz(
 ## `matrix_from_zarr` API Documentation (experimental)
 
 `matrix_from_zarr` renders a Clustergram from a clustered Matrix saved in Python
-with `Matrix.write_zarr`, without a Python kernel. It reads the AnnData Zarr
+with `Matrix.write_zarr`, without a Python kernel. It is the same as
+`clustergram(el, {url, ...})`. It reads the AnnData Zarr
 store with [zarrita](https://zarrita.dev/), so the store can be hosted on any
 static file server that allows cross-origin requests.
 
@@ -226,6 +313,10 @@ static file server that allows cross-origin requests.
   - `width`, `height` (`number`, optional): Size of the matrix, 500 by default.
   - `viz_mode` (`string`, optional): `'heatmap'` or `'dotplot'`; defaults to
     `'dotplot'` when the store has a size matrix.
+  - `rank_dim` (`number`, optional): Opens at this precomputed view level, for
+    example `10` for the top 10 markers per cluster of
+    `cluster(view="rank_genes_groups")`, like Python's
+    `Clustergram(rank_dim=...)`. Opens the full matrix by default.
   - `row_label_callback`, `col_label_callback`, `col_dendro_callback`
     (`function`, optional): Called on row label, column label, and column
     dendrogram clicks.
@@ -245,5 +336,5 @@ await celldega.matrix_from_zarr(el, {
 });
 ```
 
-`networkFromZarr(url)` returns the same store's `network` object, for passing to
+`network_from_zarr(url)` returns the same store's `network` object, for passing to
 `matrix_viz` directly.

@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 from typing import Any, Literal
 import urllib.error
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 import uuid
 import warnings
 
@@ -124,6 +124,35 @@ def _local_dir_for_url(url: str) -> "Path | None":
     return local_dir if local_dir.is_dir() else None
 
 
+_SHARED_LOCAL_SERVER_PORT: int | None = None
+
+
+def _zarr_store_url(zarr_url: Any) -> str:
+    """URL for an AnnData Zarr store: an http(s) URL as is, or a local path
+    served by one shared ``celldega.viz.get_local_server()`` (rooted at cwd)."""
+    global _SHARED_LOCAL_SERVER_PORT
+
+    text = os.fspath(zarr_url)
+    if urlparse(text).scheme in ("http", "https"):
+        return text.rstrip("/")
+    path = Path(text).expanduser().resolve()
+    if not path.is_dir():
+        raise FileNotFoundError(f"No Zarr store at {path}")
+    cwd = Path.cwd().resolve()
+    try:
+        relative = path.relative_to(cwd)
+    except ValueError:
+        raise ValueError(
+            f"zarr_url {path} is outside the working directory {cwd}, which the local "
+            "server serves; move the store under it or pass an http(s) URL."
+        ) from None
+    if _SHARED_LOCAL_SERVER_PORT is None:
+        from .local_server import get_local_server
+
+        _SHARED_LOCAL_SERVER_PORT = get_local_server()
+    return f"http://localhost:{_SHARED_LOCAL_SERVER_PORT}/{quote(relative.as_posix())}"
+
+
 def _coerce_transform_matrix(transform: Any) -> np.ndarray:
     matrix = np.asarray(transform, dtype=float)
     if matrix.shape == (2, 3):
@@ -232,6 +261,20 @@ class Landscape(CelldegaWidget):
             or a list of dicts with 'url' and 'label' keys for multiple datasets.
             Example: [{'url': 'http://...', 'label': 'Dataset1'}, ...]
             You can also pass a simple list of URL strings.
+        zarr_url (str or Path, optional): A single-cell AnnData Zarr store to read
+            instead of DegaFiles (``technology="Chromium"``, the default with
+            ``zarr_url``): an http(s) URL, e.g. on Hugging Face, or a local path
+            under the working directory, served by a local server. Gene
+            expression comes from a CSC matrix in the store, ``X`` or a layer
+            such as ``adata.layers["counts_csc"] = adata.layers["counts"].tocsc()``.
+            Optional ``var["mean"]`` and ``var["max"]`` hold the gene statistics
+            DegaFiles keep in ``meta_gene.parquet``; cell attributes, cluster
+            colors (``uns[f"{cluster_attr}_colors"]``), and ``obsm["X_umap"]`` come
+            from the store unless ``adata`` is passed too. Consolidate the store's
+            metadata (``zarr.consolidate_metadata``) so it opens in one request.
+        zarr_layer (str, optional): The ``zarr_url`` layer to read expression
+            from, or ``"X"``. By default, ``X`` if it is CSC, else the store's
+            only CSC layer.
         dataset_names (list, optional): Short names for the datasets to display in
             the dropdown selector. Should match the length of base_urls.
             Example: ['Brain', 'Kidney'] for two datasets.
@@ -275,6 +318,9 @@ class Landscape(CelldegaWidget):
 
     technology = traitlets.Unicode("Xenium").tag(sync=True)
     base_url = traitlets.Unicode("").tag(sync=True)
+    # Single-cell data from an AnnData Zarr store instead of DegaFiles.
+    zarr_url = traitlets.Unicode("").tag(sync=True)
+    zarr_layer = traitlets.Unicode("").tag(sync=True)
     # List of dataset configurations: [{'url': str, 'label': str}, ...]
     base_urls = traitlets.List(trait=traitlets.Dict(), default_value=[]).tag(sync=True)
     cell_name_prefix = traitlets.Bool(False).tag(sync=True)
@@ -309,6 +355,12 @@ class Landscape(CelldegaWidget):
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
+    xy_genes = traitlets.List(trait=traitlets.Unicode(), default_value=[], maxlen=2).tag(sync=True)
+    xy_scale = traitlets.Enum(["linear", "log1p"], default_value="log1p").tag(sync=True)
+    # All drawn NBHDs keep their coordinate space. Only physical polygons
+    # receive a tissue affine when exposed as a Python GeoDataFrame.
+    gates = traitlets.Dict({"type": "FeatureCollection", "features": []}).tag(sync=True)
+    view_space = traitlets.Dict({}).tag(sync=True)
 
     update_trigger = traitlets.Dict().tag(sync=True)
     # Browser-linked gene focus (e.g. a click in Enrich). The front end turns
@@ -368,6 +420,18 @@ class Landscape(CelldegaWidget):
             cell_attr.append(cluster_attr)
 
         nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
+
+        if kwargs.get("zarr_url"):
+            if kwargs.get("base_url") or kwargs.get("base_urls"):
+                raise ValueError(
+                    "Pass either base_url (DegaFiles) or zarr_url (AnnData Zarr), not both."
+                )
+            technology = kwargs.setdefault("technology", "Chromium")
+            if technology != "Chromium":
+                raise ValueError("zarr_url supports technology='Chromium' only.")
+            kwargs["zarr_url"] = _zarr_store_url(kwargs["zarr_url"])
+            if transform is None:
+                transform = np.eye(3)
 
         # nbhd_edit can now be True even when nbhd data is provided,
         # allowing users to edit pre-loaded neighborhood polygons
@@ -616,6 +680,7 @@ class Landscape(CelldegaWidget):
         self.nbhd = nbhd_gdf
         self.nbhd_edit = nbhd_edit
         self.umap = umap_df
+        self._adata = adata
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
 
@@ -650,6 +715,109 @@ class Landscape(CelldegaWidget):
         """Highlight specific cells by their identifiers."""
 
         self.selected_cells = list(cell_ids)
+
+    def set_xy(self, x_gene=None, y_gene=None, *, scale="log1p"):
+        """Show raw DegaFiles expression on X/Y, using linear or log1p counts.
+
+        Both genes may be omitted to start with all cells overlapping. A gene
+        for Y requires a gene for X. Use ``landscape_state = 'umap'`` to return.
+        """
+        if y_gene and not x_gene:
+            raise ValueError("Specify an X gene before a Y gene.")
+        if scale not in ("linear", "log1p"):
+            raise ValueError("scale must be 'linear' or 'log1p'.")
+        genes = [gene for gene in (x_gene, y_gene) if gene]
+        if self._adata is not None:
+            missing = set(genes) - set(self._adata.var_names)
+            if missing:
+                raise ValueError(f"Unknown genes: {sorted(missing)}")
+        with self.hold_trait_notifications():
+            self.xy_scale = scale
+            self.xy_genes = genes
+            self.landscape_state = "xy"
+
+    def get_selected_cells(self, adata=None):
+        """Return selected IDs, or a copied AnnData subset when ``adata`` is supplied."""
+        ids = list(self.selected_cells)
+        if adata is None:
+            return ids
+        return adata[adata.obs_names.isin(ids)].copy()
+
+    def save_gates(self, path):
+        """Save named polygons, coordinate spaces and selected cell IDs as GeoJSON."""
+        path = Path(path)
+        path.write_text(json.dumps(self.gates, indent=2), encoding="utf-8")
+        return path
+
+    def load_gates(self, path):
+        """Restore NBHDs; only polygons matching the current coordinate space are drawn."""
+        gates = json.loads(Path(path).read_text(encoding="utf-8"))
+        if gates.get("type") != "FeatureCollection" or not isinstance(gates.get("features"), list):
+            raise ValueError("Expected a GeoJSON FeatureCollection.")
+        for feature in gates["features"]:
+            space = feature.get("properties", {}).get("coordinate_space", {})
+            if space.get("kind") not in ("spatial", "umap", "xy") or feature.get(
+                "geometry", {}
+            ).get("type") not in ("Polygon", "MultiPolygon"):
+                raise ValueError("Each NBHD needs polygon geometry and a physical/UMAP/XY space.")
+        self.gates = gates
+
+    def select_gate(self, name):
+        """Restore a gate's view and select its saved cells (names must be unambiguous)."""
+        matches = [
+            feature
+            for feature in self.gates.get("features", [])
+            if feature.get("properties", {}).get("name") == name
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"Expected one gate named {name!r}; found {len(matches)}.")
+        props = matches[0]["properties"]
+        space = props["coordinate_space"]
+        if space["kind"] == "xy":
+            self.set_xy(*space.get("genes", []), scale=space["scale"])
+        else:
+            self.landscape_state = space["kind"]
+        self.selected_cells = list(props.get("cell_ids", []))
+
+    # NBHD is the umbrella for manually drawn gates in all three views.
+    save_nbhds = save_gates
+    load_nbhds = load_gates
+    select_nbhd = select_gate
+
+    @staticmethod
+    def _polygon_vertices(geometry):
+        polygons = [geometry] if geometry.geom_type == "Polygon" else list(geometry.geoms)
+        rings = [ring for polygon in polygons for ring in [polygon.exterior, *polygon.interiors]]
+        return (
+            [list(ring.coords.xy[0]) for ring in rings],
+            [list(ring.coords.xy[1]) for ring in rings],
+        )
+
+    @property
+    def nbhd_polygons(self):
+        """Drawn NBHDs with geometry, space, cell IDs and x/y vertex rings.
+
+        Physical polygons use native tissue coordinates; UMAP and XY retain
+        their displayed coordinates and their saved embedding/axis metadata.
+        Each element of x/y is a polygon ring, including any interior holes.
+        """
+        features = self.gates.get("features", [])
+        if not features:
+            return gpd.GeoDataFrame(
+                columns=["name", "space", "x", "y", "geometry"], geometry="geometry"
+            )
+        frame = gpd.GeoDataFrame.from_features(deepcopy(features))
+        frame["space"] = frame["coordinate_space"].map(lambda space: space["kind"])
+        a, b, tx = self._inv_transform[0]
+        c, d, ty = self._inv_transform[1]
+        physical = frame["space"].eq("spatial")
+        frame.loc[physical, "geometry"] = frame.loc[physical, "geometry"].map(
+            lambda geom: affine_transform(geom, [a, b, c, d, tx, ty])
+        )
+        vertices = frame.geometry.map(self._polygon_vertices)
+        frame["x"] = vertices.map(lambda xy: xy[0])
+        frame["y"] = vertices.map(lambda xy: xy[1])
+        return frame
 
     @traitlets.observe("nbhd_geojson")
     def _on_nbhd_geojson_change(self, change):

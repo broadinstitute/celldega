@@ -17,8 +17,11 @@ import { update_selected_genes } from '../global_variables/selected_genes';
 import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
 import { toggle_slider } from '../ui/sliders';
 import { sync_trx_button } from '../ui/trx_handle';
+import { publish_selected_cells } from '../umap/embedding_gates';
 import { refresh_layer } from '../utils/refresh_layer';
 import { register_ui_cleanup } from '../utils/ui_cleanup';
+
+import { set_nbhd_button_color } from './nbhd_button';
 
 export const make_bar_container = () => {
   return document.createElement('div');
@@ -176,7 +179,7 @@ export const bar_callback_cat = (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(_viz_state, 'gray');
       toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
@@ -276,7 +279,7 @@ export const bar_callback_gene = async (
     _viz_state.obs_store.viz_edit_layer.set(false);
     // wrap in try
     try {
-      _viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+      set_nbhd_button_color(_viz_state, 'gray');
       toggle_slider(_viz_state.sliders.nbhd, false);
     } catch {
       // intentionally ignore missing neighborhood button
@@ -345,6 +348,19 @@ export const bar_callback_nbhd = (
     }
 
     refresh_layer(_viz_state, _layers_obj, 'edit_layer');
+
+    if (_viz_state.neighborhood_space) {
+      const selected = new Set(_viz_state.obs_store.selected_nbhds.get());
+      const gates = (_viz_state.edit.feature_collection.features || []).filter(
+        (feature) => selected.has(feature.properties.name)
+      );
+      // NBHDs passed in from Python carry no membership; leave Python's
+      // selection alone for those, but clear it when nothing is selected.
+      if (!selected.size || gates.some((gate) => gate.properties.cell_ids)) {
+        const ids = gates.flatMap((gate) => gate.properties.cell_ids || []);
+        publish_selected_cells(_viz_state, [...new Set(ids)]);
+      }
+    }
 
     if (_viz_state.obs_store.selected_nbhds.get().length > 0) {
       _viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', (d) => {

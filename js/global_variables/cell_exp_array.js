@@ -68,7 +68,7 @@ async function readGeneFromRowGroups(cbgReader, geneName) {
 // share a fetch.
 const EXPRESSION_CACHE_LIMIT = 20;
 
-const load_gene_expression = (
+export const load_gene_expression = (
   cache,
   base_url,
   version,
@@ -80,6 +80,9 @@ const load_gene_expression = (
   if (cache.has(key)) return cache.get(key);
 
   const request = (async () => {
+    // An AnnData Zarr source returns integer cell indices and values directly.
+    if (cbgReader?.readGeneExpression)
+      return cbgReader.readGeneExpression(gene);
     if (cbgReader) return readGeneFromRowGroups(cbgReader, gene);
     // Traditional mode: fetch individual gene file
     const folder = version === 'default' ? 'cbg' : `cbg_${version}`;
@@ -186,11 +189,13 @@ export const update_cell_exp_array = async (
   });
 
   // One gene keeps its whole-dataset max from meta_gene; a sum uses the
-  // largest summed value over all cells (the same whole-dataset reference).
-  cats.cell_exp_max =
-    gene_list.length === 1
-      ? Number(genes.meta_gene[gene_list[0]].max)
-      : summed.reduce((max, value) => Math.max(max, value), 0);
+  // largest summed value over all cells (the same whole-dataset reference),
+  // as does a gene whose source stores no max (e.g. a Zarr without var["max"]).
+  const stored_max =
+    gene_list.length === 1 ? Number(genes.meta_gene[gene_list[0]]?.max) : NaN;
+  cats.cell_exp_max = Number.isFinite(stored_max)
+    ? stored_max
+    : summed.reduce((max, value) => Math.max(max, value), 0);
   // Kept so the zoomed-out TRX slider can rescale opacity without refetching,
   // and so cell tooltips can report the expression with the genes it sums.
   cats.cell_exp_raw = summed;

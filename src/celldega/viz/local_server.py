@@ -4,12 +4,13 @@ Local server module for handling HTTP requests with CORS support.
 
 from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 import ipaddress
-import socket
 from pathlib import Path
+import socket
 from socketserver import ThreadingMixIn
 import threading as thr
 from typing import ClassVar
 from urllib.parse import unquote, urlparse
+
 import requests
 
 
@@ -327,7 +328,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         """Override log_message to prevent logging to the console."""
 
 
-def get_local_server(file_server_root: str|Path|None = None) -> int:
+def get_local_server(file_server_root: str | Path | None = None) -> int:
     """
     Start a local HTTP server with CORS support and return the port number.
 
@@ -341,9 +342,11 @@ def get_local_server(file_server_root: str|Path|None = None) -> int:
     """
     if file_server_root is not None:
         file_server_root = Path(file_server_root)
+
         class CORSHTTPRequestHandlerForDirectory(CORSHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=str(file_server_root), **kwargs)
+
         RequestHandlerClass = CORSHTTPRequestHandlerForDirectory
     else:
         RequestHandlerClass = CORSHTTPRequestHandler

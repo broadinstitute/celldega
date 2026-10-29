@@ -1,4 +1,8 @@
-import { update_cat, update_selected_cats } from '../global_variables/cat';
+import {
+  force_set_selected_cats,
+  update_cat,
+  update_selected_cats,
+} from '../global_variables/cat';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import {
   is_current_gene_load,
@@ -6,6 +10,7 @@ import {
 } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import { set_nbhd_button_color } from '../ui/nbhd_button';
 import { refresh_layer } from '../utils/refresh_layer';
 
 import {
@@ -50,7 +55,7 @@ const reset_to_cluster_mode = (viz_state, layers_obj) => {
   update_selected_cats(viz_state.cats, [], viz_state.obs_store);
   update_selected_genes(viz_state.genes, [], viz_state.obs_store);
   viz_state.obs_store.viz_nbhd_layer.set(false);
-  viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+  set_nbhd_button_color(viz_state, 'gray');
   refresh_layer(viz_state, layers_obj, 'cell_layer');
 };
 
@@ -115,7 +120,11 @@ export const is_cell = (clickValue) => {
  */
 export const sync_focused_gene_to_landscape = (model) => {
   const gene = model?.get?.('focused_gene') || '';
-  if (!gene) return false;
+  // Clearing the focus (clicking the bold gene in Enrich again) unfocuses the
+  // gene Enrich last focused, if no other selection replaced that trigger.
+  const last = model?.get?.('update_trigger');
+  const name = gene || (last?.focus ? last.value?.name : '');
+  if (!name) return false;
 
   // Reset first so selecting the same gene again still emits a Backbone
   // change event for update_trigger.
@@ -123,11 +132,14 @@ export const sync_focused_gene_to_landscape = (model) => {
   model.set('update_trigger', {
     type: 'row_label',
     value: {
-      name: gene,
+      name,
       entity: 'gene',
       attr: 'name',
       row_entity: 'gene',
     },
+    // Show or clear the gene rather than toggle it: every view of this model
+    // (e.g. a Landscape displayed alone and in a linked layout) handles it.
+    ...(gene ? { focus: true } : { unfocus: true }),
   });
   model.save_changes?.();
   return true;
@@ -146,6 +158,8 @@ export const update_ist_landscape_from_cgm = async (
   const click_info = {
     type: raw_click.type || raw_click.click_type,
     value: raw_click.value || raw_click.click_value,
+    focus: Boolean(raw_click.focus),
+    unfocus: Boolean(raw_click.unfocus),
   };
 
   const click_type = click_info.type?.replace('-', '_');
@@ -192,7 +206,7 @@ export const update_ist_landscape_from_cgm = async (
         }
 
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
 
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
@@ -221,7 +235,7 @@ export const update_ist_landscape_from_cgm = async (
           update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
           viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+          set_nbhd_button_color(viz_state, 'gray');
 
           refresh_layer(viz_state, layers_obj, 'cell_layer');
         }
@@ -240,7 +254,15 @@ export const update_ist_landscape_from_cgm = async (
             layers_obj
           );
         } else {
-          new_cat = inst_gene === viz_state.cats.cat ? 'cluster' : inst_gene;
+          // An Enrich unfocus clears its gene only where it is still shown.
+          if (click_info.unfocus && viz_state.cats.cat !== inst_gene) return;
+
+          // A row click toggles its gene; an Enrich focus always shows it.
+          new_cat =
+            click_info.unfocus ||
+            (!click_info.focus && inst_gene === viz_state.cats.cat)
+              ? 'cluster'
+              : inst_gene;
 
           // Clear highlighted cells immediately (without triggering subscription refresh)
           // This prevents the old gene data from showing during loading
@@ -249,7 +271,7 @@ export const update_ist_landscape_from_cgm = async (
           update_cat(viz_state.cats, new_cat);
           update_selected_genes(
             viz_state.genes,
-            [inst_gene],
+            click_info.unfocus ? [] : [inst_gene],
             viz_state.obs_store
           );
 
@@ -277,14 +299,18 @@ export const update_ist_landscape_from_cgm = async (
           clear_selected_cells_if_needed(viz_state);
 
           // Update selected_cats after cell_exp_array has been populated
-          update_selected_cats(
+          // update_selected_cats toggles a repeated selection off; a focus
+          // sets it exactly, so handling it again changes nothing.
+          (click_info.focus || click_info.unfocus
+            ? force_set_selected_cats
+            : update_selected_cats)(
             viz_state.cats,
             new_cat === 'cluster' ? [] : [inst_gene],
             viz_state.obs_store
           );
 
           viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+          set_nbhd_button_color(viz_state, 'gray');
         }
       }
     } else if (click_type === 'col_label') {
@@ -320,7 +346,7 @@ export const update_ist_landscape_from_cgm = async (
         }
 
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
 
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
@@ -331,7 +357,7 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.obs_store.selected_cells.set([cell_name]);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else {
@@ -353,7 +379,7 @@ export const update_ist_landscape_from_cgm = async (
           update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
           viz_state.obs_store.viz_nbhd_layer.set(false);
-          viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+          set_nbhd_button_color(viz_state, 'gray');
 
           refresh_layer(viz_state, layers_obj, 'cell_layer');
           refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -380,7 +406,7 @@ export const update_ist_landscape_from_cgm = async (
       if (is_neighborhood(col_entity_full)) {
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
         if (viz_state.obs_store.selected_nbhds.get().length > 0) {
@@ -409,7 +435,7 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.obs_store.selected_cells.set(stripped_cells);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else if (viz_state.nbhd_cloud?.is_nbhd_cloud) {
@@ -430,7 +456,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }
@@ -459,7 +485,7 @@ export const update_ist_landscape_from_cgm = async (
         // Neighborhood selection from row dendrogram
         viz_state.obs_store.selected_nbhds.set(new_cats);
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
 
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
@@ -485,7 +511,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_cats(viz_state.cats, new_cats, viz_state.obs_store);
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
@@ -518,7 +544,7 @@ export const update_ist_landscape_from_cgm = async (
         await select_genes(viz_state, new_cats);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -540,7 +566,7 @@ export const update_ist_landscape_from_cgm = async (
         viz_state.obs_store.selected_cells.set(stripped_cells);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       } else if (axis === 'col') {
@@ -553,7 +579,7 @@ export const update_ist_landscape_from_cgm = async (
         update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
       }
@@ -573,7 +599,7 @@ export const update_ist_landscape_from_cgm = async (
         const new_nbhds = [col.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
         // Also highlight the selected cluster
@@ -597,7 +623,7 @@ export const update_ist_landscape_from_cgm = async (
         // Highlight BOTH clusters in the Landscape
         viz_state.obs_store.selected_cells.set([]);
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         update_cat(viz_state.cats, 'cluster');
         // Select both the row and column clusters
@@ -649,7 +675,7 @@ export const update_ist_landscape_from_cgm = async (
         );
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -691,7 +717,7 @@ export const update_ist_landscape_from_cgm = async (
         );
 
         viz_state.obs_store.viz_nbhd_layer.set(false);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'gray');
+        set_nbhd_button_color(viz_state, 'gray');
 
         refresh_layer(viz_state, layers_obj, 'cell_layer');
         refresh_layer(viz_state, layers_obj, 'trx_layer');
@@ -700,7 +726,7 @@ export const update_ist_landscape_from_cgm = async (
         const new_nbhds = [row.name];
         viz_state.obs_store.selected_nbhds.set(new_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
 
         // Also highlight the selected cluster
@@ -725,7 +751,7 @@ export const update_ist_landscape_from_cgm = async (
         const selected_nbhds = [row.name, col.name];
         viz_state.obs_store.selected_nbhds.set(selected_nbhds);
         viz_state.obs_store.viz_nbhd_layer.set(true);
-        viz_state.buttons?.buttons?.nbhd?.style?.('color', 'blue');
+        set_nbhd_button_color(viz_state, 'blue');
 
         refresh_layer(viz_state, layers_obj, 'nbhd_layer');
         refresh_layer(viz_state, layers_obj, 'cell_layer');

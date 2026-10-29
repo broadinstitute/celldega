@@ -12,9 +12,9 @@ const load = (file, names, prelude = '') => {
 };
 
 // zarrita is ESM-only; the module's default reader is never called here.
-const { makeAnnDataZarrSource, fallback_colors, fetch_with_retry } = load(
+const { make_anndata_zarr_source, fallback_colors, fetch_with_retry } = load(
   '../read_zarr/anndata_zarr.js',
-  'makeAnnDataZarrSource, fallback_colors, fetch_with_retry',
+  'make_anndata_zarr_source, fallback_colors, fetch_with_retry',
   'const zarrita = {};'
 );
 
@@ -100,14 +100,14 @@ const open = (nodes, options = {}, store = listed(nodes), requested = []) => {
     node.stride && !selection
       ? { data: node.data, shape: node.shape, stride: node.stride }
       : get(node, selection);
-  return makeAnnDataZarrSource(zarr)(store, {
+  return make_anndata_zarr_source(zarr)(store, {
     cell_attr: ['leiden', 'batch'],
     cluster_attr: 'leiden',
     ...options,
   });
 };
 
-describe('annDataZarrSource', () => {
+describe('anndata_zarr_source', () => {
   it('reads cells, genes, metadata, and the UMAP from the store', async () => {
     const source = await open(store_nodes());
 

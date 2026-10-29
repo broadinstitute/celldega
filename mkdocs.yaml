@@ -158,6 +158,9 @@ plugins:
         python:
           options:
             docstring_style: google
+            # Renders Sphinx roles (:func:`name`) in docstrings as inline code.
+            extensions:
+              - scripts/griffe_sphinx_roles.py:SphinxRoles
             show_root_toc_entry: true
             show_source: false
   - mkdocs-jupyter:

@@ -1,7 +1,7 @@
 /* global require */
 
-describe('networkFromZarr', () => {
-  let makeNetworkFromZarr;
+describe('network_from_zarr', () => {
+  let make_network_from_zarr;
 
   beforeAll(() => {
     const fs = require('fs');
@@ -16,8 +16,8 @@ describe('networkFromZarr', () => {
       .replace(/^export const /gm, 'const ');
 
     // zarrita is ESM-only; the module's default reader is never called here.
-    ({ makeNetworkFromZarr } = new Function(
-      `const zarrita = {};\n${source}\nreturn { makeNetworkFromZarr };`
+    ({ make_network_from_zarr } = new Function(
+      `const zarrita = {};\n${source}\nreturn { make_network_from_zarr };`
     )());
   });
 
@@ -113,7 +113,7 @@ describe('networkFromZarr', () => {
   };
 
   it('builds the network the matrix viz renders', async () => {
-    const read = makeNetworkFromZarr(fake_zarr(store_nodes()));
+    const read = make_network_from_zarr(fake_zarr(store_nodes()));
     const network = await read(store);
 
     expect(network.mat).toEqual([
@@ -138,7 +138,7 @@ describe('networkFromZarr', () => {
   });
 
   it('unpacks views into plain arrays', async () => {
-    const read = makeNetworkFromZarr(fake_zarr(store_nodes()));
+    const read = make_network_from_zarr(fake_zarr(store_nodes()));
     const [view] = (await read(store)).views;
 
     expect(view).toMatchObject({
@@ -160,7 +160,7 @@ describe('networkFromZarr', () => {
     const nodes = store_nodes({ views: [], has_size_matrix: false });
     // A one-column matrix has a zero-size column linkage.
     nodes['uns/celldega/linkage/col'] = array(new Float64Array(0), [0, 4]);
-    const network = await makeNetworkFromZarr(fake_zarr(nodes))(store);
+    const network = await make_network_from_zarr(fake_zarr(nodes))(store);
 
     expect(network.views).toEqual([]);
     expect(network.size_mat).toBeUndefined();
@@ -168,7 +168,7 @@ describe('networkFromZarr', () => {
   });
 
   it('rejects stores from a newer format version', async () => {
-    const read = makeNetworkFromZarr(fake_zarr(store_nodes({ version: 2 })));
+    const read = make_network_from_zarr(fake_zarr(store_nodes({ version: 2 })));
     await expect(read(store)).rejects.toThrow('unsupported store');
   });
 
@@ -184,7 +184,7 @@ describe('networkFromZarr', () => {
       },
       withMaybeConsolidatedMetadata: async () => ({}),
     };
-    const read = makeNetworkFromZarr(zarr);
+    const read = make_network_from_zarr(zarr);
 
     await read('https://example.org/cell_types.zarr//');
     await read('https://example.org/cell_types.zarr');

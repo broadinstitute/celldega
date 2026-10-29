@@ -100,7 +100,7 @@ export const fetch_with_retry = async (
  * @param {object} zarr - The zarrita module (or a compatible stand-in).
  * @returns {function(string|URL|object, object=): Promise<object>}
  */
-export const makeAnnDataZarrSource = (zarr) => {
+export const make_anndata_zarr_source = (zarr) => {
   const open_store = (url, fetchOptions) => {
     // Drop trailing slashes with a scan rather than a regex, which backtracks
     // quadratically on long runs of '/'.
@@ -175,7 +175,7 @@ export const makeAnnDataZarrSource = (zarr) => {
       }
       if (!column.shape) {
         throw new Error(
-          `[annDataZarrSource] ${path} is a ${encoding(column)} group, which Landscape cannot read`
+          `[anndata_zarr_source] ${path} is a ${encoding(column)} group, which Landscape cannot read`
         );
       }
       return { values: plain_values((await read(column)).data) };
@@ -196,7 +196,7 @@ export const makeAnnDataZarrSource = (zarr) => {
         const path = layer === 'X' ? 'X' : `layers/${layer}`;
         const matrix = await maybe_node(path);
         if (!matrix) {
-          throw new Error(`[annDataZarrSource] ${label} has no ${path}`);
+          throw new Error(`[anndata_zarr_source] ${label} has no ${path}`);
         }
         return { path, matrix };
       }
@@ -223,7 +223,7 @@ export const makeAnnDataZarrSource = (zarr) => {
             ? 'no CSC layer; save one, e.g. adata.layers["counts_csc"] = adata.layers["counts"].tocsc()'
             : 'pass zarr_layer to name the layer holding a CSC copy of the counts, or consolidate the store metadata (zarr.consolidate_metadata) so Celldega can find it';
       throw new Error(
-        `[annDataZarrSource] X in ${label} is ${encoding(X) ?? 'missing'}, not CSC, and the store has ${hint}`
+        `[anndata_zarr_source] X in ${label} is ${encoding(X) ?? 'missing'}, not CSC, and the store has ${hint}`
       );
     };
 
@@ -237,7 +237,7 @@ export const makeAnnDataZarrSource = (zarr) => {
         ? encoding(matrix)
         : 'not a sparse matrix';
       throw new Error(
-        `[annDataZarrSource] ${matrix_path} in ${label} is ${kind}; Landscape needs a CSC copy, e.g. adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`
+        `[anndata_zarr_source] ${matrix_path} in ${label} is ${kind}; Landscape needs a CSC copy, e.g. adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`
       );
     }
 
@@ -247,7 +247,7 @@ export const makeAnnDataZarrSource = (zarr) => {
     const [n_obs, n_vars] = (matrix.attrs.shape ?? []).map(Number);
     if (n_obs !== n_cells || n_vars !== gene_names.length) {
       throw new Error(
-        `[annDataZarrSource] ${matrix_path} is ${n_obs} x ${n_vars}, but obs and var have ${n_cells} and ${gene_names.length} entries`
+        `[anndata_zarr_source] ${matrix_path} is ${n_obs} x ${n_vars}, but obs and var have ${n_cells} and ${gene_names.length} entries`
       );
     }
 
@@ -368,4 +368,4 @@ export const makeAnnDataZarrSource = (zarr) => {
  *   fetchOptions?: object}} [options]
  * @returns {Promise<object>} Cells, genes, metadata, and a gene reader.
  */
-export const annDataZarrSource = makeAnnDataZarrSource(zarrita);
+export const anndata_zarr_source = make_anndata_zarr_source(zarrita);

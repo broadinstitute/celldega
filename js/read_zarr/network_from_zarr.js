@@ -91,7 +91,7 @@ const unpack_views = (descriptions, packed) => {
  * @param {object} zarr - The zarrita module (or a compatible stand-in).
  * @returns {function(string|URL|object, {fetchOptions?: object}=): Promise<object>}
  */
-export const makeNetworkFromZarr = (zarr) => {
+export const make_network_from_zarr = (zarr) => {
   const open_store = (url, fetchOptions) => {
     // Drop trailing slashes with a scan rather than /\/+$/, which backtracks
     // quadratically on long runs of '/'.
@@ -145,7 +145,7 @@ export const makeNetworkFromZarr = (zarr) => {
     const meta = JSON.parse(await read('uns/celldega/meta_json'));
     if (meta.format !== FORMAT || Number(meta.version) > SUPPORTED_VERSION) {
       throw new Error(
-        `[networkFromZarr] unsupported store: ${meta.format} v${meta.version}`
+        `[network_from_zarr] unsupported store: ${meta.format} v${meta.version}`
       );
     }
 
@@ -218,4 +218,4 @@ export const makeNetworkFromZarr = (zarr) => {
  * @param {{fetchOptions?: object}} [options] - Options passed to every fetch.
  * @returns {Promise<object>} The network object for `matrix_viz`.
  */
-export const networkFromZarr = makeNetworkFromZarr(zarrita);
+export const network_from_zarr = make_network_from_zarr(zarrita);

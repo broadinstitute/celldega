@@ -50,7 +50,7 @@ All notable changes to Celldega are documented here. This project follows
   `matrix_from_zarr(el, { url, width, height, ... })` renders the same store in
   a browser (new `zarrita` dependency), opening at a precomputed view level
   with `rank_dim` like Python's `Clustergram(rank_dim=...)`, and
-  `networkFromZarr(url)` returns its `network` object.
+  `network_from_zarr(url)` returns its `network` object.
 - Neighborhood calculations are public functions again:
   - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
     `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
@@ -143,7 +143,15 @@ All notable changes to Celldega are documented here. This project follows
   `var["max"]` hold the gene statistics; cell attributes, cluster colors, and
   the UMAP come from the store unless `adata` is passed too. Requests that
   fail with a dropped connection or a server error are retried. In
-  JavaScript, `annDataZarrSource(url, options)` opens such a store.
+  JavaScript, `anndata_zarr_source(url, options)` opens such a store.
+- JavaScript: `landscape(el, options)` and `clustergram(el, options)` render
+  visualizations in a web page without Python. `landscape` takes the Python
+  `Landscape`'s arguments, for example a single-cell `zarr_url`; `clustergram`
+  takes a `network` object, a Matrix Zarr `url`, or DegaFiles. Both return the
+  visualization with its `model`, and `link_models(source, key, target, key)`
+  links them like `jslink`, e.g. Clustergram clicks to a Landscape.
+  `matrix_from_zarr` and `matrix_from_dega_files` now call `clustergram`;
+  `network_from_dega_files` is a snake_case alias of `networkFromDegaFiles`.
 - Landscape XY view: plot the raw DegaFiles expression of two genes against
   each other, with cells animating between the spatial, UMAP, and XY layouts.
   The XY button, next to UMAP when the dataset has a UMAP and genes, plots the

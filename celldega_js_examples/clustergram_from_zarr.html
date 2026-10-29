@@ -27,7 +27,7 @@
         'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/' +
         'resolve/main/pbmc3k/pbmc3k_leiden_markers.zarr';
 
-    await celldega.matrix_from_zarr(document.getElementById('matrix'), {
+    await celldega.clustergram(document.getElementById('matrix'), {
         url,
         width: 600,
         height: 700,

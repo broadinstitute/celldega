@@ -8,15 +8,17 @@ import {
 import { networkFromDegaFiles } from './read_parquet/network_from_dega_files';
 import { networkFromParquet } from './read_parquet/network_from_parquet';
 import { objects_from_parquet } from './read_parquet/objects_from_parquet';
-import { annDataZarrSource } from './read_zarr/anndata_zarr';
-import { networkFromZarr } from './read_zarr/network_from_zarr';
+import { anndata_zarr_source } from './read_zarr/anndata_zarr';
+import { network_from_zarr } from './read_zarr/network_from_zarr';
 import {
   handleAsyncError,
   handleValidationWarning,
 } from './temp_utils/errorHandler';
+import { link_models, make_options_model } from './utils/options_model';
 import { landmark } from './viz/landmark';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
+import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
 import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
@@ -72,7 +74,7 @@ const render_landscape_ist = async ({ model, el }) => {
   const zarr_url = model.get('zarr_url');
   let single_cell_source = null;
   if (zarr_url) {
-    single_cell_source = await annDataZarrSource(zarr_url, {
+    single_cell_source = await anndata_zarr_source(zarr_url, {
       layer: model.get('zarr_layer') || '',
       cell_attr: model.get('cell_attr') || [],
       cluster_attr: clusterAttr,
@@ -383,33 +385,114 @@ async function render({ model, el }) {
   }
 }
 
-// A minimal stand-in for the widget model when matrix_viz renders without Python.
+// The widget model a Clustergram renders with when there is no Python kernel.
 const static_matrix_model = (
   network,
   { viz_mode = null, rank_dim = null } = {}
-) => ({
-  get: (key) => {
-    if (key === 'row_entity') {
-      return JSON.stringify(
-        network.row_entity || { entity: 'gene', attr: 'name' }
-      );
-    }
-    if (key === 'col_entity') {
-      return JSON.stringify(
-        network.col_entity || { entity: 'cell', attr: 'leiden' }
-      );
-    }
-    if (key === 'viz_mode') return viz_mode;
-    if (key === 'rank_dim') return rank_dim;
-    return null;
-  },
-  set: () => {},
-  save_changes: () => {},
-  on: () => {},
-});
+) =>
+  make_options_model({
+    row_entity: JSON.stringify(
+      network.row_entity || { entity: 'gene', attr: 'name' }
+    ),
+    col_entity: JSON.stringify(
+      network.col_entity || { entity: 'cell', attr: 'leiden' }
+    ),
+    viz_mode,
+    rank_dim,
+  });
 
 /**
- * Load and render a Clustergram from DegaFiles.
+ * Render a Landscape in a web page, without Python. The options are the
+ * Python `Landscape`'s arguments, with the same defaults; for example a
+ * single-cell AnnData Zarr store:
+ * `await landscape(el, { zarr_url, cluster_attr: 'leiden', ini_zoom: -4.5 })`.
+ *
+ * @param {HTMLElement} el - Container element for the visualization
+ * @param {object} options - e.g. `zarr_url` or `base_url`, `cluster_attr`,
+ *   `cell_attr`, `technology`, `ini_x`, `ini_y`, `ini_zoom`, `height`, `width`
+ * @returns {Promise<object>} The Landscape, with its `model` (see link_models)
+ *   and `finalize()`
+ */
+const landscape = async (el, options = {}) => {
+  const model = make_options_model(landscape_model_values(options));
+  const viz = await render_landscape_ist({ model, el });
+  viz.model = model;
+  return viz;
+};
+
+/**
+ * Render a Clustergram in a web page, without Python, from a `network`
+ * object, a clustered Matrix Zarr store (`url`, written with
+ * `Matrix.write_zarr`), or DegaFiles (`base_url` and `name`).
+ *
+ * @param {HTMLElement} el - Container element for the visualization
+ * @param {object} options
+ * @param {object} [options.network] - A Clustergram network object
+ * @param {string} [options.url] - URL of a clustered Matrix `.zarr` store
+ * @param {string} [options.base_url] - Base URL of DegaFiles
+ * @param {string} [options.name='default'] - DegaFiles Clustergram name
+ * @param {number} [options.width=500] - Width of the matrix
+ * @param {number} [options.height=500] - Height of the matrix
+ * @param {string} [options.viz_mode] - 'heatmap' or 'dotplot'; defaults to
+ *   'dotplot' when the network has a size matrix
+ * @param {number} [options.rank_dim] - Open at this precomputed view level
+ *   (e.g. 10 top markers per cluster), like Python's `Clustergram(rank_dim=)`;
+ *   the full matrix by default
+ * @param {function} [options.row_label_callback] - Called with a clicked row name
+ * @param {function} [options.col_label_callback] - Called with a clicked column name
+ * @param {function} [options.col_dendro_callback] - Called on dendrogram selections
+ * @param {object} [options.fetchOptions] - Options for every fetch, e.g. headers
+ * @returns {Promise<object>} The Clustergram, with its `model` (see
+ *   link_models) and `finalize()`
+ */
+const clustergram = async (
+  el,
+  {
+    network: given_network,
+    url,
+    base_url,
+    name = 'default',
+    width = 500,
+    height = 500,
+    viz_mode,
+    rank_dim = null,
+    row_label_callback = null,
+    col_label_callback = null,
+    col_dendro_callback = null,
+    fetchOptions = {},
+  } = {}
+) => {
+  if ([given_network, url, base_url].filter(Boolean).length !== 1) {
+    throw new Error(
+      '[clustergram] Pass exactly one of network, url (Matrix Zarr), or base_url (DegaFiles).'
+    );
+  }
+  const network =
+    given_network ??
+    (url
+      ? await network_from_zarr(url, { fetchOptions })
+      : await networkFromDegaFiles(base_url, name, fetchOptions));
+  const model = static_matrix_model(network, {
+    viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
+    rank_dim,
+  });
+  const viz = await matrix_viz(
+    model,
+    el,
+    network,
+    width,
+    height,
+    row_label_callback,
+    col_label_callback,
+    col_dendro_callback
+  );
+  viz.model = model;
+  return viz;
+};
+
+/**
+ * Load and render a Clustergram from DegaFiles. Same as
+ * `clustergram(el, { base_url, name, ... })`.
  *
  * @param {HTMLElement} el - Container element for the visualization
  * @param {string} base_url - Base URL for the DegaFiles directory
@@ -422,7 +505,7 @@ const static_matrix_model = (
  * @param {object} [options] - Optional fetch options for authentication
  * @returns {Promise<object>} - The matrix visualization object
  */
-const matrix_from_dega_files = async (
+const matrix_from_dega_files = (
   el,
   base_url,
   name = 'default',
@@ -432,75 +515,37 @@ const matrix_from_dega_files = async (
   col_label_callback = null,
   col_dendro_callback = null,
   options = {}
-) => {
-  const network = await networkFromDegaFiles(base_url, name, options);
-
-  return matrix_viz(
-    static_matrix_model(network),
-    el,
-    network,
+) =>
+  clustergram(el, {
+    base_url,
+    name,
     width,
     height,
+    viz_mode: 'heatmap',
     row_label_callback,
     col_label_callback,
-    col_dendro_callback
-  );
-};
+    col_dendro_callback,
+    fetchOptions: options,
+  });
 
 /**
  * Load and render a Clustergram from a clustered Matrix Zarr store, written in
- * Python with `Matrix.write_zarr` (experimental).
+ * Python with `Matrix.write_zarr` (experimental). Same as
+ * `clustergram(el, { url, ... })`.
  *
  * @param {HTMLElement} el - Container element for the visualization
- * @param {object} options
- * @param {string} options.url - URL of the `.zarr` store
- * @param {number} [options.width=500] - Width of the matrix
- * @param {number} [options.height=500] - Height of the matrix
- * @param {string} [options.viz_mode] - 'heatmap' or 'dotplot'; defaults to
- *   'dotplot' when the store has a size matrix
- * @param {number} [options.rank_dim] - Open at this precomputed view level
- *   (e.g. 10 top markers per cluster), like Python's `Clustergram(rank_dim=)`;
- *   the full matrix by default
- * @param {function} [options.row_label_callback] - Callback for row label clicks
- * @param {function} [options.col_label_callback] - Callback for column label clicks
- * @param {function} [options.col_dendro_callback] - Callback for dendrogram selections
- * @param {object} [options.fetchOptions] - Options for every fetch, e.g. headers
+ * @param {object} options - `url` and the other `clustergram` options
  * @returns {Promise<object>} - The matrix visualization object
  */
-const matrix_from_zarr = async (
-  el,
-  {
-    url,
-    width = 500,
-    height = 500,
-    viz_mode,
-    rank_dim = null,
-    row_label_callback = null,
-    col_label_callback = null,
-    col_dendro_callback = null,
-    fetchOptions = {},
-  } = {}
-) => {
-  const network = await networkFromZarr(url, { fetchOptions });
-  const model = static_matrix_model(network, {
-    viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
-    rank_dim,
-  });
-
-  return matrix_viz(
-    model,
-    el,
-    network,
-    width,
-    height,
-    row_label_callback,
-    col_label_callback,
-    col_dendro_callback
-  );
-};
+const matrix_from_zarr = (el, options = {}) => clustergram(el, options);
 
 export default {
-  annDataZarrSource,
+  // Options-object entry points for web pages without Python.
+  landscape,
+  clustergram,
+  link_models,
+  // Lower-level renderers and readers.
+  anndata_zarr_source,
   landmark,
   landscape_ist,
   landscape_h_e,
@@ -508,7 +553,8 @@ export default {
   matrix_from_dega_files,
   matrix_from_zarr,
   networkFromDegaFiles,
-  networkFromZarr,
+  network_from_dega_files: networkFromDegaFiles,
+  network_from_zarr,
   yearbook,
   render,
   render_landmark,

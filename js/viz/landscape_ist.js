@@ -982,6 +982,7 @@ export const landscape_ist = async (
           .style('display', 'inline-flex')
           .style('color', 'gray')
           .classed('active', false);
+        viz_state.edit.mode = 'view';
         if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
           d3.select(viz_state.containers.nbhd_opacity_slider).style(
             'display',
@@ -1004,6 +1005,7 @@ export const landscape_ist = async (
         update_cell_pickable_state(layers_obj, true);
         update_path_pickable_state(layers_obj, true);
         update_trx_pickable_state(layers_obj, true);
+        viz_state.edit.mode = 'view';
         if (viz_state.nbhd.edit && viz_state.containers.nbhd_opacity_slider) {
           d3.select(viz_state.containers.nbhd_opacity_slider).style(
             'display',
@@ -1459,6 +1461,8 @@ export const landscape_ist = async (
       if (finalized) return;
       finalized = true;
       viz_state.disposed = true;
+
+      viz_state.edit?.cleanup_shortcuts?.();
 
       pending_timeouts.forEach((timeout_id) => clearTimeout(timeout_id));
       pending_timeouts.clear();

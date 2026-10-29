@@ -674,7 +674,8 @@ export const make_ist_ui_container = (
       'row'
     );
 
-    if (isChromium) {
+    spatial_toggle_container.style.flexWrap = 'wrap';
+    if (isChromium && viz_state.umap.has_umap) {
       make_button(
         spatial_toggle_container,
         'ist',
@@ -686,19 +687,10 @@ export const make_ist_ui_container = (
         layers_obj,
         viz_state
       );
-    } else {
+    } else if (!isChromium) {
       if (viz_state.umap.has_umap === true) {
         const umap_active = viz_state.obs_store.umap_state.get();
-        let ini_umap_color;
-        let ini_spatial_color;
-
-        if (umap_active === true) {
-          ini_umap_color = 'blue';
-          ini_spatial_color = 'gray';
-        } else {
-          ini_umap_color = 'gray';
-          ini_spatial_color = 'blue';
-        }
+        const ini_umap_color = umap_active ? 'blue' : 'gray';
 
         make_button(
           spatial_toggle_container,
@@ -711,11 +703,14 @@ export const make_ist_ui_container = (
           layers_obj,
           viz_state
         );
+      }
+
+      if (viz_state.umap.has_umap || hasGenes) {
         make_button(
           spatial_toggle_container,
           'ist',
           'SPATIAL',
-          ini_spatial_color,
+          viz_state.obs_store.umap_state.get() ? 'gray' : 'blue',
           50,
           'button',
           deck_ist,
@@ -834,11 +829,15 @@ export const make_ist_ui_container = (
       refresh_layer(viz_state, layers_obj, 'nbhd_layer');
     });
 
-    viz_state.containers.image.appendChild(img_layers_container);
+    // Swap this whole slot (including the image source selector) for XY axes.
+    const image_controls = document.createElement('div');
+    viz_state.containers.image_controls = image_controls;
+    image_controls.appendChild(img_layers_container);
+    viz_state.containers.image.appendChild(image_controls);
     make_image_source_control(
       viz_state,
       layers_obj,
-      viz_state.containers.image,
+      image_controls,
       img_layers_container
     );
   }

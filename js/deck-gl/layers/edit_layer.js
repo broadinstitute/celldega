@@ -9,6 +9,7 @@ import { is_orbit_technology } from '../../global_variables/image_info';
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
 import {
+  allocate_neighborhood_name,
   publish_selected_cells,
   sync_embedding_gates,
 } from '../../umap/embedding_gates';
@@ -187,7 +188,10 @@ const edit_layer_on_edit = async (
     // Assign a temporary name and color to the new feature
     const feature = viz_state.edit.feature_collection.features[newFeatureIndex];
     if (feature && !feature.properties.name) {
-      feature.properties.name = `nbhd_${newFeatureIndex + 1}`;
+      feature.properties.name = allocate_neighborhood_name(
+        viz_state,
+        newFeatureIndex
+      );
       feature.properties.cat = feature.properties.name;
       feature.properties.color = feature.properties.color || randomHexColor();
     }

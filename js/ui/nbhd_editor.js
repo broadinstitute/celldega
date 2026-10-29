@@ -1,3 +1,7 @@
+import {
+  allocate_neighborhood_name,
+  neighborhood_names,
+} from '../umap/embedding_gates';
 import { randomHexColor } from '../utils/hexToRgb';
 
 import {
@@ -126,6 +130,7 @@ export const initialize_nbhd_editor = (viz_state, _deck_ist, _layers_obj) => {
     on_apply_callback = on_apply;
 
     name_input.value = initial_name;
+    name_input.setCustomValidity('');
     color_input.value = initial_color || allocate_nbhd_color(viz_state);
 
     container.style.display = 'block';
@@ -141,7 +146,16 @@ export const initialize_nbhd_editor = (viz_state, _deck_ist, _layers_obj) => {
   const apply_changes = () => {
     if (context === null) return;
 
-    const name = name_input.value.trim() || `nbhd_${context.feature_index + 1}`;
+    const name =
+      name_input.value.trim() ||
+      allocate_neighborhood_name(viz_state, context.feature_index);
+    if (neighborhood_names(viz_state, context.feature_index).has(name)) {
+      name_input.setCustomValidity(
+        'A neighborhood with this name already exists. Choose a unique name across all views.'
+      );
+      name_input.reportValidity();
+      return;
+    }
     const color = color_input.value;
 
     if (on_apply_callback) {
@@ -157,6 +171,7 @@ export const initialize_nbhd_editor = (viz_state, _deck_ist, _layers_obj) => {
 
   // Event listeners
   apply_button.addEventListener('click', apply_changes);
+  name_input.addEventListener('input', () => name_input.setCustomValidity(''));
   cancel_button.addEventListener('click', close);
   close_button.addEventListener('click', close);
 

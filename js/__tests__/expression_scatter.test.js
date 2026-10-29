@@ -9,7 +9,8 @@ const read = (file) =>
     .replace(/^export const /gm, 'const ');
 const gates = new Function(`${read('umap/embedding_gates.js')}
   return { fingerprint, point_in_gate, gate_cell_ids, space_key,
-    publish_selected_cells, sync_embedding_gates, show_space_gates };`)();
+    publish_selected_cells, sync_embedding_gates, show_space_gates,
+    neighborhood_names, allocate_neighborhood_name };`)();
 const load = jest.fn();
 const scatter = new Function(
   'ViewMode',
@@ -59,7 +60,11 @@ class Layer {
     return new Layer({ ...this.props, ...props });
   }
 }
-const setup = ({ spatialOnly = false } = {}) => {
+const setup = ({
+  spatialOnly = false,
+  hasGenes = !spatialOnly,
+  modelEnabled = true,
+} = {}) => {
   const callbacks = {};
   const values = {
     xy_genes: [],
@@ -82,7 +87,7 @@ const setup = ({ spatialOnly = false } = {}) => {
   };
   const umap = new Float32Array([0, 0, 100, 100, 50, 50]);
   const state = {
-    model,
+    model: modelEnabled ? model : null,
     spatial: {
       cell_umap_scatter_positions: spatialOnly ? undefined : umap,
       cell_scatter_data: {
@@ -90,7 +95,7 @@ const setup = ({ spatialOnly = false } = {}) => {
         attributes: { getPosition: { value: umap, size: 2 } },
       },
     },
-    genes: { gene_names: spatialOnly ? [] : ['A', 'B'] },
+    genes: { gene_names: hasGenes ? ['A', 'B'] : [] },
     global_base_url: 'data',
     seg: { version: 'default' },
     cats: {
@@ -115,6 +120,7 @@ const setup = ({ spatialOnly = false } = {}) => {
     containers: {
       view_modes: document.createElement('div'),
       image: document.createElement('div'),
+      image_controls: document.createElement('div'),
     },
     buttons: { buttons: {} },
   };
@@ -383,6 +389,67 @@ describe('expression scatter and coordinate-aware gates', () => {
     gates.sync_embedding_gates(state);
     gates.show_space_gates(state, layers, space);
     expect(state.edit.feature_collection.features).toHaveLength(0);
+    dispose();
+  });
+
+  test('spatial DegaFiles supports XY without a UMAP and restores image controls', async () => {
+    const { state, model, dispose } = setup({
+      spatialOnly: true,
+      hasGenes: true,
+    });
+    expect(state.expression_scatter_enabled).toBe(true);
+    expect(state.spatial.cell_umap_scatter_positions).toBeUndefined();
+    state.obs_store.selected_genes.set(['A', 'B']);
+    state.buttons.buttons.xy.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledWith(
+      expect.any(Map),
+      'data',
+      'default',
+      'A',
+      undefined,
+      undefined
+    );
+    expect(model.get('view_space')).toMatchObject({
+      kind: 'xy',
+      genes: ['A', 'B'],
+    });
+    expect(state.containers.image_controls.style.display).toBe('none');
+    expect(Array.from(state.spatial.cell_xy_scatter_positions)).toEqual([
+      0, 100, 100, 0, 0, 100,
+    ]);
+    model.set('landscape_state', 'umap');
+    expect(state.obs_store.landscape_view.get()).toBe('xy');
+    model.set('landscape_state', 'spatial');
+    expect(state.containers.image_controls.style.display).toBe('');
+    expect(model.get('view_space').kind).toBe('spatial');
+    dispose();
+  });
+
+  test('neighborhood names stay unique across views and XY axes after deletion', () => {
+    const { state, layers, dispose } = setup();
+    const feature = (name, coordinate_space) => ({
+      properties: { name, coordinate_space },
+    });
+    const umap = state.neighborhood_space;
+    const xy = { kind: 'xy', genes: ['A', 'B'], scale: 'linear' };
+    state.embedding_gates.features = [
+      feature('nbhd_umap_1', umap),
+      feature('nbhd_xy_1', xy),
+      feature('T cells', xy),
+    ];
+    gates.show_space_gates(state, layers, umap);
+    expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_umap_2');
+    expect(gates.neighborhood_names(state, 0).has('nbhd_umap_1')).toBe(false);
+    expect(gates.neighborhood_names(state, 0).has('T cells')).toBe(true);
+    gates.show_space_gates(state, layers, { ...xy, scale: 'log1p' });
+    expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_xy_2');
+    state.edit.feature_collection.features = [
+      feature('nbhd_xy_3', state.neighborhood_space),
+    ];
+    expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_xy_2');
     dispose();
   });
 

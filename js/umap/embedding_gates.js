@@ -15,6 +15,36 @@ export const fingerprint = (values) => {
 
 export const space_key = (space) => JSON.stringify(space);
 
+// Names identify neighborhoods in both the UI and Python, across every space.
+// Exclude the current space's saved copy; the editor holds its latest version.
+export const neighborhood_names = (viz_state, exclude_index = null) => {
+  const space = viz_state.neighborhood_space || viz_state.embedding_space;
+  const other_spaces = (viz_state.embedding_gates?.features || []).filter(
+    (feature) =>
+      space_key(feature.properties.coordinate_space) !== space_key(space)
+  );
+  const current = (viz_state.edit?.feature_collection?.features || []).filter(
+    (_, index) => index !== exclude_index
+  );
+  const physical =
+    space?.kind === 'spatial' ? [] : viz_state.spatial_regions?.features || [];
+  return new Set(
+    [...other_spaces, ...physical, ...current]
+      .map((feature) => feature.properties?.name)
+      .filter(Boolean)
+  );
+};
+
+export const allocate_neighborhood_name = (viz_state, exclude_index = null) => {
+  const names = neighborhood_names(viz_state, exclude_index);
+  const kind =
+    (viz_state.neighborhood_space || viz_state.embedding_space)?.kind ||
+    'spatial';
+  let number = 1;
+  while (names.has(`nbhd_${kind}_${number}`)) number += 1;
+  return `nbhd_${kind}_${number}`;
+};
+
 // A gate's cells go to Python's `selected_cells` (Landscape.get_selected_cells)
 // without highlighting them in the view, which would hide or dim the rest.
 export const publish_selected_cells = (viz_state, ids) => {

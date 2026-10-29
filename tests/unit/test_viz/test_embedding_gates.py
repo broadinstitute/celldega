@@ -1,6 +1,7 @@
 import json
 
 import anndata as ad
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytest
@@ -69,6 +70,8 @@ def test_gate_roundtrip_and_restored_coordinate_space(landscape, tmp_path):
     assert widget.selected_cells == ["a", "c"]
     # Embedding gates must not flow through the spatial affine observer.
     assert widget.nbhd_geojson == {"type": "FeatureCollection", "features": []}
+    assert list(widget.nbhd["name"]) == ["gate 1"]
+    assert list(widget.nbhd["space"]) == ["xy"]
     with pytest.raises(ValueError, match="found 0"):
         widget.select_gate("missing")
 
@@ -113,6 +116,7 @@ def test_nbhd_vertex_coordinates_keep_spaces_and_invert_only_physical_affine(lan
         ],
     }
     frame = widget.nbhd_polygons.set_index("space")
+    pd.testing.assert_frame_equal(widget.nbhd, widget.nbhd_polygons)
     np.testing.assert_allclose(frame.loc["spatial", "x"], [[0, 1, 1, 0]])
     np.testing.assert_allclose(frame.loc["spatial", "y"], [[0, 0, 1, 0]], atol=1e-12)
     assert frame.loc["umap", "x"] == [[10, 12, 12, 10]]
@@ -125,3 +129,47 @@ def test_nbhd_vertex_coordinates_keep_spaces_and_invert_only_physical_affine(lan
     assert widget.landscape_state == "spatial"
     assert widget.selected_cells == ["a"]
     assert len(widget.nbhd_polygons) == 3
+
+
+@pytest.mark.parametrize("technology", ["Xenium", "Chromium"])
+def test_all_spaces_survive_physical_edits_and_gate_deletion(technology):
+    square = {"type": "Polygon", "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 0]]]}
+    physical = {"type": "Feature", "geometry": square, "properties": {"name": "tissue"}}
+    initial = gpd.GeoDataFrame.from_features([physical])
+    widget = Landscape(nbhd=initial, technology=technology, transform=np.eye(3))
+    # Loaded polygons are also available when editing is disabled.
+    widget.gates = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": square,
+                "properties": {"name": kind, "coordinate_space": {"kind": kind}},
+            }
+            for kind in ["umap", "xy"]
+        ],
+    }
+    assert list(widget.nbhd["space"]) == ["spatial", "umap", "xy"]
+    widget.nbhd_geojson = {"type": "FeatureCollection", "features": []}
+    assert list(widget.nbhd["space"]) == ["umap", "xy"]
+    widget.nbhd_geojson = {"type": "FeatureCollection", "features": [physical]}
+    assert list(widget.nbhd["name"]) == ["tissue", "umap", "xy"]
+    widget.gates = {"type": "FeatureCollection", "features": []}
+    assert list(widget.nbhd["space"]) == ["spatial"]
+    widget.close()
+
+
+def test_gates_supplied_to_constructor_populate_nbhd():
+    gates = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]},
+                "properties": {"name": "xy gate", "coordinate_space": {"kind": "xy"}},
+            }
+        ],
+    }
+    widget = Landscape(gates=gates, transform=np.eye(3))
+    assert list(widget.nbhd["name"]) == ["xy gate"]
+    widget.close()

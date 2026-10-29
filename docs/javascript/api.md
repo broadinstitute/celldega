@@ -226,6 +226,10 @@ static file server that allows cross-origin requests.
   - `width`, `height` (`number`, optional): Size of the matrix, 500 by default.
   - `viz_mode` (`string`, optional): `'heatmap'` or `'dotplot'`; defaults to
     `'dotplot'` when the store has a size matrix.
+  - `rank_dim` (`number`, optional): Opens at this precomputed view level, for
+    example `10` for the top 10 markers per cluster of
+    `cluster(view="rank_genes_groups")`, like Python's
+    `Clustergram(rank_dim=...)`. Opens the full matrix by default.
   - `row_label_callback`, `col_label_callback`, `col_dendro_callback`
     (`function`, optional): Called on row label, column label, and column
     dendrogram clicks.

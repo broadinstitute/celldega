@@ -12,6 +12,13 @@ exclude_docs: |
   # uncomment their nav entries below to restore them.
   examples/ccle_multiomics.md
   examples/tutorial_notebooks/CCLE_Multiomics_*.ipynb
+  # New single-cell and multi-omic tutorials temporarily hidden while they are
+  # revised; remove these lines and uncomment their nav entries below (and the
+  # entries in examples/index.md and the link in gallery_citeseq_pbmc.md) to
+  # restore them.
+  examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
+  examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
+  examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
   # Alignment tutorial drafts, not yet updated to the current APIs.
   examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
   examples/tutorial_notebooks/1.0_Preprocess_and_Align.ipynb
@@ -104,10 +111,12 @@ nav:
       - Broad-Allen Dev Mouse Brain E15.5 Viz: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
     - Single Cell Tutorials:
       - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
-      - MIX-seq Drug Screen Landscape-Clustergram-Enrich: examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
-    - Multi-Omic Tutorials:
-      - Flex CITE-seq PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
-      - CST Lung Cancer PTM Clustergram-Enrich: examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
+      # New single-cell and multi-omic tutorials temporarily hidden (also
+      # excluded in exclude_docs above)
+      # - MIX-seq Drug Screen Landscape-Clustergram-Enrich: examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
+    # - Multi-Omic Tutorials:
+    #   - Flex CITE-seq PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
+    #   - CST Lung Cancer PTM Clustergram-Enrich: examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb

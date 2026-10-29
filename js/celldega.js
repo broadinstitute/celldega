@@ -384,7 +384,10 @@ async function render({ model, el }) {
 }
 
 // A minimal stand-in for the widget model when matrix_viz renders without Python.
-const static_matrix_model = (network, { viz_mode = null } = {}) => ({
+const static_matrix_model = (
+  network,
+  { viz_mode = null, rank_dim = null } = {}
+) => ({
   get: (key) => {
     if (key === 'row_entity') {
       return JSON.stringify(
@@ -397,6 +400,7 @@ const static_matrix_model = (network, { viz_mode = null } = {}) => ({
       );
     }
     if (key === 'viz_mode') return viz_mode;
+    if (key === 'rank_dim') return rank_dim;
     return null;
   },
   set: () => {},
@@ -454,6 +458,9 @@ const matrix_from_dega_files = async (
  * @param {number} [options.height=500] - Height of the matrix
  * @param {string} [options.viz_mode] - 'heatmap' or 'dotplot'; defaults to
  *   'dotplot' when the store has a size matrix
+ * @param {number} [options.rank_dim] - Open at this precomputed view level
+ *   (e.g. 10 top markers per cluster), like Python's `Clustergram(rank_dim=)`;
+ *   the full matrix by default
  * @param {function} [options.row_label_callback] - Callback for row label clicks
  * @param {function} [options.col_label_callback] - Callback for column label clicks
  * @param {function} [options.col_dendro_callback] - Callback for dendrogram selections
@@ -467,6 +474,7 @@ const matrix_from_zarr = async (
     width = 500,
     height = 500,
     viz_mode,
+    rank_dim = null,
     row_label_callback = null,
     col_label_callback = null,
     col_dendro_callback = null,
@@ -476,6 +484,7 @@ const matrix_from_zarr = async (
   const network = await networkFromZarr(url, { fetchOptions });
   const model = static_matrix_model(network, {
     viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
+    rank_dim,
   });
 
   return matrix_viz(

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clustergram from a Matrix Zarr store</title>
+</head>
+
+<body>
+    <!--
+    A standalone Clustergram, without Python: the browser reads a clustered
+    Matrix saved with `Matrix.write_zarr` (an AnnData Zarr store) and renders
+    it, the way Clustergrammer rendered a network JSON. The same store loads in
+    Python with `Matrix.read_zarr`.
+
+    Serve the repository root (e.g. `python -m http.server`) and open
+    /celldega_js_examples/clustergram_from_zarr.html.
+    -->
+    <div id="matrix"></div>
+
+<script type="module">
+    import celldega from '../src/celldega/static/celldega.js';
+
+    // PBMC 3k Leiden clusters and their rank_genes_groups markers, clustered
+    // with Matrix(adata, groupby="leiden").cluster(view="rank_genes_groups").
+    const url =
+        'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/' +
+        'resolve/main/pbmc3k/pbmc3k_leiden_markers.zarr';
+
+    await celldega.matrix_from_zarr(document.getElementById('matrix'), {
+        url,
+        width: 600,
+        height: 700,
+        // Open at the top 10 markers per cluster; the DIM slider reaches the
+        // full transcriptome.
+        rank_dim: 10,
+        row_label_callback: (gene) => console.log('row', gene),
+        col_label_callback: (cluster) => console.log('column', cluster),
+    });
+</script>
+</body>
+</html>

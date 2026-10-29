@@ -48,8 +48,9 @@ All notable changes to Celldega are documented here. This project follows
   an AnnData Zarr store, and `Matrix.read_zarr` restores it without
   re-clustering, ready for `Clustergram(matrix=...)`. In JavaScript,
   `matrix_from_zarr(el, { url, width, height, ... })` renders the same store in
-  a browser (new `zarrita` dependency) and `networkFromZarr(url)` returns its
-  `network` object.
+  a browser (new `zarrita` dependency), opening at a precomputed view level
+  with `rank_dim` like Python's `Clustergram(rank_dim=...)`, and
+  `networkFromZarr(url)` returns its `network` object.
 - Neighborhood calculations are public functions again:
   - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
     `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`

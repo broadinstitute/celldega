@@ -9,9 +9,12 @@ and lineage. The Clustergram loads a clustered Matrix, saved in Python with
 
 <div id="clustergram-citeseq-pbmc" style="width: 100%; min-height: 900px;"></div>
 
+<!-- The CITE-seq tutorial is temporarily hidden (see exclude_docs in
+mkdocs.yaml); restore this link with it.
 Open the [CITE-seq tutorial](../examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb)
 to build this Clustergram, link it to a UMAP, and zoom in on B cells at
 single-cell resolution.
+-->
 
 [Clustered Matrix (Zarr) on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/Flex_16k_PBMC_CITE-seq/matrices/cell_types.zarr)
 · [MuData on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Flex_16k_PBMC_CITE-seq/Flex_16k_PBMC_CITE-seq.h5mu)

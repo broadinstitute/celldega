@@ -20,7 +20,10 @@ dependencies = [
     "ome-zarr>=0.12.2",
     "mudata",
 
-    "zarr>=3",
+    # The dev notebooks use Zarr v3 stores in both Python and JavaScript.
+    "zarr>=3,<4",
+    # Matrix.read_zarr also reads HTTPS stores (including Hugging Face).
+    "fsspec[http]>=2023.10.0",
 
     # numpy>=2 is required by the modern spatialdata stack (multiscale-spatial-image),
     # and must be a hard floor (not just >=1.23): in envs with a preinstalled numpy 1.x

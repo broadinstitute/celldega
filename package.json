@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@deck.gl-community/editable-layers": "^9.0.3",
-    "@loaders.gl/core": "^4.2.0",
+    "@loaders.gl/core": "^4.5.4",
     "@luma.gl/core": "^9.0.12",
     "@luma.gl/engine": "^9.0.12",
     "@luma.gl/shadertools": "^9.0.12",

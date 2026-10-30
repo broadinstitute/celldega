@@ -344,6 +344,7 @@ class Landscape(CelldegaWidget):
         sync=True
     )
 
+    # All neighborhoods, with a `space` column and full coordinate_space metadata.
     nbhd = traitlets.Instance(gpd.GeoDataFrame, allow_none=True)
     nbhd_geojson = traitlets.Dict({}).tag(sync=True)
 
@@ -684,24 +685,44 @@ class Landscape(CelldegaWidget):
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
 
-        # compute geojson for initial nbhd if provided
-        if self.nbhd is not None:
-            if "geometry_pixel" not in self.nbhd.columns:
-                a, b, tx = transformation_matrix[0]
-                c, d, ty = transformation_matrix[1]
-                coeffs = [a, b, c, d, tx, ty]
+        # A frame returned by another Landscape can contain multiple spaces.
+        # Convert only native tissue geometry to image pixels; embedding
+        # polygons already carry their displayed coordinates and axis metadata.
+        if nbhd_gdf is not None:
+            gdf_viz = nbhd_gdf.copy()
+            spaces = [
+                value if isinstance(value, dict) else {"kind": "spatial"}
+                for value in gdf_viz.get("coordinate_space", [None] * len(gdf_viz))
+            ]
+            if "coordinate_space" in gdf_viz:
+                gdf_viz["coordinate_space"] = spaces
+            physical = np.array([space.get("kind") == "spatial" for space in spaces], dtype=bool)
+            a, b, tx = transformation_matrix[0]
+            c, d, ty = transformation_matrix[1]
+            gdf_viz.loc[physical, "geometry"] = gdf_viz.loc[physical, "geometry"].map(
+                lambda geom: affine_transform(geom, [a, b, c, d, tx, ty])
+            )
+            if "geometry_pixel" in gdf_viz:
+                has_pixels = physical & gdf_viz["geometry_pixel"].notna()
+                gdf_viz.loc[has_pixels, "geometry"] = gdf_viz.loc[has_pixels, "geometry_pixel"]
+                gdf_viz = gdf_viz.drop(columns="geometry_pixel")
 
-                self.nbhd["geometry_pixel"] = self.nbhd.geometry.apply(
-                    lambda geom: affine_transform(geom, coeffs)
-                )
-
-            gdf_viz = deepcopy(self.nbhd)
-            gdf_viz["geometry"] = gdf_viz["geometry_pixel"]
-            gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
-
-            self.nbhd_geojson = json.loads(gdf_viz.to_json())
+            self.nbhd_geojson = json.loads(gdf_viz.loc[physical].to_json())
+            embedded = json.loads(gdf_viz.loc[~physical].to_json())["features"]
+            if embedded:
+                self.gates = {
+                    "type": "FeatureCollection",
+                    "features": [*embedded, *self.gates.get("features", [])],
+                }
         elif self.nbhd_edit:
             self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
+
+        # Restore gates supplied at construction after initializing the legacy
+        # physical-neighborhood input. Every Landscape exposes the same frame.
+        if self.gates.get("features"):
+            self._on_gates_change({"old": {}, "new": self.gates})
+        else:
+            self.nbhd = self.nbhd_polygons
 
     def trigger_update(self, new_value):
         """Update the update_trigger traitlet with a new value."""
@@ -720,7 +741,8 @@ class Landscape(CelldegaWidget):
         """Show raw DegaFiles expression on X/Y, using linear or log1p counts.
 
         Both genes may be omitted to start with all cells overlapping. A gene
-        for Y requires a gene for X. Use ``landscape_state = 'umap'`` to return.
+        for Y requires a gene for X. No UMAP is required. Return with
+        ``landscape_state = 'spatial'`` (or ``'umap'`` when available).
         """
         if y_gene and not x_gene:
             raise ValueError("Specify an X gene before a Y gene.")
@@ -795,18 +817,27 @@ class Landscape(CelldegaWidget):
 
     @property
     def nbhd_polygons(self):
-        """Drawn NBHDs with geometry, space, cell IDs and x/y vertex rings.
+        """All NBHDs with geometry, space, cell IDs and x/y vertex rings.
 
         Physical polygons use native tissue coordinates; UMAP and XY retain
         their displayed coordinates and their saved embedding/axis metadata.
         Each element of x/y is a polygon ring, including any interior holes.
+        ``nbhd`` exposes the same frame, updated when browser edits arrive.
         """
-        features = self.gates.get("features", [])
+        features = deepcopy(self.nbhd_geojson.get("features", []))
+        for feature in features:
+            feature.setdefault("properties", {}).setdefault("coordinate_space", {"kind": "spatial"})
+        features.extend(
+            deepcopy(feature)
+            for feature in self.gates.get("features", [])
+            if feature.get("properties", {}).get("coordinate_space", {}).get("kind") != "spatial"
+        )
         if not features:
             return gpd.GeoDataFrame(
-                columns=["name", "space", "x", "y", "geometry"], geometry="geometry"
+                columns=["name", "space", "coordinate_space", "cell_ids", "x", "y", "geometry"],
+                geometry="geometry",
             )
-        frame = gpd.GeoDataFrame.from_features(deepcopy(features))
+        frame = gpd.GeoDataFrame.from_features(features)
         frame["space"] = frame["coordinate_space"].map(lambda space: space["kind"])
         a, b, tx = self._inv_transform[0]
         c, d, ty = self._inv_transform[1]
@@ -819,28 +850,27 @@ class Landscape(CelldegaWidget):
         frame["y"] = vertices.map(lambda xy: xy[1])
         return frame
 
+    @traitlets.observe("gates")
+    def _on_gates_change(self, change):
+        """Keep the physical renderer and the multi-space Python frame in sync."""
+
+        def physical(collection):
+            return [
+                feature
+                for feature in (collection or {}).get("features", [])
+                if feature.get("properties", {}).get("coordinate_space", {}).get("kind")
+                == "spatial"
+            ]
+
+        current = physical(change["new"])
+        if current or physical(change["old"]):
+            self.nbhd_geojson = {"type": "FeatureCollection", "features": deepcopy(current)}
+        self.nbhd = self.nbhd_polygons
+
     @traitlets.observe("nbhd_geojson")
     def _on_nbhd_geojson_change(self, change):
-        """Update ``nbhd`` GeoDataFrame when the GeoJSON changes."""
-        if not getattr(self, "nbhd_edit", False):
-            return
-
-        new = change["new"]
-        if not new:
-            self.nbhd = gpd.GeoDataFrame(columns=["name", "geometry"], geometry="geometry")
-            return
-
-        gdf = gpd.GeoDataFrame.from_features(new.get("features", []))
-
-        try:
-            a, b, tx = self._inv_transform[0]
-            c, d, ty = self._inv_transform[1]
-            coeffs = [a, b, c, d, tx, ty]
-            gdf["geometry"] = gdf.geometry.apply(lambda geom: affine_transform(geom, coeffs))
-        except Exception:
-            pass
-
-        self.nbhd = gdf
+        """Physical edits must preserve neighborhoods drawn in other spaces."""
+        self.nbhd = self.nbhd_polygons
 
 
 class ManualAttributeTrait(traitlets.Unicode):

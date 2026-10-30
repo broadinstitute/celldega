@@ -1237,13 +1237,13 @@ export const landscape_ist = async (
         toggle_spatial_umap(deck_ist, layers_obj, viz_state);
 
       if (isUmap) {
-        viz_state.buttons.buttons.umap.style(
+        viz_state.buttons.buttons.umap?.style(
           'color',
           view === 'umap' ? 'blue' : 'gray'
         );
         if (!isChromium) {
-          viz_state.buttons.buttons.spatial.style('color', 'gray');
-          viz_state.buttons.buttons.img.style('color', 'gray');
+          viz_state.buttons.buttons.spatial?.style('color', 'gray');
+          viz_state.buttons.buttons.img?.style('color', 'gray');
         }
 
         viz_state.obs_store.viz_background_layer.set(false);
@@ -1269,9 +1269,9 @@ export const landscape_ist = async (
         });
       } else {
         if (!isChromium) {
-          viz_state.buttons.buttons.umap.style('color', 'gray');
-          viz_state.buttons.buttons.spatial.style('color', 'blue');
-          viz_state.buttons.buttons.img.style('color', 'blue');
+          viz_state.buttons.buttons.umap?.style('color', 'gray');
+          viz_state.buttons.buttons.spatial?.style('color', 'blue');
+          viz_state.buttons.buttons.img?.style('color', 'blue');
         }
 
         toggle_trx_layer_visibility(layers_obj, true);
@@ -1292,12 +1292,13 @@ export const landscape_ist = async (
         });
 
         schedule_timeout(() => {
+          if (viz_state.obs_store.landscape_view.get() !== 'spatial') return;
           viz_state.obs_store.viz_background_layer.set(true);
           viz_state.obs_store.viz_image_layers.set(true);
         }, 3000);
       }
     },
-    { immediate: false }
+    { immediate: base_landscape_view !== 'spatial' }
   );
 
   // Prime deck.gl's position-transition baseline while the cell layer is hidden,

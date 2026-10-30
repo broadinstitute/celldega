@@ -174,6 +174,24 @@ Notes:
 - These notebooks are matched by the `*.ipynb` rule in `.gitignore`, so commit a
   new one explicitly with `git add -f docs/examples/.../YourNotebook.ipynb`.
 
+### Sharing an unlisted example
+
+To share a work-in-progress notebook without listing it in the documentation:
+
+1. Copy the dev notebook into `docs/examples/tutorial_notebooks/`, removing
+   local-only `CELLDEGA_LOCAL_ESM` / `ANYWIDGET_HMR` setup, and embed its widget
+   state as described above. Preserve the dev notebook's current display sizes.
+2. Add its docs-relative path to `not_in_nav` in `mkdocs.yaml`. Do not put it in
+   `exclude_docs` (that prevents publication), `nav`, or the examples index.
+3. Build and publish the docs, then share the notebook's direct URL:
+   `https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/YourNotebook/`.
+
+`scripts/unlisted_docs.py` adds a work-in-progress notice and `noindex` metadata,
+and excludes these pages from site search and the sitemap. Unlisted pages are
+still public, and readers can forward their links. To graduate a notebook into
+the listed examples, remove it from `not_in_nav` and add its navigation/index
+entries.
+
 ## 🎨 Code Style
 
 **No need to worry about formatting!** Our pre-commit hooks automatically:

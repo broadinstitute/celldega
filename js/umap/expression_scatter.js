@@ -42,9 +42,13 @@ const bounds = (positions) => {
     result[2] = Math.min(result[2], positions[i + 1]);
     result[3] = Math.max(result[3], positions[i + 1]);
   }
-  return result.map((value, i) =>
-    Number.isFinite(value) ? value : (i % 2) * 10000
-  );
+  for (const axis of [0, 2]) {
+    if (!Number.isFinite(result[axis]) || result[axis] === result[axis + 1]) {
+      result[axis] = 0;
+      result[axis + 1] = 10000;
+    }
+  }
+  return result;
 };
 
 export const initialize_expression_scatter = (
@@ -57,7 +61,9 @@ export const initialize_expression_scatter = (
   const container = viz_state.containers.view_modes;
   const umap = spatial.cell_umap_scatter_positions;
   const has_xy = Boolean(
-    container && umap && viz_state.genes.gene_names.length
+    container &&
+      cats.cell_names_array.length &&
+      viz_state.genes.gene_names.length
   );
   viz_state.expression_scatter_enabled = has_xy;
   const disposers = [];
@@ -65,8 +71,9 @@ export const initialize_expression_scatter = (
   let request = 0;
   let animation = null;
   let position_version = 0;
-  let genes = [...(model?.get('xy_genes') ?? [])];
-  let scale = model?.get('xy_scale') || 'log1p';
+  // Web pages (e.g. the docs gallery) pass a plain object with no get().
+  let genes = [...(model?.get?.('xy_genes') ?? [])];
+  let scale = model?.get?.('xy_scale') || 'log1p';
   let displayed = new Float32Array(
     layers_obj.cell_layer.props.data.attributes.getPosition.value
   );
@@ -83,9 +90,11 @@ export const initialize_expression_scatter = (
     ),
     axes: { x: 'x', y: 'y' },
   };
-  const [x0, x1, y0, y1] = bounds(umap || []);
+  const [x0, x1, y0, y1] = bounds(
+    umap || spatial.cell_scatter_data?.attributes.getPosition.value || []
+  );
   const known_genes = new Set(viz_state.genes.gene_names);
-  viz_state.embedding_gates = model?.get('gates') || {
+  viz_state.embedding_gates = model?.get?.('gates') || {
     type: 'FeatureCollection',
     features: [],
   };
@@ -107,6 +116,7 @@ export const initialize_expression_scatter = (
     disposers.push(observable.subscribe(callback, { immediate: false }));
   };
   const show_gates = (space) => {
+    viz_state.nbhd_editor?.close();
     show_space_gates(viz_state, layers_obj, space);
     if (layers_obj.edit_layer) {
       viz_state.edit.mode = 'view';
@@ -150,7 +160,7 @@ export const initialize_expression_scatter = (
     listen('landscape_state', () => {
       const view = model.get('landscape_state');
       if (
-        ['spatial', 'umap'].includes(view) &&
+        (view === 'spatial' || (view === 'umap' && umap)) &&
         obs.landscape_view.get() !== view
       )
         obs.landscape_view.set(view);
@@ -188,10 +198,10 @@ export const initialize_expression_scatter = (
     on_xy_click
   );
   const lin_button = button('LIN', 'Linear gene expression', 25, () =>
-    publish('xy_scale', 'linear')
+    change_scale('linear')
   );
   const log_button = button('LOG', 'log(1 + gene expression)', 30, () =>
-    publish('xy_scale', 'log1p')
+    change_scale('log1p')
   );
   viz_state.buttons.buttons.xy = xy_button;
   const update_scale_controls = () => {
@@ -237,7 +247,7 @@ export const initialize_expression_scatter = (
         return;
       }
       input.setCustomValidity('');
-      publish('xy_genes', pair.filter(Boolean));
+      change_genes(pair.filter(Boolean));
     };
     input.addEventListener('input', update_axes);
     input.addEventListener('change', update_axes);
@@ -251,7 +261,7 @@ export const initialize_expression_scatter = (
     'font:11px system-ui;color:#555;max-width:135px;white-space:normal';
   inputs.appendChild(caption);
 
-  // Animate the small single-cell buffers directly. This also survives color
+  // Animate the cell buffers directly. This also survives color
   // and dendrogram updates, which can replace the deck.gl layer mid-transition.
   const animate = (target) => {
     cancelAnimationFrame(animation);
@@ -359,6 +369,22 @@ export const initialize_expression_scatter = (
     }
   };
 
+  function change_scale(next) {
+    if (model?.set) publish('xy_scale', next);
+    else {
+      scale = next;
+      update_scale_controls();
+      if (obs.landscape_view.get() === 'xy') update_xy();
+    }
+  }
+  function change_genes(next) {
+    if (model?.set) publish('xy_genes', next);
+    else {
+      genes = next;
+      if (obs.landscape_view.get() === 'xy') update_xy();
+    }
+  }
+
   // XY is entered only from its button. Selected genes (up to two) become the
   // axes; otherwise the previous axes are kept.
   function on_xy_click() {
@@ -370,7 +396,7 @@ export const initialize_expression_scatter = (
       axis_inputs.forEach((input, i) => {
         input.value = genes[i] || '';
       });
-      publish('xy_genes', genes);
+      change_genes(genes);
     }
     // Already in XY, new axes replot through the xy_genes listener.
     if (obs.landscape_view.get() !== 'xy') obs.landscape_view.set('xy');
@@ -380,12 +406,16 @@ export const initialize_expression_scatter = (
     const view = obs.landscape_view.get();
     update_scale_controls();
     inputs.style.display = view === 'xy' ? '' : 'none';
+    if (viz_state.containers.image_controls) {
+      viz_state.containers.image_controls.style.display =
+        view === 'xy' ? 'none' : '';
+    }
     publish('landscape_state', view);
     if (view === 'xy') update_xy();
     else {
       request += 1;
       show_gates(view === 'umap' ? umap_space : physical_space);
-      if (view === 'umap') animate(umap);
+      if (view === 'umap' && umap) animate(umap);
       else {
         cancelAnimationFrame(animation);
         spatial.embedding_animation_positions = null;
@@ -399,7 +429,7 @@ export const initialize_expression_scatter = (
   listen('landscape_state', () => {
     const view = model.get('landscape_state');
     if (
-      ['xy', 'umap', 'spatial'].includes(view) &&
+      (['xy', 'spatial'].includes(view) || (view === 'umap' && umap)) &&
       obs.landscape_view.get() !== view
     )
       obs.landscape_view.set(view);
@@ -436,5 +466,8 @@ export const initialize_expression_scatter = (
       delete viz_state.buttons.buttons.xy;
     }
     inputs.remove();
+    if (viz_state.containers.image_controls) {
+      viz_state.containers.image_controls.style.display = '';
+    }
   };
 };

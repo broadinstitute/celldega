@@ -9,7 +9,16 @@ const read = (file) =>
     .replace(/^export const /gm, 'const ');
 const gates = new Function(`${read('umap/embedding_gates.js')}
   return { fingerprint, point_in_gate, gate_cell_ids, space_key,
-    publish_selected_cells, sync_embedding_gates, show_space_gates };`)();
+    publish_selected_cells, sync_embedding_gates, show_space_gates,
+    neighborhood_names, allocate_neighborhood_name };`)();
+const initialize_nbhd_editor = new Function(
+  'allocate_neighborhood_name',
+  'neighborhood_names',
+  'randomHexColor',
+  `${read('ui/editor_common.js')}
+   ${read('ui/nbhd_editor.js')}
+   return initialize_nbhd_editor;`
+)(gates.allocate_neighborhood_name, gates.neighborhood_names, () => '#3366ff');
 const load = jest.fn();
 const scatter = new Function(
   'ViewMode',
@@ -59,7 +68,13 @@ class Layer {
     return new Layer({ ...this.props, ...props });
   }
 }
-const setup = ({ spatialOnly = false } = {}) => {
+const setup = ({
+  spatialOnly = false,
+  hasGenes = !spatialOnly,
+  modelEnabled = true,
+  plainModel = false,
+  initialFeatures = [],
+} = {}) => {
   const callbacks = {};
   const values = {
     xy_genes: [],
@@ -82,7 +97,8 @@ const setup = ({ spatialOnly = false } = {}) => {
   };
   const umap = new Float32Array([0, 0, 100, 100, 50, 50]);
   const state = {
-    model,
+    // Web pages without a widget pass a plain object (e.g. the docs gallery).
+    model: plainModel ? {} : modelEnabled ? model : null,
     spatial: {
       cell_umap_scatter_positions: spatialOnly ? undefined : umap,
       cell_scatter_data: {
@@ -90,7 +106,7 @@ const setup = ({ spatialOnly = false } = {}) => {
         attributes: { getPosition: { value: umap, size: 2 } },
       },
     },
-    genes: { gene_names: spatialOnly ? [] : ['A', 'B'] },
+    genes: { gene_names: hasGenes ? ['A', 'B'] : [] },
     global_base_url: 'data',
     seg: { version: 'default' },
     cats: {
@@ -104,7 +120,12 @@ const setup = ({ spatialOnly = false } = {}) => {
       cell_cats: ['T', 'B', 'T'],
       selected_cats: [],
     },
-    edit: { feature_collection: { type: 'FeatureCollection', features: [] } },
+    edit: {
+      feature_collection: {
+        type: 'FeatureCollection',
+        features: initialFeatures,
+      },
+    },
     obs_store: {
       landscape_view: observable(spatialOnly ? 'spatial' : 'umap'),
       viz_edit_layer: observable(false),
@@ -115,6 +136,7 @@ const setup = ({ spatialOnly = false } = {}) => {
     containers: {
       view_modes: document.createElement('div'),
       image: document.createElement('div'),
+      image_controls: document.createElement('div'),
     },
     buttons: { buttons: {} },
   };
@@ -383,6 +405,166 @@ describe('expression scatter and coordinate-aware gates', () => {
     gates.sync_embedding_gates(state);
     gates.show_space_gates(state, layers, space);
     expect(state.edit.feature_collection.features).toHaveLength(0);
+    dispose();
+  });
+
+  test('spatial DegaFiles supports XY without a UMAP and restores image controls', async () => {
+    const { state, model, dispose } = setup({
+      spatialOnly: true,
+      hasGenes: true,
+    });
+    expect(state.expression_scatter_enabled).toBe(true);
+    expect(state.spatial.cell_umap_scatter_positions).toBeUndefined();
+    state.obs_store.selected_genes.set(['A', 'B']);
+    state.buttons.buttons.xy.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledWith(
+      expect.any(Map),
+      'data',
+      'default',
+      'A',
+      undefined,
+      undefined
+    );
+    expect(model.get('view_space')).toMatchObject({
+      kind: 'xy',
+      genes: ['A', 'B'],
+    });
+    expect(state.containers.image_controls.style.display).toBe('none');
+    expect(Array.from(state.spatial.cell_xy_scatter_positions)).toEqual([
+      0, 100, 100, 0, 0, 100,
+    ]);
+    model.set('landscape_state', 'umap');
+    expect(state.obs_store.landscape_view.get()).toBe('xy');
+    model.set('landscape_state', 'spatial');
+    expect(state.containers.image_controls.style.display).toBe('');
+    expect(model.get('view_space').kind).toBe('spatial');
+    dispose();
+  });
+
+  test('neighborhood names stay unique across views and XY axes after deletion', () => {
+    const { state, layers, dispose } = setup();
+    const feature = (name, coordinate_space) => ({
+      properties: { name, coordinate_space },
+    });
+    const umap = state.neighborhood_space;
+    const xy = { kind: 'xy', genes: ['A', 'B'], scale: 'linear' };
+    state.embedding_gates.features = [
+      feature('nbhd_umap_1', umap),
+      feature('nbhd_xy_1', xy),
+      feature('T cells', xy),
+    ];
+    gates.show_space_gates(state, layers, umap);
+    expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_umap_2');
+    expect(gates.neighborhood_names(state, 0).has('nbhd_umap_1')).toBe(false);
+    expect(gates.neighborhood_names(state, 0).has('T cells')).toBe(true);
+    gates.show_space_gates(state, layers, { ...xy, scale: 'log1p' });
+    expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_xy_2');
+    state.edit.feature_collection.features = [
+      feature('nbhd_xy_3', state.neighborhood_space),
+    ];
+    expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_xy_2');
+    dispose();
+  });
+
+  test('preloaded tissue neighborhoods survive a view switch until deleted', () => {
+    const { state, layers, dispose } = setup({
+      spatialOnly: true,
+      initialFeatures: [{ properties: { name: 'tissue' } }],
+    });
+    const spatial = state.neighborhood_space;
+    gates.show_space_gates(state, layers, { kind: 'umap' });
+    expect(state.edit.feature_collection.features).toHaveLength(0);
+    gates.show_space_gates(state, layers, spatial);
+    expect(state.edit.feature_collection.features[0].properties.name).toBe(
+      'tissue'
+    );
+    state.edit.feature_collection.features = [];
+    gates.sync_embedding_gates(state);
+    gates.show_space_gates(state, layers, { kind: 'umap' });
+    gates.show_space_gates(state, layers, spatial);
+    expect(state.edit.feature_collection.features).toHaveLength(0);
+    dispose();
+  });
+
+  test('the neighborhood editor rejects a name already used in another space', () => {
+    const { state, dispose } = setup();
+    state.root = document.createElement('div');
+    state.edit.feature_collection.features = [
+      { properties: { name: 'original' } },
+    ];
+    state.embedding_gates.features = [
+      {
+        properties: {
+          name: 'taken',
+          coordinate_space: { kind: 'xy', genes: ['A'], scale: 'linear' },
+        },
+      },
+    ];
+    const editor = initialize_nbhd_editor(state, {}, {});
+    const on_apply = jest.fn();
+    editor.open({ feature_index: 0, initial_name: 'original', on_apply });
+    const input = state.root.querySelector('input[type="text"]');
+    const apply = [...state.root.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Apply'
+    );
+    input.value = 'taken';
+    apply.click();
+    expect(on_apply).not.toHaveBeenCalled();
+    expect(input.validationMessage).toMatch(/unique name across all views/);
+    input.value = 'original';
+    input.dispatchEvent(new Event('input'));
+    apply.click();
+    expect(on_apply).toHaveBeenCalledWith(
+      expect.objectContaining({ feature_index: 0, name: 'original' })
+    );
+    dispose();
+  });
+
+  test('standalone spatial views can change XY genes and scale without a widget model', async () => {
+    const { state, dispose } = setup({
+      spatialOnly: true,
+      hasGenes: true,
+      modelEnabled: false,
+    });
+    const input = state.containers.image.querySelector('[aria-label="X gene"]');
+    input.value = 'A';
+    input.dispatchEvent(new Event('input'));
+    state.buttons.buttons.xy.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.neighborhood_space).toMatchObject({
+      kind: 'xy',
+      genes: ['A'],
+      scale: 'log1p',
+    });
+    [...state.containers.view_modes.children]
+      .find((element) => element.textContent === 'LIN')
+      .click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.neighborhood_space.scale).toBe('linear');
+    state.obs_store.selected_genes.set(['B']);
+    state.buttons.buttons.xy.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.neighborhood_space.genes).toEqual(['B']);
+    dispose();
+  });
+
+  test('a plain-object model (no get/set) still sets up XY for a spatial dataset', () => {
+    const { state, dispose } = setup({
+      spatialOnly: true,
+      hasGenes: true,
+      plainModel: true,
+    });
+    expect(state.expression_scatter_enabled).toBe(true);
+    expect(state.buttons.buttons.xy).toBeDefined();
     dispose();
   });
 

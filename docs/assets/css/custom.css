@@ -18,11 +18,19 @@
    The `:has(.jupyter-wrapper)` selectors apply the layout from the first
    paint, before that script runs, so the sidebar never flashes open;
    `celldega-nav-open` is set by the script when the reader opens it. */
-.celldega-wide-notebook .md-sidebar--primary,
-body:has(.jupyter-wrapper):not(.celldega-nav-open) .md-sidebar--primary,
 .celldega-wide-notebook .md-sidebar--secondary,
 body:has(.jupyter-wrapper):not(.celldega-nav-open) .md-sidebar--secondary {
     display: none !important;
+}
+
+/* Below Material's desktop breakpoint the navigation is an off-canvas drawer
+   opened by the theme's menu button, so the sidebar is hidden (and the toggle
+   offered, see below) only on wider screens. */
+@media screen and (min-width: 76.25em) {
+    .celldega-wide-notebook .md-sidebar--primary,
+    body:has(.jupyter-wrapper):not(.celldega-nav-open) .md-sidebar--primary {
+        display: none !important;
+    }
 }
 
 .celldega-wide-notebook .md-main__inner,
@@ -97,6 +105,12 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
 
 .celldega-notebook-nav-toggle svg {
     display: block;
+}
+
+@media screen and (max-width: 76.234375em) {
+    .celldega-notebook-nav-toggle {
+        display: none;
+    }
 }
 
 /* Gallery example pages (a title followed by a full-width viewer): a smaller

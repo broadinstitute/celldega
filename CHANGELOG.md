@@ -199,6 +199,13 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
   (`notebooks/`) builds a Chromium Landscape and Clustergram from Census data,
   and a Slide-seq V2 notebook (`notebooks/`) pre-processes Slide-seq data into
   DegaFiles.
+- The Chromium PBMC tutorial uses the 10x PBMC 3k dataset from Hugging Face: a
+  Landscape that reads the AnnData Zarr store, a marker Clustergram loaded with
+  `Matrix.read_zarr`, and a single-cell Clustergram of each cluster's
+  `rank_genes_groups` markers, linked to its own Landscape (`col_entity="cell"`).
+- The MIX-seq and CST lung cancer PTM notebooks are published as unlisted
+  work-in-progress pages: shareable by URL, but absent from the navigation,
+  search, and sitemap.
 
 ### Changed
 

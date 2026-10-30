@@ -72,6 +72,7 @@ const setup = ({
   spatialOnly = false,
   hasGenes = !spatialOnly,
   modelEnabled = true,
+  plainModel = false,
   initialFeatures = [],
 } = {}) => {
   const callbacks = {};
@@ -96,7 +97,8 @@ const setup = ({
   };
   const umap = new Float32Array([0, 0, 100, 100, 50, 50]);
   const state = {
-    model: modelEnabled ? model : null,
+    // Web pages without a widget pass a plain object (e.g. the docs gallery).
+    model: plainModel ? {} : modelEnabled ? model : null,
     spatial: {
       cell_umap_scatter_positions: spatialOnly ? undefined : umap,
       cell_scatter_data: {
@@ -552,6 +554,17 @@ describe('expression scatter and coordinate-aware gates', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(state.neighborhood_space.genes).toEqual(['B']);
+    dispose();
+  });
+
+  test('a plain-object model (no get/set) still sets up XY for a spatial dataset', () => {
+    const { state, dispose } = setup({
+      spatialOnly: true,
+      hasGenes: true,
+      plainModel: true,
+    });
+    expect(state.expression_scatter_enabled).toBe(true);
+    expect(state.buttons.buttons.xy).toBeDefined();
     dispose();
   });
 

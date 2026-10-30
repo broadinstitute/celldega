@@ -71,8 +71,9 @@ export const initialize_expression_scatter = (
   let request = 0;
   let animation = null;
   let position_version = 0;
-  let genes = [...(model?.get('xy_genes') ?? [])];
-  let scale = model?.get('xy_scale') || 'log1p';
+  // Web pages (e.g. the docs gallery) pass a plain object with no get().
+  let genes = [...(model?.get?.('xy_genes') ?? [])];
+  let scale = model?.get?.('xy_scale') || 'log1p';
   let displayed = new Float32Array(
     layers_obj.cell_layer.props.data.attributes.getPosition.value
   );
@@ -93,7 +94,7 @@ export const initialize_expression_scatter = (
     umap || spatial.cell_scatter_data?.attributes.getPosition.value || []
   );
   const known_genes = new Set(viz_state.genes.gene_names);
-  viz_state.embedding_gates = model?.get('gates') || {
+  viz_state.embedding_gates = model?.get?.('gates') || {
     type: 'FeatureCollection',
     features: [],
   };

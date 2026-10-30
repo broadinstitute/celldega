@@ -395,7 +395,7 @@ export const initialize_expression_scatter = (
       axis_inputs.forEach((input, i) => {
         input.value = genes[i] || '';
       });
-      publish('xy_genes', genes);
+      change_genes(genes);
     }
     // Already in XY, new axes replot through the xy_genes listener.
     if (obs.landscape_view.get() !== 'xy') obs.landscape_view.set('xy');

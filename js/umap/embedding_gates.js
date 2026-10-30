@@ -169,7 +169,21 @@ export const show_space_gates = (viz_state, layers_obj, space) => {
     !collection.features.length &&
     !viz_state.spatial_gates_initialized
   ) {
-    collection.features = viz_state.spatial_regions?.features ?? [];
+    collection.features = (viz_state.spatial_regions?.features ?? []).map(
+      (feature) => ({
+        ...feature,
+        properties: { ...feature.properties, coordinate_space: space },
+      })
+    );
+    // Keep preloaded tissue polygons when leaving and returning to SPATIAL.
+    // Subsequent edits (including deleting every polygon) replace this copy.
+    viz_state.embedding_gates = {
+      type: 'FeatureCollection',
+      features: [
+        ...(viz_state.embedding_gates?.features ?? []),
+        ...collection.features,
+      ],
+    };
   }
   if (space?.kind === 'spatial') viz_state.spatial_gates_initialized = true;
   viz_state.edit.feature_collection = collection;

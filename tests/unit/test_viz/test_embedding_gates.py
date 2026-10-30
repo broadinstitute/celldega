@@ -173,3 +173,46 @@ def test_gates_supplied_to_constructor_populate_nbhd():
     widget = Landscape(gates=gates, transform=np.eye(3))
     assert list(widget.nbhd["name"]) == ["xy gate"]
     widget.close()
+
+
+@pytest.mark.parametrize("technology", ["Xenium", "Chromium"])
+def test_nbhd_frame_can_initialize_another_landscape_without_transforming_embeddings(technology):
+    transform = np.array([[2, 0, 10], [0, 3, 20], [0, 0, 1]])
+    source = Landscape(technology=technology, transform=transform)
+    source.gates = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[10, 20], [12, 20], [12, 23], [10, 20]]],
+                },
+                "properties": {
+                    "name": kind,
+                    "coordinate_space": {"kind": kind, "genes": ["A", "B"], "scale": "linear"},
+                    "cell_ids": ["a", "c"],
+                },
+            }
+            for kind in ["spatial", "umap", "xy"]
+        ],
+    }
+    original = source.nbhd.copy(deep=True)
+    restored = Landscape(nbhd=source.nbhd, technology=technology, transform=transform)
+    pd.testing.assert_frame_equal(source.nbhd, original)
+    result = restored.nbhd.set_index("space")
+    for _, row in original.iterrows():
+        assert result.loc[row["space"], "geometry"].equals_exact(row.geometry, 1e-12)
+        assert result.loc[row["space"], "coordinate_space"] == row.coordinate_space
+        assert result.loc[row["space"], "cell_ids"] == row.cell_ids
+    assert len(restored.nbhd_geojson["features"]) == 1
+    assert len(restored.gates["features"]) == 2
+    source.close()
+    restored.close()
+
+
+def test_empty_nbhd_frame_can_initialize_another_landscape(landscape):
+    source, _ = landscape
+    restored = Landscape(nbhd=source.nbhd, transform=np.eye(3))
+    assert restored.nbhd.empty
+    restored.close()

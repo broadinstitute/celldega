@@ -6,6 +6,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.28.0] - Unreleased
 
+Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
+
 ### Breaking
 
 - Methods are separated from data structures, the way Scanpy's functions are
@@ -152,22 +154,32 @@ All notable changes to Celldega are documented here. This project follows
   links them like `jslink`, e.g. Clustergram clicks to a Landscape.
   `matrix_from_zarr` and `matrix_from_dega_files` now call `clustergram`;
   `network_from_dega_files` is a snake_case alias of `networkFromDegaFiles`.
-- Landscape XY view: plot the raw DegaFiles expression of two genes against
-  each other, with cells animating between the spatial, UMAP, and XY layouts.
-  The XY button, next to UMAP when the dataset has a UMAP and genes, plots the
-  selected genes (or the previous axes); selecting genes alone never leaves the
-  UMAP. XY shows autocompleting gene inputs for each axis and a LIN/LOG toggle
-  for linear or `log(1 + counts)` axes. In Python,
+- Landscape XY view: plot the raw expression of two genes against each other,
+  with cells animating between the spatial, UMAP, and XY layouts. XY works for
+  spatial and single-cell datasets with genes, with or without a UMAP, reading
+  DegaFiles or an AnnData Zarr store. The XY button plots the selected genes
+  (or the previous axes); selecting genes alone never leaves the UMAP. XY shows
+  autocompleting gene inputs for each axis (in place of the image controls)
+  and a LIN/LOG toggle for linear or `log(1 + counts)` axes. In Python,
   `Landscape.set_xy(x_gene, y_gene, scale="log1p")` switches to XY, and the new
   `xy_genes` and `xy_scale` traits and `landscape_state="xy"` control it.
 - Landscape: the NBHD editor draws polygons ("gates") in the UMAP and XY views
   as well as the spatial view. Each gate keeps its coordinate space and the IDs
-  of the cells inside it, and is only drawn in the view it was made in. The
-  `gates` trait holds them all; `Landscape.save_gates(path)` and
-  `load_gates(path)` write and read them as GeoJSON, `select_gate(name)`
+  of the cells inside it, and is only drawn in the view it was made in; an XY
+  gate also records its genes and scale. New names are unique across views
+  (`nbhd_spatial_1`, `nbhd_umap_1`, `nbhd_xy_1`), and custom names are checked
+  for duplicates. The `gates` trait holds them all; `Landscape.save_gates(path)`
+  and `load_gates(path)` write and read them as GeoJSON, `select_gate(name)`
   restores a gate's view and selects its cells, and `nbhd_polygons` returns
   them as a `GeoDataFrame` (spatial gates in tissue coordinates).
-  `save_nbhds`, `load_nbhds`, and `select_nbhd` are aliases.
+  `save_nbhds`, `load_nbhds`, and `select_nbhd` are aliases. Passing
+  `nbhd=landscape.nbhd` to another Landscape of the same dataset restores the
+  polygons of every view.
+- Landscape: draw a neighborhood freehand. Click SKTCH in the NBHD editor (or
+  press `s` with the pointer over the Landscape), drag an outline, and release
+  to close it; Escape cancels.
+- `viz.get_local_server(file_server_root=...)` serves files from the given
+  directory instead of the current working directory.
 - Landscape: cluster selections, linked Clustergram selections, and gates
   update the `selected_cells` trait, and `Landscape.get_selected_cells(adata)`
   returns the selected cell IDs, or a copy of `adata` subset to them. A gate's
@@ -184,9 +196,16 @@ All notable changes to Celldega are documented here. This project follows
   protein), and CST lung cancer PTM (multi-omic) Landscape-Clustergram-Enrich
   notebooks, and a CITE-seq PBMC gallery entry whose Clustergram loads a
   `Matrix` Zarr store from Hugging Face. A CELLxGENE Census PBMC notebook
-  (`notebooks/`) builds a Chromium Landscape and Clustergram from Census data.
+  (`notebooks/`) builds a Chromium Landscape and Clustergram from Census data,
+  and a Slide-seq V2 notebook (`notebooks/`) pre-processes Slide-seq data into
+  DegaFiles.
 
 ### Changed
+
+- Dependencies: `zarr>=3,<4`, and `fsspec[http]` so `Matrix.read_zarr` can
+  read HTTPS stores such as Hugging Face.
+- `celldega.pre` imports without pyvips (libvips); only the image functions
+  that need it raise an error. Development builds also work on Windows.
 
 - Clustergram: the COL ordering controls come before the ROW controls,
   matching the column labels above the rows.

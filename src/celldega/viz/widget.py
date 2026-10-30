@@ -685,22 +685,35 @@ class Landscape(CelldegaWidget):
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
 
-        # compute geojson for initial nbhd if provided
-        if self.nbhd is not None:
-            if "geometry_pixel" not in self.nbhd.columns:
-                a, b, tx = transformation_matrix[0]
-                c, d, ty = transformation_matrix[1]
-                coeffs = [a, b, c, d, tx, ty]
+        # A frame returned by another Landscape can contain multiple spaces.
+        # Convert only native tissue geometry to image pixels; embedding
+        # polygons already carry their displayed coordinates and axis metadata.
+        if nbhd_gdf is not None:
+            gdf_viz = nbhd_gdf.copy()
+            spaces = [
+                value if isinstance(value, dict) else {"kind": "spatial"}
+                for value in gdf_viz.get("coordinate_space", [None] * len(gdf_viz))
+            ]
+            if "coordinate_space" in gdf_viz:
+                gdf_viz["coordinate_space"] = spaces
+            physical = np.array([space.get("kind") == "spatial" for space in spaces], dtype=bool)
+            a, b, tx = transformation_matrix[0]
+            c, d, ty = transformation_matrix[1]
+            gdf_viz.loc[physical, "geometry"] = gdf_viz.loc[physical, "geometry"].map(
+                lambda geom: affine_transform(geom, [a, b, c, d, tx, ty])
+            )
+            if "geometry_pixel" in gdf_viz:
+                has_pixels = physical & gdf_viz["geometry_pixel"].notna()
+                gdf_viz.loc[has_pixels, "geometry"] = gdf_viz.loc[has_pixels, "geometry_pixel"]
+                gdf_viz = gdf_viz.drop(columns="geometry_pixel")
 
-                self.nbhd["geometry_pixel"] = self.nbhd.geometry.apply(
-                    lambda geom: affine_transform(geom, coeffs)
-                )
-
-            gdf_viz = deepcopy(self.nbhd)
-            gdf_viz["geometry"] = gdf_viz["geometry_pixel"]
-            gdf_viz.drop(columns=["geometry_pixel"], inplace=True)
-
-            self.nbhd_geojson = json.loads(gdf_viz.to_json())
+            self.nbhd_geojson = json.loads(gdf_viz.loc[physical].to_json())
+            embedded = json.loads(gdf_viz.loc[~physical].to_json())["features"]
+            if embedded:
+                self.gates = {
+                    "type": "FeatureCollection",
+                    "features": [*embedded, *self.gates.get("features", [])],
+                }
         elif self.nbhd_edit:
             self.nbhd_geojson = {"type": "FeatureCollection", "features": []}
 

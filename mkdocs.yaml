@@ -18,11 +18,18 @@ exclude_docs: |
   # restore them.
   examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
-  examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
   # Alignment tutorial drafts, not yet updated to the current APIs.
   examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
   examples/tutorial_notebooks/1.0_Preprocess_and_Align.ipynb
   examples/tutorial_notebooks/2.0_Viz_CellCloud.ipynb
+
+# Built and shareable by URL, but intentionally absent from the navigation.
+# The hook also omits these pages from search/sitemap and adds noindex metadata.
+not_in_nav: |
+  examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
+
+hooks:
+  - scripts/unlisted_docs.py
 
 theme:
   name: material
@@ -116,6 +123,7 @@ nav:
       # - MIX-seq Drug Screen Landscape-Clustergram-Enrich: examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
     # - Multi-Omic Tutorials:
     #   - Flex CITE-seq PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Flex_CITE-seq_PBMC_Landscape-Clustergram-Enrich.ipynb
+    #   # CST PTM is shareable as an unlisted page (see not_in_nav above).
     #   - CST Lung Cancer PTM Clustergram-Enrich: examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb

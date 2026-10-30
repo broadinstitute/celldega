@@ -11,6 +11,14 @@ const gates = new Function(`${read('umap/embedding_gates.js')}
   return { fingerprint, point_in_gate, gate_cell_ids, space_key,
     publish_selected_cells, sync_embedding_gates, show_space_gates,
     neighborhood_names, allocate_neighborhood_name };`)();
+const initialize_nbhd_editor = new Function(
+  'allocate_neighborhood_name',
+  'neighborhood_names',
+  'randomHexColor',
+  `${read('ui/editor_common.js')}
+   ${read('ui/nbhd_editor.js')}
+   return initialize_nbhd_editor;`
+)(gates.allocate_neighborhood_name, gates.neighborhood_names, () => '#3366ff');
 const load = jest.fn();
 const scatter = new Function(
   'ViewMode',
@@ -64,6 +72,7 @@ const setup = ({
   spatialOnly = false,
   hasGenes = !spatialOnly,
   modelEnabled = true,
+  initialFeatures = [],
 } = {}) => {
   const callbacks = {};
   const values = {
@@ -109,7 +118,12 @@ const setup = ({
       cell_cats: ['T', 'B', 'T'],
       selected_cats: [],
     },
-    edit: { feature_collection: { type: 'FeatureCollection', features: [] } },
+    edit: {
+      feature_collection: {
+        type: 'FeatureCollection',
+        features: initialFeatures,
+      },
+    },
     obs_store: {
       landscape_view: observable(spatialOnly ? 'spatial' : 'umap'),
       viz_edit_layer: observable(false),
@@ -450,6 +464,94 @@ describe('expression scatter and coordinate-aware gates', () => {
       feature('nbhd_xy_3', state.neighborhood_space),
     ];
     expect(gates.allocate_neighborhood_name(state)).toBe('nbhd_xy_2');
+    dispose();
+  });
+
+  test('preloaded tissue neighborhoods survive a view switch until deleted', () => {
+    const { state, layers, dispose } = setup({
+      spatialOnly: true,
+      initialFeatures: [{ properties: { name: 'tissue' } }],
+    });
+    const spatial = state.neighborhood_space;
+    gates.show_space_gates(state, layers, { kind: 'umap' });
+    expect(state.edit.feature_collection.features).toHaveLength(0);
+    gates.show_space_gates(state, layers, spatial);
+    expect(state.edit.feature_collection.features[0].properties.name).toBe(
+      'tissue'
+    );
+    state.edit.feature_collection.features = [];
+    gates.sync_embedding_gates(state);
+    gates.show_space_gates(state, layers, { kind: 'umap' });
+    gates.show_space_gates(state, layers, spatial);
+    expect(state.edit.feature_collection.features).toHaveLength(0);
+    dispose();
+  });
+
+  test('the neighborhood editor rejects a name already used in another space', () => {
+    const { state, dispose } = setup();
+    state.root = document.createElement('div');
+    state.edit.feature_collection.features = [
+      { properties: { name: 'original' } },
+    ];
+    state.embedding_gates.features = [
+      {
+        properties: {
+          name: 'taken',
+          coordinate_space: { kind: 'xy', genes: ['A'], scale: 'linear' },
+        },
+      },
+    ];
+    const editor = initialize_nbhd_editor(state, {}, {});
+    const on_apply = jest.fn();
+    editor.open({ feature_index: 0, initial_name: 'original', on_apply });
+    const input = state.root.querySelector('input[type="text"]');
+    const apply = [...state.root.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Apply'
+    );
+    input.value = 'taken';
+    apply.click();
+    expect(on_apply).not.toHaveBeenCalled();
+    expect(input.validationMessage).toMatch(/unique name across all views/);
+    input.value = 'original';
+    input.dispatchEvent(new Event('input'));
+    apply.click();
+    expect(on_apply).toHaveBeenCalledWith(
+      expect.objectContaining({ feature_index: 0, name: 'original' })
+    );
+    dispose();
+  });
+
+  test('standalone spatial views can change XY genes and scale without a widget model', async () => {
+    const { state, dispose } = setup({
+      spatialOnly: true,
+      hasGenes: true,
+      modelEnabled: false,
+    });
+    const input = state.containers.image.querySelector('[aria-label="X gene"]');
+    input.value = 'A';
+    input.dispatchEvent(new Event('input'));
+    state.buttons.buttons.xy.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.neighborhood_space).toMatchObject({
+      kind: 'xy',
+      genes: ['A'],
+      scale: 'log1p',
+    });
+    [...state.containers.view_modes.children]
+      .find((element) => element.textContent === 'LIN')
+      .click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.neighborhood_space.scale).toBe('linear');
+    state.obs_store.selected_genes.set(['B']);
+    state.buttons.buttons.xy.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.neighborhood_space.genes).toEqual(['B']);
     dispose();
   });
 

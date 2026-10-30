@@ -78,6 +78,11 @@ landscape.load_nbhds("neighborhoods.geojson")
 landscape.select_nbhd("nbhd_xy_1")  # restores its axes and selects its cells
 ```
 
+You can also pass `nbhd=landscape.nbhd` into another Landscape of the same
+dataset. Spatial polygons are transformed for the tissue image; embedding
+polygons retain their saved coordinate-space metadata and render only in the
+matching view.
+
 For the full list of constructor arguments (multi-dataset support, point-cloud
 options, `AnnData` integration, etc.), see the
 [Viz Module API reference](../python/viz/api.md).

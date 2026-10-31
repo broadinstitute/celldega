@@ -275,6 +275,11 @@ class Landscape(CelldegaWidget):
         zarr_layer (str, optional): The ``zarr_url`` layer to read expression
             from, or ``"X"``. By default, ``X`` if it is CSC, else the store's
             only CSC layer.
+        gene_signature_url (str or Path, optional): Dense AnnData Zarr of cell-type
+            mean expression for UMAP/XY viewport estimates. ``obs_names`` match
+            the cell category labels, ``var_names`` are genes, and ``X`` holds
+            nonnegative means before z-scoring. ``uns['viewport_signature']``
+            is a JSON string with ``groupby`` (the cell attribute) and ``units``.
         dataset_names (list, optional): Short names for the datasets to display in
             the dropdown selector. Should match the length of base_urls.
             Example: ['Brain', 'Kidney'] for two datasets.
@@ -358,6 +363,7 @@ class Landscape(CelldegaWidget):
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
     xy_genes = traitlets.List(trait=traitlets.Unicode(), default_value=[], maxlen=2).tag(sync=True)
     xy_scale = traitlets.Enum(["linear", "log1p"], default_value="log1p").tag(sync=True)
+    gene_signature_url = traitlets.Unicode("").tag(sync=True)
     # All drawn NBHDs keep their coordinate space. Only physical polygons
     # receive a tissue affine when exposed as a Python GeoDataFrame.
     gates = traitlets.Dict({"type": "FeatureCollection", "features": []}).tag(sync=True)
@@ -433,6 +439,9 @@ class Landscape(CelldegaWidget):
             kwargs["zarr_url"] = _zarr_store_url(kwargs["zarr_url"])
             if transform is None:
                 transform = np.eye(3)
+
+        if kwargs.get("gene_signature_url"):
+            kwargs["gene_signature_url"] = _zarr_store_url(kwargs["gene_signature_url"])
 
         # nbhd_edit can now be True even when nbhd data is provided,
         # allowing users to edit pre-loaded neighborhood polygons
@@ -821,6 +830,8 @@ class Landscape(CelldegaWidget):
 
         Physical polygons use native tissue coordinates; UMAP and XY retain
         their displayed coordinates and their saved embedding/axis metadata.
+        Display Y increases downward; UMAP's ``axes.y.reversed`` marks that
+        increasing the raw embedding's second coordinate is drawn upward.
         Each element of x/y is a polygon ring, including any interior holes.
         ``nbhd`` exposes the same frame, updated when browser edits arrive.
         """

@@ -10,7 +10,7 @@ const read = (file) =>
 const gates = new Function(`${read('umap/embedding_gates.js')}
   return { fingerprint, point_in_gate, gate_cell_ids, space_key,
     publish_selected_cells, sync_embedding_gates, show_space_gates,
-    neighborhood_names, allocate_neighborhood_name };`)();
+    neighborhood_names, allocate_neighborhood_name, migrate_umap_gates };`)();
 const initialize_nbhd_editor = new Function(
   'allocate_neighborhood_name',
   'neighborhood_names',
@@ -27,6 +27,7 @@ const scatter = new Function(
   'load_gene_expression',
   'fingerprint',
   'show_space_gates',
+  'migrate_umap_gates',
   `${read('umap/expression_scatter.js')}
   return { expression_axis, interpolate_positions, initialize_expression_scatter };`
 )(
@@ -43,7 +44,8 @@ const scatter = new Function(
   jest.fn(),
   load,
   gates.fingerprint,
-  gates.show_space_gates
+  gates.show_space_gates,
+  gates.migrate_umap_gates
 );
 
 const observable = (value) => {
@@ -74,12 +76,14 @@ const setup = ({
   modelEnabled = true,
   plainModel = false,
   initialFeatures = [],
+  initialGates = [],
+  spatialOptions = {},
 } = {}) => {
   const callbacks = {};
   const values = {
     xy_genes: [],
     xy_scale: 'log1p',
-    gates: { type: 'FeatureCollection', features: [] },
+    gates: { type: 'FeatureCollection', features: initialGates },
   };
   const model = {
     get: (key) => values[key],
@@ -100,6 +104,7 @@ const setup = ({
     // Web pages without a widget pass a plain object (e.g. the docs gallery).
     model: plainModel ? {} : modelEnabled ? model : null,
     spatial: {
+      ...spatialOptions,
       cell_umap_scatter_positions: spatialOnly ? undefined : umap,
       cell_scatter_data: {
         length: 3,
@@ -155,6 +160,53 @@ const setup = ({
 };
 
 describe('expression scatter and coordinate-aware gates', () => {
+  test('restores and publishes matching legacy UMAP gates at initialization and on load', () => {
+    const old = {
+      type: 'Feature',
+      properties: {
+        name: 'legacy',
+        cell_ids: ['a'],
+        cell_count: 1,
+        coordinate_space: {
+          kind: 'umap',
+          dataset: gates.fingerprint(['a', 'b', 'c']),
+          embedding: 'legacy-embedding',
+        },
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [20, 0],
+            [20, 30],
+            [0, 0],
+          ],
+        ],
+      },
+    };
+    const { state, model, dispose } = setup({
+      initialGates: [old],
+      spatialOptions: {
+        umap_legacy_embedding: 'legacy-embedding',
+        umap_y_sum: 100,
+      },
+    });
+    const check = () => {
+      const migrated = model.get('gates').features[0];
+      expect(migrated.properties.coordinate_space).toEqual(
+        state.embedding_space
+      );
+      expect(migrated.properties.cell_ids).toEqual(['a']);
+      expect(migrated.properties.y).toEqual([[100, 100, 70, 100]]);
+      expect(state.edit.feature_collection.features[0]).toEqual(migrated);
+    };
+    check();
+    model.set('gates', { type: 'FeatureCollection', features: [old] });
+    check();
+    expect(old.geometry.coordinates[0][0]).toEqual([0, 0]);
+    dispose();
+  });
   beforeEach(() => {
     load.mockReset();
     load.mockResolvedValue({ cell_names: ['a', 'b'], cell_exp: [0, 9] });

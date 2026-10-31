@@ -23,6 +23,7 @@ import {
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
+import { fingerprint } from '../../umap/embedding_gates';
 import { scale_umap_positions } from '../../umap/scale_umap_data';
 import {
   buildCellCompactData,
@@ -280,7 +281,8 @@ export const set_point_cloud_umap_positions_from_names = (
   viz_state.spatial.cell_umap_positions = scale_umap_positions(
     viz_state,
     positions,
-    POINT_CLOUD_POSITION_SIZE
+    POINT_CLOUD_POSITION_SIZE,
+    false
   );
 };
 
@@ -502,6 +504,17 @@ export const set_scatterplot_umap_positions_from_names = (
     positions[offset + 1] = Number(coords?.[1]) || 0;
   }
 
+  // Hash the original formula before reversing Y. Re-mirroring the new buffer
+  // can differ in floating-point rounding and fail to identify saved gates.
+  const legacy = scale_umap_positions(viz_state, positions.slice(), 2, false);
+  viz_state.spatial.umap_legacy_embedding = fingerprint(legacy);
+  let low = Infinity;
+  let high = -Infinity;
+  for (let i = 1; i < legacy.length; i += 2) {
+    low = Math.min(low, legacy[i]);
+    high = Math.max(high, legacy[i]);
+  }
+  viz_state.spatial.umap_y_sum = low + high;
   viz_state.spatial.cell_umap_scatter_positions = scale_umap_positions(
     viz_state,
     positions,

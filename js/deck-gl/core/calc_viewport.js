@@ -324,7 +324,8 @@ export const calc_viewport = async (
   viz_state
 ) => {
   if (viz_state.disposed) return;
-  if (is_umap_view(viz_state)) return;
+  width ??= deck_ist?.width;
+  height ??= deck_ist?.height;
 
   const requestId = (viz_state.viewport_request_id || 0) + 1;
   viz_state.viewport_request_id = requestId;
@@ -333,6 +334,17 @@ export const calc_viewport = async (
   const wasCloseUp = viz_state.close_up;
   // Kept so a TRX click can re-run this for the current view.
   viz_state.last_viewport_params = { height, width, zoom, target };
+  if (is_umap_view(viz_state)) {
+    const factor = Math.pow(2, zoom);
+    viz_state.update_embedding_viewport?.({
+      min_x: target[0] - width / (2 * factor),
+      max_x: target[0] + width / (2 * factor),
+      min_y: target[1] - height / (2 * factor),
+      max_y: target[1] + height / (2 * factor),
+    });
+    return;
+  }
+  viz_state.update_embedding_viewport?.();
   const isPointCloud = is_orbit_technology(
     viz_state.img?.landscape_parameters?.technology
   );

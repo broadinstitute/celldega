@@ -6,9 +6,7 @@ const bounce_time = 200;
 
 export const on_view_state_change = debounce(
   ({ viewState }, deck_ist, layers_obj, viz_state) => {
-    if (viz_state.obs_store.umap_state.get() === false) {
-      calc_viewport(viewState, deck_ist, layers_obj, viz_state);
-    }
+    calc_viewport(viewState, deck_ist, layers_obj, viz_state);
 
     if (viz_state.scale_bar) {
       viz_state.obs_store.scale_bar_view_state.set(viewState);

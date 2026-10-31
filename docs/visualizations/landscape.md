@@ -52,6 +52,8 @@ controls. **UMAP** is shown only when an embedding is supplied.
 
 XY uses the same expression reader as gene coloring: spatial datasets read
 DegaFiles, and non-spatial datasets can read DegaFiles or AnnData Zarr.
+UMAP's second coordinate increases upward, matching the usual AnnData/Scanpy
+orientation. XY's expression Y axis also increases upward.
 
 ```python
 landscape.set_xy("CD3D", "MS4A1", scale="log1p")
@@ -68,7 +70,11 @@ unique across spaces (for example, `nbhd_spatial_1`, `nbhd_umap_1`, and
 `landscape.nbhd_polygons`. Both include `space`, `coordinate_space`, geometry,
 and `x`/`y` vertex rings; drawn neighborhoods also include `cell_ids` and
 `cell_count`. Spatial geometry uses native tissue coordinates, while UMAP and
-XY retain their embedding coordinates. Filter to the appropriate space before
+XY retain their scaled display coordinates, with Y increasing downward in
+the stored geometry. UMAP records `axes.y.reversed=True` because increasing
+`X_umap[:, 1]` is displayed upward. Matching saved UMAP polygons from the
+previous orientation migrate automatically; cell IDs remain unchanged.
+Filter to the appropriate space before
 calculating physical areas or distances:
 
 ```python
@@ -82,6 +88,61 @@ You can also pass `nbhd=landscape.nbhd` into another Landscape of the same
 dataset. Spatial polygons are transformed for the tissue image; embedding
 polygons retain their saved coordinate-space metadata and render only in the
 matching view.
+
+## Viewport cell types and estimated expression
+
+Panning or zooming in UMAP or XY updates the cell-type bars with counts of all
+cell centers inside the viewport. **Select cells in view** sends those cell IDs
+to `get_selected_cells()` for Python analysis or a cell-level Clustergram.
+It does not dim the view. NBHD polygons remain an option for a custom boundary.
+Without a signature store, the gene bars retain the labeled whole-dataset
+summary.
+
+To estimate gene expression locally, supply a separate signature AnnData Zarr:
+
+```python
+import json
+import scanpy as sc
+import zarr
+
+# adata.X should contain the expression you want to summarize, before z-scoring.
+signature = sc.get.aggregate(adata, by="cell_type", func="mean")
+signature.X = signature.layers["mean"]
+signature.uns["viewport_signature"] = json.dumps({
+    "groupby": "cell_type",
+    "units": "mean log1p counts per 10,000",  # match your preprocessing
+})
+signature.write_zarr("cell_type_signatures.zarr")
+zarr.consolidate_metadata("cell_type_signatures.zarr")
+
+landscape = dega.viz.Landscape(
+    zarr_url="cells.zarr",
+    cluster_attr="cell_type",
+    gene_signature_url="cell_type_signatures.zarr",
+    nbhd_edit=True,
+)
+```
+
+The signature store has cell-type labels as `obs_names`, gene names as
+`var_names`, and a dense, finite, nonnegative `X`. The **Estimated genes** bars
+show `sum(visible cell-type count × cell-type mean) / visible cell count`, using
+the signature's units and up to 200 highest estimated genes. These composition
+estimates do not capture variation within a cell type. Every visible cell must
+have a matching signature; otherwise the panel reports the coverage instead.
+No per-cell expression is downloaded when the viewport changes. Gene coloring
+and XY axes still read actual cell expression.
+
+For exact expression or a Clustergram, select a viewport or NBHD and use the
+matching cell-level AnnData in Python:
+
+```python
+selected = landscape.get_selected_cells(adata)
+if selected.n_obs:
+    mat = dega.clust.Matrix(selected)
+    mat.filter("row", by="var", num=min(500, selected.n_vars))
+    mat.cluster()
+    cgm = dega.viz.Clustergram(matrix=mat)
+```
 
 For the full list of constructor arguments (multi-dataset support, point-cloud
 options, `AnnData` integration, etc.), see the

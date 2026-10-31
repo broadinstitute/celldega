@@ -15,6 +15,47 @@ export const fingerprint = (values) => {
 
 export const space_key = (space) => JSON.stringify(space);
 
+// Upgrade only gates from this dataset and the exact old displayed embedding.
+// Unrelated embeddings and XY gates keep their saved geometry and metadata.
+export const migrate_umap_gates = (
+  collection,
+  space,
+  legacy_embedding,
+  y_sum
+) => {
+  if (!space || !legacy_embedding || !Number.isFinite(y_sum)) return collection;
+  let changed = false;
+  const features = (collection?.features || []).map((feature) => {
+    const old = feature.properties?.coordinate_space;
+    if (
+      old?.kind !== 'umap' ||
+      old.dataset !== space.dataset ||
+      old.embedding !== legacy_embedding ||
+      old.axes
+    )
+      return feature;
+    changed = true;
+    const mirror = (coordinates) =>
+      typeof coordinates[0] === 'number'
+        ? [coordinates[0], y_sum - coordinates[1], ...coordinates.slice(2)]
+        : coordinates.map(mirror);
+    const coordinates = mirror(feature.geometry.coordinates);
+    const rings =
+      feature.geometry.type === 'Polygon' ? coordinates : coordinates.flat();
+    return {
+      ...feature,
+      geometry: { ...feature.geometry, coordinates },
+      properties: {
+        ...feature.properties,
+        coordinate_space: space,
+        x: rings.map((ring) => ring.map((point) => point[0])),
+        y: rings.map((ring) => ring.map((point) => point[1])),
+      },
+    };
+  });
+  return changed ? { ...collection, features } : collection;
+};
+
 // Names identify neighborhoods in both the UI and Python, across every space.
 // Exclude the current space's saved copy; the editor holds its latest version.
 export const neighborhood_names = (viz_state, exclude_index = null) => {

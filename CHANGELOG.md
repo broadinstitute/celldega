@@ -40,6 +40,10 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 
 ### Added
 
+- Landscape: UMAP/XY viewport bars count visible cell types and estimate local
+  gene means from a precomputed signature AnnData Zarr (`gene_signature_url`),
+  weighted by visible cell-type counts. Estimates are labeled with their units;
+  **Select cells in view** exports all visible IDs for Python analysis.
 - `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
   value reaches a threshold somewhere, for example genes detected in at least
   5% of some cluster's cells. Recommended for whole-transcriptome data before

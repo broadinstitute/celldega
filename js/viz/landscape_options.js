@@ -13,6 +13,7 @@ export const LANDSCAPE_DEFAULTS = {
   dataset_name: '',
   focused_gene: '',
   gates: { type: 'FeatureCollection', features: [] },
+  gene_signature_url: '',
   height: 600,
   ini_x: 0,
   ini_y: 0,

@@ -52,3 +52,28 @@ def test_local_zarr_path_must_exist_under_the_working_directory(tmp_path, monkey
         Landscape(zarr_url="missing.zarr")
     with pytest.raises(ValueError, match="outside the working directory"):
         Landscape(zarr_url=outside)
+
+
+def test_gene_signatures_use_the_shared_store_server(tmp_path, monkeypatch):
+    cells = tmp_path / "cells.zarr"
+    signatures = tmp_path / "cell type signatures.zarr"
+    cells.mkdir()
+    signatures.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(widget_module, "_SHARED_LOCAL_SERVER_PORT", 8123)
+    landscape = Landscape(zarr_url=cells, gene_signature_url=signatures)
+    assert landscape.gene_signature_url == "http://localhost:8123/cell%20type%20signatures.zarr"
+    assert landscape.traits()["gene_signature_url"].metadata["sync"]
+    landscape.close()
+
+
+def test_remote_gene_signature_url_and_missing_local_store(tmp_path, monkeypatch):
+    landscape = Landscape(
+        gene_signature_url="https://example.org/signatures.zarr/",
+        transform=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    )
+    assert landscape.gene_signature_url == "https://example.org/signatures.zarr"
+    landscape.close()
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        Landscape(gene_signature_url="missing.zarr")

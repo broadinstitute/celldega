@@ -110,6 +110,7 @@ import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
+import { initialize_viewport_summary } from '../umap/viewport_summary';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -1330,6 +1331,20 @@ export const landscape_ist = async (
         deck_ist
       )
     );
+    viz_state.refresh_viewport = () =>
+      calc_viewport(
+        {
+          ...viz_state.initial_view_state,
+          ...viz_state.last_viewport_params,
+          width: deck_ist.width,
+          height: deck_ist.height,
+        },
+        deck_ist,
+        layers_obj,
+        viz_state
+      );
+    cleanup_callbacks.push(initialize_viewport_summary(viz_state));
+    schedule_timeout(() => viz_state.refresh_viewport(), 0);
   }
 
   // Callback registries for external listeners

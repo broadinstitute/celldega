@@ -153,6 +153,71 @@ def _zarr_store_url(zarr_url: Any) -> str:
     return f"http://localhost:{_SHARED_LOCAL_SERVER_PORT}/{quote(relative.as_posix())}"
 
 
+# Widget messages much larger than this can fail to reach the browser.
+_SIGNATURE_WARN_BYTES = 30_000_000
+
+
+def _signature_parquet(adata_sig: Any, groupby: str) -> bytes:
+    """``adata_sig`` cell-type means as parquet for UMAP/XY viewport estimates.
+
+    Genes are rows and cell types are columns (DegaFiles' df_sig layout), with
+    ``groupby`` and ``units`` in the schema's ``viewport_signature`` metadata.
+    Genes with no expression in any cell type are dropped.
+    """
+    import io
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from scipy import sparse
+
+    meta = adata_sig.uns.get("viewport_signature") or {}
+    if isinstance(meta, str):
+        meta = json.loads(meta)
+    # The estimate reads meta["layer"], else the mean counts in layers["counts"]
+    # (a "log1p" layer is for z-scored views), else X, else sc.get.aggregate's
+    # "mean" layer.
+    layer = meta.get("layer") or ("counts" if "counts" in adata_sig.layers else None)
+    if layer is not None and layer not in adata_sig.layers:
+        raise ValueError(f"adata_sig has no layer {layer!r}.")
+    values = adata_sig.layers[layer] if layer is not None else adata_sig.X
+    if values is None and "mean" in adata_sig.layers:
+        layer, values = "mean", adata_sig.layers["mean"]
+    if values is None:
+        raise ValueError(
+            "adata_sig needs cell-type means in layers['counts'] or X, "
+            "or the 'mean' layer of sc.get.aggregate."
+        )
+    values = np.asarray(values.toarray() if sparse.issparse(values) else values, dtype=np.float32)
+    if not np.isfinite(values).all() or (values < 0).any():
+        raise ValueError("adata_sig must hold finite, nonnegative means (before z-scoring).")
+    groups = pd.Index(adata_sig.obs_names.astype(str))
+    genes = pd.Index(adata_sig.var_names.astype(str))
+    if not (groups.is_unique and genes.is_unique):
+        raise ValueError("adata_sig needs unique cell types (obs_names) and genes (var_names).")
+
+    meta = {
+        "groupby": meta.get("groupby", groupby),
+        "units": (meta.get("layers") or {}).get(layer)
+        or meta.get("units", "mean expression per cell"),
+    }
+    expressed = (values > 0).any(axis=0)
+    frame = pd.DataFrame(values[:, expressed].T, index=genes[expressed], columns=groups)
+    table = pa.Table.from_pandas(frame.rename_axis("gene").reset_index(), preserve_index=False)
+    table = table.replace_schema_metadata(
+        {**(table.schema.metadata or {}), b"viewport_signature": json.dumps(meta).encode()}
+    )
+    buffer = io.BytesIO()
+    pq.write_table(table, buffer, compression="zstd")
+    data = buffer.getvalue()
+    if len(data) > _SIGNATURE_WARN_BYTES:
+        warnings.warn(
+            f"adata_sig is {len(data) / 1e6:.0f} MB, which may be too large to send to "
+            "the browser; save it as an AnnData Zarr store and pass gene_signature_url.",
+            stacklevel=3,
+        )
+    return data
+
+
 def _coerce_transform_matrix(transform: Any) -> np.ndarray:
     matrix = np.asarray(transform, dtype=float)
     if matrix.shape == (2, 3):
@@ -277,9 +342,23 @@ class Landscape(CelldegaWidget):
             only CSC layer.
         gene_signature_url (str or Path, optional): Dense AnnData Zarr of cell-type
             mean expression for UMAP/XY viewport estimates. ``obs_names`` match
-            the cell category labels, ``var_names`` are genes, and ``X`` holds
-            nonnegative means before z-scoring. ``uns['viewport_signature']``
-            is a JSON string with ``groupby`` (the cell attribute) and ``units``.
+            the cell category labels and ``var_names`` are genes. The estimate
+            reads nonnegative means from ``layers['counts']`` (mean counts per
+            cell, comparable with the exact values a TRX click computes) when
+            present, else ``X``; a ``layers['log1p']`` of mean log1p expression
+            can sit alongside for z-scored views. ``uns['viewport_signature']``
+            is a JSON string with ``groupby`` (the cell attribute) and
+            ``units``, and optionally ``layer`` (the layer to read) and
+            ``layers`` (units per layer).
+        adata_sig (AnnData, optional): The same cell-type means as an in-memory
+            AnnData, read the same way, e.g. ``sc.get.aggregate(adata,
+            by="leiden", func="mean", layer="counts")`` (whose ``"mean"`` layer
+            is used when there is neither ``layers['counts']`` nor ``X``). Sent
+            with the widget, so keep it to tens of MB; save larger signatures to
+            Zarr for ``gene_signature_url``. ``groupby`` defaults to
+            ``cluster_attr`` and ``units`` to "mean expression per cell" unless
+            ``uns['viewport_signature']`` sets them. Spatial DegaFiles fall back
+            to their own ``df_sig.parquet`` for their clusters.
         dataset_names (list, optional): Short names for the datasets to display in
             the dropdown selector. Should match the length of base_urls.
             Example: ['Brain', 'Kidney'] for two datasets.
@@ -442,6 +521,13 @@ class Landscape(CelldegaWidget):
 
         if kwargs.get("gene_signature_url"):
             kwargs["gene_signature_url"] = _zarr_store_url(kwargs["gene_signature_url"])
+
+        adata_sig = kwargs.pop("adata_sig", None)
+        pq_signatures = None
+        if adata_sig is not None:
+            if kwargs.get("gene_signature_url"):
+                raise ValueError("Pass either adata_sig or gene_signature_url, not both.")
+            pq_signatures = _signature_parquet(adata_sig, cluster_attr)
 
         # nbhd_edit can now be True even when nbhd data is provided,
         # allowing users to edit pre-loaded neighborhood polygons
@@ -674,6 +760,8 @@ class Landscape(CelldegaWidget):
             parquet_traits["meta_nbhd_parquet"] = traitlets.Bytes(pq_meta_nbhd).tag(sync=True)
         if pq_centroids is not None:
             parquet_traits["centroids_parquet"] = traitlets.Bytes(pq_centroids).tag(sync=True)
+        if pq_signatures is not None:
+            parquet_traits["gene_signature_parquet"] = traitlets.Bytes(pq_signatures).tag(sync=True)
 
         if parquet_traits:
             self.add_traits(**parquet_traits)

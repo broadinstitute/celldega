@@ -77,3 +77,94 @@ def test_remote_gene_signature_url_and_missing_local_store(tmp_path, monkeypatch
     monkeypatch.chdir(tmp_path)
     with pytest.raises(FileNotFoundError):
         Landscape(gene_signature_url="missing.zarr")
+
+
+def _signatures(**uns):
+    """Cell-type means shaped like sc.get.aggregate(..., func="mean") output."""
+    import anndata as ad
+    import numpy as np
+    import pandas as pd
+
+    sig = ad.AnnData(
+        obs=pd.DataFrame(index=["T", "B"]),
+        var=pd.DataFrame(index=["CD3D", "MS4A1", "unused"]),
+        layers={"mean": np.array([[2.0, 0.0, 0.0], [0.0, 3.0, 0.0]], dtype=np.float32)},
+        uns=uns,
+    )
+    sig.X = None
+    return sig
+
+
+def test_adata_sig_is_sent_as_gene_by_cell_type_parquet():
+    import io
+    import json
+
+    import pyarrow.parquet as pq
+
+    landscape = Landscape(
+        adata_sig=_signatures(),
+        cluster_attr="cell_type",
+        transform=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    )
+    table = pq.read_table(io.BytesIO(landscape.gene_signature_parquet))
+    assert table.column_names == ["gene", "T", "B"]
+    # Genes no cell type expresses can't rank in the estimate.
+    assert table.column("gene").to_pylist() == ["CD3D", "MS4A1"]
+    assert table.column("B").to_pylist() == [0.0, 3.0]
+    assert json.loads(table.schema.metadata[b"viewport_signature"]) == {
+        "groupby": "cell_type",
+        "units": "mean expression per cell",
+    }
+    assert landscape.traits()["gene_signature_parquet"].metadata["sync"]
+    landscape.close()
+
+    stored = {"groupby": "leiden", "units": "mean counts per cell"}
+    landscape = Landscape(
+        adata_sig=_signatures(viewport_signature=json.dumps(stored)),
+        transform=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    )
+    table = pq.read_table(io.BytesIO(landscape.gene_signature_parquet))
+    assert json.loads(table.schema.metadata[b"viewport_signature"]) == stored
+    landscape.close()
+
+
+def test_adata_sig_rejects_signature_urls_and_z_scores():
+    with pytest.raises(ValueError, match="not both"):
+        Landscape(adata_sig=_signatures(), gene_signature_url="https://example.org/s.zarr")
+    z_scored = _signatures()
+    z_scored.X = z_scored.layers["mean"] - 1
+    with pytest.raises(ValueError, match="nonnegative"):
+        Landscape(adata_sig=z_scored)
+
+
+def test_adata_sig_reads_the_counts_layer_or_the_named_layer():
+    import io
+    import json
+
+    import numpy as np
+    import pyarrow.parquet as pq
+
+    sig = _signatures()
+    means = sig.layers.pop("mean")
+    sig.layers["counts"] = means
+    sig.layers["log1p"] = np.log1p(means)
+    units = {"counts": "mean counts per cell", "log1p": "mean log1p counts per 10,000"}
+    sig.uns["viewport_signature"] = {"groupby": "cell_type", "layers": units}
+    identity = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+
+    landscape = Landscape(adata_sig=sig, transform=identity)
+    table = pq.read_table(io.BytesIO(landscape.gene_signature_parquet))
+    assert table.column("B").to_pylist() == [0.0, 3.0]
+    assert json.loads(table.schema.metadata[b"viewport_signature"])["units"] == units["counts"]
+    landscape.close()
+
+    sig.uns["viewport_signature"]["layer"] = "log1p"
+    landscape = Landscape(adata_sig=sig, transform=identity)
+    table = pq.read_table(io.BytesIO(landscape.gene_signature_parquet))
+    assert table.column("B").to_pylist() == pytest.approx([0.0, float(np.log1p(3.0))])
+    assert json.loads(table.schema.metadata[b"viewport_signature"])["units"] == units["log1p"]
+    landscape.close()
+
+    sig.uns["viewport_signature"]["layer"] = "scaled"
+    with pytest.raises(ValueError, match="no layer 'scaled'"):
+        Landscape(adata_sig=sig, transform=identity)

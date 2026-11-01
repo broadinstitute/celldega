@@ -1,6 +1,9 @@
 import { ViewMode } from '@deck.gl-community/editable-layers';
 
-import { get_scatterplot_cell_data } from '../deck-gl/layers/cell_layer';
+import {
+  get_scatterplot_cell_data,
+  scatterplot_view_props,
+} from '../deck-gl/layers/cell_layer';
 import { calc_and_update_rgn_bar_graph } from '../deck-gl/layers/edit_layer';
 import { load_gene_expression } from '../global_variables/cell_exp_array';
 
@@ -313,9 +316,7 @@ export const initialize_expression_scatter = (
       layers_obj.cell_layer = layers_obj.cell_layer.clone({
         data: get_scatterplot_cell_data(viz_state),
         transitions: false,
-        radiusUnits: 'pixels',
-        radiusMinPixels: 0,
-        modelMatrix: null,
+        ...scatterplot_view_props(viz_state),
       });
       if (layers_obj.edit_layer) {
         layers_obj.edit_layer = layers_obj.edit_layer.clone({

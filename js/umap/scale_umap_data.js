@@ -27,6 +27,10 @@ const getUmapTarget = (viz_state) => {
   };
 };
 
+/** Side of the square UMAP positions are scaled into (scale_umap_positions). */
+export const umap_world_size = (viz_state) =>
+  getUmapTarget(viz_state).range_max;
+
 export const scale_umap_positions = (
   viz_state,
   positions,

@@ -8,18 +8,52 @@ const read = (file) =>
     .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
     .replace(/^export const /gm, 'const ');
 const source = jest.fn();
-const publish_selection = jest.fn();
-const { viewport_cells, estimate_viewport_genes, initialize_viewport_summary } =
-  new Function(
-    'gene_signatures_source',
-    'areBarDataEqual',
-    'publish_selected_cells',
-    `${read('umap/viewport_summary.js')}\nreturn { viewport_cells, estimate_viewport_genes, initialize_viewport_summary };`
-  )(
-    source,
-    (a, b) => JSON.stringify(a) === JSON.stringify(b),
-    publish_selection
-  );
+const load_gene = jest.fn();
+const from_parquet = jest.fn();
+const fetch_table = jest.fn();
+const {
+  viewport_cells,
+  estimate_viewport_genes,
+  exact_viewport_genes,
+  initialize_viewport_summary,
+} = new Function(
+  'gene_signatures_source',
+  'gene_signatures_from_parquet',
+  'gene_signatures_from_table',
+  'get_arrow_table',
+  'options',
+  'load_gene_expression',
+  'areBarDataEqual',
+  `${read('umap/viewport_summary.js')}\nreturn { viewport_cells, estimate_viewport_genes, exact_viewport_genes, initialize_viewport_summary };`
+)(
+  source,
+  from_parquet,
+  (table, defaults) => ({ ...defaults, ...table }),
+  fetch_table,
+  { fetch: {} },
+  load_gene,
+  (a, b) => JSON.stringify(a) === JSON.stringify(b)
+);
+// A d3 selection's style/attr getters and setters, for the TRX button.
+const fake_button = () => {
+  const styles = { color: 'gray', opacity: '1' };
+  const attrs = {};
+  const button = {
+    styles,
+    attrs,
+    style: (key, value) => {
+      if (value === undefined) return styles[key];
+      styles[key] = value;
+      return button;
+    },
+    attr: (key, value) => {
+      if (value === undefined) return attrs[key];
+      attrs[key] = value;
+      return button;
+    },
+  };
+  return button;
+};
 const observable = (initial) => {
   let value = initial;
   return {
@@ -50,6 +84,7 @@ test('counts finite cells inside the viewport, including its edges', () => {
   );
   expect(result).toEqual({
     indices: [0, 1, 2],
+    all: false,
     bars: [
       { name: 'T', value: 2 },
       { name: 'B', value: 1 },
@@ -71,7 +106,7 @@ test('counts finite cells inside the viewport, including its edges', () => {
   ).toEqual([{ name: 'A', value: 4 / 3 }]);
 });
 
-test('uses UMAP and XY positions, refreshes after load, exports all IDs, and restores spatial bars', async () => {
+test('uses UMAP and XY positions, refreshes after load, and restores spatial bars', async () => {
   const parent = document.createElement('div');
   const containers = {
     bar_cluster: document.createElement('div'),
@@ -84,19 +119,22 @@ test('uses UMAP and XY positions, refreshes after load, exports all IDs, and res
       resolve = done;
     })
   );
+  const trx = fake_button();
   const viz = {
     containers,
+    buttons: { buttons: { trx } },
     cats: {
-      cell_names_array: ['a', 'b', 'c'],
-      cell_cats: ['T', 'B', 'T'],
+      cell_names_array: ['a', 'b', 'c', 'd'],
+      cell_cats: ['T', 'B', 'T', 'B'],
       inst_cell_attr: 'cell_type',
       cluster_counts: [{ name: 'T', value: 100 }],
     },
     genes: { top_gene_counts: [{ name: 'global', value: 1 }] },
     model: { get: () => 'signatures.zarr', set: jest.fn() },
+    // Cell d is out of view, so the gene bars are estimated.
     spatial: {
-      cell_umap_scatter_positions: new Float64Array([0, 0, 1, 1, 2, 2]),
-      cell_xy_scatter_positions: new Float64Array([5, 5, 1, 1, 6, 6]),
+      cell_umap_scatter_positions: new Float64Array([0, 0, 1, 1, 2, 2, 5, 5]),
+      cell_xy_scatter_positions: new Float64Array([5, 5, 1, 1, 6, 6, 7, 7]),
     },
     obs_store: {
       landscape_view: observable('umap'),
@@ -112,15 +150,15 @@ test('uses UMAP and XY positions, refreshes after load, exports all IDs, and res
     { name: 'T', value: 2 },
     { name: 'B', value: 1 },
   ]);
-  expect(parent.textContent).toContain('Loading gene signatures');
+  expect(trx.attrs.title).toContain('Loading gene signatures');
+  // No captions: the bars and TRX carry it.
+  expect(parent.textContent).toBe('');
   resolve(signatures);
   await Promise.resolve();
   expect(viz.obs_store.new_gene_bar_data.get()[0]).toEqual({
     name: 'B',
     value: 2,
   });
-  parent.querySelector('button').click();
-  expect(publish_selection).toHaveBeenLastCalledWith(viz, ['a', 'b', 'c']);
   viz.obs_store.landscape_view.set('xy');
   viz.refresh_viewport();
   expect(viz.obs_store.new_cell_bar_data.get()).toEqual([
@@ -131,15 +169,174 @@ test('uses UMAP and XY positions, refreshes after load, exports all IDs, and res
   ]);
   viz.cats.inst_cell_attr = 'organ';
   viz.refresh_viewport();
-  expect(viz.obs_store.new_gene_bar_data.get()).toEqual([]);
-  expect(parent.textContent).toContain('require cell_type');
+  // Signatures for another attribute leave the whole-dataset genes, TRX gray.
+  expect(viz.obs_store.new_gene_bar_data.get()).toEqual(
+    viz.genes.top_gene_counts
+  );
+  expect(trx.styles.color).toBe('gray');
+  expect(trx.attrs.title).toContain('require cell_type');
   viz.obs_store.landscape_view.set('spatial');
   viz.refresh_viewport();
   expect(viz.obs_store.new_gene_bar_data.get()).toEqual(
     viz.genes.top_gene_counts
   );
-  expect(parent.querySelector('button').hidden).toBe(true);
+  expect(parent.querySelector('button')).toBeNull();
   dispose();
   expect(parent.children).toHaveLength(2);
   expect(viz.update_embedding_viewport).toBeUndefined();
+});
+
+test('exact expression sums the cells in view for each gene', async () => {
+  const columns = {
+    A: { cell_names: ['a', 'b', 'c'], cell_exp: [1, 2, 4] },
+    B: { cell_names: ['c'], cell_exp: [9] },
+    C: { cell_names: ['x'], cell_exp: [5] },
+  };
+  const index = { a: 0, b: 1, c: 2 };
+  const bars = await exact_viewport_genes(
+    ['A', 'B', 'C'],
+    new Uint8Array([1, 1, 0]),
+    2,
+    async (gene) => columns[gene],
+    (name) => index[name] ?? -1,
+    2
+  );
+  expect(bars).toEqual([{ name: 'A', value: 1.5 }]);
+});
+
+const trx_viz = (overrides = {}) => {
+  const parent = document.createElement('div');
+  const containers = {
+    bar_cluster: document.createElement('div'),
+    bar_gene: document.createElement('div'),
+  };
+  parent.append(containers.bar_cluster, containers.bar_gene);
+  const model_values = { gene_signature_url: 'signatures.zarr' };
+  const viz = {
+    parent,
+    containers,
+    cats: {
+      cell_names_array: ['a', 'b', 'c'],
+      cell_cats: ['T', 'B', 'T'],
+      inst_cell_attr: 'cell_type',
+      cluster_counts: [{ name: 'T', value: 2 }],
+    },
+    genes: { top_gene_counts: [{ name: 'global', value: 1 }] },
+    model: { get: (key) => model_values[key], set: jest.fn() },
+    spatial: {
+      cell_umap_scatter_positions: new Float64Array([0, 0, 1, 1, 9, 9]),
+    },
+    vector_name_integer: true,
+    global_base_url: 'http://data',
+    seg: { version: 'default' },
+    buttons: { buttons: { trx: fake_button() } },
+    obs_store: {
+      landscape_view: observable('umap'),
+      new_cell_bar_data: observable([]),
+      new_gene_bar_data: observable([]),
+    },
+    ...overrides,
+  };
+  return viz;
+};
+
+test('TRX is blue with every cell in view, purple for estimates, and blue for exact expression', async () => {
+  source.mockReturnValueOnce(Promise.resolve(signatures));
+  const viz = trx_viz();
+  const { trx } = viz.buttons.buttons;
+  let bounds = { min_x: -1, max_x: 10, min_y: -1, max_y: 10 };
+  viz.refresh_viewport = () => viz.update_embedding_viewport(bounds);
+  const dispose = initialize_viewport_summary(viz);
+  await Promise.resolve();
+  viz.refresh_viewport();
+  expect(viz.obs_store.new_gene_bar_data.get()).toEqual(
+    viz.genes.top_gene_counts
+  );
+  expect(trx.styles.color).toBe('blue');
+  // Clicking TRX with every cell in view leaves the whole-dataset genes.
+  await viz.compute_embedding_viewport_exact();
+  expect(load_gene).not.toHaveBeenCalled();
+
+  bounds = { min_x: -1, max_x: 2, min_y: -1, max_y: 2 };
+  viz.refresh_viewport();
+  expect(trx.styles.color).toBe('purple');
+  expect(viz.obs_store.new_gene_bar_data.get()[0]).toEqual({
+    name: 'B',
+    value: 3,
+  });
+
+  load_gene.mockImplementation(async (_cache, _url, _version, gene) =>
+    gene === 'B'
+      ? { cell_names: [0, 1, 2], cell_exp: [0, 4, 8] }
+      : { cell_names: [0], cell_exp: [6] }
+  );
+  await viz.compute_embedding_viewport_exact();
+  expect(load_gene).toHaveBeenCalledTimes(2);
+  expect(viz.obs_store.new_gene_bar_data.get()).toEqual([
+    { name: 'A', value: 3 },
+    { name: 'B', value: 2 },
+  ]);
+  expect(trx.styles.color).toBe('blue');
+  expect(trx.attrs.title).toContain('Top 2 genes, mean per cell');
+
+  // Panning returns to the estimate.
+  bounds = { min_x: -1, max_x: 1.5, min_y: -1, max_y: 1.5 };
+  viz.refresh_viewport();
+  expect(trx.styles.color).toBe('purple');
+  viz.obs_store.landscape_view.set('spatial');
+  viz.refresh_viewport();
+  expect(trx.styles.color).toBe('gray');
+  dispose();
+});
+
+test('adata_sig bytes and DegaFiles df_sig.parquet supply signatures', async () => {
+  from_parquet.mockResolvedValueOnce(signatures);
+  const bytes = new Uint8Array([1, 2, 3]);
+  const with_bytes = trx_viz({
+    model: {
+      get: (key) =>
+        ({ gene_signature_parquet: bytes, cluster_attr: 'cell_type' })[key],
+      set: jest.fn(),
+    },
+  });
+  with_bytes.refresh_viewport = () =>
+    with_bytes.update_embedding_viewport({
+      min_x: -1,
+      max_x: 2,
+      min_y: -1,
+      max_y: 2,
+    });
+  initialize_viewport_summary(with_bytes)();
+  expect(from_parquet).toHaveBeenCalledWith(bytes, {
+    groupby: 'cell_type',
+    units: 'mean expression per cell',
+  });
+
+  fetch_table.mockResolvedValueOnce({ genes: ['A'] });
+  const spatial = trx_viz({
+    img: { landscape_parameters: { technology: 'Xenium' } },
+    model: { get: () => undefined, set: jest.fn() },
+    seg: { version: 'cellpose' },
+  });
+  spatial.refresh_viewport = () => {};
+  initialize_viewport_summary(spatial);
+  expect(fetch_table).toHaveBeenCalledWith(
+    'http://data/df_sig_cellpose.parquet',
+    {},
+    null
+  );
+
+  // A clustering from Python (meta_cell_parquet) has no DegaFiles signatures.
+  fetch_table.mockClear();
+  initialize_viewport_summary(
+    trx_viz({
+      img: { landscape_parameters: { technology: 'Xenium' } },
+      model: {
+        get: (key) =>
+          key === 'meta_cell_parquet' ? new Uint8Array([1]) : undefined,
+        set: jest.fn(),
+      },
+    })
+  );
+  expect(fetch_table).not.toHaveBeenCalled();
 });

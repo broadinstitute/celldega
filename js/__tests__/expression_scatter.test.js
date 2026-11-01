@@ -23,6 +23,7 @@ const load = jest.fn();
 const scatter = new Function(
   'ViewMode',
   'get_scatterplot_cell_data',
+  'scatterplot_view_props',
   'calc_and_update_rgn_bar_graph',
   'load_gene_expression',
   'fingerprint',
@@ -41,6 +42,7 @@ const scatter = new Function(
       },
     },
   }),
+  () => ({ radiusUnits: 'common', radiusMinPixels: 0.5, modelMatrix: null }),
   jest.fn(),
   load,
   gates.fingerprint,

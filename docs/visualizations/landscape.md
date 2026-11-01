@@ -92,26 +92,59 @@ matching view.
 ## Viewport cell types and estimated expression
 
 Panning or zooming in UMAP or XY updates the cell-type bars with counts of all
-cell centers inside the viewport. **Select cells in view** sends those cell IDs
-to `get_selected_cells()` for Python analysis or a cell-level Clustergram.
-It does not dim the view. NBHD polygons remain an option for a custom boundary.
-Without a signature store, the gene bars retain the labeled whole-dataset
-summary.
+cell centers inside the viewport, as the spatial view does when zoomed in.
+Points are sized in embedding units, so they grow as you zoom in. To send a
+region's cells to Python (`get_selected_cells()`), draw an NBHD polygon around
+them.
 
-To estimate gene expression locally, supply a separate signature AnnData Zarr:
+The gene bars follow the viewport too, and the **TRX** button shows what they
+hold:
+
+- **Blue**, every cell in view: the whole-dataset genes, actual expression.
+- **Purple**, zoomed in: genes estimated from cell-type signatures (below).
+- **Blue** after clicking TRX: the exact mean counts per cell of the top 50
+  estimated genes for the cells in view, read one gene at a time. Panning or
+  zooming returns to the estimate.
+- **Gray**, zoomed in without signatures: the whole-dataset genes; clicking
+  TRX computes the exact values for the cells in view.
+
+To estimate expression in the viewport, give Landscape each cell type's mean
+expression, as an AnnData with cell types as `obs_names` and genes as
+`var_names`. Store two layers: `counts`, the mean raw counts per cell, which the
+estimate reads (the values that color cells and that a TRX click computes
+exactly), and `log1p`, the mean log-normalized expression, the better input for
+z-scored views such as a Clustergram. For a cell-level AnnData (raw counts in
+`layers["counts"]`, log1p in `X`), compute it on the fly and pass it as
+`adata_sig`; it is sent with the widget, like `adata`:
+
+```python
+import scanpy as sc
+
+signature = sc.get.aggregate(adata, by="cell_type", func="mean", layer="counts")
+signature.layers["counts"] = signature.layers.pop("mean")
+signature.layers["log1p"] = sc.get.aggregate(adata, by="cell_type", func="mean").layers["mean"]
+signature.uns["viewport_signature"] = {
+    "groupby": "cell_type",
+    "layers": {"counts": "mean counts per cell", "log1p": "mean log1p counts per 10,000"},
+}
+
+landscape = dega.viz.Landscape(
+    zarr_url="cells.zarr",
+    cluster_attr="cell_type",
+    adata_sig=signature,
+    nbhd_edit=True,
+)
+```
+
+Larger signatures (tens of MB, e.g. hundreds of cell types × the whole
+transcriptome) are better saved as a separate AnnData Zarr and read by the
+browser from `gene_signature_url`:
 
 ```python
 import json
-import scanpy as sc
 import zarr
 
-# adata.X should contain the expression you want to summarize, before z-scoring.
-signature = sc.get.aggregate(adata, by="cell_type", func="mean")
-signature.X = signature.layers["mean"]
-signature.uns["viewport_signature"] = json.dumps({
-    "groupby": "cell_type",
-    "units": "mean log1p counts per 10,000",  # match your preprocessing
-})
+signature.uns["viewport_signature"] = json.dumps(signature.uns["viewport_signature"])
 signature.write_zarr("cell_type_signatures.zarr")
 zarr.consolidate_metadata("cell_type_signatures.zarr")
 
@@ -119,20 +152,31 @@ landscape = dega.viz.Landscape(
     zarr_url="cells.zarr",
     cluster_attr="cell_type",
     gene_signature_url="cell_type_signatures.zarr",
-    nbhd_edit=True,
 )
 ```
 
-The signature store has cell-type labels as `obs_names`, gene names as
-`var_names`, and a dense, finite, nonnegative `X`. The **Estimated genes** bars
-show `sum(visible cell-type count × cell-type mean) / visible cell count`, using
-the signature's units and up to 200 highest estimated genes. These composition
-estimates do not capture variation within a cell type. Every visible cell must
-have a matching signature; otherwise the panel reports the coverage instead.
-No per-cell expression is downloaded when the viewport changes. Gene coloring
-and XY axes still read actual cell expression.
+Spatial DegaFiles need neither: their UMAP/XY views use `df_sig.parquet`, each
+default cluster's mean counts per cell, while the Landscape shows those clusters.
 
-For exact expression or a Clustergram, select a viewport or NBHD and use the
+The means must be dense, finite, and nonnegative. The estimate reads
+`viewport_signature["layer"]` when set, else `layers["counts"]`, else `X`; other
+units (e.g. mean log1p) work too, and are named in TRX's tooltip. Match the
+layer to the expression that colors the cells (the Zarr store's `zarr_layer`).
+When a dataset mixes UMI counts with read counts (e.g. 10x and Smart-seq2),
+store library-size-normalized, log1p expression in the Zarr layer, as CELLxGENE
+Explorer shows, and read the signatures' `log1p` layer
+(`"layer": "log1p"`): raw read counts can be hundreds of times larger than UMI
+counts and would set every gene's color scale. `groupby`
+names the cell attribute the labels come from (default: `cluster_attr`). The estimated gene bars show
+`sum(visible cell-type count × cell-type mean) / visible cell count` for up to
+200 highest estimated genes. These composition estimates do not capture
+variation within a cell type. Every visible cell must have a matching signature;
+otherwise the gene bars keep the whole dataset (TRX gray) and TRX's tooltip
+reports the coverage. No per-cell expression is
+downloaded when the viewport changes. Gene coloring and XY axes still read
+actual cell expression.
+
+For exact expression of every gene, or a Clustergram, draw an NBHD and use the
 matching cell-level AnnData in Python:
 
 ```python

@@ -41,9 +41,11 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 ### Added
 
 - Landscape: UMAP/XY viewport bars count visible cell types and estimate local
-  gene means from a precomputed signature AnnData Zarr (`gene_signature_url`),
-  weighted by visible cell-type counts. Estimates are labeled with their units;
-  **Select cells in view** exports all visible IDs for Python analysis.
+  gene means from cell-type signatures, weighted by visible cell-type counts:
+  an in-memory AnnData (`adata_sig`), a signature AnnData Zarr
+  (`gene_signature_url`), or a spatial DegaFiles' own `df_sig.parquet`. TRX
+  turns purple for estimates; clicking it computes the exact mean counts of the
+  top 50 genes for the cells in view. Estimates are labeled with their units.
 - `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
   value reaches a threshold somewhere, for example genes detected in at least
   5% of some cluster's cells. Recommended for whole-transcriptome data before
@@ -213,6 +215,9 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 
 ### Changed
 
+- Landscape: UMAPs are drawn with their second coordinate increasing upward,
+  matching Scanpy and CELLxGENE (saved UMAP polygons migrate automatically),
+  and UMAP/XY points are sized in embedding units, so they grow when zooming in.
 - Dependencies: `zarr>=3,<4`, and `fsspec[http]` so `Matrix.read_zarr` can
   read HTTPS stores such as Hugging Face.
 - `celldega.pre` imports without pyvips (libvips); only the image functions

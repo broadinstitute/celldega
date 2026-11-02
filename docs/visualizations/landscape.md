@@ -62,7 +62,9 @@ landscape.landscape_state = "spatial"  # or "umap" when available
 
 With `nbhd_edit=True`, drawn neighborhoods belong to the view in which they
 were created. An XY neighborhood also records its genes and scale. Only
-polygons matching the current coordinate space are rendered. New names are
+polygons matching the current coordinate space are rendered. A fingerprint
+of ordered cell IDs and coordinates/expression keeps saved gates tied to their
+original data even if a local server URL changes. New names are
 unique across spaces (for example, `nbhd_spatial_1`, `nbhd_umap_1`, and
 `nbhd_xy_1`); the editor also checks custom names for duplicates.
 
@@ -102,11 +104,10 @@ hold:
 
 - **Blue**, every cell in view: the whole-dataset genes, actual expression.
 - **Purple**, zoomed in: genes estimated from cell-type signatures (below).
-- **Blue** after clicking TRX: the exact mean counts per cell of the top 50
-  estimated genes for the cells in view, read one gene at a time. Panning or
-  zooming returns to the estimate.
-- **Gray**, zoomed in without signatures: the whole-dataset genes; clicking
-  TRX computes the exact values for the cells in view.
+- **Gray**, zoomed in without matching signatures: the whole-dataset genes.
+
+TRX is an indicator in UMAP/XY; clicking it does not fetch expression or change
+the estimate. Spatial TRX controls still show and hide transcripts.
 
 To estimate expression in the viewport, give Landscape each cell type's mean
 expression, as an AnnData with cell types as `obs_names` and genes as

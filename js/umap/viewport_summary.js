@@ -1,4 +1,3 @@
-import { load_gene_expression } from '../global_variables/cell_exp_array';
 import { options } from '../global_variables/fetch_options';
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
 import {
@@ -8,15 +7,7 @@ import {
 } from '../read_zarr/gene_signatures';
 import { areBarDataEqual } from '../utils/compact_data';
 
-/** Genes whose exact expression a TRX click computes for the cells in view. */
-export const EXACT_GENES = 50;
-const EXACT_CONCURRENCY = 4;
-
-// The TRX button marks what the gene bars show in UMAP/XY: blue for actual
-// expression (the whole dataset with every cell in view, or exact for the
-// cells in view after a click), purple for an estimate from cell-type
-// signatures, gray for whole-dataset genes while zoomed in. Zoomed in, a click
-// computes exact expression for the cells in view.
+// UMAP/XY gene bars use whole-dataset values or cell-type signature estimates.
 const TRX_MODES = {
   whole: {
     color: 'blue',
@@ -24,18 +15,11 @@ const TRX_MODES = {
   },
   estimate: {
     color: 'purple',
-    title:
-      'Estimated from cell-type signatures. Click for the exact expression of the top genes in view.',
+    title: 'Estimated from cell-type signatures.',
   },
   dataset: {
     color: 'gray',
-    title:
-      'Whole-dataset genes. Click for the exact expression of the top genes in view.',
-  },
-  exact: {
-    color: 'blue',
-    title:
-      'Exact mean expression per cell of the top genes for the cells in view.',
+    title: 'Whole-dataset genes; viewport signatures are unavailable.',
   },
 };
 
@@ -101,44 +85,6 @@ export const estimate_viewport_genes = (
   };
 };
 
-/**
- * Mean expression per cell of each gene over the cells flagged in `in_view`,
- * reading one gene at a time with `read_gene` ({cell_names, cell_exp}).
- * `cell_index` maps a returned cell name to its row; -1 skips the value.
- */
-export const exact_viewport_genes = async (
-  genes,
-  in_view,
-  n_cells,
-  read_gene,
-  cell_index,
-  concurrency = EXACT_CONCURRENCY
-) => {
-  const sums = new Float64Array(genes.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < genes.length) {
-      const g = next++;
-      // Each worker reads its genes one at a time; the workers run in parallel.
-      // eslint-disable-next-line no-await-in-loop
-      const { cell_names, cell_exp } = await read_gene(genes[g]);
-      let sum = 0;
-      for (let i = 0; i < cell_names.length; i++) {
-        const index = cell_index(cell_names[i]);
-        if (index >= 0 && in_view[index]) sum += Number(cell_exp[i]) || 0;
-      }
-      sums[g] = sum;
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, genes.length) }, worker)
-  );
-  return genes
-    .map((name, g) => ({ name, value: n_cells ? sums[g] / n_cells : 0 }))
-    .filter(({ value }) => value > 0)
-    .sort((a, b) => b.value - a.value);
-};
-
 // Signatures for the viewport estimate: Landscape(adata_sig=...) bytes, a
 // gene_signature_url store, or else a spatial DegaFiles' own df_sig.parquet
 // (each default cluster's mean counts per cell), which only applies while the
@@ -188,13 +134,6 @@ export const initialize_viewport_summary = (viz_state) => {
   let signature_error = false;
   let disposed = false;
   let was_active = false;
-  let visible_indices = [];
-  let last_bounds = null;
-  let all_in_view = false;
-  let candidate_genes = [];
-  let exact = null;
-  let exact_request = 0;
-  let exact_loading = false;
   let trx_saved = null;
   // No captions: the bars speak for themselves, and TRX's color shows what the
   // gene bars hold (its tooltip has the details).
@@ -213,7 +152,8 @@ export const initialize_viewport_summary = (viz_state) => {
         button
           .style('color', trx_saved.color)
           .style('opacity', trx_saved.opacity)
-          .attr('title', trx_saved.title);
+          .attr('title', trx_saved.title)
+          .style('cursor', trx_saved.cursor);
       }
       trx_saved = null;
       return;
@@ -222,11 +162,12 @@ export const initialize_viewport_summary = (viz_state) => {
       color: button.style('color'),
       opacity: button.style('opacity'),
       title: button.attr('title'),
+      cursor: button.style('cursor'),
     };
     button
       .style('color', TRX_MODES[mode].color)
-      .style('opacity', exact_loading ? 0.5 : 1)
-      .style('cursor', 'pointer')
+      .style('opacity', 1)
+      .style('cursor', 'default')
       .attr(
         'title',
         status ? `${TRX_MODES[mode].title}\n${status}` : TRX_MODES[mode].title
@@ -248,9 +189,6 @@ export const initialize_viewport_summary = (viz_state) => {
         paint_trx(null);
       }
       was_active = false;
-      exact = null;
-      exact_request += 1;
-      exact_loading = false;
       return;
     }
     was_active = true;
@@ -259,19 +197,7 @@ export const initialize_viewport_summary = (viz_state) => {
         ? viz_state.spatial.cell_xy_scatter_positions
         : viz_state.spatial.cell_umap_scatter_positions;
     if (!positions || !bounds) return;
-    const key = [view, bounds.min_x, bounds.max_x, bounds.min_y, bounds.max_y]
-      .map(String)
-      .join('|');
-    if (exact && exact.key !== key) exact = null;
-    if (exact_loading && last_bounds?.key !== key) {
-      // A pan or zoom cancels the exact calculation for the previous view.
-      exact_request += 1;
-      exact_loading = false;
-    }
-    last_bounds = { ...bounds, key };
     const { indices, all, bars } = viewport_cells(positions, cats, bounds);
-    visible_indices = indices;
-    all_in_view = all;
     publish(obs.new_cell_bar_data, bars);
     // Whole-dataset genes unless every visible cell has a signature.
     let gene_bars = viz_state.genes.top_gene_counts || [];
@@ -305,78 +231,11 @@ export const initialize_viewport_summary = (viz_state) => {
         ? 'Gene signatures unavailable.'
         : 'Loading gene signatures…';
     }
-    candidate_genes = gene_bars;
-    if (exact) {
-      gene_bars = exact.bars;
-      mode = 'exact';
-      ({ status } = exact);
-    } else if (exact_loading) {
-      status = `Reading the exact expression of ${EXACT_GENES} genes…`;
-    }
     paint_trx(mode, status);
     publish(obs.new_gene_bar_data, gene_bars);
   };
 
-  const cell_index = (name) => {
-    if (viz_state.vector_name_integer) {
-      const index = Number(name);
-      return Number.isInteger(index) && index < cats.cell_names_array.length
-        ? index
-        : -1;
-    }
-    return cats.cell_name_to_index_map?.get(String(name)) ?? -1;
-  };
-
-  // TRX in UMAP/XY: exact expression of the top candidate genes, read one gene
-  // at a time for the cells in view. Its own cache keeps the gene selection's.
-  const compute_exact = async () => {
-    // With every cell in view the gene bars already show actual expression.
-    if (disposed || !last_bounds || !visible_indices.length || all_in_view)
-      return;
-    const bounds = last_bounds;
-    const genes = candidate_genes
-      .slice(0, EXACT_GENES)
-      .map(({ name }) => String(name));
-    if (!genes.length) return;
-    const request = ++exact_request;
-    const in_view = new Uint8Array(cats.cell_names_array.length);
-    for (const i of visible_indices) in_view[i] = 1;
-    exact_loading = true;
-    update(bounds);
-    const cache = new Map();
-    try {
-      const exact_bars = await exact_viewport_genes(
-        genes,
-        in_view,
-        visible_indices.length,
-        (gene) =>
-          load_gene_expression(
-            cache,
-            viz_state.global_base_url,
-            viz_state.seg?.version,
-            gene,
-            viz_state.aws ?? null,
-            viz_state.row_group_readers?.cbg
-          ),
-        cell_index
-      );
-      if (disposed || request !== exact_request) return;
-      exact = {
-        key: bounds.key,
-        bars: exact_bars,
-        status: `Top ${genes.length} genes, mean per cell of the values that color the cells.`,
-      };
-    } catch (error) {
-      if (disposed || request !== exact_request) return;
-      // eslint-disable-next-line no-console
-      console.warn('[celldega] exact viewport expression failed', error);
-    }
-    exact_loading = false;
-    update(bounds);
-  };
-
   viz_state.update_embedding_viewport = update;
-  viz_state.compute_embedding_viewport_exact = compute_exact;
   if (source) {
     source
       .load()
@@ -395,8 +254,6 @@ export const initialize_viewport_summary = (viz_state) => {
     disposed = true;
     if (viz_state.update_embedding_viewport === update)
       delete viz_state.update_embedding_viewport;
-    if (viz_state.compute_embedding_viewport_exact === compute_exact)
-      delete viz_state.compute_embedding_viewport_exact;
     paint_trx(null);
   };
 };

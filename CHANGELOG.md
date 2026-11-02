@@ -48,8 +48,8 @@ orientation and point-size changes, and the missing-metadata fix to `0.28.0a1`
   gene means from cell-type signatures, weighted by visible cell-type counts:
   an in-memory AnnData (`adata_sig`), a signature AnnData Zarr
   (`gene_signature_url`), or a spatial DegaFiles' own `df_sig.parquet`. TRX
-  turns purple for estimates; clicking it computes the exact mean counts of the
-  top 50 genes for the cells in view. Estimates are labeled with their units.
+  turns purple for estimates and acts only as an indicator in UMAP/XY.
+  Estimates are labeled with their units; spatial transcript controls are unchanged.
 - `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
   value reaches a threshold somewhere, for example genes detected in at least
   5% of some cluster's cells. Recommended for whole-transcriptome data before
@@ -249,6 +249,9 @@ orientation and point-size changes, and the missing-metadata fix to `0.28.0a1`
   may change without notice.
 
 ### Fixed
+
+- Landscape viewport updates are debounced per widget, so interacting with one
+  Landscape does not cancel another Landscape's pending update.
 
 - Landscape: zooming out in the UMAP and XY views stops one zoom level past the
   whole embedding, as the spatial view stops past the whole tissue. Single-cell

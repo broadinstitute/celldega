@@ -11,33 +11,29 @@ const source = jest.fn();
 const load_gene = jest.fn();
 const from_parquet = jest.fn();
 const fetch_table = jest.fn();
-const {
-  viewport_cells,
-  estimate_viewport_genes,
-  exact_viewport_genes,
-  initialize_viewport_summary,
-} = new Function(
-  'gene_signatures_source',
-  'gene_signatures_from_parquet',
-  'gene_signatures_from_table',
-  'get_arrow_table',
-  'options',
-  'load_gene_expression',
-  'areBarDataEqual',
-  `${read('umap/viewport_summary.js')}\nreturn { viewport_cells, estimate_viewport_genes, exact_viewport_genes, initialize_viewport_summary };`
-)(
-  source,
-  from_parquet,
-  (table, defaults) => ({ ...defaults, ...table }),
-  fetch_table,
-  { fetch: {} },
-  load_gene,
-  (a, b) => JSON.stringify(a) === JSON.stringify(b)
-);
+const { viewport_cells, estimate_viewport_genes, initialize_viewport_summary } =
+  new Function(
+    'gene_signatures_source',
+    'gene_signatures_from_parquet',
+    'gene_signatures_from_table',
+    'get_arrow_table',
+    'options',
+    'load_gene_expression',
+    'areBarDataEqual',
+    `${read('umap/viewport_summary.js')}\nreturn { viewport_cells, estimate_viewport_genes, initialize_viewport_summary };`
+  )(
+    source,
+    from_parquet,
+    (table, defaults) => ({ ...defaults, ...table }),
+    fetch_table,
+    { fetch: {} },
+    load_gene,
+    (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  );
 // A d3 selection's style/attr getters and setters, for the TRX button.
 const fake_button = () => {
-  const styles = { color: 'gray', opacity: '1' };
-  const attrs = {};
+  const styles = { color: 'gray', opacity: '1', cursor: 'pointer' };
+  const attrs = { title: 'Transcripts' };
   const button = {
     styles,
     attrs,
@@ -186,24 +182,6 @@ test('uses UMAP and XY positions, refreshes after load, and restores spatial bar
   expect(viz.update_embedding_viewport).toBeUndefined();
 });
 
-test('exact expression sums the cells in view for each gene', async () => {
-  const columns = {
-    A: { cell_names: ['a', 'b', 'c'], cell_exp: [1, 2, 4] },
-    B: { cell_names: ['c'], cell_exp: [9] },
-    C: { cell_names: ['x'], cell_exp: [5] },
-  };
-  const index = { a: 0, b: 1, c: 2 };
-  const bars = await exact_viewport_genes(
-    ['A', 'B', 'C'],
-    new Uint8Array([1, 1, 0]),
-    2,
-    async (gene) => columns[gene],
-    (name) => index[name] ?? -1,
-    2
-  );
-  expect(bars).toEqual([{ name: 'A', value: 1.5 }]);
-});
-
 const trx_viz = (overrides = {}) => {
   const parent = document.createElement('div');
   const containers = {
@@ -240,7 +218,7 @@ const trx_viz = (overrides = {}) => {
   return viz;
 };
 
-test('TRX is blue with every cell in view, purple for estimates, and blue for exact expression', async () => {
+test('TRX is blue with every cell in view, purple for estimates, and stays estimated when panning', async () => {
   source.mockReturnValueOnce(Promise.resolve(signatures));
   const viz = trx_viz();
   const { trx } = viz.buttons.buttons;
@@ -253,10 +231,6 @@ test('TRX is blue with every cell in view, purple for estimates, and blue for ex
     viz.genes.top_gene_counts
   );
   expect(trx.styles.color).toBe('blue');
-  // Clicking TRX with every cell in view leaves the whole-dataset genes.
-  await viz.compute_embedding_viewport_exact();
-  expect(load_gene).not.toHaveBeenCalled();
-
   bounds = { min_x: -1, max_x: 2, min_y: -1, max_y: 2 };
   viz.refresh_viewport();
   expect(trx.styles.color).toBe('purple');
@@ -265,19 +239,9 @@ test('TRX is blue with every cell in view, purple for estimates, and blue for ex
     value: 3,
   });
 
-  load_gene.mockImplementation(async (_cache, _url, _version, gene) =>
-    gene === 'B'
-      ? { cell_names: [0, 1, 2], cell_exp: [0, 4, 8] }
-      : { cell_names: [0], cell_exp: [6] }
-  );
-  await viz.compute_embedding_viewport_exact();
-  expect(load_gene).toHaveBeenCalledTimes(2);
-  expect(viz.obs_store.new_gene_bar_data.get()).toEqual([
-    { name: 'A', value: 3 },
-    { name: 'B', value: 2 },
-  ]);
-  expect(trx.styles.color).toBe('blue');
-  expect(trx.attrs.title).toContain('Top 2 genes, mean per cell');
+  expect(viz.compute_embedding_viewport_exact).toBeUndefined();
+  expect(load_gene).not.toHaveBeenCalled();
+  expect(trx.attrs.title).not.toContain('Click');
 
   // Panning returns to the estimate.
   bounds = { min_x: -1, max_x: 1.5, min_y: -1, max_y: 1.5 };
@@ -286,6 +250,8 @@ test('TRX is blue with every cell in view, purple for estimates, and blue for ex
   viz.obs_store.landscape_view.set('spatial');
   viz.refresh_viewport();
   expect(trx.styles.color).toBe('gray');
+  expect(trx.styles.cursor).toBe('pointer');
+  expect(trx.attrs.title).toBe('Transcripts');
   dispose();
 });
 

@@ -4,8 +4,8 @@ import { calc_viewport } from './calc_viewport';
 
 const bounce_time = 200;
 
-export const on_view_state_change = debounce(
-  ({ viewState }, deck_ist, layers_obj, viz_state) => {
+const make_view_handler = () =>
+  debounce(({ viewState }, deck_ist, layers_obj, viz_state) => {
     calc_viewport(viewState, deck_ist, layers_obj, viz_state);
 
     if (viz_state.scale_bar) {
@@ -21,6 +21,17 @@ export const on_view_state_change = debounce(
     }
 
     return viewState;
-  },
-  bounce_time
-);
+  }, bounce_time);
+
+// Each Landscape must finish its own viewport update when widgets share a page.
+const view_handlers = new WeakMap();
+export const on_view_state_change = (
+  event,
+  deck_ist,
+  layers_obj,
+  viz_state
+) => {
+  if (!view_handlers.has(viz_state))
+    view_handlers.set(viz_state, make_view_handler());
+  return view_handlers.get(viz_state)(event, deck_ist, layers_obj, viz_state);
+};

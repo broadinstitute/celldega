@@ -4,7 +4,6 @@ import {
 } from '../../global_variables/image_info';
 
 export const get_layers_list = (layers_obj, close_up, viz_state) => {
-  let layers_list;
   // Omit the inactive source so TileLayer does not fetch its hidden tiles.
   const image_layers = (layers_obj.image_layers || []).filter(
     (layer) =>
@@ -15,29 +14,23 @@ export const get_layers_list = (layers_obj, close_up, viz_state) => {
     viz_state?.img?.landscape_parameters?.technology
   );
 
-  if (close_up) {
-    layers_list = [
-      layers_obj.background_layer,
-      ...image_layers,
-      isPointCloud ? null : layers_obj.path_layer,
-      layers_obj.cell_layer,
-      isPointCloud ? null : layers_obj.trx_layer,
-      layers_obj.nbhd_layer,
-      layers_obj.nbhd_cloud_shapes_layer,
-      layers_obj.nbhd_cloud_cell_layer,
-      layers_obj.edit_layer,
-    ];
-  } else {
-    layers_list = [
-      layers_obj.background_layer,
-      ...image_layers,
-      layers_obj.cell_layer,
-      layers_obj.nbhd_layer,
-      layers_obj.nbhd_cloud_shapes_layer,
-      layers_obj.nbhd_cloud_cell_layer,
-      layers_obj.edit_layer,
-    ];
-  }
+  // Hide, rather than omit, close-up layers when zoomed out. deck.gl finalizes
+  // layers that leave the list and cannot initialize that instance again, so
+  // re-adding it on zoom-in fails an assertion and can draw freed GPU buffers.
+  const close_up_layer = (layer) => {
+    if (isPointCloud || !layer) return null;
+    return close_up ? layer : layer.clone({ visible: false });
+  };
 
-  return layers_list.filter(Boolean);
+  return [
+    layers_obj.background_layer,
+    ...image_layers,
+    close_up_layer(layers_obj.path_layer),
+    layers_obj.cell_layer,
+    close_up_layer(layers_obj.trx_layer),
+    layers_obj.nbhd_layer,
+    layers_obj.nbhd_cloud_shapes_layer,
+    layers_obj.nbhd_cloud_cell_layer,
+    layers_obj.edit_layer,
+  ].filter(Boolean);
 };

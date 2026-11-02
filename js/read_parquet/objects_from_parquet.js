@@ -33,7 +33,13 @@ export const objects_from_parquet = async (
       ? keyColumn.values.map((value) => String(value))
       : getRowKeyArray(table, keyCandidates);
   const valueFields = fields.filter((f) => f !== keyColumn.name);
-  const valueCols = valueFields.map((f) => table.getChild(f).toArray());
+  // toArray() returns a column's raw values, so a missing number (null, e.g. a
+  // pandas NaN) would read as 0. Keep the nulls, which show as N.A., in columns
+  // that have any.
+  const valueCols = valueFields.map((f) => {
+    const column = table.getChild(f);
+    return column.nullCount > 0 ? Array.from(column) : column.toArray();
+  });
 
   const result = {};
   for (let i = 0; i < table.numRows; i++) {

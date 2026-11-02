@@ -6,7 +6,10 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.28.0] - Unreleased
 
-Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
+Pre-release `0.28.0a2` (npm `0.28.0-alpha.2`) includes all of the changes below.
+It adds Landscape's UMAP/XY viewport bars and signature estimates, the UMAP
+orientation and point-size changes, and the missing-metadata fix to
+`0.28.0a1` (npm `0.28.0-alpha.1`).
 
 ### Breaking
 
@@ -246,6 +249,8 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 
 ### Fixed
 
+- Landscape: missing numeric cell metadata (e.g. NaN in an `obs` column passed
+  with `adata`) shows as N.A. instead of reading as 0.
 - Cell segmentation validates polygon offsets and uses logical Arrow lengths
   instead of buffer capacity, preventing padded data from connecting unrelated
   cells. Tile changes rebuild the path buffers together, stale requests cannot

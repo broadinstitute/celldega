@@ -24,10 +24,15 @@ exclude_docs: |
 # Built and shareable by URL, but intentionally absent from the navigation.
 # The hook also omits these pages from search/sitemap and adds noindex metadata.
 not_in_nav: |
+  # Tabula Sapiens galleries: add nav/cards and remove these entries when public.
+  gallery/gallery_tabula_sapiens.md
+  gallery/gallery_tabula_sapiens_clustergram.md
   examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb
+  # Companion to python/aligned_he.md; source: notebooks/Xenium_Aligned_HE.ipynb.
+  examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb
 
 hooks:
   - scripts/unlisted_docs.py
@@ -177,6 +182,8 @@ plugins:
       ignore: ["**/.ipynb_checkpoints/*.ipynb"]
 
 extra_javascript:
+  - path: assets/js/gallery_tabula_sapiens.js
+    type: module
   - path: assets/js/index.js
     type: module
   - path: assets/js/gallery_mouse_brain.js

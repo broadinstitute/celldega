@@ -184,3 +184,33 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
 .md-source__fact--version {
     order: 1;
 }
+
+/* Unlisted Tabula Sapiens galleries: stack panels on smaller screens. */
+.tabula-gallery-linked {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.tabula-landscape-panel {
+    min-width: 0;
+    width: 100%;
+}
+.tabula-gallery-linked .tabula-landscape-panel {
+    flex: 1 1 550px;
+}
+.tabula-clustergram-panel {
+    /* 550px matrix plus its 100px canvas margin for labels/dendrogram. */
+    flex: 0 0 650px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+.tabula-gallery [data-tabula-landscape] {
+    min-height: 750px;
+}
+.tabula-gallery-linked [data-tabula-landscape] {
+    min-height: 650px;
+}
+.tabula-gallery [data-tabula-clustergram] {
+    min-height: 650px;
+}

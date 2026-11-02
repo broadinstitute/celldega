@@ -63,7 +63,7 @@ apply it again. Landmark-based alignment estimation is outside this workflow.
 ## Reproduce the tutorial example
 
 For a step-by-step workflow, open
-[the example notebook](../../notebooks/Xenium_Aligned_HE.ipynb). It prepares
+[the example notebook](../examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb). It prepares
 fluorescence DegaFiles, imports H&E in a separate cell, inspects the saved
 manifest, and displays a Landscape with the image-source toggle.
 

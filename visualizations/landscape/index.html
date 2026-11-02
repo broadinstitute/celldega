@@ -638,6 +638,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#viewport-cell-types-and-estimated-expression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewport cell types and estimated expression
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3074,6 +3085,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#viewport-cell-types-and-estimated-expression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewport cell types and estimated expression
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3138,7 +3160,9 @@ gene expression, even without a UMAP. The X/Y gene inputs replace the image
 controls while XY is active; <strong>SPATIAL</strong> restores the tissue view and image
 controls. <strong>UMAP</strong> is shown only when an embedding is supplied.</p>
 <p>XY uses the same expression reader as gene coloring: spatial datasets read
-DegaFiles, and non-spatial datasets can read DegaFiles or AnnData Zarr.</p>
+DegaFiles, and non-spatial datasets can read DegaFiles or AnnData Zarr.
+UMAP's second coordinate increases upward, matching the usual AnnData/Scanpy
+orientation. XY's expression Y axis also increases upward.</p>
 <pre><code class="language-python">landscape.set_xy(&quot;CD3D&quot;, &quot;MS4A1&quot;, scale=&quot;log1p&quot;)
 landscape.landscape_state = &quot;spatial&quot;  # or &quot;umap&quot; when available
 </code></pre>
@@ -3151,7 +3175,11 @@ unique across spaces (for example, <code>nbhd_spatial_1</code>, <code>nbhd_umap_
 <code>landscape.nbhd_polygons</code>. Both include <code>space</code>, <code>coordinate_space</code>, geometry,
 and <code>x</code>/<code>y</code> vertex rings; drawn neighborhoods also include <code>cell_ids</code> and
 <code>cell_count</code>. Spatial geometry uses native tissue coordinates, while UMAP and
-XY retain their embedding coordinates. Filter to the appropriate space before
+XY retain their scaled display coordinates, with Y increasing downward in
+the stored geometry. UMAP records <code>axes.y.reversed=True</code> because increasing
+<code>X_umap[:, 1]</code> is displayed upward. Matching saved UMAP polygons from the
+previous orientation migrate automatically; cell IDs remain unchanged.
+Filter to the appropriate space before
 calculating physical areas or distances:</p>
 <pre><code class="language-python">tissue_nbhds = landscape.nbhd.loc[landscape.nbhd[&quot;space&quot;] == &quot;spatial&quot;]
 landscape.save_nbhds(&quot;neighborhoods.geojson&quot;)
@@ -3162,6 +3190,92 @@ landscape.select_nbhd(&quot;nbhd_xy_1&quot;)  # restores its axes and selects it
 dataset. Spatial polygons are transformed for the tissue image; embedding
 polygons retain their saved coordinate-space metadata and render only in the
 matching view.</p>
+<h2 id="viewport-cell-types-and-estimated-expression">Viewport cell types and estimated expression</h2>
+<p>Panning or zooming in UMAP or XY updates the cell-type bars with counts of all
+cell centers inside the viewport, as the spatial view does when zoomed in.
+Points are sized in embedding units, so they grow as you zoom in. To send a
+region's cells to Python (<code>get_selected_cells()</code>), draw an NBHD polygon around
+them.</p>
+<p>The gene bars follow the viewport too, and the <strong>TRX</strong> button shows what they
+hold:</p>
+<ul>
+<li><strong>Blue</strong>, every cell in view: the whole-dataset genes, actual expression.</li>
+<li><strong>Purple</strong>, zoomed in: genes estimated from cell-type signatures (below).</li>
+<li><strong>Blue</strong> after clicking TRX: the exact mean counts per cell of the top 50
+  estimated genes for the cells in view, read one gene at a time. Panning or
+  zooming returns to the estimate.</li>
+<li><strong>Gray</strong>, zoomed in without signatures: the whole-dataset genes; clicking
+  TRX computes the exact values for the cells in view.</li>
+</ul>
+<p>To estimate expression in the viewport, give Landscape each cell type's mean
+expression, as an AnnData with cell types as <code>obs_names</code> and genes as
+<code>var_names</code>. Store two layers: <code>counts</code>, the mean raw counts per cell, which the
+estimate reads (the values that color cells and that a TRX click computes
+exactly), and <code>log1p</code>, the mean log-normalized expression, the better input for
+z-scored views such as a Clustergram. For a cell-level AnnData (raw counts in
+<code>layers["counts"]</code>, log1p in <code>X</code>), compute it on the fly and pass it as
+<code>adata_sig</code>; it is sent with the widget, like <code>adata</code>:</p>
+<pre><code class="language-python">import scanpy as sc
+
+signature = sc.get.aggregate(adata, by=&quot;cell_type&quot;, func=&quot;mean&quot;, layer=&quot;counts&quot;)
+signature.layers[&quot;counts&quot;] = signature.layers.pop(&quot;mean&quot;)
+signature.layers[&quot;log1p&quot;] = sc.get.aggregate(adata, by=&quot;cell_type&quot;, func=&quot;mean&quot;).layers[&quot;mean&quot;]
+signature.uns[&quot;viewport_signature&quot;] = {
+    &quot;groupby&quot;: &quot;cell_type&quot;,
+    &quot;layers&quot;: {&quot;counts&quot;: &quot;mean counts per cell&quot;, &quot;log1p&quot;: &quot;mean log1p counts per 10,000&quot;},
+}
+
+landscape = dega.viz.Landscape(
+    zarr_url=&quot;cells.zarr&quot;,
+    cluster_attr=&quot;cell_type&quot;,
+    adata_sig=signature,
+    nbhd_edit=True,
+)
+</code></pre>
+<p>Larger signatures (tens of MB, e.g. hundreds of cell types × the whole
+transcriptome) are better saved as a separate AnnData Zarr and read by the
+browser from <code>gene_signature_url</code>:</p>
+<pre><code class="language-python">import json
+import zarr
+
+signature.uns[&quot;viewport_signature&quot;] = json.dumps(signature.uns[&quot;viewport_signature&quot;])
+signature.write_zarr(&quot;cell_type_signatures.zarr&quot;)
+zarr.consolidate_metadata(&quot;cell_type_signatures.zarr&quot;)
+
+landscape = dega.viz.Landscape(
+    zarr_url=&quot;cells.zarr&quot;,
+    cluster_attr=&quot;cell_type&quot;,
+    gene_signature_url=&quot;cell_type_signatures.zarr&quot;,
+)
+</code></pre>
+<p>Spatial DegaFiles need neither: their UMAP/XY views use <code>df_sig.parquet</code>, each
+default cluster's mean counts per cell, while the Landscape shows those clusters.</p>
+<p>The means must be dense, finite, and nonnegative. The estimate reads
+<code>viewport_signature["layer"]</code> when set, else <code>layers["counts"]</code>, else <code>X</code>; other
+units (e.g. mean log1p) work too, and are named in TRX's tooltip. Match the
+layer to the expression that colors the cells (the Zarr store's <code>zarr_layer</code>).
+When a dataset mixes UMI counts with read counts (e.g. 10x and Smart-seq2),
+store library-size-normalized, log1p expression in the Zarr layer, as CELLxGENE
+Explorer shows, and read the signatures' <code>log1p</code> layer
+(<code>"layer": "log1p"</code>): raw read counts can be hundreds of times larger than UMI
+counts and would set every gene's color scale. <code>groupby</code>
+names the cell attribute the labels come from (default: <code>cluster_attr</code>). The estimated gene bars show
+<code>sum(visible cell-type count × cell-type mean) / visible cell count</code> for up to
+200 highest estimated genes. These composition estimates do not capture
+variation within a cell type. Every visible cell must have a matching signature;
+otherwise the gene bars keep the whole dataset (TRX gray) and TRX's tooltip
+reports the coverage. No per-cell expression is
+downloaded when the viewport changes. Gene coloring and XY axes still read
+actual cell expression.</p>
+<p>For exact expression of every gene, or a Clustergram, draw an NBHD and use the
+matching cell-level AnnData in Python:</p>
+<pre><code class="language-python">selected = landscape.get_selected_cells(adata)
+if selected.n_obs:
+    mat = dega.clust.Matrix(selected)
+    mat.filter(&quot;row&quot;, by=&quot;var&quot;, num=min(500, selected.n_vars))
+    mat.cluster()
+    cgm = dega.viz.Clustergram(matrix=mat)
+</code></pre>
 <p>For the full list of constructor arguments (multi-dataset support, point-cloud
 options, <code>AnnData</code> integration, etc.), see the
 <a href="../../python/viz/api/">Viz Module API reference</a>.</p>

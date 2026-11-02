@@ -5701,6 +5701,55 @@ only CSC layer.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>gene_signature_url</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> or <span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dense AnnData Zarr of cell-type
+mean expression for UMAP/XY viewport estimates. <code>obs_names</code> match
+the cell category labels and <code>var_names</code> are genes. The estimate
+reads nonnegative means from <code>layers['counts']</code> (mean counts per
+cell, comparable with the exact values a TRX click computes) when
+present, else <code>X</code>; a <code>layers['log1p']</code> of mean log1p expression
+can sit alongside for z-scored views. <code>uns['viewport_signature']</code>
+is a JSON string with <code>groupby</code> (the cell attribute) and
+<code>units</code>, and optionally <code>layer</code> (the layer to read) and
+<code>layers</code> (units per layer).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>adata_sig</code>
+            </td>
+            <td>
+                  <code><span title="AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The same cell-type means as an in-memory
+AnnData, read the same way, e.g. <code>sc.get.aggregate(adata,
+by="leiden", func="mean", layer="counts")</code> (whose <code>"mean"</code> layer
+is used when there is neither <code>layers['counts']</code> nor <code>X</code>). Sent
+with the widget, so keep it to tens of MB; save larger signatures to
+Zarr for <code>gene_signature_url</code>. <code>groupby</code> defaults to
+<code>cluster_attr</code> and <code>units</code> to "mean expression per cell" unless
+<code>uns['viewport_signature']</code> sets them. Spatial DegaFiles fall back
+to their own <code>df_sig.parquet</code> for their clusters.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>dataset_names</code>
             </td>
             <td>
@@ -5877,6 +5926,8 @@ available UMAP coordinates.</p>
         <p>All NBHDs with geometry, space, cell IDs and x/y vertex rings.</p>
 <p>Physical polygons use native tissue coordinates; UMAP and XY retain
 their displayed coordinates and their saved embedding/axis metadata.
+Display Y increases downward; UMAP's <code>axes.y.reversed</code> marks that
+increasing the raw embedding's second coordinate is drawn upward.
 Each element of x/y is a polygon ring, including any interior holes.
 <code>nbhd</code> exposes the same frame, updated when browser edits arrive.</p>
 

@@ -27,6 +27,7 @@ not_in_nav: |
   examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
+  examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb
 
 hooks:
   - scripts/unlisted_docs.py

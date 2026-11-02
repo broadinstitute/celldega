@@ -27,6 +27,19 @@ export const zoom_to_fit = (
   Math.log2(Math.min(canvas_width / data_width, canvas_height / data_height));
 
 /**
+ * The extent zoom limits follow: the tissue in the spatial view; in UMAP and XY,
+ * the square their positions are scaled into (`embedding_size`, see
+ * umap_world_size), so zooming out stops one level past the whole embedding.
+ * A single-cell dataset has no tissue extent, and so no other limit.
+ */
+export const zoom_extent = (view, spatial, embedding_size) =>
+  (view === 'umap' || view === 'xy') &&
+  is_finite_number(embedding_size) &&
+  embedding_size > 0
+    ? { data_width: embedding_size, data_height: embedding_size }
+    : { data_width: spatial?.data_width, data_height: spatial?.data_height };
+
+/**
  * @param {object} params
  * @param {number} params.fit_zoom - Tissue-wide zoom (see zoom_to_fit).
  * @param {number} [params.initial_zoom] - The view's current (or starting)

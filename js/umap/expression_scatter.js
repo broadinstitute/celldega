@@ -1,10 +1,17 @@
 import { ViewMode } from '@deck.gl-community/editable-layers';
 
-import { get_scatterplot_cell_data } from '../deck-gl/layers/cell_layer';
+import {
+  get_scatterplot_cell_data,
+  scatterplot_view_props,
+} from '../deck-gl/layers/cell_layer';
 import { calc_and_update_rgn_bar_graph } from '../deck-gl/layers/edit_layer';
 import { load_gene_expression } from '../global_variables/cell_exp_array';
 
-import { fingerprint, show_space_gates } from './embedding_gates';
+import {
+  fingerprint,
+  migrate_umap_gates,
+  show_space_gates,
+} from './embedding_gates';
 
 export const expression_axis = (
   values,
@@ -79,7 +86,12 @@ export const initialize_expression_scatter = (
   );
   const dataset = fingerprint(cats.cell_names_array);
   const umap_space = umap
-    ? { kind: 'umap', dataset, embedding: fingerprint(umap) }
+    ? {
+        kind: 'umap',
+        dataset,
+        embedding: fingerprint(umap),
+        axes: { y: { reversed: true } },
+      }
     : null;
   const physical_space = {
     kind: 'spatial',
@@ -115,6 +127,20 @@ export const initialize_expression_scatter = (
   const subscribe = (observable, callback) => {
     disposers.push(observable.subscribe(callback, { immediate: false }));
   };
+  const restore_gates = (collection) => {
+    viz_state.embedding_gates = migrate_umap_gates(
+      collection,
+      umap_space,
+      spatial.umap_legacy_embedding,
+      spatial.umap_y_sum
+    );
+    if (viz_state.embedding_gates !== collection) {
+      viz_state.publishing_gates = true;
+      publish('gates', viz_state.embedding_gates);
+      viz_state.publishing_gates = false;
+    }
+  };
+  restore_gates(viz_state.embedding_gates);
   const show_gates = (space) => {
     viz_state.nbhd_editor?.close();
     show_space_gates(viz_state, layers_obj, space);
@@ -127,7 +153,7 @@ export const initialize_expression_scatter = (
   };
   listen('gates', () => {
     if (viz_state.publishing_gates) return;
-    viz_state.embedding_gates = model.get('gates');
+    restore_gates(model.get('gates'));
     show_gates(viz_state.neighborhood_space);
     refresh();
   });
@@ -155,6 +181,7 @@ export const initialize_expression_scatter = (
       show_gates(view === 'umap' ? umap_space : physical_space);
       publish('landscape_state', view);
       refresh();
+      viz_state.refresh_viewport?.();
     };
     subscribe(obs.landscape_view, update_space);
     listen('landscape_state', () => {
@@ -289,9 +316,7 @@ export const initialize_expression_scatter = (
       layers_obj.cell_layer = layers_obj.cell_layer.clone({
         data: get_scatterplot_cell_data(viz_state),
         transitions: false,
-        radiusUnits: 'pixels',
-        radiusMinPixels: 0,
-        modelMatrix: null,
+        ...scatterplot_view_props(viz_state),
       });
       if (layers_obj.edit_layer) {
         layers_obj.edit_layer = layers_obj.edit_layer.clone({
@@ -302,6 +327,7 @@ export const initialize_expression_scatter = (
       if (t < 1) animation = requestAnimationFrame(frame);
       else {
         spatial.embedding_animation_positions = null;
+        viz_state.refresh_viewport?.();
       }
     };
     animation = requestAnimationFrame(frame);
@@ -422,6 +448,7 @@ export const initialize_expression_scatter = (
         displayed = new Float32Array(
           spatial.cell_scatter_data.attributes.getPosition.value
         );
+        viz_state.refresh_viewport?.();
       }
     }
   };

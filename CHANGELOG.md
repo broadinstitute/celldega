@@ -6,7 +6,11 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.28.0] - Unreleased
 
-Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
+Pre-release `0.28.0a3` (npm `0.28.0-alpha.3`) includes all of the changes below.
+It adds the UMAP/XY zoom-out limit to `0.28.0a2` (npm `0.28.0-alpha.2`), which
+added Landscape's UMAP/XY viewport bars and signature estimates, the UMAP
+orientation and point-size changes, and the missing-metadata fix to `0.28.0a1`
+(npm `0.28.0-alpha.1`).
 
 ### Breaking
 
@@ -40,6 +44,12 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 
 ### Added
 
+- Landscape: UMAP/XY viewport bars count visible cell types and estimate local
+  gene means from cell-type signatures, weighted by visible cell-type counts:
+  an in-memory AnnData (`adata_sig`), a signature AnnData Zarr
+  (`gene_signature_url`), or a spatial DegaFiles' own `df_sig.parquet`. TRX
+  turns purple for estimates and acts only as an indicator in UMAP/XY.
+  Estimates are labeled with their units; spatial transcript controls are unchanged.
 - `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
   value reaches a threshold somewhere, for example genes detected in at least
   5% of some cluster's cells. Recommended for whole-transcriptome data before
@@ -209,6 +219,9 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 
 ### Changed
 
+- Landscape: UMAPs are drawn with their second coordinate increasing upward,
+  matching Scanpy and CELLxGENE (saved UMAP polygons migrate automatically),
+  and UMAP/XY points are sized in embedding units, so they grow when zooming in.
 - Dependencies: `zarr>=3,<4`, and `fsspec[http]` so `Matrix.read_zarr` can
   read HTTPS stores such as Hugging Face.
 - `celldega.pre` imports without pyvips (libvips); only the image functions
@@ -237,6 +250,14 @@ Pre-release `0.28.0a1` (npm `0.28.0-alpha.1`) includes all of the changes below.
 
 ### Fixed
 
+- Landscape viewport updates are debounced per widget, so interacting with one
+  Landscape does not cancel another Landscape's pending update.
+
+- Landscape: zooming out in the UMAP and XY views stops one zoom level past the
+  whole embedding, as the spatial view stops past the whole tissue. Single-cell
+  (AnnData Zarr) Landscapes could zoom out without limit.
+- Landscape: missing numeric cell metadata (e.g. NaN in an `obs` column passed
+  with `adata`) shows as N.A. instead of reading as 0.
 - Cell segmentation validates polygon offsets and uses logical Arrow lengths
   instead of buffer capacity, preventing padded data from connecting unrelated
   cells. Tile changes rebuild the path buffers together, stale requests cannot

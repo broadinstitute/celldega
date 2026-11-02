@@ -181,6 +181,24 @@ describe.each([false, true])('viewport ordering (forced: %s)', (forced) => {
     expect(viz.viewport_cache.visibleTileKey).toBeNull();
   });
 
+  test('entering UMAP invalidates a pending spatial tile load', async () => {
+    const pending = deferred();
+    updateTranscripts.mockReturnValueOnce(pending.promise);
+    const first = calc_viewport(view(0), deck, layers, viz);
+    viz.obs_store.umap_state = { get: () => true };
+    viz.update_embedding_viewport = jest.fn();
+    await calc_viewport(view(100), deck, layers, viz);
+    pending.resolve();
+    await first;
+    expect(updatePaths).not.toHaveBeenCalled();
+    expect(viz.update_embedding_viewport).toHaveBeenCalledWith({
+      min_x: 95,
+      max_x: 105,
+      min_y: -5,
+      max_y: 5,
+    });
+  });
+
   test('an obsolete viewport cannot clear the current loading indicator', async () => {
     const old = deferred();
     const current = deferred();

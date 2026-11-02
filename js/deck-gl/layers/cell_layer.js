@@ -23,7 +23,11 @@ import {
 import { update_selected_genes } from '../../global_variables/selected_genes';
 import { get_arrow_table } from '../../read_parquet/get_arrow_table';
 import { get_scatter_data } from '../../read_parquet/get_scatter_data';
-import { scale_umap_positions } from '../../umap/scale_umap_data';
+import { fingerprint } from '../../umap/embedding_gates';
+import {
+  scale_umap_positions,
+  umap_world_size,
+} from '../../umap/scale_umap_data';
 import {
   buildCellCompactData,
   createEmptyCellCompact,
@@ -280,7 +284,8 @@ export const set_point_cloud_umap_positions_from_names = (
   viz_state.spatial.cell_umap_positions = scale_umap_positions(
     viz_state,
     positions,
-    POINT_CLOUD_POSITION_SIZE
+    POINT_CLOUD_POSITION_SIZE,
+    false
   );
 };
 
@@ -502,6 +507,17 @@ export const set_scatterplot_umap_positions_from_names = (
     positions[offset + 1] = Number(coords?.[1]) || 0;
   }
 
+  // Hash the original formula before reversing Y. Re-mirroring the new buffer
+  // can differ in floating-point rounding and fail to identify saved gates.
+  const legacy = scale_umap_positions(viz_state, positions.slice(), 2, false);
+  viz_state.spatial.umap_legacy_embedding = fingerprint(legacy);
+  let low = Infinity;
+  let high = -Infinity;
+  for (let i = 1; i < legacy.length; i += 2) {
+    low = Math.min(low, legacy[i]);
+    high = Math.max(high, legacy[i]);
+  }
+  viz_state.spatial.umap_y_sum = low + high;
   viz_state.spatial.cell_umap_scatter_positions = scale_umap_positions(
     viz_state,
     positions,
@@ -536,12 +552,20 @@ const get_scatterplot_positions = (viz_state) => {
   );
 };
 
-const scatterplot_view_props = (viz_state) => {
+// UMAP/XY points grow as you zoom in, like cells in the spatial view: their
+// radius is in embedding units, a pixel per 5 on the CELL slider where the
+// embedding spans UMAP_FIT_PIXELS (so half a pixel at the default slider where
+// it spans 500), and at least half a pixel zoomed out.
+const UMAP_FIT_PIXELS = 1000;
+const umap_radius = (viz_state, radius) =>
+  (radius / 5) * (umap_world_size(viz_state) / UMAP_FIT_PIXELS);
+
+export const scatterplot_view_props = (viz_state) => {
   const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
   const radius = viz_state.spatial?.cell_radius ?? 5;
   return {
-    radiusUnits: isUmap ? 'pixels' : 'common',
-    radiusMinPixels: isUmap || radius === 0 ? 0 : 1,
+    radiusUnits: 'common',
+    radiusMinPixels: radius === 0 ? 0 : isUmap ? 0.5 : 1,
     modelMatrix: isUmap ? null : (viz_state.rotation?.modelMatrix ?? null),
   };
 };
@@ -562,9 +586,10 @@ export const get_scatterplot_cell_data = (viz_state) => {
 
   const isUmap = Boolean(viz_state.obs_store?.umap_state?.get());
   const radius = viz_state.spatial?.cell_radius ?? 5;
-  // UMAP points keep a pixel size at any zoom; selections change their color,
-  // not their size.
-  const radii = new Float32Array(fullCount).fill(isUmap ? radius / 5 : radius);
+  // Selections change a point's color, not its size.
+  const radii = new Float32Array(fullCount).fill(
+    isUmap ? umap_radius(viz_state, radius) : radius
+  );
 
   return assert_binary_attribute_lengths('scatterplot-cell', {
     length: fullCount,

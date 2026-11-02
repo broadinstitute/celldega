@@ -359,6 +359,14 @@ const trx_button_callback_ist = async (
   layers_obj,
   viz_state
 ) => {
+  // UMAP/XY TRX reports the gene-bar estimate; it has no click action.
+  const view = viz_state.obs_store?.landscape_view?.get();
+  if (
+    view === 'umap' ||
+    view === 'xy' ||
+    viz_state.obs_store?.umap_state?.get()
+  )
+    return;
   // Past the close-up limit, TRX is a handle that loads transcripts (and
   // boundaries) on demand -- see trx_handle.js. Too far out it does nothing.
   if (viz_state.trx_zone === 'far') return;

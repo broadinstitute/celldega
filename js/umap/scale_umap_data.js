@@ -27,7 +27,16 @@ const getUmapTarget = (viz_state) => {
   };
 };
 
-export const scale_umap_positions = (viz_state, positions, stride = 2) => {
+/** Side of the square UMAP positions are scaled into (scale_umap_positions). */
+export const umap_world_size = (viz_state) =>
+  getUmapTarget(viz_state).range_max;
+
+export const scale_umap_positions = (
+  viz_state,
+  positions,
+  stride = 2,
+  flip_y = true
+) => {
   if (!positions || positions.length === 0) {
     return positions;
   }
@@ -69,7 +78,10 @@ export const scale_umap_positions = (viz_state, positions, stride = 2) => {
         : x_mid;
     positions[offset + 1] =
       umap_y_range > 0
-        ? ((y - umap_y_min) / umap_y_range) * range_max + y_mid + scaled_min
+        ? ((flip_y ? umap_y_max - y : y - umap_y_min) / umap_y_range) *
+            range_max +
+          y_mid +
+          scaled_min
         : y_mid;
   }
 

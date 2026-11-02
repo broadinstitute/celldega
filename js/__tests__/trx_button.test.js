@@ -102,6 +102,18 @@ describe('TRX button', () => {
     calls.length = 0;
   });
 
+  it.each(['umap', 'xy'])(
+    'leaves layers and selection alone in %s',
+    async (view) => {
+      const state = make_viz_state('forceable');
+      state.obs_store.landscape_view = make_observable(view);
+      await trx_button_callback_ist({}, {}, {}, state);
+      expect(calls).toHaveLength(0);
+      expect(state.trx_forced).toBeUndefined();
+      expect(state.obs_store.viz_edit_layer.get()).toBe(true);
+    }
+  );
+
   it('takes over from neighborhoods when forcing at intermediate zoom', async () => {
     const viz_state = make_viz_state('forceable');
     await trx_button_callback_ist({}, {}, {}, viz_state);

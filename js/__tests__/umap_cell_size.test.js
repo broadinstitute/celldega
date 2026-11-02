@@ -12,6 +12,7 @@ const read = (file) =>
 
 const api = new Function(`
   ${read('global_variables/image_info.js')}
+  ${read('umap/scale_umap_data.js')}
   ${read('deck-gl/layers/cell_color.js')}
   ${read('deck-gl/layers/cell_layer.js')}
   return { get_scatterplot_cell_data, refresh_cell_layer_data,
@@ -50,13 +51,20 @@ const makeState = () => ({
 });
 
 const radii = (data) => Array.from(data.attributes.getRadius.value);
+// A CELL-slider radius of 5 is a pixel where the 10,000-unit UMAP box spans
+// 1,000 pixels: 10 embedding units, which grow on screen as the view zooms in.
+const UMAP_UNIT_RADIUS = 10;
 
 describe('selected cells in UMAP views', () => {
   test('a cluster selection dims the other cells without resizing any', () => {
     const state = makeState();
     state.cats.selected_cats = ['A'];
     const data = api.get_scatterplot_cell_data(state);
-    expect(radii(data)).toEqual([1, 1, 1]);
+    expect(radii(data)).toEqual([
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+    ]);
     expect(Array.from(data.attributes.getFillColor.value.slice(4, 8))).toEqual([
       128, 128, 128, 16,
     ]);
@@ -67,18 +75,30 @@ describe('selected cells in UMAP views', () => {
     const layers = { cell_layer: new Layer() };
     state.highlighted_cells = new Set(['a', 'b']);
     api.refresh_cell_layer_data(layers, state);
-    expect(radii(layers.cell_layer.props.data)).toEqual([1, 1, 1]);
-    expect(layers.cell_layer.props.radiusUnits).toBe('pixels');
+    expect(radii(layers.cell_layer.props.data)).toEqual([
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+    ]);
+    expect(layers.cell_layer.props.radiusUnits).toBe('common');
     state.highlighted_cells.clear();
     api.refresh_cell_layer_data(layers, state);
-    expect(radii(layers.cell_layer.props.data)).toEqual([1, 1, 1]);
+    expect(radii(layers.cell_layer.props.data)).toEqual([
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+    ]);
   });
 
   test('gene coloring keeps every cell at its size', () => {
     const state = makeState();
     state.cats.cat = 'GeneA';
     state.cats.selected_cats = ['GeneA'];
-    expect(radii(api.get_scatterplot_cell_data(state))).toEqual([1, 1, 1]);
+    expect(radii(api.get_scatterplot_cell_data(state))).toEqual([
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+      UMAP_UNIT_RADIUS,
+    ]);
   });
 
   test('XY and animated positions leave the original UMAP buffer intact', () => {
@@ -110,7 +130,7 @@ describe('selected cells in UMAP views', () => {
     state.cats.selected_cats = ['A'];
     const layers = { cell_layer: new Layer() };
     api.update_cell_layer_radius(layers, 10, state);
-    expect(radii(layers.cell_layer.props.data)).toEqual([2, 2, 2]);
+    expect(radii(layers.cell_layer.props.data)).toEqual([20, 20, 20]);
     api.update_cell_layer_radius(layers, 0, state);
     expect(radii(layers.cell_layer.props.data)).toEqual([0, 0, 0]);
     expect(layers.cell_layer.props.radiusMinPixels).toBe(0);

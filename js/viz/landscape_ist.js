@@ -17,6 +17,7 @@ import {
 import { set_views } from '../deck-gl/core/views';
 import {
   landscape_zoom_limits,
+  zoom_extent,
   zoom_to_fit,
 } from '../deck-gl/core/zoom_limits';
 import { ini_background_layer } from '../deck-gl/layers/background_layer';
@@ -110,6 +111,7 @@ import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
+import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
 import {
   createEmptyCellCompact,
@@ -1071,9 +1073,10 @@ export const landscape_ist = async (
     rotation_x
   );
 
-  // Zoom limits follow the tissue and the map's size: set now, and again when
-  // the map is resized or the dataset changes (switch_dataset). Until the map
-  // is laid out, the widget's width stands in for its own.
+  // Zoom limits follow the tissue (or, in UMAP and XY, the embedding) and the
+  // map's size: set now, and again when the map is resized, the view switches,
+  // or the dataset changes (switch_dataset). Until the map is laid out, the
+  // widget's width stands in for its own.
   viz_state.update_zoom_limits = ({
     canvas_width = deck_ist.width ||
       root.clientWidth ||
@@ -1083,7 +1086,11 @@ export const landscape_ist = async (
     const { technology } = viz_state.img.landscape_parameters;
     if (is_orbit_technology(technology)) return;
 
-    const { data_width, data_height } = viz_state.spatial;
+    const { data_width, data_height } = zoom_extent(
+      viz_state.obs_store.landscape_view.get(),
+      viz_state.spatial,
+      umap_world_size(viz_state)
+    );
     const limits = landscape_zoom_limits({
       fit_zoom: zoom_to_fit(
         canvas_width,
@@ -1225,6 +1232,7 @@ export const landscape_ist = async (
     (view) => {
       const isUmap = view === 'umap' || view === 'xy';
       viz_state.obs_store.umap_state.set(isUmap);
+      viz_state.update_zoom_limits?.();
 
       if (viz_state.scale_bar) {
         viz_state.scale_bar.setVisible(!isUmap);

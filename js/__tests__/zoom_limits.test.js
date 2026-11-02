@@ -11,12 +11,13 @@ const source = fs
 const module_ = { exports: {} };
 new Function(
   'module',
-  `${source}\nmodule.exports = { MIN_ZOOM_MARGIN, MAX_ZOOM_VIEW_MICRONS, zoom_to_fit, landscape_zoom_limits };`
+  `${source}\nmodule.exports = { MIN_ZOOM_MARGIN, MAX_ZOOM_VIEW_MICRONS, zoom_to_fit, zoom_extent, landscape_zoom_limits };`
 )(module_);
 const {
   MIN_ZOOM_MARGIN,
   MAX_ZOOM_VIEW_MICRONS,
   zoom_to_fit,
+  zoom_extent,
   landscape_zoom_limits,
 } = module_.exports;
 
@@ -92,5 +93,44 @@ describe('landscape_zoom_limits', () => {
     });
     expect(minZoom).toBe(-Infinity);
     expect(maxZoom).toBe(Infinity);
+  });
+});
+
+describe('zoom_extent', () => {
+  const tissue = { data_width: 4000, data_height: 1200 };
+
+  it('follows the tissue in the spatial view', () => {
+    expect(zoom_extent('spatial', tissue, 10000)).toEqual(tissue);
+  });
+
+  it('follows the square embedding in UMAP and XY', () => {
+    const square = { data_width: 10000, data_height: 10000 };
+    expect(zoom_extent('umap', tissue, 10000)).toEqual(square);
+    expect(zoom_extent('xy', tissue, 10000)).toEqual(square);
+  });
+
+  it('limits zooming out a single-cell UMAP, which has no tissue extent', () => {
+    // Single-cell cells sit at a placeholder origin: no tissue, no limit.
+    const none = { data_width: 0, data_height: 0 };
+    const fit = (extent) =>
+      zoom_to_fit(1000, 750, extent.data_width, extent.data_height);
+    expect(
+      landscape_zoom_limits({
+        fit_zoom: fit(zoom_extent('spatial', none, 10000)),
+        canvas_size: 750,
+      }).minZoom
+    ).toBe(-Infinity);
+    // One level past the 10,000-unit embedding fitting the 750 px side.
+    expect(
+      landscape_zoom_limits({
+        fit_zoom: fit(zoom_extent('umap', none, 10000)),
+        canvas_size: 750,
+      }).minZoom
+    ).toBeCloseTo(Math.log2(750 / 10000) - MIN_ZOOM_MARGIN);
+  });
+
+  it('falls back to the tissue when the embedding size is unknown', () => {
+    expect(zoom_extent('umap', tissue, NaN)).toEqual(tissue);
+    expect(zoom_extent('umap', tissue, 0)).toEqual(tissue);
   });
 });

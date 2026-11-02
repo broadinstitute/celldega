@@ -6,11 +6,13 @@ All notable changes to Celldega are documented here. This project follows
 
 ## [0.28.0] - Unreleased
 
-Pre-release `0.28.0a3` (npm `0.28.0-alpha.3`) includes all of the changes below.
-It adds the UMAP/XY zoom-out limit to `0.28.0a2` (npm `0.28.0-alpha.2`), which
-added Landscape's UMAP/XY viewport bars and signature estimates, the UMAP
-orientation and point-size changes, and the missing-metadata fix to `0.28.0a1`
-(npm `0.28.0-alpha.1`).
+Pre-release `0.28.0a4` (npm `0.28.0-alpha.4`) includes all of the changes below.
+Since `0.28.0a3` it fixes cell boundaries that could render garbled after zooming
+back in, debounces viewport updates per widget, and makes TRX an indicator only
+in the UMAP and XY views. `0.28.0a3` added the UMAP/XY zoom-out limit, and
+`0.28.0a2` added Landscape's UMAP/XY viewport bars and signature estimates, the
+UMAP orientation and point-size changes, and the missing-metadata fix to
+`0.28.0a1`.
 
 ### Breaking
 
@@ -263,6 +265,10 @@ orientation and point-size changes, and the missing-metadata fix to `0.28.0a1`
   cells. Tile changes rebuild the path buffers together, stale requests cannot
   replace newer boundaries, and reported rendering errors trigger one automatic
   rebuild. Failed geometry loads clear cached cell data so they can be retried.
+- Landscape: cell boundaries no longer render garbled, or log a deck.gl
+  assertion for the path layer, after zooming out and back in (most often with
+  a gene or cluster selected). Zoomed out, the boundary and transcript layers are
+  hidden instead of removed, so deck.gl never reinitializes a finalized layer.
 - Landscape with `nbhd_edit=True`: clicking a Clustergram row or column no
   longer logs "nbhd?.style is not a function" in the browser console.
 - Landscape: clicking a gene in Enrich colors cells by it even when the

@@ -15,7 +15,6 @@ composition, and set-to-set overlap are all derived from it.
 
 ```python
 import celldega as dega
-import celldega as dega
 
 # Build one SetCollection per clustering "opinion" (the cells define the sets)
 clust = dega.SetCollection(adata, set_col="leiden", name="leiden")

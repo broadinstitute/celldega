@@ -80,6 +80,7 @@ nav:
       - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
       - pre: python/pre/api.md
+      - qc: python/qc/api.md
       - select: python/select/api.md
       - set: python/set/api.md
       - viz: python/viz/api.md

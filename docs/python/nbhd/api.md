@@ -1,5 +1,10 @@
 # Neighborhood Module API Reference
 
+See [Atera breast cancer neighborhoods](../../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb)
+for hextile niches and alpha-shape comparisons, and
+[pancreas islet gradients](../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb)
+for a complete gradient-analysis and NeighborhoodCollection workflow.
+
 Neighborhoods are `GeoDataFrame`s with one row per neighborhood and an id
 column (`name` by default, falling back to `neighborhood_id` / `nbhd_id`). They
 come from alpha shapes, hextiles, gradient rings, or your own polygons, and are

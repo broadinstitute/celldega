@@ -14,7 +14,6 @@ dataset-level collection.
 
 ```python
 import celldega as dega
-import celldega as dega
 
 dset = dega.DatasetCollection(
     adata,

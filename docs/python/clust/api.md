@@ -1,5 +1,11 @@
 # Clust Module API Reference
 
+For complete workflows, see the
+[Chromium PBMC notebook](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)
+and [Atera breast cancer notebook](../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb).
+The [Clustergram guide](../../visualizations/clustergram.md#advanced-usage)
+explains marker dot plots and precomputed views.
+
 `Matrix` preserves supplied values during construction. For general standalone
 datasets, filtering and normalization are explicit operations, so the data
 transformations remain visible in the notebook:

@@ -2,6 +2,10 @@
 
 For a conceptual overview of what each widget shows and how to use it, see
 the [Visualizations](../../visualizations/index.md) section.
+Try the [Chromium PBMC notebook](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)
+for low dimensional embedding landscapes, or the
+[Visium HD CRC notebook](../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb)
+for linked spatial, expression, and enrichment views.
 
 ## Landscape data sources and controls
 

@@ -123,6 +123,9 @@ test('should handle basic case', () => {
 
 ## 📓 Rendering Docs Notebooks (Widget Embedding)
 
+See the [documentation maintenance checklist](.github/DOCS_MAINTENANCE.md) for
+prioritized notebook reruns, supporting-data uploads, and screenshots.
+
 The example notebooks under `docs/examples/` render their interactive widgets
 (`Landscape`, `Clustergram`, …) statically in the built docs by **embedding the
 widget state** into the notebook. `mkdocs-jupyter` renders that saved state — it

@@ -10,7 +10,6 @@ The main class is `Selector`, used from the `celldega.select` namespace:
 
 ```python
 import celldega as dega
-import celldega as dega
 
 selector = dega.select.Selector(adata)
 ```

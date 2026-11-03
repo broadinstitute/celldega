@@ -16,6 +16,9 @@ objects. Both can be served over HTTP from a local server or cloud storage.
 See the [Landscape guide](../visualizations/landscape.md) for spatial and
 **low dimensional embedding landscapes** (UMAP/XY), and the
 [Matrix Python API](../python/clust/api.md) for analysis and persistence.
+For an end-to-end preparation and sharing workflow, see
+[generating DegaFiles](usage/index.md#prepare-degafiles-from-instrument-output)
+and [hosting prepared data](usage/index.md#host-and-share-prepared-data).
 
 <span id="landscapefiles"></span>
 

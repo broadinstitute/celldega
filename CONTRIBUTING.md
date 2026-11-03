@@ -4,9 +4,9 @@ Thank you for your interest in contributing to Celldega! 🧬
 
 ## What You Need
 
-- **Python 3.10+** → [Download here](https://python.org/downloads/)
-- **Node.js 16+** → [Download here](https://nodejs.org/)
-- **npm 8+** → [Install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- **Python 3.11 or 3.12** → [Download here](https://python.org/downloads/)
+- **uv** → [Installation guide](https://docs.astral.sh/uv/getting-started/installation/) (the setup script creates a standalone Python 3.12 environment)
+- **Node.js and npm** → [Package requirements](package.json)
 - **Git** → [Download here](https://git-scm.com/)
 
 ## 🚀 Quick Start (one-time!)
@@ -35,7 +35,7 @@ npm run dev                 # Start development server
 
 - Write clear, descriptive code
 - Add tests for new features
-- Test in Jupyter: `jupyter lab examples/`
+- Test in Jupyter: `jupyter lab notebooks/`; published tutorials live in `docs/examples/`
 
 ### 3. Before Committing
 
@@ -387,19 +387,12 @@ npm install                    # Reinstall JavaScript dependencies
 <details>
 <summary>Click for advanced setup options</summary>
 
-### Custom Environment Name
+### JavaScript Build Options
 
 ```bash
-bash ./scripts/setup.sh --env-name my-celldega-env
-```
-
-### Development Server Options
-
-```bash
-npm run dev                # Standard development
-npm run dev:watch         # Watch mode with hot reload
+npm run dev               # Watch and rebuild the widget bundle
+npm run watch             # Watch mode (same build script)
 npm run build             # Production build
-npm run serve             # Serve production build
 ```
 
 ### Testing Options
@@ -439,7 +432,6 @@ Install these extensions for the best experience:
 
 Contributors are celebrated in:
 
-- 📋 `CONTRIBUTORS.md` file
 - 📈 GitHub contributors graph
 - 📰 Release notes for significant contributions
 - 🎉 Special mentions in community updates

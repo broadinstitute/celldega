@@ -1,163 +1,122 @@
-![Celldega banner](public/assets/banner.svg)
+![Celldega banner](https://raw.githubusercontent.com/broadinstitute/celldega/main/public/assets/banner.svg)
 
-[![PyPI version](https://badge.fury.io/py/celldega.svg)](https://badge.fury.io/py/celldega)
+[![PyPI version](https://badge.fury.io/py/celldega.svg)](https://pypi.org/project/celldega/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://broadinstitute.github.io/celldega/)
 
-> **Interactive spatial‑omics analysis & visualisation toolkit for single‑cell and spatial transcriptomics data**
-## Celldega
-![Demo](docs/assets/img/Xenium_HCRC_Landscape-Clustergram.gif)
+# Celldega
 
-## Celldega Demo Video
+Celldega is a toolkit for exploring spatial and single-cell data through linked,
+GPU-accelerated visualizations. Explore tissue images, cells, transcripts, and
+neighborhoods with **Landscape**; compare expression patterns with **Clustergram**
+heatmaps and dot plots; and interpret gene sets with **Enrich**. Other views
+include cell portraits, composition charts, and 3D cell and neighborhood clouds.
 
-https://github.com/user-attachments/assets/ce43a3a0-8aff-4424-be74-8bb06c29a9c9
+Use Celldega in Jupyter notebooks or as a standalone JavaScript library. For
+desktop viewing of prepared data, try
+[Celldega-App (alpha)](https://github.com/broadinstitute/celldega-app).
 
+[Getting started](https://broadinstitute.github.io/celldega/getting-started/)
+· [Visualizations](https://broadinstitute.github.io/celldega/visualizations/)
+· [Interactive gallery](https://broadinstitute.github.io/celldega/gallery/)
+· [Tutorial notebooks](https://broadinstitute.github.io/celldega/examples/)
+· [Changelog](CHANGELOG.md)
 
-**Celldega** combines scalable computational pipelines with GPU‑accelerated, web‑native visualisations so you can explore **millions of cells and transcripts** directly inside Jupyter Lab, VS Code, or any modern browser. Built for researchers working with Xenium, Visium HD, MERFISH, and other spatial omics technologies.
+![Linked Landscape and Clustergram views](https://raw.githubusercontent.com/broadinstitute/celldega/main/docs/assets/img/Xenium_HCRC_Landscape-Clustergram.gif)
 
-## 🚀 Quick Start (30 min)
+## Quick start
 
-### Installation
+Celldega supports Python 3.11 and 3.12. Install it in your notebook's environment:
 
 ```bash
 pip install celldega
 ```
 
-### For Terra.bio Users
-
-Add this to your startup script for image processing features ([more info](https://support.terra.bio/hc/en-us/articles/360058193872-Preconfigure-a-Cloud-Environment-with-a-startup-script)):
-
-```bash
-apt update && apt install -y libvips libvips-tools libvips-dev
-```
-
-### Example Usage
+Run this in a notebook to explore a prepared Xenium human skin dataset:
 
 ```python
-base_url = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs'
+import celldega as dega
 
-landscape_ist = dega.viz.Landscape(
-    technology="Xenium",
+base_url = (
+    "https://raw.githubusercontent.com/broadinstitute/"
+    "celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/"
+    "Xenium_Prime_Human_Skin_FFPE_outs"
+)
+
+landscape = dega.viz.Landscape(
+    base_url=base_url,
     ini_zoom=-4.5,
     ini_x=6000,
     ini_y=8000,
-    base_url=base_url,
     height=700,
     width=600,
 )
-
-# Alternatively pass an AnnData object to auto-populate cell metadata
-# including "leiden" clusters, colors and UMAP coordinates.
-landscape_from_adata = dega.viz.Landscape(
-    base_url=base_url,
-    AnnData=adata,
-)
-
-file_path = 'https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_Prime_Human_Skin_FFPE_outs/main/Xenium_Prime_Human_Skin_FFPE_outs/df_sig.parquet'
-df = pd.read_parquet(file_path)
-
-mat = dega.clust.Matrix(df)
-mat.cluster()
-cgm = dega.viz.Clustergram(matrix=mat)
-
-dega.viz.landscape_clustergram(landscape_ist, cgm)
+landscape
 ```
 
-![Celldega Demo](public/assets/celldega-demo.png)
+Follow the [linked Landscape–Clustergram–Enrich guide](https://broadinstitute.github.io/celldega/visualizations/landscape-clustergram-enrich/)
+to connect tissue or UMAP views with expression patterns and enrichment results.
+The [installation guide](https://broadinstitute.github.io/celldega/getting-started/installation/)
+covers optional analysis and image-preprocessing dependencies.
 
-## 📖 Documentation & Examples
+For a web application:
 
-- **[📚 Documentation](https://broadinstitute.github.io/celldega/)** - Complete guides and API reference
-- **[🖼️ Gallery](https://broadinstitute.github.io/celldega/gallery/)** - Interactive visualization demos
-- **[📓 Examples](https://github.com/broadinstitute/celldega/tree/refactor-v0/notebooks)** - Jupyter notebooks you can run locally
-- **[🐍 Python API](https://broadinstitute.github.io/celldega/python/)** - Complete Python API
-- **[🌐 JavaScript API](https://broadinstitute.github.io/celldega/javascript/api/)** - Complete JavaScript API
+```bash
+npm install celldega
+```
 
-## 🛠️ Development Setup (for Contributors)
+See the [JavaScript quick start](https://broadinstitute.github.io/celldega/javascript/)
+for standalone and linked views.
 
-**Get started contributing in 2 minutes:**
+## Documentation
+
+- [Getting Started](https://broadinstitute.github.io/celldega/getting-started/): installation, usage options, and data formats.
+- [Visualizations](https://broadinstitute.github.io/celldega/visualizations/): widget guides and linked workflows.
+- [Gallery](https://broadinstitute.github.io/celldega/gallery/): interactive examples across datasets and technologies.
+- [Example Notebooks](https://broadinstitute.github.io/celldega/examples/): complete analysis and visualization workflows.
+- [Python API](https://broadinstitute.github.io/celldega/python/) and [JavaScript API](https://broadinstitute.github.io/celldega/javascript/api/): reference documentation.
+
+## Development
+
+See [Contributing](CONTRIBUTING.md) for prerequisites, setup, testing, and
+publishing documentation notebooks. The setup script uses `uv` to create a
+Python environment and installs the development tools:
 
 ```bash
 git clone https://github.com/broadinstitute/celldega.git
 cd celldega
-
-bash ./scripts/setup.sh
-
+bash scripts/setup.sh
 source dega/bin/activate
 npm run dev
 ```
 
-See our [Contributing Guide](CONTRIBUTING.md) for detailed instructions.
+`npm run dev` watches and rebuilds the JavaScript widget bundle. Open
+`jupyter lab notebooks/` in another terminal to work with the development
+notebooks. Maintained documentation tutorials live under `docs/examples/`.
 
-## 🏗️ Repository Structure
+| Path | Contents |
+| --- | --- |
+| `src/celldega/` | Python package |
+| `js/` | JavaScript widgets and visualizations |
+| `docs/` | Documentation, gallery, and published tutorial notebooks |
+| `notebooks/` | Development and analysis notebooks |
+| `celldega_js_examples/` | Standalone JavaScript examples |
+| `tests/` and `js/__tests__/` | Python and JavaScript tests |
+| `scripts/` | Setup, testing, and development utilities |
 
-| Directory/File  | Purpose                                |
-| --------------- | -------------------------------------- |
-| `src/celldega/` | 🐍 Core Python package                 |
-| `js/`           | 🌐 JavaScript widgets & visualizations |
-| `examples/`     | 📓 Jupyter notebook examples           |
-| `docs/`         | 📚 Documentation source                |
-| `js/__tests__/` | 🧪 JS/TS Test suites                   |
-| `tests/`        | 🧪 Python Test suites                  |
-| `scripts/`      | 🔧 Development utilities               |
+## Help and contributions
 
-## 🤝 Contributing
+Use [GitHub Discussions](https://github.com/broadinstitute/celldega/discussions)
+for questions, or [open an issue](https://github.com/broadinstitute/celldega/issues/new/choose)
+to report a bug or request a feature. Contributions to the code, documentation,
+and examples are welcome; start with the [contributing guide](CONTRIBUTING.md).
 
-We welcome contributions from the bio community! Whether you're a:
+## Citation and license
 
-- 🧬 **Researcher** - Share datasets, create tutorials, improve documentation
-- 👩‍💻 **Developer** - Add features, fix bugs, optimize performance
-- 📚 **Educator** - Create educational content, examples, workshops
-- 🎨 **Designer** - Improve visualizations, user experience, documentation
+If Celldega helps your research, please cite our preprint:
+[Celldega: Integrated Toolkit for Visualization and Analysis of Spatial Data](https://www.biorxiv.org/content/10.64898/2026.08.13.744672v2).
 
-**Getting started:**
-
-1. Read our [Contributing Guide](CONTRIBUTING.md)
-2. Check [open issues](https://github.com/broadinstitute/celldega/issues) for ideas
-3. Join [discussions](https://github.com/broadinstitute/celldega/discussions) to ask questions
-
-## 🆘 Getting Help
-
-**Questions about using Celldega?**
-
-- 💬 [Discussions](https://github.com/broadinstitute/celldega/discussions) - Ask the community
-- 📖 [Documentation](https://broadinstitute.github.io/celldega/) - Comprehensive guides
-- 📓 [Examples](examples/) - Working code you can adapt
-
-**Found a bug or want a feature?**
-
-- 🐛 [Report bugs](https://github.com/broadinstitute/celldega/issues/new?template=bug_report.md)
-- ✨ [Request features](https://github.com/broadinstitute/celldega/issues/new?template=feature_request.md)
-
-## 📊 Citation
-
-If Celldega helps your research, please cite us:
-
-```bibtex
-@software{celldega,
-  title   = {Celldega: Interactive spatial‑omics analysis & visualisation toolkit},
-  author  = {{Broad Institute}},
-  url     = {https://github.com/broadinstitute/celldega},
-  version = {0.12.0},
-  year    = {2025}
-}
-```
-
-## 🏛️ About
-
-**Celldega** is developed at the [Broad Institute](https://broadinstitute.org/) together with the biology research community. Our mission is to make spatial transcriptomics analysis accessible, interactive, and beautiful.
-
-Built on amazing open source tools:
-
-- **[deck.gl](https://deck.gl/)** - GPU-accelerated visualizations
-- **[PyArrow](https://arrow.apache.org/docs/python/)** - Fast columnar data processing
-- **[AnnData](https://anndata.readthedocs.io/)** - Annotated data matrices
-- **[SpatialData](https://spatialdata.scverse.org/)** - Spatial omics data structures
-
----
-
-<div align="center" style="padding: 20px;">
-
-Made with 🧬 by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute](https://broadinstitute.org/)
-
-</div>
+Celldega is developed by the
+[Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform)
+at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org/).
+See [LICENSE.txt](LICENSE.txt) for license terms.

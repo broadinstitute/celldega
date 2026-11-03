@@ -12,9 +12,9 @@ That's it! 🎉
 
 ## What You Need
 
-- **Python 3.10+** → [Download here](https://python.org/downloads/)
-- **Node.js 16+** → [Download here](https://nodejs.org/)
-- **npm 8+** → [Install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- **Python 3.11 or 3.12** → [Download here](https://python.org/downloads/)
+- **uv** → [Installation guide](https://docs.astral.sh/uv/getting-started/installation/)
+- **Node.js and npm** → [Package requirements](../package.json)
 
 ## 🗂️ Scripts Overview
 

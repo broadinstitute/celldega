@@ -1,0 +1,3808 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../technologies/">
+      
+      
+        <link rel="next" href="../../visualizations/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/img/celldega_logo_32x32_transparent.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>File Formats - Celldega Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/css/custom.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#celldega-file-formats" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Celldega Documentation" class="md-header__button md-logo" aria-label="Celldega Documentation" data-md-component="logo">
+      
+  <img src="../../assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Celldega Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              File Formats
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/broadinstitute/celldega" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <!-- @license lucide-static v1.0.0 - ISC -->
+<svg
+  class="lucide lucide-github"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+  <path d="M9 18c-4.51 2-5-2-7-2" />
+</svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Celldega Documentation" class="md-nav__button md-logo" aria-label="Celldega Documentation" data-md-component="logo">
+      
+  <img src="../../assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png" alt="logo">
+
+    </a>
+    Celldega Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/broadinstitute/celldega" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <!-- @license lucide-static v1.0.0 - ISC -->
+<svg
+  class="lucide lucide-github"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+  <path d="M9 18c-4.51 2-5-2-7-2" />
+</svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technologies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technologies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Formats
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DegaFiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DegaFiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#landscape-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Landscape layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Landscape layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-landscape-reads-degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Landscape reads DegaFiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#row-group-storage-mode-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Row Group Storage Mode (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-an-aligned-he-background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding an aligned H&amp;E background
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anndata-zarr-for-a-single-cell-landscape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnData Zarr for a single-cell Landscape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anndata-zarr-before-and-after-matrix-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnData Zarr before and after Matrix clustering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AnnData Zarr before and after Matrix clustering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-clustering-save-the-analysis-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Before clustering: save the analysis input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-clustering-save-the-complete-matrix-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After clustering: save the complete Matrix (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#other-degafiles-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other DegaFiles layouts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Other DegaFiles layouts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#point-cloud-degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Point-Cloud DegaFiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neighborhood-cloud-degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neighborhood-Cloud DegaFiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../visualizations/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizations
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualizations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/landscape/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/yearbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Yearbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/cell-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/neighborhood-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NeighborhoodCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/composition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/landscape-clustergram-enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape–Clustergram–Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualizations/cell-cloud-clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud–Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../python/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/align/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/clust/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/collection/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/dataset/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/nbhd/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nbhd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/pre/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/select/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/viz/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../javascript/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript API
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../gallery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gallery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gallery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imaging Spatial Transcriptomics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Imaging Spatial Transcriptomics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2_1" id="__nav_6_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Atera
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera_kidney/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Kidney non-diseased FFPE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Xenium Breast Cancer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2_2" id="__nav_6_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Xenium
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_xenium_mouse_brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Prime Mouse Brain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_xenium_skin_cancer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Prime Human Skin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_broad_allen_mouse_brain_3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad-Allen Dev Mouse Brain E15.5 3D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_broad_allen_mouse_brain_2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad-Allen Dev Mouse Brain E15.5 Slice 35
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2_3" id="__nav_6_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CosMx
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CosMx
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_cosmx_human_colon/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CosMx Human Colon CRC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequencing Spatial Transcriptomics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Sequencing Spatial Transcriptomics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_1" id="__nav_6_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visium HD
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visium HD
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_visium_hd_cell_segmentation_mouse_brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visium HD Cell Segmentation Mouse Brain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Omic
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Multi-Omic
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_citeseq_pbmc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CITE-seq PBMC Cell Types (RNA + Protein)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_tabula_sapiens/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabula Sapiens Atlas UMAP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_tabula_sapiens_clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabula Sapiens UMAP and Cell-Type Signatures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Presentations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Web Presentations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad Retreat 2024
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../examples/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Example Notebooks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Example Notebooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Transcriptomics Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Spatial Transcriptomics Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: default clusters and glomerular gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera breast cancer Landscape + Clustergram + Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera breast cancer neighborhood exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visium HD human colorectal cancer Landscape + Clustergram + Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scanpy-Squidpy Xenium Pancreas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single Cell Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Single Cell Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Scanpy_Chromium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chromium PBMC 3k: Landscape, Clustergram, and Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Brief Notebooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Brief Notebooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape_View_Xenium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape View Xenium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape_Local_Server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape from a Local Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Pre-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape-3D_thick_MERFISH/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud Three-dimensional single-cell transcriptome imaging of thick tissues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape-Heatmap-Visium-HD/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape-Heatmap Visium-HD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UMAP-Cluster Pancreas Xenium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Custom_Segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Segmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gradient Neighborhoods: profiling the pancreatic islet microenvironment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DegaFiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DegaFiles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#landscape-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Landscape layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Landscape layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-landscape-reads-degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Landscape reads DegaFiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#row-group-storage-mode-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Row Group Storage Mode (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#adding-an-aligned-he-background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding an aligned H&amp;E background
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anndata-zarr-for-a-single-cell-landscape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnData Zarr for a single-cell Landscape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anndata-zarr-before-and-after-matrix-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnData Zarr before and after Matrix clustering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AnnData Zarr before and after Matrix clustering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-clustering-save-the-analysis-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Before clustering: save the analysis input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-clustering-save-the-complete-matrix-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After clustering: save the complete Matrix (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#other-degafiles-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other DegaFiles layouts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Other DegaFiles layouts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#point-cloud-degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Point-Cloud DegaFiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neighborhood-cloud-degafiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neighborhood-Cloud DegaFiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="celldega-file-formats">Celldega File Formats</h1>
+<p>Celldega uses two complementary storage approaches: <strong>DegaFiles</strong> prepare
+spatial data for interactive Landscape rendering, and <strong>AnnData Zarr</strong> stores
+analysis inputs, single-cell Landscape data, and complete clustered Matrix
+objects. Both can be served over HTTP from a local server or cloud storage.</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Contents</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Landscape DegaFiles</td>
+<td>Image pyramids, cell centroids, tiled boundaries/transcripts, per-gene expression, and a manifest</td>
+<td>Landscape and Yearbook</td>
+</tr>
+<tr>
+<td>Cell-level AnnData Zarr</td>
+<td>Cell metadata, an optional UMAP, and a CSC expression matrix</td>
+<td>Single-cell Landscape; Python analysis</td>
+</tr>
+<tr>
+<td>Analysis AnnData Zarr</td>
+<td>Values, observation/variable metadata, and any layers or analysis annotations saved on the AnnData</td>
+<td>Python inputs to Matrix</td>
+</tr>
+<tr>
+<td>Clustered Matrix AnnData Zarr</td>
+<td>Values plus clustering, precomputed views, colors, metadata, and optional sizes</td>
+<td>Python Matrix/Clustergram and browser Clustergram</td>
+</tr>
+<tr>
+<td>Cell-type signature AnnData Zarr</td>
+<td>A small dense cell-type-by-gene matrix with units and grouping metadata</td>
+<td>UMAP/XY viewport expression estimates</td>
+</tr>
+</tbody>
+</table>
+<p>See the <a href="../../visualizations/landscape/">Landscape guide</a> for spatial and
+<strong>low dimensional embedding landscapes</strong> (UMAP/XY), and the
+<a href="../../python/clust/api/">Matrix Python API</a> for analysis and persistence.</p>
+<p><span id="landscapefiles"></span></p>
+<h2 id="degafiles">DegaFiles</h2>
+<p>DegaFiles are a directory of
+visualization-specific files written by the <a href="../../python/pre/api/">pre module</a>.
+They complement an analysis AnnData or SpatialData object: microscopy images,
+spatial geometry, and expression are arranged for the browser to request the
+parts needed for its current view.</p>
+<h3 id="landscape-layout">Landscape layout</h3>
+<p>A typical dataset using individual tile files has this layout. Available image
+channels and segmentation variants depend on the input technology.</p>
+<pre><code class="language-text">DegaFiles/
+├── landscape_parameters.json
+├── cell_metadata.parquet
+├── cell_clusters/
+│   ├── cluster.parquet
+│   └── meta_cluster.parquet
+├── cbg/
+│   └── &lt;gene&gt;.parquet
+├── meta_gene.parquet
+├── df_sig.parquet
+├── cell_segmentation/
+│   └── &lt;tile&gt;.parquet
+├── transcript_tiles/
+│   └── &lt;tile&gt;.parquet
+├── pyramid_images/
+│   ├── &lt;channel&gt;.dzi
+│   └── &lt;channel&gt;_files/&lt;zoom&gt;/&lt;tile&gt;.webp
+└── micron_to_image_transform.csv
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>File or directory</th>
+<th>Role in Landscape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>landscape_parameters.json</code></td>
+<td>Technology, tile size, image channels/format, segmentation variants, and optional row-group or aligned H&amp;E configuration</td>
+</tr>
+<tr>
+<td><code>cell_metadata.parquet</code></td>
+<td>Cell identifiers and centroid geometry used to position the cell scatter</td>
+</tr>
+<tr>
+<td><code>cell_clusters/cluster.parquet</code></td>
+<td>Default cell-to-cluster assignments</td>
+</tr>
+<tr>
+<td><code>cell_clusters/meta_cluster.parquet</code></td>
+<td>Cluster colors and whole-dataset cell counts</td>
+</tr>
+<tr>
+<td><code>cbg/&lt;gene&gt;.parquet</code></td>
+<td>Nonzero expression values for one gene, used for cell coloring and XY axes</td>
+</tr>
+<tr>
+<td><code>meta_gene.parquet</code></td>
+<td>Gene statistics such as mean, standard deviation, maximum, detection proportion, and color</td>
+</tr>
+<tr>
+<td><code>df_sig.parquet</code></td>
+<td>Genes by default clusters: mean counts per cell, also used for UMAP/XY viewport estimates</td>
+</tr>
+<tr>
+<td><code>cell_segmentation/</code></td>
+<td>Spatially tiled cell-boundary polygons</td>
+</tr>
+<tr>
+<td><code>transcript_tiles/</code></td>
+<td>Spatially tiled transcript coordinates and gene identities</td>
+</tr>
+<tr>
+<td><code>pyramid_images/</code></td>
+<td>Deep Zoom metadata and image tiles at multiple resolutions</td>
+</tr>
+<tr>
+<td><code>micron_to_image_transform.csv</code></td>
+<td>Affine mapping from physical tissue coordinates to reference-image pixels</td>
+</tr>
+</tbody>
+</table>
+<p>Some datasets use compact integer cell/gene identifiers. Readers resolve them
+against the dataset's name ordering; use the preprocessing writers to keep
+identifiers consistent across centroids, expression, boundaries, and transcripts.</p>
+<h4 id="how-landscape-reads-degafiles">How Landscape reads DegaFiles</h4>
+<ol>
+<li>The Python widget supplies <code>base_url</code> and display options. Optional <code>adata</code>
+   supplies cell attributes, cluster colors, and <code>obsm["X_umap"]</code>; its
+   <code>obs_names</code> must match the DegaFiles cell IDs.</li>
+<li>The browser reads the manifest, centroid and cluster data, and gene
+   metadata to initialize the view.</li>
+<li>Panning and zooming request image tiles at the appropriate resolution.
+   Transcript and cell-boundary tiles load automatically at close zoom, or on
+   demand through TRX at intermediate zoom.</li>
+<li>Selecting a gene reads its expression data to color cells. XY uses the
+   same reader to position cells by the expression of its two axis genes.</li>
+<li>UMAP/XY viewport bars count visible cell types. With matching signatures,
+   gene bars estimate local mean expression from those counts; selected-gene
+   coloring and XY axes use actual cell expression.</li>
+</ol>
+<pre><code class="language-python">import celldega as dega
+
+port = dega.viz.get_local_server(file_server_root=&quot;data&quot;)
+landscape = dega.viz.Landscape(
+    base_url=f&quot;http://localhost:{port}/DegaFiles&quot;,
+    adata=adata,
+    cluster_attr=&quot;cell_type&quot;,
+)
+</code></pre>
+<p>The browser reads the hosted files directly. A separate analysis service is
+not required to render prepared datasets. Cross-origin hosting must allow
+browser requests; efficient row-group reads also require HTTP byte ranges.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/__init__.py">Python preprocessing</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/viz/widget.py">widget metadata/URL handling</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/viz/landscape_ist.js">browser initialization</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/deck-gl/core/calc_viewport.js">viewport loading</a>,
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/global_variables/cell_exp_array.js">gene-expression loading</a>.</p>
+<h3 id="row-group-storage-mode-optional">Row Group Storage Mode (Optional)</h3>
+<p>Row-group storage is an optional DegaFiles layout. It packs many logical
+tiles or genes into fewer Parquet files while retaining partial reads in the
+browser. This reduces the number of files to host and distribute.</p>
+<p>Enable it during preprocessing:</p>
+<pre><code class="language-python">dega.pre.main(
+    sample=&quot;Xenium_Sample&quot;,
+    data_root_dir=&quot;data/xenium_data&quot;,
+    path_dega_files=&quot;data/DegaFiles&quot;,
+    tile_size=250,
+    use_row_groups=True,
+    max_row_groups_per_file=400,
+)
+</code></pre>
+<p>The input dataset is <code>data/xenium_data/Xenium_Sample</code>. Large outputs are split
+into chunk files; <code>max_row_groups_per_file</code> controls the gene/vector chunks,
+while image packing has its own chunk size.</p>
+<pre><code class="language-text">DegaFiles/
+├── landscape_parameters.json
+├── cell_metadata.parquet
+├── cell_clusters/
+├── meta_gene.parquet
+├── df_sig.parquet
+├── cbg/chunk_&lt;n&gt;.parquet
+├── transcripts/chunk_&lt;n&gt;.parquet
+├── cell_segmentation/chunk_&lt;n&gt;.parquet
+└── pyramid_images/
+    ├── &lt;channel&gt;.dzi
+    └── &lt;channel&gt;/chunk_&lt;n&gt;.parquet
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Logical row group</th>
+<th>Browser lookup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transcripts</td>
+<td>One spatial tile</td>
+<td>Visible tile coordinates</td>
+</tr>
+<tr>
+<td>Cell boundaries</td>
+<td>One spatial tile</td>
+<td>The same spatial tile grid</td>
+</tr>
+<tr>
+<td>Cell-by-gene expression</td>
+<td>One gene</td>
+<td>Gene-to-row-group metadata</td>
+</tr>
+<tr>
+<td>Image pyramid</td>
+<td>One image tile</td>
+<td>Channel, zoom level, and tile coordinates</td>
+</tr>
+</tbody>
+</table>
+<p>The manifest's <code>use_row_groups</code> flag selects the readers. <code>tile_grid</code> records
+the grid dimensions, and <code>row_group_files</code> lists each data type's directory,
+chunk files, and row-group counts. Image entries also contain zoom information.
+Readers also support older layouts with a single Parquet file per data type.</p>
+<p>For spatial vector tiles, the logical index is
+<code>tile_x * num_tiles_y + tile_y</code>. Empty tiles retain their grid positions, and
+chunk metadata maps the logical index to a file and local row group. Parquet
+footer metadata supplies the byte ranges for that group's data.</p>
+<p>The browser uses HTTP Range requests to read the required groups. Hosting must
+support byte ranges and, for cross-origin access, CORS. The readers require
+range-capable hosting; there is no general whole-file fallback. Larger chunks
+reduce file counts but increase footer and memory costs. Individual-tile
+DegaFiles remain supported, with <code>use_row_groups=False</code>.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/run_pre_processing.py">preprocessing options</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/read_parquet/row_group_tile_reader.js">tile reader</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/read_parquet/cbg_row_group_reader.js">gene reader</a>,
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/read_parquet/image_row_group_reader.js">image reader</a>.</p>
+<h3 id="adding-an-aligned-he-background">Adding an aligned H&amp;E background</h3>
+<p><code>pre.add_aligned_he()</code> adds an RGB image pyramid and an <code>aligned_he</code> manifest
+entry to existing DegaFiles:</p>
+<pre><code class="language-python">dega.pre.add_aligned_he(
+    &quot;data/DegaFiles&quot;,
+    &quot;sample_he.ome.tif&quot;,
+    alignment=&quot;sample_he_imagealignment.csv&quot;,
+)
+</code></pre>
+<p>The supplied 3×3 affine maps H&amp;E pixels into reference-image pixels. If the
+image already shares the reference grid, omit <code>alignment</code>. Landscape and
+Yearbook then expose a Fluorescence/H&amp;E selector using the same cell and
+transcript overlays. See <a href="../../python/aligned_he/">Add aligned H&amp;E to DegaFiles</a>
+for requirements and the example workflow.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/aligned_he.py">H&amp;E importer</a>
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/ui/image_source.js">background selector</a>.</p>
+<h2 id="anndata-zarr-for-a-single-cell-landscape">AnnData Zarr for a single-cell Landscape</h2>
+<p><code>Landscape(zarr_url=...)</code> reads a cell-level AnnData Zarr instead of
+DegaFiles. This path uses <code>technology="Chromium"</code> and supports UMAP and XY.</p>
+<table>
+<thead>
+<tr>
+<th>AnnData location</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>obs_names</code> / <code>var_names</code></td>
+<td>Cell IDs / gene names</td>
+</tr>
+<tr>
+<td><code>obs[cluster_attr]</code></td>
+<td>Cell categories used for colors and composition bars</td>
+</tr>
+<tr>
+<td>Other requested <code>obs</code> columns</td>
+<td>Cell attributes selected through <code>cell_attr</code></td>
+</tr>
+<tr>
+<td><code>uns[f"{cluster_attr}_colors"]</code></td>
+<td>Optional palette in category order</td>
+</tr>
+<tr>
+<td><code>obsm["X_umap"]</code></td>
+<td>Optional UMAP coordinates</td>
+</tr>
+<tr>
+<td>CSC <code>X</code> or a CSC layer</td>
+<td>Expression fetched one gene at a time</td>
+</tr>
+<tr>
+<td><code>var["mean"]</code>, <code>var["max"]</code>, <code>var["color"]</code></td>
+<td>Optional gene statistics and colors</td>
+</tr>
+</tbody>
+</table>
+<p>For a sparse counts layer:</p>
+<pre><code class="language-python">import zarr
+
+adata.layers[&quot;counts_csc&quot;] = adata.layers[&quot;counts&quot;].tocsc()
+adata.write_zarr(&quot;cells.zarr&quot;)
+zarr.consolidate_metadata(&quot;cells.zarr&quot;)
+
+landscape = dega.viz.Landscape(
+    zarr_url=&quot;cells.zarr&quot;,
+    zarr_layer=&quot;counts_csc&quot;,
+    cluster_attr=&quot;cell_type&quot;,
+)
+</code></pre>
+<p>The browser uses Zarrita to read Zarr v2 or v3. It loads cell/gene metadata,
+UMAP positions, and the CSC column pointers, then slices <code>data</code> and <code>indices</code>
+for requested genes. It does not load the entire cell-by-gene expression
+matrix. Without <code>var["mean"]</code>, the initial gene ranking uses detection
+fraction; without <code>var["max"]</code>, the maximum is computed when a gene loads.</p>
+<p>Choose the layer with <code>zarr_layer</code>. Otherwise, CSC <code>X</code> is preferred, then the
+only discoverable CSC layer. Consolidated metadata permits layer discovery;
+an explicit <code>zarr_layer</code> also works without consolidation. Dense and CSR
+expression matrices need a CSC copy for this Landscape reader.</p>
+<p>Pass an HTTP(S) URL or a local store beneath the working directory; Python
+serves local paths over HTTP. Python does not open the expression matrix.
+If <code>adata</code> is also supplied, its metadata, colors, and UMAP take precedence.
+Pass one of <code>base_url</code> or <code>zarr_url</code>.</p>
+<p>Cell-type signature stores are separate from this cell-level store. They
+contain dense, finite, nonnegative means and <code>uns["viewport_signature"]</code>
+grouping/units metadata. See
+<a href="../../visualizations/landscape/#viewport-cell-types-and-estimated-expression">viewport estimates</a>
+for <code>adata_sig</code> and <code>gene_signature_url</code>, including exact counts versus
+estimated expression.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/anndata_zarr.js">AnnData Zarr reader</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/celldega.js">Landscape entry point</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/gene_signatures.js">signature reader</a>,
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/umap/viewport_summary.js">viewport summaries</a>.</p>
+<h2 id="anndata-zarr-before-and-after-matrix-clustering">AnnData Zarr before and after Matrix clustering</h2>
+<p>Both stages use AnnData's observations-by-variables orientation. A Matrix
+displays the transpose: genes/features are rows, and cells/groups are columns.</p>
+<h3 id="before-clustering-save-the-analysis-input">Before clustering: save the analysis input</h3>
+<p>Save the AnnData used to construct a Matrix, including the layers and
+annotations needed for the analysis:</p>
+<pre><code class="language-python">import anndata as ad
+import celldega as dega
+
+adata.write_zarr(&quot;matrix_input.zarr&quot;)
+loaded = ad.read_zarr(&quot;matrix_input.zarr&quot;)
+mat = dega.clust.Matrix(loaded)
+mat.cluster()
+</code></pre>
+<p>For an already prepared, unclustered Matrix,
+<code>mat.to_adata().write_zarr("matrix_values.zarr")</code> saves its current values and
+row/column metadata. Rebuild it with <code>Matrix(ad.read_zarr(...))</code>.
+<code>to_adata()</code> does not preserve the Matrix's size matrix, colors, axis-entity
+settings, marker rankings, or clustering/view state. Save the original
+AnnData when its layers and analysis annotations are needed.</p>
+<h3 id="after-clustering-save-the-complete-matrix-experimental">After clustering: save the complete Matrix (experimental)</h3>
+<p><code>Matrix.write_zarr()</code> requires <code>cluster()</code> first and preserves:</p>
+<ul>
+<li>Values and the optional dot-size matrix.</li>
+<li>Row and column metadata.</li>
+<li>Dendrogram orders and linkages.</li>
+<li>Precomputed views.</li>
+<li>Colors, visualization settings, axis entities, and marker rankings when present.</li>
+</ul>
+<pre><code class="language-python">mat.cluster(view=&quot;var&quot;, levels=[100, 500])
+mat.write_zarr(&quot;clustered_matrix.zarr&quot;)
+
+restored = dega.clust.Matrix.read_zarr(&quot;clustered_matrix.zarr&quot;)
+cgm = dega.viz.Clustergram(matrix=restored)
+</code></pre>
+<p>Choose view levels appropriate to the number of features. Reloading restores
+the saved values and clustering without reclustering or repeating
+normalization. Values are written as float32 by default; <code>dtype=None</code> retains
+their existing precision. <code>zarr_format=3</code> is the default, with version 2 also
+supported. <code>to_clustered_adata()</code> and <code>from_clustered_adata()</code> provide the same
+conversion in memory.</p>
+<table>
+<thead>
+<tr>
+<th>AnnData location</th>
+<th>Saved Matrix content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>X</code></td>
+<td>Matrix values, transposed to observations × variables</td>
+</tr>
+<tr>
+<td><code>obs</code> / <code>var</code></td>
+<td>Column / row metadata</td>
+</tr>
+<tr>
+<td><code>layers["size"]</code></td>
+<td>Optional size values, with the same orientation as <code>X</code></td>
+</tr>
+<tr>
+<td><code>obsm["celldega_nodes"]</code> / <code>varm["celldega_nodes"]</code></td>
+<td>Column / row node records, including orders and attributes</td>
+</tr>
+<tr>
+<td><code>uns["celldega"]["linkage"]</code></td>
+<td>Row and column dendrogram linkages</td>
+</tr>
+<tr>
+<td><code>uns["celldega"]["views"]</code></td>
+<td>Packed arrays for precomputed views</td>
+</tr>
+<tr>
+<td><code>uns["celldega"]["meta_json"]</code></td>
+<td>Versioned format metadata, view descriptions, colors, visualization settings, and axis entities</td>
+</tr>
+<tr>
+<td><code>uns["marker_ranks"]</code></td>
+<td>Optional marker rankings</td>
+</tr>
+</tbody>
+</table>
+<p>This is a regular AnnData Zarr store with Celldega-specific annotations.
+<code>anndata.read_zarr()</code> opens it; <code>Matrix.read_zarr()</code> restores the complete
+clustered object and requires those annotations. An arbitrary AnnData store
+is loaded through <code>Matrix(anndata.read_zarr(...))</code> instead.</p>
+<p>The browser renders the same clustered store without Python:</p>
+<pre><code class="language-javascript">const cgm = await celldega.clustergram(element, {
+    url: &quot;https://your-data-host/clustered_matrix.zarr&quot;,
+});
+</code></pre>
+<p><code>matrix_from_zarr()</code> is another rendering entry point;
+<code>network_from_zarr()</code> returns the visualization network. The Matrix readers
+load the saved matrix into memory. Per-gene fetching applies to the
+single-cell Landscape reader, rather than these Matrix readers. See the
+<a href="../../python/clust/api/#saving-matrix-inputs-and-clustered-objects">Clust API</a>
+and <a href="../../javascript/api/">JavaScript API</a> for usage.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/clust/matrix.py">Matrix conversion, writer, and reader</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/network_from_zarr.js">browser Matrix reader</a>,
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/celldega.js">browser rendering APIs</a>.</p>
+<h2 id="other-degafiles-layouts">Other DegaFiles layouts</h2>
+<h3 id="point-cloud-degafiles">Point-Cloud DegaFiles</h3>
+<p>Written by <a href="../../python/pre/api/"><code>celldega.pre.write_point_cloud_dataset</code></a>
+and rendered by <a href="../../visualizations/cell-cloud/"><code>CellCloud</code></a>. There is no
+image pyramid or transcript layer; cells are points with 3D positions.</p>
+<pre><code>point_cloud_files/
+├── cell_metadata.parquet               # name + geometry ([x, y, z] fixed-size list)
+├── cell_metadata_&lt;name&gt;.parquet        # optional named position variants
+├── cell_clusters/
+│   ├── cluster.parquet
+│   └── meta_cluster.parquet
+├── cbg/&lt;gene&gt;.parquet                  # expressing cells only, keyed by cell name
+├── meta_gene.parquet
+├── cell_cloud.json                     # manifest
+└── landscape_parameters.json           # same manifest, for older loaders
+</code></pre>
+<p>The manifest has <code>"technology": "point-cloud"</code>, <code>"use_int_index": false</code>
+(gene files are keyed by cell name), and an <code>"alignments"</code> list naming the
+position variants. <code>CellCloud(alignment="&lt;name&gt;")</code> reads positions from
+<code>cell_metadata_&lt;name&gt;.parquet</code> while clusters and genes keep loading from the
+shared files, so several 3D alignments of the same cells share one dataset.
+Variant names may contain only letters, digits, <code>.</code>, <code>_</code>, and <code>-</code>, and
+<code>default</code> is reserved.</p>
+<h3 id="neighborhood-cloud-degafiles">Neighborhood-Cloud DegaFiles</h3>
+<p>Written by <a href="../../python/pre/api/"><code>celldega.pre.write_nbhd_cloud_dataset</code></a> from
+a cell-level <code>AnnData</code> plus a <code>GeoDataFrame</code> of per-slice neighborhoods (e.g.
+<a href="../../python/nbhd/api/"><code>celldega.nbhd.alpha_shape_cell_clusters_by_slice</code></a>),
+and rendered by <a href="../../visualizations/neighborhood-cloud/"><code>NeighborhoodCloud</code></a>.</p>
+<pre><code>nbhd_cloud_files/
+├── nbhd_cloud/
+│   ├── meta_slice.parquet              # slice_id, z, centroid_x/y/z, cell_count
+│   ├── meta_neighborhood.parquet       # neighborhood_id, cluster_id, slice_id, color, area, cell_count, inv_alpha
+│   ├── shapes/by_slice/slice_&lt;id&gt;.parquet   # one row per neighborhood, geometry_geojson (XYZ)
+│   └── cells/
+│       ├── by_cluster/cluster_&lt;id&gt;.parquet  # cell_id, x, y, z, cluster_id, slice_id
+│       └── by_gene/&lt;gene&gt;.parquet           # optional top-expressing cells per gene
+├── cell_clusters/meta_cluster.parquet
+├── meta_gene.parquet
+├── neighborhood_cloud.json             # manifest
+└── landscape_parameters.json           # same manifest, for older loaders
+</code></pre>
+<p>The neighborhood <code>GeoDataFrame</code> needs unique ids (<code>name</code>, or
+<code>neighborhood_id</code> / <code>nbhd_id</code>) and <code>slice_id</code>, <code>cluster_id</code>, <code>color</code>, and
+<code>cell_count</code> columns. Geometry is stored as a GeoJSON string column rather than
+GeoParquet so the browser can hand it straight to a deck.gl <code>GeoJsonLayer</code>.
+<code>cells/by_gene/</code> is written by <code>celldega.pre.write_gene_cell_scatter</code>, with
+<code>cells/by_gene/available_gene_scatter.json</code> listing the genes it covers.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/broadinstitute/celldega" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://bsky.app/profile/stp-broad.bsky.social" target="_blank" rel="noopener" title="bsky.app" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M407.8 294.7c-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3M288 227.1c-26.1-50.7-97.1-145.2-163.1-191.8C61.6-9.4 37.5-1.7 21.6 5.5 3.3 13.8 0 41.9 0 58.4S9.1 194 15 213.9c19.5 65.7 89.1 87.9 153.2 80.7 3.3-.5 6.6-.9 10-1.4-3.3.5-6.6 1-10 1.4-93.9 14-177.3 48.2-67.9 169.9C220.6 589.1 265.1 437.8 288 361.1c22.9 76.7 49.2 222.5 185.6 103.4 102.4-103.4 28.1-156-65.8-169.9-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3 64.1 7.1 133.6-15.1 153.2-80.7C566.9 194 576 75 576 58.4s-3.3-44.7-21.6-52.9c-15.8-7.1-40-14.9-103.2 29.8C385.1 81.9 314.1 176.4 288 227.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../assets/js/gallery_tabula_sapiens.js" type="module"></script>
+      
+        <script src="../../assets/js/index.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_mouse_brain.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_skin_cancer.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_cosmx_colon.js" type="module"></script>
+      
+        <script src="../../assets/js/google-analytics.js"></script>
+      
+        <script src="../../assets/js/hide_notebook_sidebar.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_atera.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_atera_kidney.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_broad_allen_mouse_brain_3d.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_broad_allen_mouse_brain_2d.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_citeseq_pbmc.js" type="module"></script>
+      
+        <script src="../../js/open_in_new_tab.js"></script>
+      
+    
+  </body>
+</html>

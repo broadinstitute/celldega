@@ -37,5 +37,7 @@ precomputed group-by-population matrix: an `AnnData` (groups as obs), a
 [Viz Module API reference](../python/viz/api.md) for the full set of
 constructor arguments.
 
-!!! note
-    Screenshots and an example video are coming soon.
+## Example
+
+The [Atera kidney tutorial](../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb)
+uses Composition to compare cell populations across neighborhood gradient bands.

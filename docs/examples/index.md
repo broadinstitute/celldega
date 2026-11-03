@@ -11,8 +11,6 @@ Comprehensive tutorials that walk through complete workflows:
 - [Atera Breast Cancer Neighborhood Exploration](tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb) - Continues the Atera tutorial with hextile niches linked to cell-type composition and alpha-shape overlap linked to a separate Landscape
 - [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Uses Scanpy and plain AnnData to summarize a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
-- [Preprocess DegaFiles and Viz Pancreas](tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb) - Preprocessing raw Xenium Pancreas data into DegaFiles and visualizing the result in a Landscape widget
-- [Broad-Allen Dev Mouse Brain E15.5 Viz](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) - Visualizes the aligned E15.5 brain as a 3D CellCloud linked to the cluster composition of every slice and to a gene-expression Clustergram
 
 ## Single Cell Tutorials
 
@@ -40,9 +38,7 @@ Focused examples demonstrating specific features:
 
 - [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
 - [Landscape from a Local Server](brief_notebooks/Landscape_Local_Server.ipynb) - Viewing locally stored DegaFiles in a Landscape with `dega.viz.get_local_server()`
-- [Atera Viz](brief_notebooks/Atera_viz.ipynb) - Linked Landscape and Clustergram visualization of a Xenium breast cancer dataset
 - [Atera Pre-process](brief_notebooks/Atera_Pre-process.ipynb) - Making DegaFiles from a 10x Atera output bundle with `dega.pre.main` and viewing them in a Landscape
-- [Yearbook-Query](brief_notebooks/Yearbook_Query.ipynb) - Using single-cell Yearbook view
 - [CellCloud Thick MERFISH](brief_notebooks/Landscape-3D_thick_MERFISH.ipynb) - 3D orbit-camera CellCloud view of thick-tissue MERFISH data
 - [Landscape-Heatmap Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization
 - [UMAP-Cluster Pancreas Xenium](brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) - UMAP clustering with Xenium pancreas data
@@ -88,38 +84,6 @@ For full analysis workflows, you may also need:
 pip install scanpy squidpy
 ```
 
-### Embedding interactive widgets in the docs
-
-The docs are rendered statically by `mkdocs-jupyter`, which **displays saved widget state but does
-not execute notebooks**. For an interactive `Landscape` / `Clustergram` (anywidget) to appear on the
-docs site, the notebook's saved widget state must be complete and its model IDs must match the cell
-outputs.
-
-A plain "Run All + Save" in Jupyter Lab is unreliable for this: each `Landscape` streams a large
-message (the embedded JS bundle plus the data parquet), and the state is only captured if the widget
-has *fully* finished rendering in the browser before you save. Editing a cell and saving without a
-full re-execution leaves stale or missing state, and the widgets render blank.
-
-The reliable way to (re)build a docs notebook so its widgets embed is to execute it headless with a
-raised `iopub_timeout` so those large messages aren't dropped:
-
-```bash
-jupyter nbconvert --to notebook --execute --inplace \
-  --ExecutePreprocessor.timeout=900 \
-  --ExecutePreprocessor.iopub_timeout=120 \
-  docs/examples/brief_notebooks/<Notebook>.ipynb
-```
-
-Tips:
-
-- Put each widget as the **only expression in its own cell** (separate from its construction) —
-  anywidget embeds most reliably that way.
-- Don't add `%env ANYWIDGET_HMR=1` to a docs notebook. That dev-time hot-reload watches and reloads
-  the widget's frontend module; running it while the frontend bundle is being rebuilt can desync the
-  saved model IDs from the cell outputs.
-- To confirm a notebook is good, check that every `application/vnd.jupyter.widget-view+json`
-  `model_id` in the cell outputs also exists in `metadata.widgets["application/vnd.jupyter.widget-state+json"].state`.
-
 ### Online Resources
 
 You can also run Celldega notebooks in the cloud:
@@ -127,3 +91,8 @@ You can also run Celldega notebooks in the cloud:
 - [Google Colab - Xenium Landscape Visualizations](https://colab.research.google.com/drive/1NVZ07R0Eb-Xz6KBmMGRe3qmksYdeSBWc?usp=sharing)
 - [ObservableHQ - Celldega Landscape Xenium](https://observablehq.com/@cornhundred/celldega-xenium_prime_mouse_brain_coronal_ff_outs)
 - [![Open in molab](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_NQM2YhNLyow8N56cit7xvC)
+
+## Contributing examples
+
+Instructions for publishing notebooks with saved widget state are in
+[Contributing](https://github.com/broadinstitute/celldega/blob/main/CONTRIBUTING.md).

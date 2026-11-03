@@ -2,9 +2,9 @@
 
 The Celldega Python API provides modules for pre-processing spatial
 transcriptomics data, hierarchical bi-clustering analysis, neighborhood
-computation, and interactive visualization. Every function works on standard
-scverse data structures (`AnnData`, `MuData`) and `GeoDataFrame` neighborhoods,
-and returns new objects of the same kinds.
+computation, and interactive visualization. Analysis functions work with
+standard scverse data structures (`AnnData`, `MuData`) and `GeoDataFrame`
+neighborhoods; visualization widgets display these data interactively.
 
 Higher-level data structures built on top of these live in their own modules,
 kept apart from the methods the way AnnData is kept apart from Scanpy:
@@ -31,6 +31,10 @@ precursor to interactive clustergram visualization. It supports:
 - Multiple normalization methods (zscore, quantile, total)
 - Hierarchical clustering with dendrograms
 - Integration with Clustergram widget
+- AnnData Zarr inputs before clustering and complete Matrix persistence after clustering
+
+See [Matrix storage](clust/api.md#saving-matrix-inputs-and-clustered-objects)
+for what each conversion preserves.
 
 ```python
 import celldega as dega
@@ -92,8 +96,8 @@ import celldega as dega
 
 # Pre-process Xenium data
 dega.pre.main(
-    technology="Xenium",
-    data_dir="/path/to/xenium_outs",
+    sample="xenium_outs",
+    data_root_dir="/path/to",
     path_dega_files="/path/to/output",
     tile_size=250
 )
@@ -107,7 +111,7 @@ for what each one shows and how it works:
 
 | Widget | Description |
 |--------|-------------|
-| `Landscape` | Main spatial visualization for segmented spatial data |
+| `Landscape` | Spatial tissue and low dimensional embedding landscapes (UMAP/XY) |
 | `Clustergram` | Hierarchical clustering heatmap |
 | `Yearbook` | Grid of cell "portraits" |
 | `CellCloud` | 3D orbit view of cell centroids |
@@ -125,5 +129,5 @@ landscape = dega.viz.Landscape(
 )
 
 # Display linked Landscape and Clustergram
-display = dega.viz.landscape_clustergram(landscape, cgm)
+display = dega.viz.spatial_clustergram(landscape, cgm)
 ```

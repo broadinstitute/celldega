@@ -42,18 +42,26 @@ This gallery collects project web presentations and visualizations made with the
 
 </div>
 
-## Web Presentations
-
-<div class="grid cards" markdown>
-
-- [Broad Retreat 2024: Data Visualization Breakout Session ![](../assets/img/Celldega_Broad-Retreat-2024.png)](https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/)
-
-</div>
-
 ## Multi-Omic
 
 <div class="grid cards" markdown>
 
 - [CITE-seq PBMC Cell Types: RNA and Protein ![Clustered RNA and protein markers of PBMC cell types](../assets/img/citeseq_pbmc_cell_types.png)](gallery_citeseq_pbmc.md)
+- **[Tabula Sapiens: Atlas UMAP and Cell-Type Signatures](gallery_tabula_sapiens_clustergram.md)**
+
+  Explore 1.1 million cells in a single-cell RNA-seq atlas with a linked
+  Landscape and Clustergram, or [open the UMAP alone](gallery_tabula_sapiens.md).
+
+  Data: Tabula Sapiens Consortium, via
+  [CZ CELLxGENE Discover](https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5)
+  · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+</div>
+
+## Web Presentations
+
+<div class="grid cards" markdown>
+
+- [Broad Retreat 2024: Data Visualization Breakout Session ![](../assets/img/Celldega_Broad-Retreat-2024.png)](https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/)
 
 </div>

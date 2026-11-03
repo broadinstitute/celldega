@@ -24,9 +24,6 @@ exclude_docs: |
 # Built and shareable by URL, but intentionally absent from the navigation.
 # The hook also omits these pages from search/sitemap and adds noindex metadata.
 not_in_nav: |
-  # Tabula Sapiens galleries: add nav/cards and remove these entries when public.
-  gallery/gallery_tabula_sapiens.md
-  gallery/gallery_tabula_sapiens_clustergram.md
   examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
@@ -58,12 +55,12 @@ extra:
 
 nav:
   - Home: index.md
-  - Overview:
-      - overview/index.md
-      - Getting Started: overview/getting_started.md
-      - Installation: overview/installation.md
-      - File Formats: overview/file_formats.md
-      - Row Group Storage: overview/row_groups.md
+  - Getting Started:
+      - getting-started/index.md
+      - Installation: getting-started/installation.md
+      - Usage: getting-started/usage/index.md
+      - Technologies: getting-started/technologies/index.md
+      - File Formats: getting-started/file_formats.md
   - Visualizations:
       - visualizations/index.md
       - Landscape: visualizations/landscape.md
@@ -73,6 +70,8 @@ nav:
       - Clustergram: visualizations/clustergram.md
       - Composition: visualizations/composition.md
       - Enrich: visualizations/enrich.md
+      - Landscape–Clustergram–Enrich: visualizations/landscape-clustergram-enrich.md
+      - CellCloud–Clustergram: visualizations/cell-cloud-clustergram.md
   - Python API:
       - python/index.md
       - align: python/align/api.md
@@ -88,14 +87,8 @@ nav:
   - JavaScript API:
       - javascript/index.md
       - API: javascript/api.md
-  - Technologies:
-      - technologies/index.md
-  - Environments:
-      - cloud_env/index.md
   - Gallery:
       - gallery/index.md
-      - Web Presentations:
-          - Broad Retreat 2024: https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/
       - Imaging Spatial Transcriptomics:
           - Atera:
               - Atera Kidney non-diseased FFPE: gallery/gallery_atera_kidney.md
@@ -112,6 +105,10 @@ nav:
               - Visium HD Cell Segmentation Mouse Brain: gallery/gallery_visium_hd_cell_segmentation_mouse_brain.md
       - Multi-Omic:
           - CITE-seq PBMC Cell Types (RNA + Protein): gallery/gallery_citeseq_pbmc.md
+          - Tabula Sapiens Atlas UMAP: gallery/gallery_tabula_sapiens.md
+          - Tabula Sapiens UMAP and Cell-Type Signatures: gallery/gallery_tabula_sapiens_clustergram.md
+      - Web Presentations:
+          - Broad Retreat 2024: https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/
   - Example Notebooks:
     - examples/index.md
     - Spatial Transcriptomics Tutorials:
@@ -120,8 +117,6 @@ nav:
       - Atera Breast Cancer Neighborhood Exploration: examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb
       - Visium HD Human CRC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb
       - Scanpy-Squidpy Xenium Pancreas: examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb
-      - Preprocess DegaFiles and Viz Pancreas: examples/tutorial_notebooks/Preprocess_DegaFiles_and_Viz_Pancreas.ipynb
-      - Broad-Allen Dev Mouse Brain E15.5 Viz: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
     - Single Cell Tutorials:
       - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
       # MIX-seq is shareable as an unlisted page (see not_in_nav above).
@@ -133,9 +128,7 @@ nav:
     - Brief Notebooks:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb
-      - Atera Viz: examples/brief_notebooks/Atera_viz.ipynb
       - Atera Pre-process: examples/brief_notebooks/Atera_Pre-process.ipynb
-      - Yearbook-Query: examples/brief_notebooks/Yearbook_Query.ipynb
       - CellCloud Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
       - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb

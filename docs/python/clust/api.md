@@ -17,7 +17,7 @@ mat.cluster()
 For a marker-gene dot plot, pass a cell-level `AnnData` with `groupby`. Matrix
 aggregates the cells with `scanpy.get.aggregate` (mean expression drives
 color, the fraction of cells expressing drives dot size) and reuses scanpy's
-`rank_genes_groups` results for the RANK slider's marker views:
+`rank_genes_groups` results for the DIM slider's marker views:
 
 ```python
 import scanpy as sc
@@ -63,22 +63,64 @@ The older `clust()`, `views=`, `dot_plot`, `dot_mat`, `set_dot_matrix()`, and
 use `cluster()`, `view=`, `size_by_layer` / `size_matrix` /
 `set_size_matrix()`, and `cut_tree()`.
 
-## Saving a clustered Matrix (experimental)
+## Saving Matrix inputs and clustered objects
 
-`write_zarr()` saves a clustered Matrix, including its dendrograms, views,
-colors, attributes, and size matrix, as an AnnData Zarr store. `read_zarr()`
-restores it without re-clustering, so it can go straight to a Clustergram:
+### Before clustering
+
+Save the analysis AnnData to preserve its values, metadata, layers, and
+analysis annotations, then construct a Matrix after loading:
 
 ```python
-mat.cluster(view="rank_genes_groups")
-mat.write_zarr("pbmc_markers.zarr")
+import anndata as ad
 
-cgm = dega.viz.Clustergram(matrix=dega.clust.Matrix.read_zarr("pbmc_markers.zarr"))
+adata.write_zarr("matrix_input.zarr")
+mat = dega.clust.Matrix(ad.read_zarr("matrix_input.zarr"))
 ```
 
+`mat.to_adata().write_zarr("matrix_values.zarr")` also saves an unclustered
+Matrix's current values and row/column metadata. This conversion does not
+include its size matrix, colors, axis entities, marker rankings, or
+clustering/view state. Keep the input AnnData if those analysis inputs need
+to be preserved.
+
+### After clustering (experimental)
+
+Call `cluster()` before `write_zarr()` to save the complete clustered Matrix:
+
+```python
+mat.cluster()
+mat.write_zarr("clustered_matrix.zarr")
+
+restored = dega.clust.Matrix.read_zarr("clustered_matrix.zarr")
+cgm = dega.viz.Clustergram(matrix=restored)
+```
+
+The store preserves:
+
+- Values and the optional dot-size matrix.
+- Row and column metadata.
+- Dendrogram orders and linkages.
+- Precomputed views.
+- Colors, visualization settings, axis entities, and marker rankings when present.
+
+`read_zarr()` restores these without reclustering or repeating normalization.
+It requires a store written with the clustered Matrix schema; for an
+ordinary AnnData store use `Matrix(anndata.read_zarr(...))` instead.
+`to_clustered_adata()` and `from_clustered_adata()` provide the complete
+conversion in memory.
+
 The store has the Clustergram's columns as observations and its rows as
-variables, so `anndata.read_zarr` opens it too. Values are saved as float32 by
-default; pass `dtype=None` to keep the Matrix's own precision. In a browser, the
-JavaScript `matrix_from_zarr` renders the same store without Python.
+variables. Values are saved as float32 by default; `dtype=None` keeps their
+existing precision. `zarr_format=3` is the default; version 2 is also supported.
+`Matrix.read_zarr()` can read local or HTTP(S) stores, loading the saved matrix
+into memory.
+
+In a browser, `clustergram(el, {url})` or `matrix_from_zarr(el, {url})` renders
+the same clustered store without Python; `network_from_zarr(url)` returns its
+network. See [File Formats](../../getting-started/file_formats.md#anndata-zarr-before-and-after-matrix-clustering)
+for the AnnData schema and [JavaScript API](../../javascript/api.md) for rendering.
+
+Source: [Matrix conversions and persistence](https://github.com/broadinstitute/celldega/blob/main/src/celldega/clust/matrix.py)
+and [browser Matrix reader](https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/network_from_zarr.js).
 
 ::: celldega.clust

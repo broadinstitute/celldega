@@ -4,315 +4,62 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.28.0] - Unreleased
-
-Pre-release `0.28.0a4` (npm `0.28.0-alpha.4`) includes all of the changes below.
-Since `0.28.0a3` it fixes cell boundaries that could render garbled after zooming
-back in, debounces viewport updates per widget, and makes TRX an indicator only
-in the UMAP and XY views. `0.28.0a3` added the UMAP/XY zoom-out limit, and
-`0.28.0a2` added Landscape's UMAP/XY viewport bars and signature estimates, the
-UMAP orientation and point-size changes, and the missing-metadata fix to
-`0.28.0a1`.
+## [0.28.0] - 2026-11-02
 
 ### Breaking
 
-- Methods are separated from data structures, the way Scanpy's functions are
-  separate from AnnData. Celldega's functions work directly on scverse
-  `AnnData`/`MuData` and `GeoDataFrame` neighborhoods and return new objects.
-  The collections (`CelldegaCollection`, `DatasetCollection`, `SetCollection`,
-  `NeighborhoodCollection`), `select`, and `align` stay in their own modules
-  and can be passed to those functions in place of plain objects.
-- `NeighborhoodCollection` stores data only. Its `calc_population`,
-  `calc_signature`, `calc_overlap`, `calc_bordering`,
-  `calc_transcript_assignment`, and `calc_gradient` methods are removed: pass
-  the collection to the `nbhd.calc_nbhd_*` functions and `nbhd.calc_gradient`
-  and store the results with `add_mod`, the new `add_relation`, or `obs`. The
-  new `subset` replaces the methods' `drop_missing=True` behavior. Subsetting
-  a collection that has both modalities and relations no longer fails.
-- `align.write_alignment_point_cloud` and `align.write_nbhd_cloud` are removed;
-  DegaFiles are written by `pre.write_point_cloud_dataset` (from an aligned
-  `AnnData`) and `pre.write_nbhd_cloud_dataset` (from shapes made by
-  `nbhd.alpha_shape_cell_clusters_by_slice`).
-- Removed the per-gene alpha shapes (`iter_gene_alpha_shapes`,
-  `iter_gene_alpha_shapes_by_slice`, `alpha_shape_gene_expression_by_slice`,
-  `pre.write_gene_shapes`, `pre.write_gene_shapes_streaming`). Gene coloring in
-  a NeighborhoodCloud comes from the per-gene cell scatter
-  (`pre.write_gene_cell_scatter`).
-- `Matrix(collection=...)` is now `Matrix(mdata=...)` (a `MuData`, or any object
-  exposing `.mod`).
-- `nbhd.calc_nbhd_overlap` / `calc_nbhd_bordering` take `nbhd_col` instead of
-  `name_col`; `nbhd._stamp_z` and `nbhd._get_gdf_trx` are now `nbhd.stamp_z`
-  and `nbhd.read_transcripts`.
+- Separated neighborhood calculations from collection storage. Use public
+  `nbhd.calc_nbhd_*` functions and `calc_gradient` with AnnData/MuData and
+  GeoDataFrame neighborhoods; store results with `add_mod`, `add_relation`,
+  or `obs`. `NeighborhoodCollection.subset` replaces `drop_missing`.
+  Collections, `select`, and `align` remain in their own Celldega modules.
+- Renamed `Matrix(collection=...)` to `Matrix(mdata=...)` and moved point-cloud
+  and neighborhood-cloud writers from `align` to `pre`.
+- Removed per-gene alpha-shape APIs in favor of gene cell scatter.
+  Neighborhood overlap/bordering use `nbhd_col` instead of `name_col`;
+  `stamp_z` and `read_transcripts` are public.
 
 ### Added
 
-- Landscape: UMAP/XY viewport bars count visible cell types and estimate local
-  gene means from cell-type signatures, weighted by visible cell-type counts:
-  an in-memory AnnData (`adata_sig`), a signature AnnData Zarr
-  (`gene_signature_url`), or a spatial DegaFiles' own `df_sig.parquet`. TRX
-  turns purple for estimates and acts only as an indicator in UMAP/XY.
-  Estimates are labeled with their units; spatial transcript controls are unchanged.
-- `Matrix.filter_by_size(min_size)` keeps rows (or columns) whose size-matrix
-  value reaches a threshold somewhere, for example genes detected in at least
-  5% of some cluster's cells. Recommended for whole-transcriptome data before
-  a row z-score, which otherwise gives genes detected in a single cell of a
-  single cluster the same top value as real markers.
-- Experimental on-disk format for a clustered `Matrix`: `Matrix.write_zarr`
-  saves the matrix, dendrograms, views, colors, attributes, and size matrix as
-  an AnnData Zarr store, and `Matrix.read_zarr` restores it without
-  re-clustering, ready for `Clustergram(matrix=...)`. In JavaScript,
-  `matrix_from_zarr(el, { url, width, height, ... })` renders the same store in
-  a browser (new `zarrita` dependency), opening at a precomputed view level
-  with `rank_dim` like Python's `Clustergram(rank_dim=...)`, and
-  `network_from_zarr(url)` returns its `network` object.
-- Neighborhood calculations are public functions again:
-  - `nbhd.calc_nbhd_by_gene` and `calc_nbhd_by_pop` take a neighborhood
-    `GeoDataFrame` plus cell-level `AnnData` or `MuData` and return `AnnData`
-    (a `MuData` input to `calc_nbhd_by_gene` returns one neighborhood-level
-    modality per input modality);
-  - `calc_nbhd_overlap` and `calc_nbhd_bordering` take the neighborhoods and
-    return a square neighborhood-by-neighborhood `AnnData`;
-  - `calc_nbhd_transcript_assignment` takes transcripts (`gdf_trx` or
-    `data_dir`) and returns a per-neighborhood `DataFrame`.
-
-  Outputs carry axis entities, so `Matrix` links them to Landscape
-  neighborhoods without extra arguments.
-- Alpha shapes and hextiles accept `MuData` too. The `calc_nbhd_*` functions,
-  `calc_gradient`, `Landscape(nbhd=...)`, and the `pre` neighborhood-cloud
-  writers accept any object exposing `to_geodataframe()` in place of a
-  neighborhood `GeoDataFrame`.
-- `Matrix(adata, groupby="leiden")` builds a marker-gene dot plot from a
-  cell-level `AnnData`: `scanpy.get.aggregate` gives the mean expression
-  (color) and fraction of cells with expression > 0 (dot size), and scanpy's
-  `rank_genes_groups` results (reused, or computed with
-  `rank_genes_groups=True`) drive `cluster(view="rank_genes_groups")`.
-  `size_by_layer` also works with a plain `AnnData`.
-- `Composition(adata, groupby="sample_id", category="cell_type")` builds the
-  composition view straight from a cell-level `AnnData`.
-- `pre.write_point_cloud_dataset` writes a cell-level `AnnData` to point-cloud
-  DegaFiles for `CellCloud`, including named position variants
-  (`CellCloud(alignment=...)`). The point-cloud and neighborhood-cloud DegaFiles
-  layouts are documented under File Formats.
-- `pre.write_nbhd_cloud_dataset` and its parts take a neighborhood
-  `GeoDataFrame` (e.g. from `nbhd.alpha_shape_cell_clusters_by_slice`).
-- Landscape: shift-click cluster bars to select several clusters at once;
-  shift-click a selected cluster again to remove it. A plain click still
-  selects a single cluster.
-- Landscape and Yearbook: select several genes by shift-clicking gene bars
-  or typing a comma-separated list in the gene search, which autocompletes
-  the gene after the last comma; the bars and the search box stay in sync.
-  Enter applies the genes it recognizes and keeps the current selection if
-  it recognizes none (e.g. a typo). Cells show the summed raw expression of
-  the selected genes, and at close zoom each gene's transcripts are shown in
-  its own color. Up to 20 genes are shown at once: a larger selection (e.g.
-  a Clustergram row dendrogram cut) shows its 20 highest-expressed genes,
-  with a note in the gene panel. Clustergram row dendrogram selections of
-  several genes now use this view instead of falling back to cluster colors.
-- Landscape: the TRX button loads transcripts and cell boundaries on demand
-  at intermediate zoom. Below `max_tiles_to_view` tiles they load
-  automatically, as before. Up to `intermediate_zoom_limit` times that many
-  tiles (default 9, a view 3 times wider), TRX turns gray and clicking it
-  loads them anyway (blue once loaded, dimmed while loading), turning off
-  neighborhoods and region editing as TRX does in close-up. They keep
-  updating as you pan until you click TRX again, hide transcripts (TRX off
-  in close-up, or region editing), or zoom out further. Beyond that
-  (including a new Landscape's tissue-wide view), TRX is faded and not
-  clickable. While transcripts are loaded this way, cells keep their cluster
-  colors with genes selected (the transcripts show the genes), and the TRX
-  slider can make transcripts larger than in close-up, by as much as the
-  view is wider (3 times by default). In close-up, TRX is likewise dimmed
-  while the view's transcripts load, e.g. after zooming in or panning.
-- Landscape: zooming stops one zoom level past the tissue-wide view and at
-  about 10 µm across the map's shorter side; set `min_zoom`/`max_zoom` to
-  change either. The limits follow the map's size and the current dataset
-  when switching datasets, and never cut off the current view. Panning is not
-  limited.
-- Landscape and Yearbook: the CELL slider at 0 hides cell centroids, leaving
-  cell boundaries (and transcripts) visible.
-- Landscape: the TRX slider sets transcript size in close-up and, zoomed out,
-  the expression at which cells reach full opacity for the selected gene(s),
-  from 1% to 150% of the max (above 100%, it dims cells when many express the
-  gene highly), shown as a note at the top of the gene panel. Each role keeps its own slider
-  position; zoomed out with no gene selected, the slider is disabled. The
-  opacity setting applies only zoomed out: close-up cells use the full
-  expression range.
-- Landscape and Yearbook: cell outlines scale with zoom, so they stay thin when
-  zoomed out (no thicker than before when zoomed in).
-- Landscape and Yearbook: hovering a gene bar shows the gene's UniProt name
-  and description, and hovering a cluster bar shows its name and cell count.
-- Landscape and Yearbook: selecting a gene (bar, search, transcript click, or
-  a linked Clustergram) smoothly enlarges transcripts to full size, and
-  clearing the selection snaps back to the previous TRX slider size. Dragging
-  the slider during the transition keeps the user's value. Full size is the
-  top of the TRX slider; in a Landscape that includes its wider range at
-  intermediate zoom, and full size stays full size as the view enters or
-  leaves intermediate zoom.
-- Single-cell Landscapes read from an AnnData Zarr store as an alternative to
-  DegaFiles: `Landscape(zarr_url=...)`, with an http(s) URL (e.g. Hugging Face)
-  or a local path served by a local server. Save the AnnData with
-  `adata.write_zarr` after adding a CSC copy of the counts (e.g.
-  `adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`); the browser
-  then fetches one gene at a time. `zarr_layer` names the layer (by default `X`
-  if it is CSC, else the only CSC layer). Optional `var["mean"]` and
-  `var["max"]` hold the gene statistics; cell attributes, cluster colors, and
-  the UMAP come from the store unless `adata` is passed too. Requests that
-  fail with a dropped connection or a server error are retried. In
-  JavaScript, `anndata_zarr_source(url, options)` opens such a store.
-- JavaScript: `landscape(el, options)` and `clustergram(el, options)` render
-  visualizations in a web page without Python. `landscape` takes the Python
-  `Landscape`'s arguments, for example a single-cell `zarr_url`; `clustergram`
-  takes a `network` object, a Matrix Zarr `url`, or DegaFiles. Both return the
-  visualization with its `model`, and `link_models(source, key, target, key)`
-  links them like `jslink`, e.g. Clustergram clicks to a Landscape.
-  `matrix_from_zarr` and `matrix_from_dega_files` now call `clustergram`;
-  `network_from_dega_files` is a snake_case alias of `networkFromDegaFiles`.
-- Landscape XY view: plot the raw expression of two genes against each other,
-  with cells animating between the spatial, UMAP, and XY layouts. XY works for
-  spatial and single-cell datasets with genes, with or without a UMAP, reading
-  DegaFiles or an AnnData Zarr store. The XY button plots the selected genes
-  (or the previous axes); selecting genes alone never leaves the UMAP. XY shows
-  autocompleting gene inputs for each axis (in place of the image controls)
-  and a LIN/LOG toggle for linear or `log(1 + counts)` axes. In Python,
-  `Landscape.set_xy(x_gene, y_gene, scale="log1p")` switches to XY, and the new
-  `xy_genes` and `xy_scale` traits and `landscape_state="xy"` control it.
-- Landscape: the NBHD editor draws polygons ("gates") in the UMAP and XY views
-  as well as the spatial view. Each gate keeps its coordinate space and the IDs
-  of the cells inside it, and is only drawn in the view it was made in; an XY
-  gate also records its genes and scale. New names are unique across views
-  (`nbhd_spatial_1`, `nbhd_umap_1`, `nbhd_xy_1`), and custom names are checked
-  for duplicates. The `gates` trait holds them all; `Landscape.save_gates(path)`
-  and `load_gates(path)` write and read them as GeoJSON, `select_gate(name)`
-  restores a gate's view and selects its cells, and `nbhd_polygons` returns
-  them as a `GeoDataFrame` (spatial gates in tissue coordinates).
-  `save_nbhds`, `load_nbhds`, and `select_nbhd` are aliases. Passing
-  `nbhd=landscape.nbhd` to another Landscape of the same dataset restores the
-  polygons of every view.
-- Landscape: draw a neighborhood freehand. Click SKTCH in the NBHD editor (or
-  press `s` with the pointer over the Landscape), drag an outline, and release
-  to close it; Escape cancels.
-- `viz.get_local_server(file_server_root=...)` serves files from the given
-  directory instead of the current working directory.
-- Landscape: cluster selections, linked Clustergram selections, and gates
-  update the `selected_cells` trait, and `Landscape.get_selected_cells(adata)`
-  returns the selected cell IDs, or a copy of `adata` subset to them. A gate's
-  cells are not highlighted in the view. Clicking a cell clears highlighted
-  cells (e.g. a Clustergram dendrogram selection) and toggles its cluster.
-- `pre.add_aligned_he(path_dega_files, image_path, alignment=None)` adds an
-  aligned H&E image (8-bit RGB or RGBA, including RGB OME-TIFF) to existing
-  DegaFiles, optionally resampling it with a 3×3 affine or a Xenium Explorer
-  alignment CSV. Landscape and Yearbook then show a Fluorescence / H&E
-  selector; both backgrounds use the same cell and transcript overlays.
-  Requires `celldega[pre]` and libvips. See *Add aligned H&E to DegaFiles* and
-  `notebooks/Xenium_Aligned_HE.ipynb`.
-- Tutorials: MIX-seq drug screen (single cell), Flex CITE-seq PBMC (RNA and
-  protein), and CST lung cancer PTM (multi-omic) Landscape-Clustergram-Enrich
-  notebooks, and a CITE-seq PBMC gallery entry whose Clustergram loads a
-  `Matrix` Zarr store from Hugging Face. A CELLxGENE Census PBMC notebook
-  (`notebooks/`) builds a Chromium Landscape and Clustergram from Census data,
-  and a Slide-seq V2 notebook (`notebooks/`) pre-processes Slide-seq data into
-  DegaFiles.
-- The Chromium PBMC tutorial uses the 10x PBMC 3k dataset from Hugging Face: a
-  Landscape that reads the AnnData Zarr store, a marker Clustergram loaded with
-  `Matrix.read_zarr`, and a single-cell Clustergram of each cluster's
-  `rank_genes_groups` markers, linked to its own Landscape (`col_entity="cell"`).
-- The MIX-seq and CST lung cancer PTM notebooks are published as unlisted
-  work-in-progress pages: shareable by URL, but absent from the navigation,
-  search, and sitemap.
+- **Low dimensional embedding landscapes:** improved single-cell UMAP support
+  and a new gene-expression XY view with linear/log axes and animated layout
+  transitions.
+- **Viewport summaries:** cell-type counts and signature-based gene-expression
+  estimates update as users pan and zoom in UMAP/XY.
+- **Neighborhoods across views:** draw, save, restore, and select polygons in
+  spatial, UMAP, and XY spaces, including freehand drawing and access to
+  selected cells from Python.
+- **AnnData Zarr Landscapes:** read single-cell metadata, UMAP coordinates,
+  and per-gene CSC expression directly in the browser.
+- **On-disk Matrix representation:** save and restore clustered Matrices as
+  AnnData Zarr, preserving values, optional dot sizes, metadata, dendrograms,
+  precomputed views, colors, axis entities, and marker rankings.
+- **Single-cell analysis:** build marker dot plots with
+  `Matrix(adata, groupby=...)`, filter by detection fraction with
+  `filter_by_size`, and build Composition directly from cell-level data.
+- **Aligned H&E:** add an aligned H&E background to existing Landscape
+  DegaFiles and switch between fluorescence and H&E in Landscape/Yearbook.
+- **Browser APIs:** render and link Landscapes and Clustergrams without Python,
+  including loading saved Matrix Zarr stores.
+- Updated single-cell, multi-omic, and spatial tutorials, gallery examples,
+  file-format documentation, and Python API guides.
 
 ### Changed
 
-- Landscape: UMAPs are drawn with their second coordinate increasing upward,
-  matching Scanpy and CELLxGENE (saved UMAP polygons migrate automatically),
-  and UMAP/XY points are sized in embedding units, so they grow when zooming in.
-- Dependencies: `zarr>=3,<4`, and `fsspec[http]` so `Matrix.read_zarr` can
-  read HTTPS stores such as Hugging Face.
-- `celldega.pre` imports without pyvips (libvips); only the image functions
-  that need it raise an error. Development builds also work on Windows.
-
-- Clustergram: the COL ordering controls come before the ROW controls,
-  matching the column labels above the rows.
-- Landscape and Yearbook: deselecting a gene or cluster bar (or clearing the
-  selection another way) keeps the bar panels' scroll position instead of
-  scrolling them back to the top.
-- Landscape UMAP view: selecting clusters or highlighting cells (for example,
-  from a linked Clustergram) dims the other cells to a faint gray instead of
-  hiding them, so the selection stays in the context of the whole UMAP. The
-  spatial view still hides them.
-- Landscape UMAP view: points have a fixed size in screen pixels at any zoom,
-  set by the CELL slider. Selections change the cells' colors, not their size.
-- Landscape: cells stay visible while editing neighborhoods, and clicking CELL
-  during editing leaves editing without hiding them.
-- Landscape cell tooltips show the selected gene's expression in the hovered
-  cell (the summed expression when several genes are selected).
-- Clustergram tooltips show small nonzero values with two significant digits
-  (for example, a size of `0.0044` for 1 cell in 229) instead of rounding them
-  to `0.00`.
-- The `Landmark` widget is marked as an alpha feature: its traits and output
-  may change without notice.
+- Improved Landscape/Yearbook gene and cluster multiselection, gene search,
+  tooltips, sliders, and intermediate-zoom transcript loading.
+- Matched UMAP orientation to Scanpy/CELLxGENE; UMAP/XY points scale with zoom
+  and zooming out stops beyond the full embedding.
+- Expanded AnnData/MuData interoperability and documented point-cloud exports.
+- Improved Windows development support and optional image-dependency handling;
+  updated Zarr/HTTP support, JavaScript dependencies, and CI tooling.
 
 ### Fixed
 
-- Landscape viewport updates are debounced per widget, so interacting with one
-  Landscape does not cancel another Landscape's pending update.
-
-- Landscape: zooming out in the UMAP and XY views stops one zoom level past the
-  whole embedding, as the spatial view stops past the whole tissue. Single-cell
-  (AnnData Zarr) Landscapes could zoom out without limit.
-- Landscape: missing numeric cell metadata (e.g. NaN in an `obs` column passed
-  with `adata`) shows as N.A. instead of reading as 0.
-- Cell segmentation validates polygon offsets and uses logical Arrow lengths
-  instead of buffer capacity, preventing padded data from connecting unrelated
-  cells. Tile changes rebuild the path buffers together, stale requests cannot
-  replace newer boundaries, and reported rendering errors trigger one automatic
-  rebuild. Failed geometry loads clear cached cell data so they can be retried.
-- Landscape: cell boundaries no longer render garbled, or log a deck.gl
-  assertion for the path layer, after zooming out and back in (most often with
-  a gene or cluster selected). Zoomed out, the boundary and transcript layers are
-  hidden instead of removed, so deck.gl never reinitializes a finalized layer.
-- Landscape with `nbhd_edit=True`: clicking a Clustergram row or column no
-  longer logs "nbhd?.style is not a function" in the browser console.
-- Landscape: clicking a gene in Enrich colors cells by it even when the
-  Landscape is displayed more than once (e.g. alone and in a linked layout).
-  Each view handled the focus as a toggle, so a second view turned it back
-  off; an Enrich focus now always shows its gene, and clicking the bold gene
-  again (or Enrich's CLEAR) returns the cells to their cluster colors unless
-  another gene was selected since.
-- Chromium Landscapes no longer allocate millions of transcript-tile entries
-  when opening, which could exhaust the browser's memory. UMAP and XY views
-  skip transcript-tile work for spatial datasets too.
-- Clustergram: with more than two attribute bars on an axis, the column (or
-  row) dendrogram fell outside the canvas, and from four column bars on, the
-  last bar and its label were cut off. The matrix now shrinks to make room;
-  layouts with up to two bars per axis are unchanged.
-- `nbhd.alpha_shape_cell_clusters_by_slice` colors shapes from
-  `uns[f"{cluster_attr}_colors"]`, or a distinct fallback palette when none
-  are stored, instead of drawing them black.
-- `nbhd.hextile_niche(dissolve=False)` no longer fails when the hextile index
-  is named like a column.
-- `nbhd.filter_alpha_shapes` strips the alpha suffix from names built with a
-  float alpha (e.g. `150.0`).
-- Landscape and Yearbook bar plots no longer clip the last bars (the least
-  abundant clusters or genes) when a list has more than about 14 entries.
-- Landscape: clicking a transcript no longer leaves cell colors from the
-  previous gene, and a Clustergram row dendrogram selection no longer leaves
-  the transcript filter on the previously selected gene.
-- The gene search no longer selects a shorter gene while typing a longer one
-  (e.g. "ACE" on the way to "ACE2").
-- Landscape gene tooltips wrap at a fixed width and stay inside the widget,
-  flipping to the left of or above the cursor near the right and bottom
-  edges. Transcript tooltips appear once their UniProt text has loaded, at
-  their final position, instead of jumping as they resize. UniProt lookups
-  give up after 5 seconds, so tooltips still appear when the network hangs.
-- Landscape and Yearbook: the TRX slider starts at the actual initial
-  transcript size instead of the middle of its range, so the first drag (or
-  clearing a gene selection) no longer jumps transcripts to a larger size.
-- Landscape and Yearbook: a gene whose expression is still loading no longer
-  overrides a cluster clicked, or a selection cleared, in the meantime, which
-  could hide every cell and cell outline. This holds wherever the gene comes
-  from: a bar, the gene search, a transcript, a linked Clustergram or Enrich,
-  the Yearbook query box, or restoring the selection after switching datasets.
-- Landscape and Yearbook: the gene panel shows a gene's UniProt name and
-  description as text instead of inserting them as HTML.
+- Fixed garbled cell polygons and boundary rendering after zooming, with more
+  robust tile loading and recovery.
+- Fixed various bugs in linked selections, expression loading, viewport
+  updates, metadata handling, Clustergram layouts, and neighborhood calculations.
 
 ## [0.27.0]
 

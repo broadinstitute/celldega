@@ -32,7 +32,7 @@ Log in to [Terra](https://terra.bio/). If a dedicated workspace does not already
 
 <div class="grid cards" markdown>
 
-- Workspaces ![](../assets/img/workspace_view.png)
+- Workspaces ![](../../assets/img/workspace_view.png)
 
 </div>
 
@@ -42,7 +42,7 @@ In the workspace, go to the `Workflows` tab. Click `Find a Workflow`, search for
 
 <div class="grid cards" markdown>
 
-- Workflows ![](../assets/img/workflow_view.png)
+- Workflows ![](../../assets/img/workflow_view.png)
 
 </div>
 
@@ -58,7 +58,7 @@ Use the intuitive Terra workflow submission GUI to provide relevant WDL inputs o
 
 <div class="grid cards" markdown>
 
-- Inputs ![](../assets/img/wdl_inputs_terra_gui.png)
+- Inputs ![](../../assets/img/wdl_inputs_terra_gui.png)
 
 </div>
 
@@ -107,7 +107,7 @@ To retrain a custom Cellpose 2 model, select a few tissue regions (e.g., four) w
 
 <div class="grid cards" markdown>
 
-- Region from the Xenium Human Skin Cancer Dataset: 246 polygons before manual curation ![](../assets/img/xenium_skin_before_cellpose2_curation.png)
+- Region from the Xenium Human Skin Cancer Dataset: 246 polygons before manual curation ![](../../assets/img/xenium_skin_before_cellpose2_curation.png)
 
 </div>
 
@@ -135,10 +135,10 @@ Success criteria may include:
 
 <div class="grid cards" markdown>
 
-- Region from the Xenium Human Skin Cancer Dataset: 312 predicted polygons by a custom Cellpose2 model after manual curation ![](../assets/img/xenium_skin_after_cellpose2_curation.png)
+- Region from the Xenium Human Skin Cancer Dataset: 312 predicted polygons by a custom Cellpose2 model after manual curation ![](../../assets/img/xenium_skin_after_cellpose2_curation.png)
 
 </div>
 
 ### Custom Segmentation Visualization in Celldega
 
-Explore a custom segmentation run on Celldega [here](../examples/brief_notebooks/Custom_Segmentation.ipynb).
+Explore a custom segmentation run on Celldega [here](../../examples/brief_notebooks/Custom_Segmentation.ipynb).

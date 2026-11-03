@@ -261,7 +261,7 @@ places and have different requirements.
 
 | | Back-end selection (`select` module) | Front-end query (`front_end_query`) |
 | --- | --- | --- |
-| Runs in | Python, before the widget renders | The browser, against LandscapeFiles |
+| Runs in | Python, before the widget renders | The browser, against DegaFiles |
 | Requires | An in-memory `AnnData` object | Only `base_url` (no Python `AnnData`) |
 | Expressiveness | Full query algebra + five samplers/rankers | Single cluster filter and/or single-gene ranking |
 | Reproducibility | Seeded, serialized query + sampler + scores | Stateless; recomputed in the browser each time |

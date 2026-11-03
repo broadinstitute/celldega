@@ -298,9 +298,13 @@ def _coerce_nbhd_for_landscape(
 
 class Landscape(CelldegaWidget):
     """
-    A widget for interactive visualization of spatial omics data. This widget
-    currently supports segmented spatial transcriptomics data (Xenium, MERSCOPE,
-    Visium HD) and H&E image data.
+    Interactive spatial tissue and low dimensional embedding landscapes.
+
+    Spatial datasets read image, cell-boundary, transcript, and expression
+    DegaFiles through ``base_url``. Single-cell UMAP/XY views can instead read
+    AnnData Zarr through ``zarr_url``. The browser loads the source files
+    directly; optional ``adata`` supplies metadata, colors, and UMAP positions.
+    See the Landscape guide and File Formats documentation for storage layouts.
 
     Args:
         ini_x (float): The initial x-coordinate of the view.
@@ -322,7 +326,8 @@ class Landscape(CelldegaWidget):
         rotation_x (float, optional): Rotating angle around X axis for
             point-cloud views.
         token (str): The token traitlet.
-        base_url (str or list): The base URL(s) for the widget. Can be a single string
+        base_url (str or list): DegaFiles URL(s), mutually exclusive with
+            zarr_url. Can be a single string
             or a list of dicts with 'url' and 'label' keys for multiple datasets.
             Example: [{'url': 'http://...', 'label': 'Dataset1'}, ...]
             You can also pass a simple list of URL strings.
@@ -344,9 +349,8 @@ class Landscape(CelldegaWidget):
             mean expression for UMAP/XY viewport estimates. ``obs_names`` match
             the cell category labels and ``var_names`` are genes. The estimate
             reads nonnegative means from ``layers['counts']`` (mean counts per
-            cell, comparable with the exact values a TRX click computes) when
-            present, else ``X``; a ``layers['log1p']`` of mean log1p expression
-            can sit alongside for z-scored views. ``uns['viewport_signature']``
+            cell) when present, else ``X``; a ``layers['log1p']`` of mean log1p
+            expression can sit alongside for z-scored views. ``uns['viewport_signature']``
             is a JSON string with ``groupby`` (the cell attribute) and
             ``units``, and optionally ``layer`` (the layer to read) and
             ``layers`` (units per layer).
@@ -363,12 +367,29 @@ class Landscape(CelldegaWidget):
             the dropdown selector. Should match the length of base_urls.
             Example: ['Brain', 'Kidney'] for two datasets.
         rotate (float, optional): Degrees to rotate the 2D landscape visualization.
-        AnnData (AnnData, optional): AnnData object to derive metadata from.
+        adata (AnnData, optional): Cell metadata from ``obs``, cluster colors
+            from ``uns``, and UMAP coordinates from ``obsm["X_umap"]``.
+            Overrides source metadata; ``obs_names`` must match source cell IDs.
+            Expression is read from DegaFiles or Zarr, not from this object.
+        AnnData (AnnData, optional): Alias of adata.
+        cluster_attr (str, optional): Cell attribute used for cluster colors and
+            composition bars. Default: "leiden".
+        cell_attr (list of str, optional): Cell attributes to expose. The
+            cluster_attr is always included. Default: ["leiden"].
+        landscape_state (str, optional): "spatial", "umap", or "xy", depending
+            on the available data. Single-cell data defaults to UMAP when
+            supplied, otherwise XY.
+        xy_genes (list of str, optional): Genes for the X and Y expression axes.
+        xy_scale (str, optional): "linear" or "log1p". Default: "log1p".
+        nbhd (GeoDataFrame, optional): Neighborhood polygons, or an object
+            exposing to_geodataframe(). Polygons retain their spatial/UMAP/XY
+            coordinate-space metadata.
+        nbhd_edit (bool, optional): Enable neighborhood editing. Default: False.
         dataset_name (str, optional): The name of the dataset to visualize. This
             will show up in the user interface bar.
         cell_name_prefix (bool, optional): If True, cell names in adata.obs.index
             are assumed to have a dataset prefix (e.g., "dataset-name_cell-name")
-            that should be trimmed when mapping to LandscapeFiles. Default: False.
+            that should be trimmed when mapping to DegaFiles. Default: False.
         use_adata_3d_centroids (bool, optional): For ``technology="point-cloud"``
             views given an ``adata``, render that AnnData's
             ``obsm["spatial"]``/``obs[z_key]`` centroids instead of the geometry
@@ -657,7 +678,7 @@ class Landscape(CelldegaWidget):
                 meta_cell_df.index.name = "cell_id"
 
             # If cell_name_prefix is True, trim the prefix from cell names
-            # This allows mapping to LandscapeFiles which have short names
+            # This allows mapping to DegaFiles which have short names
             if cell_name_prefix_setting:
                 # Trim prefix before first underscore from index
                 new_index = meta_cell_df.index.map(
@@ -835,7 +856,7 @@ class Landscape(CelldegaWidget):
         self.selected_cells = list(cell_ids)
 
     def set_xy(self, x_gene=None, y_gene=None, *, scale="log1p"):
-        """Show raw DegaFiles expression on X/Y, using linear or log1p counts.
+        """Show source expression on X/Y, using linear or log1p scaling.
 
         Both genes may be omitted to start with all cells overlapping. A gene
         for Y requires a gene for X. No UMAP is required. Return with
@@ -1269,7 +1290,7 @@ class Yearbook(CelldegaWidget):
             portrait cell order and stores the JSON-ready payload for provenance.
             Pass either ``selection`` or ``cells``, not both.
         front_end_query (dict, optional): Stateless query evaluated in the browser
-            against LandscapeFiles (no Python/AnnData required). Supports the
+            against DegaFiles (no Python/AnnData required). Supports the
             following formats:
 
             - Cluster only: ``{"cluster": {"attr": "leiden", "value": "8"}}``
@@ -1383,7 +1404,7 @@ class Yearbook(CelldegaWidget):
     # obs column driving the cluster color legend/meta_cluster_parquet key field
     cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
 
-    # Stateless front-end query, evaluated in the browser against LandscapeFiles
+    # Stateless front-end query, evaluated in the browser against DegaFiles
     # (no Python/AnnData required). Supports:
     #   {"cluster": {"attr": "leiden", "value": "8"}} - cells from cluster
     #   {"gene": "BRCA1"} - cells ranked by gene expression
@@ -1642,7 +1663,7 @@ class Clustergram(CelldegaWidget):
     #: the clicked column are sent to Enrich. Set to ``None`` to disable.
     top_gene_min_value = traitlets.Float(0.0, allow_none=True).tag(sync=True)
 
-    #: Active dimensionality view: the number of rows kept by the RANK slider.
+    #: Active precomputed level: markers per group, or total rows for metric views.
     #: ``0`` (default) means the full matrix. Set to one of the levels
     #: precomputed by ``Matrix.cluster(view=...)`` to open already reduced; the
     #: front end snaps to the nearest available level and writes the applied

@@ -27,7 +27,7 @@ order of power:
    selection dict, or a plain id list. This is the recommended way to drive
    the grid from a Python `AnnData` object.
 3. **A stateless front-end query** — `front_end_query=...`, evaluated in the
-   browser against the dataset's LandscapeFiles, needing only a `base_url`
+   browser against the dataset's DegaFiles, needing only a `base_url`
    and no Python `AnnData`.
 
 ## Usage
@@ -49,5 +49,7 @@ yb
 `Landscape`. For the full query/selection algebra and constructor arguments,
 see the [Viz Module API reference](../python/viz/api.md).
 
-!!! note
-    Screenshots and an example video are coming soon.
+## Example
+
+The [Atera kidney tutorial](../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb)
+includes a Yearbook for inspecting individual cells alongside a Landscape.

@@ -1,49 +1,62 @@
 # Visualizations
 
-Celldega ships interactive visualizations, grouped into three kinds:
+Celldega's interactive views help you explore where cells are, how gene
+expression varies, and which biological processes distinguish a group.
+Use linked views to move between tissue context, expression patterns, and
+gene-set interpretation.
 
-Every visualization accepts an optional `name=` (or `registry_key=`). Creating
-another widget of the same kind with the same key closes and replaces the old
-one, which is useful when rerunning notebook cells that create GPU-backed
-widgets. Use distinct keys when widgets should coexist. Widgets without a key
-coexist by default; `Clustergram` retains its matrix-name identity and `Enrich`
-retains its existing `"default"` identity.
+For desktop viewing, try [Celldega-App (alpha)](https://github.com/broadinstitute/celldega-app),
+which provides linked Landscape, Clustergram, and Yearbook windows.
+[Download an alpha build](https://github.com/broadinstitute/celldega-app/releases).
 
-## Spatial
+!!! tip "Watch a linked-workflow tutorial"
+    [Watch the narrated Landscape, Clustergram, and Enrich walkthrough](https://www.youtube.com/watch?v=IjGsIykVIUE)
+    to see how the views work together on a Visium HD dataset.
+    [Follow along in the notebook](../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb).
 
-Render directly in geographic (x/y, and sometimes z) space over a tissue
-section, using deck.gl for GPU-accelerated rendering of large point/polygon
-datasets.
+## Spatial visualizations {#spatial}
 
-- **[Landscape](landscape.md)** — the main spatial view: cells, transcripts,
-  images, and neighborhoods over a tissue section.
-- **[Yearbook](yearbook.md)** — a grid of per-cell spatial "portraits" cropped
-  from the same underlying LandscapeFiles.
-- **[CellCloud](cell-cloud.md)** — a 3D orbit-camera view of cell centroids,
-  for thick tissue or multi-slice alignments.
-- **[NeighborhoodCloud](neighborhood-cloud.md)** — a 3D orbit-camera view of
-  precomputed tissue neighborhoods.
+Explore cells and neighborhoods in **physical space** (x/y, and sometimes z)
+across a tissue section, or compare cells in a low dimensional embedding
+landscape (UMAP/XY).
 
-## Data
+- **[Landscape](landscape.md)** — explore cells, transcripts, images, and
+  neighborhoods over tissue, or switch to UMAP and gene-expression XY views.
+- **[Yearbook](yearbook.md)** — compare a grid of individual cell portraits
+  cropped from the same spatial dataset.
+- **[CellCloud](cell-cloud.md)** — explore cell positions in 3D, including
+  thick tissue and aligned serial sections.
+- **[NeighborhoodCloud](neighborhood-cloud.md)** — explore tissue
+  neighborhoods and their cells across slices in 3D.
 
-Render a dataset's values directly, independent of spatial position.
+## Data visualizations {#data}
 
-- **[Clustergram](clustergram.md)** — a hierarchically clustered heatmap
-  (dendrograms, reorderable rows/columns) over a matrix (e.g. genes by cells
-  or genes by clusters).
-- **[Composition](composition.md)** — a `Clustergram` variant comparing
-  category composition (e.g. cell-type proportions) across groups.
+Compare measured values across cells, clusters, neighborhoods, or samples.
 
-## Info
+- **[Clustergram](clustergram.md)** — find expression patterns in a clustered
+  heatmap or dot plot, with dendrograms and gene/metadata labels.
+- **[Composition](composition.md)** — compare category composition, such as
+  cell-type proportions, across groups.
 
-Summarize or look up information about a gene list rather than rendering a
-dataset's cells or matrix directly.
+## Information visualization {#info}
 
-- **[Enrich](enrich.md)** — gene set enrichment analysis against public
-  libraries (via the [Enrichr](https://maayanlab.cloud/Enrichr/) API).
+Interpret the genes that distinguish a selected group.
 
-!!! note
-    Screenshots and example videos for each visualization are coming soon.
-    For now, each page below documents what the visualization shows and how
-    to create it; see the [Example Notebooks](../examples/index.md) and
-    [Gallery](../gallery/index.md) for runnable demos.
+- **[Enrich](enrich.md)** — explore gene-set enrichment against public
+  libraries through Enrichr.
+
+## Linked Visualization
+
+Connect views of the same dataset to explore cell positions, expression
+patterns, and gene-set enrichment together.
+
+- **[Landscape–Clustergram–Enrich](landscape-clustergram-enrich.md)** — connect
+  tissue or embedding views with expression patterns and gene-set interpretation.
+- **[CellCloud–Clustergram](cell-cloud-clustergram.md)** — connect cells in 3D
+  with expression patterns across cell groups.
+
+Start with the [Gallery](../gallery/index.md) for interactive examples or the
+[Example Notebooks](../examples/index.md) for complete workflows. Each
+visualization's guide explains what it shows and how to create it; the
+[Python API reference](../python/viz/api.md) covers constructor options and
+notebook controls.

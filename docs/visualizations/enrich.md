@@ -38,5 +38,7 @@ top-marker selection update the enrichment set. For the full list of
 constructor arguments, see the
 [Viz Module API reference](../python/viz/api.md).
 
-!!! note
-    Screenshots and an example video are coming soon.
+## Example
+
+The [Visium HD tutorial](../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb)
+connects Enrich to a Clustergram and Landscape.

@@ -634,7 +634,7 @@ class Matrix:
 
         # Precomputed dimensionality views (see `cluster(view=...)`). Each entry
         # is one re-biclustered filter level; exported in the viz metadata and
-        # driven by the Clustergram's RANK slider.
+        # driven by the Clustergram's DIM slider.
         self.views: list[dict[str, Any]] = []
 
         self.col_attr = col_attr or list(self.meta_col.columns)
@@ -1069,7 +1069,7 @@ class Matrix:
             linkage_type: Linkage method ('average', 'complete', 'ward')
             force: Override size limits for large matrices
             view: Precompute reduced-dimensionality views, each independently
-                re-biclustered, and drive them from the Clustergram's RANK slider.
+                re-biclustered, and drive them from the Clustergram's DIM slider.
                 One of:
 
                 - ``"rank_genes_groups"``: each cluster's top markers, unioned.
@@ -1620,7 +1620,14 @@ class Matrix:
         return self.data.copy() if self.data is not None else pd.DataFrame()
 
     def to_adata(self) -> AnnData:
-        """Convert to AnnData object."""
+        """Convert current values and axis metadata to AnnData.
+
+        Matrix columns become observations and rows become variables.
+        This conversion works before clustering and excludes the size matrix,
+        colors, axis entities, marker rankings, and clustering/view state.
+        After clustering, use ``to_clustered_adata`` or ``write_zarr`` for
+        complete persistence.
+        """
         if self.data is None:
             raise ValueError(ERRORS["no_data"])
         return AnnData(X=self.data.values.T, obs=self.meta_col, var=self.meta_row)
@@ -2081,6 +2088,12 @@ class Matrix:
         JavaScript ``matrix_from_zarr`` renders it in a browser. It is also a
         regular AnnData store that ``anndata.read_zarr`` opens.
 
+        Preserves values, the optional dot-size matrix, row/column metadata,
+        dendrogram orders and linkages, precomputed views, colors, visualization
+        settings, axis entities, and marker rankings when present. Requires
+        ``cluster()`` first. Before clustering, save the input AnnData or use
+        ``to_adata()`` for current values and axis metadata only.
+
         Args:
             store: Path or zarr store to write to.
             dtype: Data type of the matrix values and size layer. Defaults to
@@ -2114,7 +2127,12 @@ class Matrix:
 
     @classmethod
     def read_zarr(cls, store: Any) -> Matrix:
-        """Read a clustered Matrix written by :meth:`write_zarr` (experimental)."""
+        """Restore a clustered Matrix written by :meth:`write_zarr` (experimental).
+
+        Loads the saved matrix into memory and restores its clustering and
+        visualization state without reclustering. Ordinary AnnData Zarr inputs
+        use ``Matrix(anndata.read_zarr(store))`` instead.
+        """
         import anndata as ad
 
         return cls.from_clustered_adata(ad.read_zarr(store))

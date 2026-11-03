@@ -10,8 +10,8 @@
 
 Celldega is a spatial analysis and visualization library that is being developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org/spatial-technology-platform). This project enables researchers to easily visualize large ST datasets (e.g., datasets with >100M transcripts) alongside single-cell and spatial analysis notebook workflows (e.g., [sverse](https://scverse.org/) tools and novel spatial analysis approaches).
 
-- [Getting Started](overview/getting_started.md)
-- [Installation](overview/installation.md)
+- [Getting Started](getting-started/index.md)
+- [Installation](getting-started/installation.md)
 - [GitHub Repository](https://github.com/broadinstitute/celldega)
 
 ## What's New
@@ -34,7 +34,7 @@ This video shows how to link a Landscape, Clustergram, and Enrich to analyze a V
 
 ### 3D Developing Mouse Brain
 
-Explore 3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain as a 3D CellCloud. See the [Broad-Allen Dev Mouse Brain E15.5 Viz](examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) tutorial.
+Explore 3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain as a 3D CellCloud. See the [interactive CellCloud gallery](gallery/gallery_broad_allen_mouse_brain_3d.md).
 
 <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
     <iframe src="https://www.youtube.com/embed/a9fSskh1A1g" title="Broad-Allen Developing Mouse Brain E15.5 in 3D" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>

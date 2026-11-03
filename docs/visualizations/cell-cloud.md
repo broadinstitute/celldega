@@ -43,12 +43,15 @@ Build the underlying point-cloud DegaFiles from an `AnnData` (x/y in
 [`celldega.pre.write_point_cloud_dataset`](../python/pre/api.md). Passing
 `name="..."` writes a named position variant (e.g. one alignment of the same
 cells) that `CellCloud(alignment="...")` switches to; see
-[File Formats](../overview/file_formats.md#point-cloud-degafiles).
+[File Formats](../getting-started/file_formats.md#point-cloud-degafiles).
 `CellCloud` can also be linked to a `Clustergram`, exactly like `Landscape`
 — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 
 For the full list of constructor arguments, see the
 [Viz Module API reference](../python/viz/api.md).
 
-!!! note
-    Screenshots and an example video are coming soon.
+## Examples
+
+Explore the [3D developing mouse brain](../gallery/gallery_broad_allen_mouse_brain_3d.md)
+interactively, or follow the
+[thick-tissue MERFISH notebook](../examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb).

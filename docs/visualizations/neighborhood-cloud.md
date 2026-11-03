@@ -13,9 +13,9 @@ to display regardless of dataset size. It replaces `Landscape`'s older
   neighborhood is selected, instead of being loaded up front.
 - A **slice** control for stepping through multi-slice datasets.
 
-Note: the 2D neighborhood *drawing* editor (used to hand-draw a region on a
-tissue section) is a `Landscape` feature and is intentionally not part of
-`NeighborhoodCloud`, which only visualizes neighborhoods that already exist.
+Draw and edit neighborhoods in spatial, UMAP, and XY views with
+[`Landscape`](landscape.md). `NeighborhoodCloud` displays precomputed
+neighborhoods across slices.
 
 ## Usage
 
@@ -46,13 +46,10 @@ Shape colors come from `adata.uns["leiden_colors"]` (or pass `meta_cluster=`
 with a `color` column); without either, each cluster gets a distinct fallback
 color.
 
-See [File Formats](../overview/file_formats.md#neighborhood-cloud-degafiles)
+See [File Formats](../getting-started/file_formats.md#neighborhood-cloud-degafiles)
 for the layout.
 `NeighborhoodCloud` can also be linked to a `Clustergram`, exactly like
 `Landscape` — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 
 For the full list of constructor arguments, see the
 [Viz Module API reference](../python/viz/api.md).
-
-!!! note
-    Screenshots and an example video are coming soon.

@@ -1,21 +1,25 @@
 # Landscape
 
-`Landscape` is Celldega's main spatial visualization: an interactive,
-deck.gl-powered view of a tissue section that scales to datasets with
-hundreds of millions of transcripts by loading data as vector tiles instead
-of all at once.
+`Landscape` displays spatial tissue data and **low dimensional embedding
+landscapes**: UMAP embeddings and gene-expression XY plots. Spatial
+Landscapes read DegaFiles, loading images, cell boundaries, and transcripts
+as tiles. Single-cell Landscapes can read AnnData Zarr directly, fetching
+expression one gene at a time in the browser.
+
+See [File Formats](../getting-started/file_formats.md) for the storage layouts and
+the division of work between Python and JavaScript.
 
 ## What it shows
 
 - **Image**: the underlying microscopy image (e.g. H&E, DAPI), rendered as a
   zoomable tile pyramid, with per-channel visibility/contrast controls.
-- **CELL**: cell segmentation boundaries, colored by cluster/category (e.g. a
-  `leiden` column from an `AnnData`) or by gene expression, with a size
-  slider.
+- **CELL**: cell centroids and, for spatial data, segmentation boundaries,
+  colored by cluster/category (e.g. `obs["leiden"]`) or gene expression.
+  The CELL slider controls centroid size; zero hides the centroids.
 - **TRX**: individual transcript locations, colored by gene, with a size
   slider.
-- **NBHD**: tissue neighborhoods (alpha-shape or hextile regions), toggled
-  on/off with their own opacity control.
+- **NBHD**: supplied neighborhoods or polygons drawn in spatial, UMAP, or
+  XY coordinates, with controls for visibility and editing.
 - A **gene search** box and a bar graph that summarizes the currently visible
   cells by category or gene, updated as you pan/zoom.
 - Support for **multiple datasets** via a dropdown selector.
@@ -27,6 +31,8 @@ which replace `Landscape`'s older `technology="point-cloud"` /
 `"neighborhood-cloud"` modes.
 
 ## Usage
+
+### Spatial DegaFiles
 
 ```python
 import celldega as dega
@@ -42,7 +48,51 @@ landscape
 `Landscape` can also be linked to a `Clustergram` so that selections in one
 update the other — see [`dega.viz.spatial_clustergram`](../python/viz/api.md).
 
-## Spatial, UMAP, and gene-expression views
+### Single-cell AnnData Zarr
+
+Prepare a CSC copy of a sparse expression layer so the browser can read
+individual genes efficiently. The example uses raw counts:
+
+```python
+import zarr
+
+adata.layers["counts_csc"] = adata.layers["counts"].tocsc()
+adata.write_zarr("cells.zarr")
+zarr.consolidate_metadata("cells.zarr")
+
+landscape = dega.viz.Landscape(
+    zarr_url="cells.zarr",
+    zarr_layer="counts_csc",
+    cluster_attr="cell_type",
+    cell_attr=["cell_type", "sample_id"],
+    nbhd_edit=True,
+)
+```
+
+`zarr_url` accepts an HTTP(S) URL or a local store under the working
+directory, which Python serves over HTTP. The browser loads metadata and
+`obsm["X_umap"]` from the store, then reads requested genes with Zarrita.
+This path defaults to `technology="Chromium"`. Dense or CSR expression
+needs a CSC copy; `zarr_layer` selects it explicitly.
+
+Optional `adata` supplies overriding cell metadata, cluster colors, and
+UMAP positions; its cell IDs must match the store. Passing `adata` alone
+does not supply the browser's expression data: use `base_url` or `zarr_url`.
+See [AnnData Zarr storage](../getting-started/file_formats.md#anndata-zarr-for-a-single-cell-landscape)
+for gene statistics, layer discovery, and format details.
+
+### Add aligned H&E to spatial DegaFiles
+
+After preparing a spatial dataset, add an H&E image using
+`dega.pre.add_aligned_he("data/DegaFiles", "sample_he.ome.tif",
+alignment="sample_he_imagealignment.csv")`. Reload Landscape to use the
+Fluorescence/H&E selector; cells and transcripts share the same reference
+coordinates on both backgrounds. An image already on the reference grid
+does not need an alignment argument. See
+[Add aligned H&E to DegaFiles](../python/aligned_he.md) for requirements
+and the example notebook.
+
+## Low dimensional embedding landscapes: UMAP and XY
 
 **XY** plots two genes' expression for every cell, with **LIN** and **LOG**
 (`log1p`) scaling. It is available for spatial and non-spatial datasets with
@@ -102,21 +152,23 @@ them.
 The gene bars follow the viewport too, and the **TRX** button shows what they
 hold:
 
-- **Blue**, every cell in view: the whole-dataset genes, actual expression.
+- **Blue**, every cell in view: the whole-dataset gene statistics.
 - **Purple**, zoomed in: genes estimated from cell-type signatures (below).
 - **Gray**, zoomed in without matching signatures: the whole-dataset genes.
+
+For AnnData Zarr without `var["mean"]`, the whole-dataset ranking uses
+detection fraction instead of mean expression.
 
 TRX is an indicator in UMAP/XY; clicking it does not fetch expression or change
 the estimate. Spatial TRX controls still show and hide transcripts.
 
 To estimate expression in the viewport, give Landscape each cell type's mean
 expression, as an AnnData with cell types as `obs_names` and genes as
-`var_names`. Store two layers: `counts`, the mean raw counts per cell, which the
-estimate reads (the values that color cells and that a TRX click computes
-exactly), and `log1p`, the mean log-normalized expression, the better input for
-z-scored views such as a Clustergram. For a cell-level AnnData (raw counts in
-`layers["counts"]`, log1p in `X`), compute it on the fly and pass it as
-`adata_sig`; it is sent with the widget, like `adata`:
+`var_names`. Use `layers["counts"]` for mean raw counts per cell when the
+Landscape colors cells from raw counts. An optional `log1p` layer can hold
+mean log-normalized expression for z-scored Clustergram views. For a
+cell-level AnnData with raw counts in `layers["counts"]` and log1p in `X`,
+compute these means and pass them as `adata_sig`; they are sent with the widget:
 
 ```python
 import scanpy as sc
@@ -159,7 +211,9 @@ landscape = dega.viz.Landscape(
 Spatial DegaFiles need neither: their UMAP/XY views use `df_sig.parquet`, each
 default cluster's mean counts per cell, while the Landscape shows those clusters.
 
-The means must be dense, finite, and nonnegative. The estimate reads
+Means must be finite and nonnegative. Signature Zarr stores require a dense
+matrix; `adata_sig` also accepts sparse means, which Python converts to dense
+values for transport. The estimate reads
 `viewport_signature["layer"]` when set, else `layers["counts"]`, else `X`; other
 units (e.g. mean log1p) work too, and are named in TRX's tooltip. Match the
 layer to the expression that colors the cells (the Zarr store's `zarr_layer`).
@@ -189,9 +243,20 @@ if selected.n_obs:
     cgm = dega.viz.Clustergram(matrix=mat)
 ```
 
-For the full list of constructor arguments (multi-dataset support, point-cloud
-options, `AnnData` integration, etc.), see the
-[Viz Module API reference](../python/viz/api.md).
+For constructor arguments and Python selection methods, see the
+[Viz Module API reference](../python/viz/api.md#landscape-data-sources-and-controls).
+For independent browser rendering, see the
+[JavaScript API](../javascript/api.md#visualizations-without-python-landscape-clustergram-and-link_models).
 
-!!! note
-    Screenshots and an example video are coming soon.
+## Source code
+
+- [Python Landscape widget](https://github.com/broadinstitute/celldega/blob/main/src/celldega/viz/widget.py):
+  constructor, AnnData metadata, signatures, and selection/neighborhood methods.
+- [Browser initialization](https://github.com/broadinstitute/celldega/blob/main/js/celldega.js)
+  and [Landscape renderer](https://github.com/broadinstitute/celldega/blob/main/js/viz/landscape_ist.js).
+- [AnnData Zarr reader](https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/anndata_zarr.js):
+  metadata and CSC gene slices.
+- [UMAP/XY layouts](https://github.com/broadinstitute/celldega/blob/main/js/umap/expression_scatter.js)
+  and [neighborhood coordinate spaces](https://github.com/broadinstitute/celldega/blob/main/js/umap/embedding_gates.js).
+- [Viewport summaries](https://github.com/broadinstitute/celldega/blob/main/js/umap/viewport_summary.js)
+  and [signature readers](https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/gene_signatures.js).

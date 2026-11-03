@@ -5,6 +5,24 @@ through the publicly available Celldega-App alpha.
 
 ## In a notebook
 
+Use Celldega downstream of single-cell and spatial analysis workflows, such as
+Scanpy and Squidpy, to interactively visualize the results. Bring cluster
+annotations, UMAP coordinates, gene expression, and neighborhood summaries from
+your analysis into linked Landscape, Clustergram, and Enrich widgets.
+
+### Example workflows
+
+- **[Chromium PBMC: Landscape–Clustergram–Enrich](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)**
+  — analyze single-cell RNA-seq data with Scanpy, then explore clusters, UMAP/XY
+  landscapes, marker-gene dot plots, and gene-set enrichment in linked views.
+- **[Scanpy–Squidpy Xenium Pancreas](../../examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb)**
+  — explore Scanpy clusters and expression patterns alongside Squidpy spatial
+  neighborhood-enrichment results using Landscapes and Clustergrams.
+
+See [Example Notebooks](../../examples/index.md) for more workflows.
+
+### Notebook options
+
 - **Local Jupyter** — JupyterLab or Jupyter Notebook running on your own
   machine, following the standard [Installation](../installation.md)
   and [Getting Started](../index.md) guides.

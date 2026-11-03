@@ -6,7 +6,10 @@
 
 // import { obs_store } from '../obs_store/obs_store.js';
 
-import { getAlignedColumnArray } from '../read_parquet/table_accessors';
+import {
+  getAlignedColumnArray,
+  getTableColumnArray,
+} from '../read_parquet/table_accessors';
 
 export const update_cat = (cats, new_cat) => {
   cats.cat = new_cat;
@@ -21,6 +24,36 @@ const normalizeCellCat = (cat) => {
 };
 
 export const set_cell_cats = (cats, cell_arrow_table, column_name) => {
+  if (cats.cell_ids_are_indexed) {
+    const indices = getTableColumnArray(cell_arrow_table, [
+      'name',
+      'cell_id',
+      '__index_level_0__',
+      'index',
+    ]);
+    const values = getTableColumnArray(cell_arrow_table, column_name);
+    const count = cats.cell_names_array.length;
+    const seen = new Uint8Array(count);
+    const aligned = new Array(count);
+    if (indices.length !== count || values.length !== count) {
+      throw new Error('[CellCloud] Indexed clusters must cover every cell.');
+    }
+    indices.forEach((raw, row) => {
+      const index = Number(raw);
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= count ||
+        seen[index]
+      ) {
+        throw new Error('[CellCloud] Invalid or duplicate cluster cell index.');
+      }
+      seen[index] = 1;
+      aligned[index] = normalizeCellCat(values[row]);
+    });
+    cats.cell_cats = aligned;
+    return;
+  }
   cats.cell_cats = getAlignedColumnArray(
     cell_arrow_table,
     column_name,

@@ -27,6 +27,7 @@ from .widget import (
     _WIDGET_ESM,
     _hsv_to_hex,
     _local_dir_for_url,
+    _zarr_store_url,
 )
 
 
@@ -335,9 +336,18 @@ class CellCloud(_SpatialWidget):
 
     Args:
         base_url (str or list): DegaFiles URL(s), as in ``Landscape``.
+        zarr_url (str or Path, optional): Self-contained AnnData Zarr instead
+            of ``base_url``. ``X`` (or ``zarr_layer``) is CSC;
+            ``obsm['spatial']`` holds XYZ positions, with named variants at
+            ``obsm['spatial_<alignment>']``. Original observation IDs retain cell
+            identity. Export with :func:`celldega.pre.write_point_cloud_zarr`.
+            Local paths use the shared local HTTP server.
+        zarr_layer (str, optional): CSC expression layer, or ``"X"``. Defaults
+            to CSC ``X`` or the only CSC layer in the store.
         adata (AnnData, optional): Source of cell attributes/metadata (clusters,
             colors, UMAP). Never used for spatial positions — those come from the
-            DegaFiles — except when ``use_adata_3d_centroids`` is set.
+            DegaFiles — except when ``use_adata_3d_centroids`` is set. With
+            ``zarr_url``, positions always come from the store.
         alignment (str, optional): Named alignment variant; cell positions are
             read from ``cell_metadata_<alignment>.parquet``.
         cell_size (float): Default cell diameter in microns, assuming centroid
@@ -361,6 +371,10 @@ class CellCloud(_SpatialWidget):
     technology = traitlets.Unicode("point-cloud").tag(sync=True)
     manifest_name = traitlets.Unicode("cell_cloud.json").tag(sync=True)
 
+    # A self-contained AnnData Zarr is an alternative to point-cloud DegaFiles.
+    zarr_url = traitlets.Unicode("").tag(sync=True)
+    zarr_layer = traitlets.Unicode("").tag(sync=True)
+
     cell_size = traitlets.Float(10.0, min=0.0).tag(sync=True)
 
     # 3D orbit camera
@@ -382,6 +396,12 @@ class CellCloud(_SpatialWidget):
         return proposal["value"]
 
     def _consume_extra_kwargs(self, kwargs) -> dict:
+        if kwargs.get("zarr_url"):
+            if kwargs.get("base_url") or kwargs.get("base_urls"):
+                raise ValueError(
+                    "Pass either base_url (DegaFiles) or zarr_url (AnnData Zarr), not both."
+                )
+            kwargs["zarr_url"] = _zarr_store_url(kwargs["zarr_url"])
         # z_key only affects adata centroid extraction, but pop it always so it
         # never reaches super().__init__ as an unknown trait.
         self._z_key = kwargs.pop("z_key", "Z")
@@ -398,7 +418,7 @@ class CellCloud(_SpatialWidget):
         ``centroids_url`` (preferred for large datasets), else returns the bytes
         as a ``centroids_parquet`` payload synced through widget state.
         """
-        if self._has_explicit_centroids:
+        if self._has_explicit_centroids or kwargs.get("zarr_url"):
             return {}
         if not kwargs.get("use_adata_3d_centroids", True) or "spatial" not in adata.obsm:
             return {}

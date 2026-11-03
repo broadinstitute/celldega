@@ -33,6 +33,10 @@ async function main() {
       bundle: true,
       minify: true,
       target: ['es2020'],
+      // Emit escaped strings rather than multiline template literals. Some
+      // bundled vendor messages contain a space before a newline; preserving
+      // that text in a template literal makes generated files fail diff checks.
+      supported: { 'template-literal': false },
       plugins: [wasmPlugin, watchPlugin],
       outdir: 'src/celldega/static',
       format: 'esm',

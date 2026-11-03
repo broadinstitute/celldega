@@ -173,3 +173,40 @@ def test_explicit_centroids_url_suppresses_adata_extraction() -> None:
     )
     assert cc.centroids_url == "https://example.com/data/my_centroids.parquet"
     assert not hasattr(cc, "centroids_parquet")
+
+
+def test_cell_cloud_accepts_self_contained_zarr_url():
+    cloud = CellCloud(
+        zarr_url="https://example.org/brain.zarr/", zarr_layer="counts_csc", alignment="centroids"
+    )
+    assert cloud.zarr_url == "https://example.org/brain.zarr"
+    assert cloud.zarr_layer == "counts_csc"
+    assert cloud.alignment == "centroids"
+    assert cloud.base_url == ""
+    assert cloud.technology == "point-cloud"
+    assert cloud.get_state()["zarr_url"] == cloud.zarr_url
+
+
+@pytest.mark.parametrize(
+    "base", [{"base_url": "https://example.org/dega"}, {"base_urls": ["https://example.org/dega"]}]
+)
+def test_cell_cloud_zarr_and_dega_are_mutually_exclusive(base):
+    with pytest.raises(ValueError, match="not both"):
+        CellCloud(zarr_url="https://example.org/brain.zarr", **base)
+
+
+def test_cell_cloud_local_zarr_uses_shared_server(tmp_path, monkeypatch):
+    from celldega.viz import widget as widget_module
+
+    path = tmp_path / "brain store.zarr"
+    path.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(widget_module, "_SHARED_LOCAL_SERVER_PORT", 8123)
+    cloud = CellCloud(zarr_url=path)
+    assert cloud.zarr_url == "http://localhost:8123/brain%20store.zarr"
+
+
+def test_zarr_coordinates_do_not_send_adata_centroids():
+    cloud = CellCloud(zarr_url="https://example.org/brain.zarr", adata=_make_adata())
+    assert not cloud.centroids_url
+    assert not getattr(cloud, "centroids_parquet", b"")

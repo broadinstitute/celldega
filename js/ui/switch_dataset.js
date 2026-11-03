@@ -18,6 +18,7 @@ import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import {
   set_cell_names_array,
   set_cell_name_to_index_map,
+  set_indexed_cell_names_array,
 } from '../global_variables/cell_names_array';
 import { set_color_dict_gene } from '../global_variables/color_dict_gene';
 import { options } from '../global_variables/fetch_options';
@@ -266,13 +267,30 @@ export const switch_dataset = async (
       cell_url = `${new_base_url}/cell_metadata_${cell_meta_version}.parquet`;
     }
 
-    const cell_arrow_table = await get_arrow_table(
-      cell_url,
-      options.fetch,
-      viz_state.aws
-    );
-    set_cell_names_array(viz_state.cats, cell_arrow_table);
-    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
+    const identity_path =
+      pointCloud && viz_state.img.landscape_parameters.cell_ids;
+    const [cell_arrow_table, identity_table] = await Promise.all([
+      get_arrow_table(cell_url, options.fetch, viz_state.aws),
+      identity_path
+        ? get_arrow_table(
+            `${new_base_url}/${identity_path}`,
+            options.fetch,
+            viz_state.aws
+          )
+        : null,
+    ]);
+    if (identity_table) {
+      set_indexed_cell_names_array(
+        viz_state.cats,
+        cell_arrow_table,
+        identity_table
+      );
+    } else {
+      set_cell_names_array(viz_state.cats, cell_arrow_table);
+    }
+    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table, {
+      float32: pointCloud,
+    });
 
     if (pointCloud && viz_state.vector_name_integer) {
       viz_state.cats.cell_name_to_index_map = new Map();

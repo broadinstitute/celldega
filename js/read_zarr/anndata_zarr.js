@@ -1,8 +1,8 @@
 import * as zarrita from 'zarrita';
 
 /**
- * Read single-cell data for a Chromium Landscape straight from an AnnData Zarr
- * store (`adata.write_zarr(...)`), as an alternative to DegaFiles.
+ * Read cells for a Chromium Landscape or CellCloud straight from an AnnData
+ * Zarr store (`adata.write_zarr(...)`), as an alternative to DegaFiles.
  *
  * Gene expression comes from a CSC matrix: `X` itself, or a layer holding a CSC
  * copy (e.g. `adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`).
@@ -122,6 +122,8 @@ export const make_anndata_zarr_source = (zarr) => {
       layer = '',
       cell_attr = [],
       cluster_attr = 'leiden',
+      technology = 'Chromium',
+      alignment = '',
       fetchOptions = {},
     } = {}
   ) => {
@@ -132,6 +134,15 @@ export const make_anndata_zarr_source = (zarr) => {
         ? url_or_store
         : await open_store(url_or_store, fetchOptions);
     const root = zarr.root(store);
+    const point_cloud = technology === 'point-cloud';
+    if (!['Chromium', 'point-cloud'].includes(technology)) {
+      throw new Error(
+        `[anndata_zarr_source] Unsupported technology: ${technology}`
+      );
+    }
+    if (alignment && !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(alignment)) {
+      throw new Error('[anndata_zarr_source] Invalid alignment name');
+    }
 
     // zarrita's auto-detection probes v2 before v3; pin whichever opens first.
     let opener = null;
@@ -287,20 +298,25 @@ export const make_anndata_zarr_source = (zarr) => {
 
     // Cell metadata in the shape `objects_from_parquet` returns:
     // { result: { cell: [values...] }, attr: [names...] }.
-    const wanted = [...new Set([...cell_attr, cluster_attr])];
-    if (obs.columns.includes('color')) wanted.push('color');
+    // A CellCloud needs only an aligned cluster array. Building metadata rows
+    // keyed by millions of cell names duplicates the data and dominates memory.
+    const wanted = point_cloud
+      ? [cluster_attr]
+      : [...new Set([...cell_attr, cluster_attr])];
+    if (!point_cloud && obs.columns.includes('color')) wanted.push('color');
     const attrs = wanted.filter((name) => obs.columns.includes(name));
     const columns = await Promise.all(
       attrs.map((name) => read_column('obs', name))
     );
     const by_cell = (rows) =>
       Object.fromEntries(cell_names.map((name, i) => [name, rows(i)]));
-    const meta_cell = attrs.length
-      ? {
-          result: by_cell((i) => columns.map(({ values }) => values[i])),
-          attr: attrs,
-        }
-      : { result: {}, attr: [] };
+    const meta_cell =
+      attrs.length && !point_cloud
+        ? {
+            result: by_cell((i) => columns.map(({ values }) => values[i])),
+            attr: attrs,
+          }
+        : { result: {}, attr: [] };
 
     // Clusters in Python's order (value_counts().sort_index()): category order
     // for a categorical, sorted values otherwise.
@@ -328,8 +344,43 @@ export const make_anndata_zarr_source = (zarr) => {
       };
     }
 
+    let positions = null;
+    const spatial_key =
+      alignment && alignment !== 'default' ? `spatial_${alignment}` : 'spatial';
+    if (point_cloud) {
+      const spatial = await maybe_node(`obsm/${spatial_key}`);
+      if (
+        spatial?.shape?.length !== 2 ||
+        spatial.shape[0] !== n_cells ||
+        spatial.shape[1] !== 3
+      ) {
+        throw new Error(
+          `[anndata_zarr_source] CellCloud needs obsm/${spatial_key} with shape (${n_cells}, 3)`
+        );
+      }
+      const { data: coords, shape, stride } = await read(spatial);
+      const [row_stride, col_stride] = stride ?? [shape[1], 1];
+      positions = new Float32Array(n_cells * 3);
+      for (let i = 0; i < n_cells; i += 1) {
+        for (let j = 0; j < 3; j += 1) {
+          const value = Number(coords[i * row_stride + j * col_stride]);
+          if (!Number.isFinite(value)) {
+            throw new Error(
+              `[anndata_zarr_source] obsm/${spatial_key} contains non-finite coordinates`
+            );
+          }
+          positions[i * 3 + j] = value;
+        }
+      }
+      if (!cluster) {
+        throw new Error(
+          `[anndata_zarr_source] cluster_attr "${cluster_attr}" is not an obs column`
+        );
+      }
+    }
+
     let umap = null;
-    const umap_node = await maybe_node('obsm/X_umap');
+    const umap_node = point_cloud ? null : await maybe_node('obsm/X_umap');
     if (umap_node?.shape?.length === 2) {
       const { data: coords, shape, stride } = await read(umap_node);
       const [row_stride, col_stride] = stride ?? [shape[1], 1];
@@ -354,7 +405,14 @@ export const make_anndata_zarr_source = (zarr) => {
       meta_cell,
       meta_cluster,
       umap,
-      landscape_parameters: { ...CHROMIUM_PARAMETERS },
+      positions,
+      cell_categories: point_cloud ? cluster.values : null,
+      cell_category_attr: point_cloud ? cluster_attr : null,
+      landscape_parameters: {
+        ...CHROMIUM_PARAMETERS,
+        technology,
+        ...(point_cloud ? { alignments: alignment ? [alignment] : [] } : {}),
+      },
       cbg_reader: { readGeneExpression },
     };
   };

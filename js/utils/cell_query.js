@@ -119,6 +119,16 @@ export const load_gene_expression = async (
 ) => {
   let exp_table;
 
+  if (cbgReader?.readGeneExpression) {
+    const { cell_names, cell_exp } =
+      await cbgReader.readGeneExpression(gene_name);
+    const exp_map = new Map();
+    cell_names.forEach((name, i) =>
+      exp_map.set(String(name), Number(cell_exp[i]))
+    );
+    return exp_map;
+  }
+
   // Use CBG row group reader if available
   if (cbgReader) {
     try {
@@ -288,6 +298,15 @@ export const execute_cell_query = async (
           String(viz_state.cats.dict_cell_cats[cell_name]) === cluster_value
         );
       });
+    } else if (
+      viz_state.cats.cell_cats?.length === all_cell_names.length &&
+      cluster_attr === viz_state.cats.inst_cell_attr
+    ) {
+      // CellCloud keeps categories aligned by row to avoid a multi-million-key
+      // name dictionary. This works for both compact DegaFiles and Zarr.
+      candidate_cells = all_cell_names.filter(
+        (_, index) => String(viz_state.cats.cell_cats[index]) === cluster_value
+      );
     } else {
       // Load cluster data from DegaFiles
       try {

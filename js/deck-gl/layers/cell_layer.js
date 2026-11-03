@@ -10,6 +10,7 @@ import {
 import {
   set_cell_names_array,
   set_cell_name_to_index_map,
+  set_indexed_cell_names_array,
 } from '../../global_variables/cell_names_array';
 import {
   apply_gene_colors,
@@ -215,7 +216,9 @@ const build_point_cloud_position_buffer = (
   numRows
 ) => {
   if (dim === POINT_CLOUD_POSITION_SIZE) {
-    return new Float32Array(flatCoordinateArray);
+    return flatCoordinateArray instanceof Float32Array
+      ? flatCoordinateArray
+      : new Float32Array(flatCoordinateArray);
   }
 
   const positions = new Float32Array(numRows * POINT_CLOUD_POSITION_SIZE);
@@ -897,30 +900,49 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   const source = viz_state.single_cell_source;
   if (source) {
-    // AnnData Zarr: cells are the obs index, at the same placeholder (0, 0)
-    // positions pre.make_chromium_from_anndata writes; the UMAP places them.
+    // AnnData Zarr keeps the obs IDs for selections/links. CellCloud's typed
+    // xyz buffer comes directly from obsm; Chromium uses placeholder x/y.
     viz_state.cats.cell_names_array = source.cell_names;
     viz_state.cats.nameMapping_inv = source.cell_names;
+    viz_state.cats.cell_ids_are_indexed = false;
     viz_state.spatial.cell_scatter_data = {
       length: source.cell_names.length,
       attributes: {
         getPosition: {
-          value: new Float64Array(source.cell_names.length * 2),
-          size: 2,
+          value:
+            source.positions ?? new Float64Array(source.cell_names.length * 2),
+          size: source.positions ? 3 : 2,
         },
       },
     };
     apply_gene_colors(viz_state.genes, source.gene_names, source.gene_colors);
   } else {
-    const cell_arrow_table = await get_arrow_table(
-      cell_url,
-      options.fetch,
-      viz_state.aws
-    );
+    const identity_path =
+      pointCloud && viz_state.img.landscape_parameters.cell_ids;
+    const [cell_arrow_table, identity_table] = await Promise.all([
+      get_arrow_table(cell_url, options.fetch, viz_state.aws),
+      identity_path
+        ? get_arrow_table(
+            `${base_url}/${identity_path}`,
+            options.fetch,
+            viz_state.aws
+          )
+        : null,
+    ]);
 
-    set_cell_names_array(viz_state.cats, cell_arrow_table);
+    if (identity_table) {
+      set_indexed_cell_names_array(
+        viz_state.cats,
+        cell_arrow_table,
+        identity_table
+      );
+    } else {
+      set_cell_names_array(viz_state.cats, cell_arrow_table);
+    }
 
-    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
+    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table, {
+      float32: pointCloud,
+    });
 
     await set_color_dict_gene(
       viz_state.genes,
@@ -936,7 +958,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     set_cell_name_to_index_map(viz_state.cats);
   }
 
-  if (viz_state.cats.has_meta_cell) {
+  if (source?.cell_categories && !viz_state.cats.has_meta_cell) {
+    viz_state.cats.cell_cats = source.cell_categories;
+    viz_state.cats.meta_cell_id_set = null;
+  } else if (viz_state.cats.has_meta_cell) {
     // look up the index of the inst_cell_attr in the meta_cell_attr array
     const inst_index = viz_state.cats.meta_cell_attr.indexOf(
       viz_state.cats.inst_cell_attr

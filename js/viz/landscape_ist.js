@@ -484,9 +484,10 @@ export const landscape_ist = async (
   const requested_cluster_attr =
     typeof ini_model?.get === 'function' ? ini_model.get('cluster_attr') : null;
   viz_state.cats.inst_cell_attr =
-    requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
+    single_cell_source?.cell_category_attr ||
+    (requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
       ? requested_cluster_attr
-      : meta_cell_attr[0] || 'N.A.';
+      : meta_cell_attr[0] || requested_cluster_attr || 'N.A.');
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;

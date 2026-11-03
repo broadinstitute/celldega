@@ -168,6 +168,71 @@ describe('anndata_zarr_source', () => {
     expect(requested).toHaveLength(2);
   });
 
+  it('reads CellCloud xyz and clusters directly without per-cell metadata or UMAP objects', async () => {
+    const nodes = store_nodes({
+      'obsm/spatial': array(
+        Int32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -2, -3]),
+        [4, 3]
+      ),
+    });
+    const source = await open(nodes, { technology: 'point-cloud' });
+
+    expect(source.landscape_parameters).toMatchObject({
+      technology: 'point-cloud',
+      use_int_index: true,
+    });
+    expect(source.cell_names).toEqual(['c0', 'c1', 'c2', 'c3']);
+    expect(source.positions).toEqual(
+      Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -2, -3])
+    );
+    expect(source.cell_categories).toEqual(['T', 'B', 'T', 'nan']);
+    expect(source.cell_category_attr).toBe('leiden');
+    expect(source.meta_cell).toEqual({ result: {}, attr: [] });
+    expect(source.umap).toBeNull();
+    expect(
+      Array.from((await source.cbg_reader.readGeneExpression('G0')).cell_names)
+    ).toEqual([0, 1]);
+  });
+
+  it('selects a named CellCloud alignment, including column-major xyz arrays', async () => {
+    const nodes = store_nodes({
+      'obsm/spatial_neighborhood': {
+        data: Int32Array.from([1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12]),
+        shape: [4, 3],
+        stride: [1, 4],
+      },
+    });
+    const source = await open(nodes, {
+      technology: 'point-cloud',
+      alignment: 'neighborhood',
+    });
+    expect(Array.from(source.positions)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ]);
+    await expect(
+      open(nodes, { technology: 'point-cloud', alignment: 'missing' })
+    ).rejects.toThrow(/obsm\/spatial_missing.*shape \(4, 3\)/);
+    await expect(
+      open(nodes, { technology: 'point-cloud', alignment: '../bad' })
+    ).rejects.toThrow(/Invalid alignment name/);
+  });
+
+  it('rejects malformed CellCloud coordinates rather than rendering invalid positions', async () => {
+    await Promise.all(
+      [
+        array(Float32Array.from([1, 2, 3, 4, 5, 6]), [2, 3]),
+        array(Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8]), [4, 2]),
+        array(Float32Array.from([NaN, ...new Array(11).fill(0)]), [4, 3]),
+      ].map((spatial) =>
+        expect(
+          open(store_nodes({ 'obsm/spatial': spatial }), {
+            technology: 'point-cloud',
+          })
+        ).rejects.toThrow(/CellCloud needs|non-finite coordinates/)
+      )
+    );
+  });
+
   it('falls back to detection rates, generated colors, and sorted clusters', async () => {
     const nodes = store_nodes({ var_columns: [] });
     delete nodes['uns/leiden_colors'];

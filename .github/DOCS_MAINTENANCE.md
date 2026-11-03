@@ -9,11 +9,19 @@ It did not rerun the full analyses, download large datasets, validate every Zarr
 chunk, or test every widget in a browser. A saved execution count is evidence of
 an earlier run, not proof that the current source runs on 0.28.0.
 
-There are 31 notebook files under `docs/examples/` in this checkout: 14 listed,
+Follow-up validation of the restored Broad–Allen pair ran the preprocessing,
+alignment, export, and visualization code against a small synthetic dataset.
+The built documentation was also checked with the full hosted cell stack:
+the 3D gallery rendered, and the notebook supported orbiting and Clustergram
+gene selection. The full scientific analysis was not rerun. The notebook's
+2D image view still logs requests for tiles outside the image boundary.
+
+There are 33 notebook files under `docs/examples/` in this checkout: 16 listed,
 4 unlisted, 11 excluded, and 2 built without a navigation entry. Another 45
 tracked development notebooks were inventoried, excluding historical archives.
 One of the two non-navigation notebooks, Atera biological exploration, is an
-untracked local draft; the other 30 docs notebooks are tracked.
+untracked local draft. The two Broad–Allen mouse-brain notebooks have been
+restored from the published documentation, retaining their saved outputs.
 Development notebooks should be promoted selectively, rather than all rerun.
 
 ## Do these first
@@ -74,6 +82,7 @@ GitHub-hosted DegaFiles can stay on GitHub if their browser access works.
 | P2 | [Landscape View Xenium](../docs/examples/brief_notebooks/Landscape_View_Xenium.ipynb) | Saved state pins 0.24.2. Rerun and confirm that the linked expression selection matches the displayed dataset. | DegaFiles and signatures are on GitHub. A more neutral sample name/title would make the ovarian-cancer example easier to identify. |
 | P2 | [Landscape–Heatmap Visium HD](../docs/examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) | Saved state inlines approximately 7.6 MB of JavaScript; HMR setup remains. Update terminology to Clustergram and rerun. | DegaFiles and signatures are on GitHub. Migration is optional. |
 | P2 | [UMAP–Cluster Pancreas](../docs/examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) | Saved state inlines approximately 7.6 MB; source uses local SpatialData/AnnData paths and HMR setup. Refresh or consolidate with the Scanpy–Squidpy tutorial. | Reuse the existing hosted pancreas AnnData if compatible, or add a reproducible source-data preparation step. |
+| P2 | [Broad–Allen mouse-brain preprocessing](../docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) and [visualization](../docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) | Restored under Spatial Transcriptomics → 3D Spatial Transcriptomics. The preprocessing writer uses the current `pre.write_point_cloud_dataset`. Original analysis results and figures are retained; the saved Viz widgets use the published 0.28.0-alpha.4 renderer and a whole-brain camera. Recheck the full analysis during the release rerun. | The clustered H5AD is already on HF, and both alignment variants and slice-35 DegaFiles are on GitHub. No new upload is needed to restore these examples. |
 
 P0 is a concrete saved-output problem; P1 is the onboarding/release queue; P2
 is a useful follow-up. Old version pins alone do not establish that a widget is
@@ -95,7 +104,7 @@ notebooks do not need to enter the 0.28.0 changelog.
 | Atera biological exploration (`docs/examples/tutorial_notebooks/Atera_Breast_Cancer_Biological_Exploration.ipynb`) | Untracked local draft; built locally but absent from nav; unexecuted, with no widget state. Its preparation helpers are also local, untracked files. | Keep it out of ordinary local search while being prepared, then deliberately add the notebook and helpers when ready. Publish `marker_<family>.h5ad`, cell observations, niche summaries and geometry, and remove local-only transform paths before rerunning. |
 | [Visium HD mouse lung](../docs/examples/brief_notebooks/Visium-HD_Landscape_Mouse_Lung_FF.ipynb) | Built but absent from nav; old inlined bundle. | Either promote it with a current rerun and clear gallery/tutorial role, or mark it unlisted/exclude it. Existing DegaFiles are on GitHub. |
 | AIFI Olink plasma proteomics | A path is declared in `not_in_nav`, but that notebook is absent from `docs/examples/` in this checkout. | Locate the intended source/data and complete its review, or remove the stale declaration. |
-| Alignment tutorial drafts | Excluded paths are declared, but no matching docs notebooks are present. | Build a small current-API tutorial before promoting; do not link obsolete alignment drafts as examples of the current API. |
+| Older `1.0_Preprocess_and_Align` / `2.0_Viz_CellCloud` drafts | Superseded by the restored, listed Broad–Allen E15.5 Align/Viz pair. | Use the listed notebooks for the current workflow; keep the old draft paths excluded. |
 
 ## What actually needs uploading
 
@@ -118,8 +127,9 @@ notebooks do not need to enter the 0.28.0 changelog.
   niche summaries/geometry, and the preparation helpers or a reproducible recipe.
 - [ ] **CCLE:** the selected processed MuData archive and its provenance; optional
   saved Matrix Zarr views can avoid recalculating each chapter's clustering.
-- [ ] **Current alignment example:** a small multi-slice AnnData, saved transform,
-  and point-cloud DegaFiles to demonstrate `align` and CellCloud end to end.
+- [ ] **Small alignment fixture (optional):** the restored mouse-brain notebooks
+  cover the full workflow; a smaller multi-slice AnnData, saved transform, and
+  point-cloud DegaFiles would make experimentation faster.
 
 For each upload, preserve the full DegaFiles/Zarr directory structure and record
 source URLs, data versions, license/attribution, preparation code and parameters,
@@ -165,7 +175,7 @@ and points to actual examples or reference walkthroughs. The remaining gaps are:
 | `dataset` | Reference construction/population/signature examples | A small two-sample notebook demonstrating DatasetCollection, Composition, and a signature Clustergram. |
 | `set` | Reference membership/signature/overlap examples | Compare two clusterings of the same cells, with membership overlap and expression summaries. |
 | `select` | Reference filters/samplers and Yearbook guide | A reproducible Selector → Selection → Yearbook notebook; current portrait examples do not demonstrate Selector directly. |
-| `align` | Current API and a 3D gallery outcome | A small serial-slice fit/save/reload/apply notebook; keep aligned H&E import separate from estimating transforms. |
+| `align` | Restored Broad–Allen preprocessing/Viz notebooks, current API, and 3D gallery | Add a smaller serial-slice fit/save/reload/apply fixture; keep aligned H&E import separate from estimating transforms. |
 | `qc` | New API page; older [development QC notebook](../notebooks/Segmentation_QC.ipynb) | Update the QC notebook with a shared fixture and explain what the metrics mean before publishing. |
 
 Additional maintenance:

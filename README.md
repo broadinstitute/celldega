@@ -14,7 +14,8 @@ include cell portraits, composition charts, and 3D cell and neighborhood clouds.
 
 Use Celldega in Jupyter notebooks or as a standalone JavaScript library. For
 desktop viewing of prepared data, try
-[Celldega-App (alpha)](https://github.com/broadinstitute/celldega-app).
+[Celldega-App](https://broadinstitute.github.io/celldega/getting-started/desktop-app/).
+[Download the latest desktop build](https://github.com/broadinstitute/celldega-app/releases/latest).
 
 [Getting started](https://broadinstitute.github.io/celldega/getting-started/)
 · [Visualizations](https://broadinstitute.github.io/celldega/visualizations/)

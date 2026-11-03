@@ -5,9 +5,10 @@ expression varies, and which biological processes distinguish a group.
 Use linked views to move between tissue context, expression patterns, and
 gene-set interpretation.
 
-For desktop viewing, try [Celldega-App (alpha)](https://github.com/broadinstitute/celldega-app),
-which provides linked Landscape, Clustergram, and Yearbook windows.
-[Download an alpha build](https://github.com/broadinstitute/celldega-app/releases).
+For desktop viewing, try [Celldega-App](../getting-started/desktop-app.md),
+with linked Landscape–Clustergram panels, Yearbook cell portraits, and saved
+Clustergrams. [Download the latest build](https://github.com/broadinstitute/celldega-app/releases/latest)
+or see the [desktop guide and screenshots](../getting-started/desktop-app.md).
 
 !!! tip "Watch a linked-workflow tutorial"
     [Watch the narrated Landscape, Clustergram, and Enrich walkthrough](https://www.youtube.com/watch?v=IjGsIykVIUE)

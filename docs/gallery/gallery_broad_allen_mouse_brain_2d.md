@@ -9,7 +9,8 @@
     with cells colored by Leiden cluster. Data generated in collaboration with the
     <a href="https://alleninstitute.org/" target="_blank">Allen Institute</a>. See the
     <a href="../gallery_broad_allen_mouse_brain_3d/">3D view of the whole brain</a>, the
-    <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/">Viz tutorial</a>, and the
+    <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/">preprocessing and alignment tutorial</a>, the
+    <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/">visualization tutorial</a>, and the
     <a href="https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud" target="_blank">celldega_xenium_E15.5_cell_cloud</a>
     DegaFiles repository.
 </div>

@@ -19,7 +19,7 @@ This gallery collects project web presentations and visualizations made with the
 
 - [Xenium Mouse Brain ![](../assets/img/xenium_mouse_brain.jpg)](gallery_xenium_mouse_brain.md)
 - [Xenium Human Skin Cancer ![](../assets/img/xenium_human_skin_cancer.jpg)](gallery_xenium_skin_cancer.md)
-- [Broad-Allen Developing Mouse Brain E15.5: 3D ![](../assets/img/Broad-Allen_Dev-Mouse-Brain_3D.png)](gallery_broad_allen_mouse_brain_3d.md)
+- [Broad-Allen Developing Mouse Brain E15.5: 3D ![Aligned 3D stack of 43 Xenium mouse brain sections, colored by cell cluster](../assets/img/Broad-Allen_Dev-Mouse-Brain_3D.png)](gallery_broad_allen_mouse_brain_3d.md)
 - [Broad-Allen Developing Mouse Brain E15.5: Slice 35 ![](../assets/img/Broad-Allen_Dev-Mouse-Brain_2D.png)](gallery_broad_allen_mouse_brain_2d.md)
 
 </div>
@@ -47,14 +47,15 @@ This gallery collects project web presentations and visualizations made with the
 <div class="grid cards" markdown>
 
 - [CITE-seq PBMC Cell Types: RNA and Protein ![Clustered RNA and protein markers of PBMC cell types](../assets/img/citeseq_pbmc_cell_types.png)](gallery_citeseq_pbmc.md)
-- **[Tabula Sapiens: Atlas UMAP and Cell-Type Signatures](gallery_tabula_sapiens_clustergram.md)**
+- [Tabula Sapiens: Atlas UMAP and Cell-Type Signatures ![Tabula Sapiens UMAP linked to its cell-type marker Clustergram in Celldega-App](https://raw.githubusercontent.com/broadinstitute/celldega-app/de78faf4389b03874ff9a9d0e7340ef5ee444a26/docs/screenshots/tabula-sapiens-linked.png)](gallery_tabula_sapiens_clustergram.md)
 
-  Explore 1.1 million cells in a single-cell RNA-seq atlas with a linked
-  Landscape and Clustergram, or [open the UMAP alone](gallery_tabula_sapiens.md).
+    Explore 1.1 million cells in a single-cell RNA-seq atlas with a linked
+    Landscape and Clustergram, or [open the UMAP alone](gallery_tabula_sapiens.md).
+    Preview captured in [Celldega-App](../getting-started/desktop-app.md).
 
-  Data: Tabula Sapiens Consortium, via
-  [CZ CELLxGENE Discover](https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5)
-  · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+    Data: Tabula Sapiens Consortium, via
+    [CZ CELLxGENE Discover](https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5)
+    · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 </div>
 

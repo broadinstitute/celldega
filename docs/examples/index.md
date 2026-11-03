@@ -12,6 +12,19 @@ Comprehensive tutorials that walk through complete workflows:
 - [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Uses Scanpy and plain AnnData to summarize a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
 - [Scanpy-Squidpy Xenium Pancreas](tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb) - Full analysis workflow using Scanpy and Squidpy with Xenium data
 
+### 3D Spatial Transcriptomics
+
+Explore the Broad–Allen E15.5 developing mouse brain across 43 aligned Xenium
+sections. Follow these notebooks in order, or open the visualization notebook
+directly to use the already hosted DegaFiles:
+
+1. [Broad–Allen Mouse Brain: Preprocessing and Alignment](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb)
+   — align sections using cluster-centroid landmarks and neighborhood overlap,
+   compare the results, and write named CellCloud DegaFiles variants.
+2. [Broad–Allen Mouse Brain: Visualization](tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb)
+   — explore a 2D section, compare cluster composition across slices, and link
+   the 3D CellCloud to a gene-expression Clustergram.
+
 ## Single Cell Tutorials
 
 Tutorials that explore single-cell RNA-seq data with UMAP Landscapes linked to Clustergrams:

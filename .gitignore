@@ -13,6 +13,8 @@ dist
 !notebooks/Xenium_Aligned_HE.ipynb
 !notebooks/archive/*.ipynb
 !docs/examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
+!docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
+!docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
 !docs/examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb
 .cache
 site

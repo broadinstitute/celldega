@@ -53,5 +53,9 @@ For the full list of constructor arguments, see the
 ## Examples
 
 Explore the [3D developing mouse brain](../gallery/gallery_broad_allen_mouse_brain_3d.md)
-interactively, or follow the
-[thick-tissue MERFISH notebook](../examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb).
+interactively, or follow its
+[visualization notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb)
+for a CellCloud linked to a Clustergram. The companion
+[preprocessing and alignment notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb)
+shows how to build the stack and write DegaFiles. For thick tissue, see the
+[MERFISH notebook](../examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb).

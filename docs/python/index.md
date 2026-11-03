@@ -165,6 +165,8 @@ point-cloud DegaFiles for CellCloud. These are transformations of physical
 coordinates; expression-space integration remains part of the upstream analysis.
 
 **Reference:** [alignment API](align/api.md).
+**Notebook:** [Broad–Allen mouse-brain preprocessing and alignment](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb),
+followed by [CellCloud visualization](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb).
 **Visualization example:** [aligned developing mouse brain in 3D](../gallery/gallery_broad_allen_mouse_brain_3d.md).
 For importing an already aligned image, use the separate
 [aligned H&E workflow](aligned_he.md).

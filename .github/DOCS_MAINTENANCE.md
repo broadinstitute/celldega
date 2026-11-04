@@ -16,6 +16,13 @@ the 3D gallery rendered, and the notebook supported orbiting and Clustergram
 gene selection. The full scientific analysis was not rerun. The notebook's
 2D image view still logs requests for tiles outside the image boundary.
 
+The follow-up [CellCloud storage comparison](CELLCLOUD_STORAGE.md) documents
+the new compact Parquet and AnnData Zarr exports. Both have been generated, uploaded under new versioned paths, and verified
+against the complete stack. The gallery defaults to compact Parquet and offers
+a source picker; the notebook uses the hosted Zarr. Merging the
+[data-repository PR #1](https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/pull/1)
+and publishing the matching JavaScript release remain follow-ups.
+
 There are 33 notebook files under `docs/examples/` in this checkout: 16 listed,
 4 unlisted, 11 excluded, and 2 built without a navigation entry. Another 45
 tracked development notebooks were inventoried, excluding historical archives.
@@ -46,6 +53,11 @@ Development notebooks should be promoted selectively, rather than all rerun.
 The npm registry currently reports `latest=0.27.0` and
 `alpha=0.28.0-alpha.4`; `0.28.0` is not published. Python's `0.28.0a4` spelling
 is not the npm version spelling. Do not embed an unpublished `celldega@0.28.0` URL.
+
+The next prepared release is Python `0.28.0a5` and npm `0.28.0-alpha.5`.
+The Broad–Allen 3D visualization notebook now pins these versions, including
+its four saved widgets. Publish the npm package before deploying that notebook;
+the gallery continues to use the documentation bundle.
 
 - [ ] Test against the current checkout before publication; use the local bundle
   for development checks when the matching package is not yet published.
@@ -82,7 +94,7 @@ GitHub-hosted DegaFiles can stay on GitHub if their browser access works.
 | P2 | [Landscape View Xenium](../docs/examples/brief_notebooks/Landscape_View_Xenium.ipynb) | Saved state pins 0.24.2. Rerun and confirm that the linked expression selection matches the displayed dataset. | DegaFiles and signatures are on GitHub. A more neutral sample name/title would make the ovarian-cancer example easier to identify. |
 | P2 | [Landscape–Heatmap Visium HD](../docs/examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) | Saved state inlines approximately 7.6 MB of JavaScript; HMR setup remains. Update terminology to Clustergram and rerun. | DegaFiles and signatures are on GitHub. Migration is optional. |
 | P2 | [UMAP–Cluster Pancreas](../docs/examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) | Saved state inlines approximately 7.6 MB; source uses local SpatialData/AnnData paths and HMR setup. Refresh or consolidate with the Scanpy–Squidpy tutorial. | Reuse the existing hosted pancreas AnnData if compatible, or add a reproducible source-data preparation step. |
-| P2 | [Broad–Allen mouse-brain preprocessing](../docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) and [visualization](../docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) | Restored under Spatial Transcriptomics → 3D Spatial Transcriptomics. The preprocessing writer uses the current `pre.write_point_cloud_dataset`. Original analysis results and figures are retained; the saved Viz widgets use the published 0.28.0-alpha.4 renderer and a whole-brain camera. Recheck the full analysis during the release rerun. | The clustered H5AD is already on HF, and both alignment variants and slice-35 DegaFiles are on GitHub. No new upload is needed to restore these examples. |
+| P2 | [Broad–Allen mouse-brain preprocessing](../docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb) and [visualization](../docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) | Restored under Spatial Transcriptomics → 3D Spatial Transcriptomics. The preprocessing writer uses the current `pre.write_point_cloud_dataset`. Original analysis results and figures are retained; the saved Viz widgets use the current docs bundle, hosted compact Zarr, and a whole-brain camera. Recheck the full analysis during the release rerun. | The clustered H5AD is already on HF, and both alignment variants and slice-35 DegaFiles are on GitHub. No new upload is needed to restore these examples. |
 
 P0 is a concrete saved-output problem; P1 is the onboarding/release queue; P2
 is a useful follow-up. Old version pins alone do not establish that a widget is

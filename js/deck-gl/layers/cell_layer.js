@@ -10,6 +10,7 @@ import {
 import {
   set_cell_names_array,
   set_cell_name_to_index_map,
+  set_indexed_cell_names_array,
 } from '../../global_variables/cell_names_array';
 import {
   apply_gene_colors,
@@ -42,6 +43,7 @@ import {
   update_cell_color_buffer,
   writeCellColor,
 } from './cell_color';
+import { CellCloudLayer } from './CellCloudLayer';
 
 export { get_cell_color, update_cell_color_buffer } from './cell_color';
 
@@ -122,6 +124,13 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
 
 const is_point_cloud_viz = (viz_state) =>
   is_orbit_technology(viz_state.img?.landscape_parameters?.technology);
+
+const point_cloud_transparency_props = (viz_state) => {
+  const context = getVizCellColorContext(viz_state);
+  return {
+    cellCloudTransparent: !context.isClusterMode && !context.hasHighlights,
+  };
+};
 
 // PointCloudLayer's pointSize is a radius in coordinate units. CellCloud's
 // cell_size is a diameter in microns; the slider's midpoint is a 1× multiplier.
@@ -215,7 +224,9 @@ const build_point_cloud_position_buffer = (
   numRows
 ) => {
   if (dim === POINT_CLOUD_POSITION_SIZE) {
-    return new Float32Array(flatCoordinateArray);
+    return flatCoordinateArray instanceof Float32Array
+      ? flatCoordinateArray
+      : new Float32Array(flatCoordinateArray);
   }
 
   const positions = new Float32Array(numRows * POINT_CLOUD_POSITION_SIZE);
@@ -660,7 +671,9 @@ export const refresh_cell_layer_data = (
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     transitions: false,
     ...stableLayerProps,
-    ...(!isPointCloud ? scatterplot_view_props(viz_state) : {}),
+    ...(isPointCloud
+      ? point_cloud_transparency_props(viz_state)
+      : scatterplot_view_props(viz_state)),
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
       : get_scatterplot_cell_data(viz_state),
@@ -897,30 +910,49 @@ export const ini_cell_layer = async (base_url, viz_state) => {
 
   const source = viz_state.single_cell_source;
   if (source) {
-    // AnnData Zarr: cells are the obs index, at the same placeholder (0, 0)
-    // positions pre.make_chromium_from_anndata writes; the UMAP places them.
+    // AnnData Zarr keeps the obs IDs for selections/links. CellCloud's typed
+    // xyz buffer comes directly from obsm; Chromium uses placeholder x/y.
     viz_state.cats.cell_names_array = source.cell_names;
     viz_state.cats.nameMapping_inv = source.cell_names;
+    viz_state.cats.cell_ids_are_indexed = false;
     viz_state.spatial.cell_scatter_data = {
       length: source.cell_names.length,
       attributes: {
         getPosition: {
-          value: new Float64Array(source.cell_names.length * 2),
-          size: 2,
+          value:
+            source.positions ?? new Float64Array(source.cell_names.length * 2),
+          size: source.positions ? 3 : 2,
         },
       },
     };
     apply_gene_colors(viz_state.genes, source.gene_names, source.gene_colors);
   } else {
-    const cell_arrow_table = await get_arrow_table(
-      cell_url,
-      options.fetch,
-      viz_state.aws
-    );
+    const identity_path =
+      pointCloud && viz_state.img.landscape_parameters.cell_ids;
+    const [cell_arrow_table, identity_table] = await Promise.all([
+      get_arrow_table(cell_url, options.fetch, viz_state.aws),
+      identity_path
+        ? get_arrow_table(
+            `${base_url}/${identity_path}`,
+            options.fetch,
+            viz_state.aws
+          )
+        : null,
+    ]);
 
-    set_cell_names_array(viz_state.cats, cell_arrow_table);
+    if (identity_table) {
+      set_indexed_cell_names_array(
+        viz_state.cats,
+        cell_arrow_table,
+        identity_table
+      );
+    } else {
+      set_cell_names_array(viz_state.cats, cell_arrow_table);
+    }
 
-    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table);
+    viz_state.spatial.cell_scatter_data = get_scatter_data(cell_arrow_table, {
+      float32: pointCloud,
+    });
 
     await set_color_dict_gene(
       viz_state.genes,
@@ -936,7 +968,10 @@ export const ini_cell_layer = async (base_url, viz_state) => {
     set_cell_name_to_index_map(viz_state.cats);
   }
 
-  if (viz_state.cats.has_meta_cell) {
+  if (source?.cell_categories && !viz_state.cats.has_meta_cell) {
+    viz_state.cats.cell_cats = source.cell_categories;
+    viz_state.cats.meta_cell_id_set = null;
+  } else if (viz_state.cats.has_meta_cell) {
     // look up the index of the inst_cell_attr in the meta_cell_attr array
     const inst_index = viz_state.cats.meta_cell_attr.indexOf(
       viz_state.cats.inst_cell_attr
@@ -1120,7 +1155,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   let cell_layer;
   if (pointCloud) {
     const pointCloudData = get_point_cloud_cell_data(viz_state);
-    cell_layer = new PointCloudLayer({
+    cell_layer = new CellCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',
       pointSize: get_point_cloud_cell_radius(viz_state),
@@ -1132,6 +1167,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getColor: [viz_state.selection_token],
       },
       opacity: 1,
+      ...point_cloud_transparency_props(viz_state),
       ...getModelMatrixProps(viz_state.rotation),
     });
   } else {
@@ -1216,6 +1252,7 @@ export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   if (is_point_cloud_viz(viz_state)) {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       data: get_point_cloud_cell_data(viz_state),
+      ...point_cloud_transparency_props(viz_state),
       transitions,
       updateTriggers: {
         ...layers_obj.cell_layer.props.updateTriggers,

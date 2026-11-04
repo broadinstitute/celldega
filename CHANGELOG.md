@@ -4,7 +4,7 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.28.0] - 2026-11-02
+## [0.28.0] - Unreleased
 
 ### Breaking
 
@@ -21,6 +21,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
+- **Efficient CellCloud data sources:** export indexed, rounded Parquet
+  DegaFiles or AnnData Zarr, with gene expression loaded on demand.
 - **Low dimensional embedding landscapes:** improved single-cell UMAP support
   and a new gene-expression XY view with linear/log axes and animated layout
   transitions.
@@ -56,10 +58,21 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Fixed CellCloud expression transparency from opposite camera angles and
+  refreshed point data after programmatic gene selections.
 - Fixed garbled cell polygons and boundary rendering after zooming, with more
   robust tile loading and recovery.
 - Fixed various bugs in linked selections, expression loading, viewport
   updates, metadata handling, Clustergram layouts, and neighborhood calculations.
+
+## [0.28.0a5] - 2026-11-04
+
+- Added compact CellCloud exports as indexed Parquet DegaFiles or AnnData Zarr,
+  with optional coordinate rounding and gene expression loaded on demand.
+- Improved AnnData Zarr metadata loading and fixed linked gene-expression updates.
+- Fixed CellCloud expression transparency when viewing cells from behind.
+- Updated the 3D mouse brain gallery and notebook to demonstrate both formats,
+  with a hosted performance comparison.
 
 ## [0.27.0]
 

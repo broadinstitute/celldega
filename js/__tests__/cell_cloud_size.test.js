@@ -27,12 +27,14 @@ const controls = new Function(`
   const set_cell_names_array = (cats) => { cats.cell_names_array = ['a', 'b']; };
   const set_cell_name_to_index_map = () => {};
   const set_color_dict_gene = async () => {};
+  const apply_gene_colors = () => {};
   const createEmptyCellCompact = () => ({});
   const getModelMatrixProps = () => ({});
   const getVizCellColorContext = (state) => ({
     cellNames: state.cats.cell_names_array, isClusterMode: true, clusterFilter: []
   });
   const update_cell_color_buffer = () => new Uint8Array(8);
+  ${stripImports(readSource('deck-gl/layers/CellCloudLayer.js'))}
   ${stripImports(readSource('global_variables/image_info.js'))}
   ${stripImports(readSource('deck-gl/layers/cell_layer.js'))}
   ${stripImports(readSource('utils/refresh_layer.js'))}
@@ -64,6 +66,30 @@ const makeState = (cell_size) => ({
 });
 
 describe('CellCloud cell diameter and slider', () => {
+  test('uses Zarr positions and aligned clusters without fetching DegaFiles', async () => {
+    const state = makeState(10);
+    const positions = Float32Array.from([1, 2, 3, 100, 200, 300]);
+    state.cats.has_meta_cell = false;
+    state.vector_name_integer = true;
+    state.single_cell_source = {
+      cell_names: ['original-cell-A', 'original-cell-B'],
+      cell_categories: ['A', 'B'],
+      positions,
+      gene_names: ['G'],
+      gene_colors: ['#ff0000'],
+    };
+    await controls.ini_cell_layer('', state);
+    expect(state.cats.cell_names_array).toEqual([
+      'original-cell-A',
+      'original-cell-B',
+    ]);
+    expect(state.cats.nameMapping_inv).toBe(state.cats.cell_names_array);
+    expect(state.cats.cell_cats).toEqual(['A', 'B']);
+    expect(state.cats.meta_cell_id_set).toBeNull();
+    expect(state.spatial.cell_positions).toBe(positions);
+    expect(state.spatial.cell_scatter_data.attributes.getPosition.size).toBe(3);
+    expect(state.cats.cell_name_to_index_map.size).toBe(0);
+  });
   test('retains only metadata-matched cell IDs for expression and boundaries', async () => {
     const state = makeState(10);
     state.cats.meta_cell = { a: ['A'] };

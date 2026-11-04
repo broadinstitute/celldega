@@ -58,6 +58,15 @@ describe('make_options_model', () => {
 });
 
 describe('landscape_model_values', () => {
+  test('accepts a CellCloud Zarr store and preserves its alignment options', () => {
+    expect(
+      landscape_model_values({
+        technology: 'point-cloud',
+        zarr_url: 'https://example.org/cells.zarr',
+        alignment: 'neighborhood',
+      })
+    ).toMatchObject({ technology: 'point-cloud', alignment: 'neighborhood' });
+  });
   it('follows the Python widget defaults', () => {
     const values = landscape_model_values({
       zarr_url: 'https://example.org/pbmc.zarr',

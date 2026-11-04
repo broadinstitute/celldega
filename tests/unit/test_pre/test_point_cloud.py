@@ -256,3 +256,197 @@ def test_create_mode_validates_before_writing(tmp_path):
     # a corrected retry still runs in create mode and writes clusters
     write_point_cloud_dataset(adata, tmp_path / "pc", name="a1", cluster_key="cluster")
     assert (tmp_path / "pc" / "cell_clusters" / "meta_cluster.parquet").exists()
+
+
+def test_compact_files_share_numeric_ids_and_preserve_original_names(tmp_path):
+    adata = _make_adata(n=31, n_genes=4)
+    adata.obsm["spatial"][0] = [12.49, -8.51]
+    write_point_cloud_dataset(
+        adata,
+        tmp_path,
+        name="neighborhood",
+        cluster_key="cluster",
+        use_int_index=True,
+        coordinate_resolution=1.0,
+        compression="zstd",
+        compression_level=6,
+    )
+    manifest = json.loads((tmp_path / "cell_cloud.json").read_text())
+    assert manifest["use_int_index"] is True
+    assert manifest["cell_ids"] == "cell_ids.parquet"
+    assert manifest["coordinate_resolution"] == 1.0
+    assert (
+        pd.read_parquet(tmp_path / "cell_ids.parquet")["name"].tolist() == adata.obs_names.tolist()
+    )
+    table = pq.read_table(tmp_path / "cell_metadata_neighborhood.parquet")
+    import pyarrow as pa
+
+    assert table.schema.field("name").type == pa.uint32()
+    assert table.schema.field("geometry").type.value_type == pa.int32()
+    assert table["name"].to_pylist() == list(range(adata.n_obs))
+    np.testing.assert_array_equal(table["geometry"].to_pylist()[0], [12, -9, 0])
+    cluster = pd.read_parquet(tmp_path / "cell_clusters" / "cluster.parquet")
+    assert cluster["name"].tolist() == list(range(adata.n_obs))
+    assert cluster["cluster"].astype(str).tolist() == adata.obs["cluster"].astype(str).tolist()
+    for gene_index, gene in enumerate(adata.var_names):
+        path = tmp_path / "cbg" / f"{gene}.parquet"
+        source = adata.X[:, gene_index].toarray().ravel()
+        if not path.exists():
+            assert not np.any(source)
+            continue
+        values = pq.read_table(path)
+        ids = np.asarray(values["__index_level_0__"])
+        np.testing.assert_array_equal(values[gene].to_numpy(), source[ids])
+        assert np.all(source[ids] != 0)
+
+
+def test_indexed_alignment_reorders_shuffled_cells_and_rejects_missing_ids(tmp_path):
+    adata = _make_adata(n_genes=2)
+    write_point_cloud_dataset(
+        adata, tmp_path, name="first", use_int_index=True, coordinate_resolution=1
+    )
+    shuffled = adata[np.arange(adata.n_obs)[::-1]].copy()
+    shuffled.obsm["spatial"] += 20
+    write_point_cloud_dataset(shuffled, tmp_path, name="second")
+    first = np.asarray(
+        pq.read_table(tmp_path / "cell_metadata_first.parquet")["geometry"].to_pylist()
+    )
+    second = np.asarray(
+        pq.read_table(tmp_path / "cell_metadata_second.parquet")["geometry"].to_pylist()
+    )
+    np.testing.assert_array_equal(second[:, :2], first[:, :2] + 20)
+    with pytest.raises(ValueError, match="exactly the existing cells"):
+        write_point_cloud_dataset(adata[:-1], tmp_path, name="bad")
+    assert not (tmp_path / "cell_metadata_bad.parquet").exists()
+    assert json.loads((tmp_path / "cell_cloud.json").read_text())["alignments"] == [
+        "first",
+        "second",
+    ]
+
+
+@pytest.mark.parametrize("resolution", [0, -1, float("inf"), float("nan")])
+def test_invalid_coordinate_resolution_does_not_write(tmp_path, resolution):
+    target = tmp_path / "new"
+    with pytest.raises(ValueError, match="coordinate_resolution"):
+        write_point_cloud_dataset(_make_adata(), target, coordinate_resolution=resolution)
+    assert not target.exists()
+
+
+@pytest.mark.parametrize("coordinate", [float("nan"), float("inf"), float(2**32)])
+def test_invalid_rounded_coordinates_dont_overflow_or_write(tmp_path, coordinate):
+    adata = _make_adata()
+    adata.obsm["spatial"][0, 0] = coordinate
+    target = tmp_path / "new"
+    with pytest.raises(ValueError, match=r"finite|int32"):
+        write_point_cloud_dataset(adata, target, coordinate_resolution=1)
+    assert not target.exists()
+
+
+def test_duplicate_names_are_rejected_before_writing(tmp_path):
+    adata = _make_adata()
+    adata.obs_names = ["duplicate"] * adata.n_obs
+    target = tmp_path / "new"
+    with pytest.raises(ValueError, match="unique"):
+        write_point_cloud_dataset(adata, target, use_int_index=True)
+    assert not target.exists()
+
+
+def test_compact_append_cannot_change_indexing_or_resolution(tmp_path):
+    adata = _make_adata()
+    write_point_cloud_dataset(
+        adata, tmp_path, name="first", use_int_index=True, coordinate_resolution=1
+    )
+    for kwargs in [{"use_int_index": False}, {"coordinate_resolution": 2}]:
+        with pytest.raises(ValueError, match="must match"):
+            write_point_cloud_dataset(adata, tmp_path, name="bad", **kwargs)
+    assert not (tmp_path / "cell_metadata_bad.parquet").exists()
+
+
+def test_point_cloud_zarr_roundtrip_preserves_counts_ids_colors_and_alignments(tmp_path):
+    import anndata as ad
+    import zarr
+
+    from celldega.pre import write_point_cloud_zarr
+
+    adata = _make_adata(n=31, n_genes=4)
+    adata.obs["cluster"] = pd.Categorical(adata.obs["cluster"])
+    adata.uns["cluster_colors"] = np.asarray(["#ff0000", "#0000ff"])
+    original_spatial = adata.obsm["spatial"].copy()
+    alternative = np.column_stack([original_spatial + 20, adata.obs["Z"]])
+    path = write_point_cloud_zarr(
+        adata,
+        tmp_path / "new.zarr",
+        cluster_key="cluster",
+        alignments={"centroids": alternative},
+        obs_columns=["cluster"],
+        chunk_rows=8,
+        expression_chunk_size=16,
+    )
+    result = ad.read_zarr(path)
+    assert result.X.format == "csc"
+    np.testing.assert_array_equal(result.X.toarray(), adata.X.toarray())
+    assert result.obs_names.tolist() == adata.obs_names.tolist()
+    assert result.var_names.tolist() == adata.var_names.tolist()
+    assert list(result.obs.columns) == ["cluster"]
+    assert result.obsm["spatial"].dtype == np.int32
+    np.testing.assert_allclose(result.obsm["spatial"][:, :2], original_spatial, atol=0.5)
+    np.testing.assert_array_equal(
+        result.obsm["spatial_centroids"], np.rint(alternative).astype(np.int32)
+    )
+    np.testing.assert_array_equal(result.uns["cluster_colors"], adata.uns["cluster_colors"])
+    assert result.uns["cell_cloud"]["coordinate_resolution"] == 1.0
+    assert (path / ".zmetadata").exists()
+    group = zarr.open_group(path)
+    assert group["obs/_index"].compressors[0].cname == "zstd"
+    assert group["obs/_index"].compressors[0].shuffle == 0
+    assert group["obs/cluster/codes"].compressors[0].cname == "zstd"
+    assert group["obs/cluster/categories"].compressors[0].cname == "zstd"
+    assert group["X/data"].chunks == (16,)
+    assert group["obsm/spatial"].chunks == (8, 3)
+    np.testing.assert_array_equal(adata.obsm["spatial"], original_spatial)
+    with pytest.raises(FileExistsError):
+        write_point_cloud_zarr(adata, path)
+    assert ad.read_zarr(path).obs_names.tolist() == adata.obs_names.tolist()
+
+
+def test_zarr_export_rejects_bad_alignment_without_output(tmp_path):
+    from celldega.pre import write_point_cloud_zarr
+
+    adata = _make_adata(n_genes=2)
+    target = tmp_path / "new.zarr"
+    with pytest.raises(ValueError, match="one coordinate per cell"):
+        write_point_cloud_zarr(adata, target, alignments={"wrong": np.zeros((2, 3))})
+    assert not target.exists()
+
+
+def test_compact_metadata_uses_explicit_cluster_labels_and_matching_palette(tmp_path):
+    adata = _make_adata(n_genes=3)
+    labels = ["20", "1", "7"]
+    adata.obs["cluster"] = pd.Categorical(np.resize(labels, adata.n_obs), categories=labels)
+    adata.uns["cluster_colors"] = np.asarray(["#200000", "#010000", "#070000"])
+    adata.var_names.name = "custom_gene_name"
+    write_point_cloud_dataset(adata, tmp_path, cluster_key="cluster", use_int_index=True)
+    meta_path = tmp_path / "cell_clusters" / "meta_cluster.parquet"
+    meta = pd.read_parquet(meta_path)
+    assert dict(meta["color"]) == dict(zip(labels, adata.uns["cluster_colors"], strict=True))
+    assert "__index_level_0__" in pq.read_table(meta_path).column_names
+    assert "__index_level_0__" in pq.read_table(tmp_path / "meta_gene.parquet").column_names
+
+
+def test_zarr_metadata_compression_preserves_unicode_ids_and_categories(tmp_path):
+    import anndata as ad
+    import zarr
+
+    from celldega.pre import write_point_cloud_zarr
+
+    adata = _make_adata(n=3, n_genes=2)
+    adata.obs_names = ["细胞_1_é", "细胞_2_ß", "细胞_3_λ"]
+    adata.obs["cluster"] = pd.Categorical(["皮层", None, "深部"], categories=["深部", "皮层"])
+    path = write_point_cloud_zarr(adata, tmp_path / "unicode.zarr", cluster_key="cluster")
+    result = ad.read_zarr(path)
+    assert result.obs_names.tolist() == adata.obs_names.tolist()
+    assert result.obs["cluster"].equals(adata.obs["cluster"])
+    group = zarr.open_group(path)
+    assert group["obsm/spatial"].chunks == (3, 3)
+    assert group["obs/_index"].compressors[0].cname == "zstd"
+    assert group["obs/_index"].compressors[0].shuffle == 0

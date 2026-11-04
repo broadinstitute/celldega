@@ -1,8 +1,8 @@
 import * as zarrita from 'zarrita';
 
 /**
- * Read single-cell data for a Chromium Landscape straight from an AnnData Zarr
- * store (`adata.write_zarr(...)`), as an alternative to DegaFiles.
+ * Read cells for a Chromium Landscape or CellCloud straight from an AnnData
+ * Zarr store (`adata.write_zarr(...)`), as an alternative to DegaFiles.
  *
  * Gene expression comes from a CSC matrix: `X` itself, or a layer holding a CSC
  * copy (e.g. `adata.layers["counts_csc"] = adata.layers["counts"].tocsc()`).
@@ -101,7 +101,7 @@ export const fetch_with_retry = async (
  * @returns {function(string|URL|object, object=): Promise<object>}
  */
 export const make_anndata_zarr_source = (zarr) => {
-  const open_store = (url, fetchOptions) => {
+  const open_store = async (url, fetchOptions, point_cloud) => {
     // Drop trailing slashes with a scan rather than a regex, which backtracks
     // quadratically on long runs of '/'.
     let href = String(url);
@@ -113,7 +113,21 @@ export const make_anndata_zarr_source = (zarr) => {
     });
     // With consolidated metadata (zarr.consolidate_metadata), one request
     // covers every node; without it, each node is fetched as it is opened.
-    return zarr.withMaybeConsolidatedMetadata(store, { format: ['v3', 'v2'] });
+    // The CellCloud exporter writes v2. Try that first so its normal load
+    // doesn't wait for a missing zarr.json; keep Chromium's v3 preference.
+    const formats = point_cloud ? ['v2', 'v3'] : ['v3', 'v2'];
+    for (const format of formats) {
+      // Pin the format whose consolidated metadata actually opened, rather
+      // than having concurrent obs/var/X opens probe the other format again.
+      // eslint-disable-next-line no-await-in-loop
+      const consolidated = await zarr.withMaybeConsolidatedMetadata(store, {
+        format,
+      });
+      if (typeof consolidated.contents === 'function') {
+        return { store: consolidated, format };
+      }
+    }
+    return { store, format: null };
   };
 
   return async (
@@ -122,31 +136,61 @@ export const make_anndata_zarr_source = (zarr) => {
       layer = '',
       cell_attr = [],
       cluster_attr = 'leiden',
+      technology = 'Chromium',
+      alignment = '',
       fetchOptions = {},
     } = {}
   ) => {
     const label = typeof url_or_store === 'string' ? url_or_store : 'store';
     // Anything with a `get` method is already a zarrita store; otherwise a URL.
-    const store =
+    const point_cloud = technology === 'point-cloud';
+    const { store, format } =
       typeof url_or_store?.get === 'function'
-        ? url_or_store
-        : await open_store(url_or_store, fetchOptions);
+        ? { store: url_or_store, format: null }
+        : await open_store(url_or_store, fetchOptions, point_cloud);
     const root = zarr.root(store);
+    if (!['Chromium', 'point-cloud'].includes(technology)) {
+      throw new Error(
+        `[anndata_zarr_source] Unsupported technology: ${technology}`
+      );
+    }
+    if (alignment && !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(alignment)) {
+      throw new Error('[anndata_zarr_source] Invalid alignment name');
+    }
 
-    // zarrita's auto-detection probes v2 before v3; pin whichever opens first.
-    let opener = null;
+    const kinds = new Map(
+      typeof store.contents === 'function'
+        ? store
+            .contents()
+            .map(({ path, kind }) => [path.replace(/^\//, ''), kind])
+        : []
+    );
+    let opener = format ? zarr.open[format] : null;
+    let detecting = null;
     const node = async (path) => {
       const location = root.resolve(path);
-      if (opener) return opener(location);
-      try {
-        const opened = await zarr.open.v3(location);
-        opener = zarr.open.v3;
-        return opened;
-      } catch {
-        const opened = await zarr.open.v2(location);
-        opener = zarr.open.v2;
-        return opened;
+      const kind = kinds.get(path);
+      const options = kind ? { kind } : undefined;
+      if (!opener) {
+        if (!detecting) {
+          detecting = (async () => {
+            try {
+              const opened = await zarr.open.v3(location, options);
+              opener = zarr.open.v3;
+              return opened;
+            } catch {
+              const opened = await zarr.open.v2(location, options);
+              opener = zarr.open.v2;
+              return opened;
+            }
+          })();
+          return detecting;
+        }
+        await detecting;
       }
+      // Unknown paths still go to the store: consolidated listings can be
+      // stale, so an absent entry must not hide newly written arrays/layers.
+      return opener(location, options);
     };
     const maybe_node = (path) => node(path).catch(() => null);
     const encoding = (opened) => opened?.attrs?.['encoding-type'];
@@ -287,20 +331,25 @@ export const make_anndata_zarr_source = (zarr) => {
 
     // Cell metadata in the shape `objects_from_parquet` returns:
     // { result: { cell: [values...] }, attr: [names...] }.
-    const wanted = [...new Set([...cell_attr, cluster_attr])];
-    if (obs.columns.includes('color')) wanted.push('color');
+    // A CellCloud needs only an aligned cluster array. Building metadata rows
+    // keyed by millions of cell names duplicates the data and dominates memory.
+    const wanted = point_cloud
+      ? [cluster_attr]
+      : [...new Set([...cell_attr, cluster_attr])];
+    if (!point_cloud && obs.columns.includes('color')) wanted.push('color');
     const attrs = wanted.filter((name) => obs.columns.includes(name));
     const columns = await Promise.all(
       attrs.map((name) => read_column('obs', name))
     );
     const by_cell = (rows) =>
       Object.fromEntries(cell_names.map((name, i) => [name, rows(i)]));
-    const meta_cell = attrs.length
-      ? {
-          result: by_cell((i) => columns.map(({ values }) => values[i])),
-          attr: attrs,
-        }
-      : { result: {}, attr: [] };
+    const meta_cell =
+      attrs.length && !point_cloud
+        ? {
+            result: by_cell((i) => columns.map(({ values }) => values[i])),
+            attr: attrs,
+          }
+        : { result: {}, attr: [] };
 
     // Clusters in Python's order (value_counts().sort_index()): category order
     // for a categorical, sorted values otherwise.
@@ -328,8 +377,43 @@ export const make_anndata_zarr_source = (zarr) => {
       };
     }
 
+    let positions = null;
+    const spatial_key =
+      alignment && alignment !== 'default' ? `spatial_${alignment}` : 'spatial';
+    if (point_cloud) {
+      const spatial = await maybe_node(`obsm/${spatial_key}`);
+      if (
+        spatial?.shape?.length !== 2 ||
+        spatial.shape[0] !== n_cells ||
+        spatial.shape[1] !== 3
+      ) {
+        throw new Error(
+          `[anndata_zarr_source] CellCloud needs obsm/${spatial_key} with shape (${n_cells}, 3)`
+        );
+      }
+      const { data: coords, shape, stride } = await read(spatial);
+      const [row_stride, col_stride] = stride ?? [shape[1], 1];
+      positions = new Float32Array(n_cells * 3);
+      for (let i = 0; i < n_cells; i += 1) {
+        for (let j = 0; j < 3; j += 1) {
+          const value = Number(coords[i * row_stride + j * col_stride]);
+          if (!Number.isFinite(value)) {
+            throw new Error(
+              `[anndata_zarr_source] obsm/${spatial_key} contains non-finite coordinates`
+            );
+          }
+          positions[i * 3 + j] = value;
+        }
+      }
+      if (!cluster) {
+        throw new Error(
+          `[anndata_zarr_source] cluster_attr "${cluster_attr}" is not an obs column`
+        );
+      }
+    }
+
     let umap = null;
-    const umap_node = await maybe_node('obsm/X_umap');
+    const umap_node = point_cloud ? null : await maybe_node('obsm/X_umap');
     if (umap_node?.shape?.length === 2) {
       const { data: coords, shape, stride } = await read(umap_node);
       const [row_stride, col_stride] = stride ?? [shape[1], 1];
@@ -354,7 +438,14 @@ export const make_anndata_zarr_source = (zarr) => {
       meta_cell,
       meta_cluster,
       umap,
-      landscape_parameters: { ...CHROMIUM_PARAMETERS },
+      positions,
+      cell_categories: point_cloud ? cluster.values : null,
+      cell_category_attr: point_cloud ? cluster_attr : null,
+      landscape_parameters: {
+        ...CHROMIUM_PARAMETERS,
+        technology,
+        ...(point_cloud ? { alignments: alignment ? [alignment] : [] } : {}),
+      },
       cbg_reader: { readGeneExpression },
     };
   };

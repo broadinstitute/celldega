@@ -62,9 +62,9 @@ export const landscape_model_values = (options = {}) => {
     );
   }
   const technology = options.technology ?? (zarr_url ? 'Chromium' : 'Xenium');
-  if (zarr_url && technology !== 'Chromium') {
+  if (zarr_url && !['Chromium', 'point-cloud'].includes(technology)) {
     throw new Error(
-      "[landscape] zarr_url supports technology='Chromium' only."
+      "[landscape] zarr_url supports technology='Chromium' or 'point-cloud' only."
     );
   }
   const cluster_attr = options.cluster_attr ?? LANDSCAPE_DEFAULTS.cluster_attr;

@@ -58,7 +58,11 @@ from .nbhd_cloud import (
     write_nbhd_cloud_dataset,
     write_nbhd_cloud_shapes_and_features,
 )
-from .point_cloud import POINT_CLOUD_MANIFEST_NAMES, write_point_cloud_dataset
+from .point_cloud import (
+    POINT_CLOUD_MANIFEST_NAMES,
+    write_point_cloud_dataset,
+    write_point_cloud_zarr,
+)
 from .sbg_tile import write_pseudotranscripts_from_sbg
 from .trx_tile import make_trx_tiles, make_trx_tiles_row_groups
 
@@ -2100,4 +2104,5 @@ __all__ = [
     "write_nbhd_cloud_dataset",
     "write_nbhd_cloud_shapes_and_features",
     "write_point_cloud_dataset",
+    "write_point_cloud_zarr",
 ]

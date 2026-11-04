@@ -42,6 +42,31 @@ npm run dev
 bash ./scripts/test.sh
 ```
 
+## Prepare compact Allen mouse brain CellCloud data
+
+[`prepare_allen_mouse_brain_cellcloud.py`](prepare_allen_mouse_brain_cellcloud.py)
+downloads pinned public inputs and creates new DegaFiles and AnnData Zarr
+alternatives for the same 3.8-million-cell stack:
+
+```bash
+python scripts/prepare_allen_mouse_brain_cellcloud.py --download
+```
+
+Run from the checkout with Celldega and the `hf` CLI installed. Outputs go to
+`data/allen_mouse_brain_cellcloud_v2/artifacts/`:
+
+- `github/xenium_E15.5_cell_cloud_v2_1um/`: compact Parquet DegaFiles with numeric cell references and original IDs stored once.
+- `huggingface/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr/`: AnnData Zarr with CSC counts and both alignments.
+- `size-report.json` and `SHA256SUMS`: storage comparison, validation results, and checksums.
+
+Coordinates are rounded to 1 µm; original cell IDs, raw counts, cluster labels,
+and colors are retained. The script performs no uploads and refuses an existing
+completed output. Choose another `--work-dir` for a separate export; `--resume`
+can reuse completed DegaFiles after an interrupted Zarr export.
+
+See the [3D mouse brain example](../docs/gallery/gallery_broad_allen_mouse_brain_3d.md)
+for using either source with `CellCloud`.
+
 ## ❤️‍🩹 Common Issues & Solutions
 
 **"Permission denied"?**

@@ -484,9 +484,10 @@ export const landscape_ist = async (
   const requested_cluster_attr =
     typeof ini_model?.get === 'function' ? ini_model.get('cluster_attr') : null;
   viz_state.cats.inst_cell_attr =
-    requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
+    single_cell_source?.cell_category_attr ||
+    (requested_cluster_attr && meta_cell_attr.includes(requested_cluster_attr)
       ? requested_cluster_attr
-      : meta_cell_attr[0] || 'N.A.';
+      : meta_cell_attr[0] || requested_cluster_attr || 'N.A.');
 
   if (Object.keys(meta_cluster).length === 0) {
     viz_state.cats.has_meta_cluster = false;
@@ -1395,7 +1396,7 @@ export const landscape_ist = async (
         new_cat === 'cluster' ? [] : [inst_gene],
         viz_state.obs_store
       );
-      await update_cell_exp_array(
+      const applied = await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
         viz_state.global_base_url,
@@ -1405,6 +1406,11 @@ export const landscape_ist = async (
         viz_state.aws,
         viz_state.row_group_readers?.cbg
       );
+      if (!applied) return;
+
+      // Selecting a gene can compact the point layer to zero rows before the
+      // async expression read finishes. Rebuild its binary data before repaint.
+      refresh_cell_layer();
 
       // deck_ready (the only general repaint signal) fires setProps only on a
       // false→true transition of the all-layers-ready AND, so a true-only

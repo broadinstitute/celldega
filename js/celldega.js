@@ -78,6 +78,8 @@ const render_landscape_ist = async ({ model, el }) => {
       layer: model.get('zarr_layer') || '',
       cell_attr: model.get('cell_attr') || [],
       cluster_attr: clusterAttr,
+      technology: model.get('technology') || 'Chromium',
+      alignment: model.get('alignment') || '',
     });
     if (meta_cell_data.attr.length === 0) {
       meta_cell_data = single_cell_source.meta_cell;
@@ -88,7 +90,10 @@ const render_landscape_ist = async ({ model, el }) => {
     if (Object.keys(umap_data).length === 0) {
       umap_data = single_cell_source.umap ?? {};
     }
-    if (meta_cell_data.attr.length === 0) {
+    if (
+      meta_cell_data.attr.length === 0 &&
+      !single_cell_source.cell_categories
+    ) {
       throw new Error(
         `[Landscape] cluster_attr "${clusterAttr}" is not an obs column of ${zarr_url}; pass cluster_attr=... or adata=...`
       );

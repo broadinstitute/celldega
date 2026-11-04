@@ -35,8 +35,8 @@ const fake_zarr = (nodes, requested = []) => ({
     },
   },
   slice: (start, stop) => ({ start, stop }),
-  get: async ({ data, shape }, selection) => {
-    if (!selection) return { data, shape, stride: row_major(shape) };
+  get: async ({ data, shape, stride }, selection) => {
+    if (!selection) return { data, shape, stride: stride ?? row_major(shape) };
     const [{ start, stop }] = selection;
     requested.push([start, stop]);
     return {
@@ -107,7 +107,165 @@ const open = (nodes, options = {}, store = listed(nodes), requested = []) => {
   });
 };
 
+// Record the underlying store's metadata requests. This follows zarrita's
+// format/kind behavior: v2 probes .zarray before .zgroup unless kind is known;
+// consolidated metadata serves listed nodes from memory, unknown nodes fall
+// through to the original store. Array values remain the small fixtures above.
+const protocol_zarr = (
+  nodes,
+  requests,
+  { version = 'v2', consolidated = true, omitted = [] } = {}
+) => {
+  const bytes = new Uint8Array([1]);
+  const metadata = new Map();
+  for (const [name, value] of Object.entries(nodes)) {
+    if (version === 'v2') {
+      metadata.set(`/${name}/.zattrs`, bytes);
+      metadata.set(`/${name}/${value.shape ? '.zarray' : '.zgroup'}`, bytes);
+    } else {
+      metadata.set(`/${name}/zarr.json`, bytes);
+    }
+  }
+  const metadata_key = version === 'v2' ? '/.zmetadata' : '/zarr.json';
+  if (consolidated) metadata.set(metadata_key, bytes);
+  class FetchStore {
+    async get(key) {
+      requests.push(key);
+      return metadata.get(key);
+    }
+  }
+  const open_node =
+    (format) =>
+    async ({ store, path: name }, options = {}) => {
+      if (format === 'v2') {
+        await store.get(`/${name}/.zattrs`);
+        const candidates = options.kind
+          ? [options.kind === 'array' ? '.zarray' : '.zgroup']
+          : ['.zarray', '.zgroup'];
+        for (const suffix of candidates) {
+          // eslint-disable-next-line no-await-in-loop
+          if (await store.get(`/${name}/${suffix}`)) {
+            return { attrs: {}, ...nodes[name] };
+          }
+        }
+      } else if (await store.get(`/${name}/zarr.json`)) {
+        return { attrs: {}, ...nodes[name] };
+      }
+      throw new Error(`missing ${format} ${name}`);
+    };
+  return {
+    ...fake_zarr(nodes),
+    FetchStore,
+    root: (store) => ({ resolve: (name) => ({ store, path: name }) }),
+    open: { v2: open_node('v2'), v3: open_node('v3') },
+    withMaybeConsolidatedMetadata: async (store, { format }) => {
+      const key = format === 'v2' ? '/.zmetadata' : '/zarr.json';
+      if (!(await store.get(key)) || format !== version || !consolidated) {
+        return store;
+      }
+      const entries = Object.entries(nodes).filter(
+        ([name]) => !omitted.includes(name)
+      );
+      const known = new Set(
+        [...metadata.keys()].filter((name) => {
+          const parent = name.slice(1, name.lastIndexOf('/'));
+          return entries.some(([entry]) => parent === entry);
+        })
+      );
+      return {
+        get: (name) => (known.has(name) ? metadata.get(name) : store.get(name)),
+        contents: () =>
+          entries.map(([name, value]) => ({
+            path: `/${name}`,
+            kind: value.shape ? 'array' : 'group',
+          })),
+      };
+    },
+  };
+};
+
 describe('anndata_zarr_source', () => {
+  it.each(['v2', 'v3'])(
+    'opens consolidated %s CellCloud nodes without repeated format or group probes',
+    async (version) => {
+      const nodes = store_nodes({
+        'obsm/spatial': array(Int32Array.from(new Array(12).fill(0)), [4, 3]),
+      });
+      const requests = [];
+      const source = await make_anndata_zarr_source(
+        protocol_zarr(nodes, requests, { version })
+      )('https://example.org/cells.zarr/', {
+        technology: 'point-cloud',
+        cluster_attr: 'leiden',
+      });
+      expect(requests).toEqual(
+        version === 'v2' ? ['/.zmetadata'] : ['/.zmetadata', '/zarr.json']
+      );
+      expect(source.positions).toHaveLength(12);
+      expect(
+        Array.from((await source.cbg_reader.readGeneExpression('G2')).cell_exp)
+      ).toEqual([5, 2]);
+    }
+  );
+
+  it('keeps Chromium v3 preference and the same CSC gene reader', async () => {
+    const requests = [];
+    const source = await make_anndata_zarr_source(
+      protocol_zarr(store_nodes(), requests, { version: 'v3' })
+    )('https://example.org/cells.zarr', { cluster_attr: 'leiden' });
+    expect(requests).toEqual(['/zarr.json']);
+    expect(source.umap.c0).toEqual([0, 10]);
+    expect(
+      Array.from((await source.cbg_reader.readGeneExpression('G0')).cell_names)
+    ).toEqual([0, 1]);
+  });
+
+  it.each(['v2', 'v3'])(
+    'falls back to unconsolidated %s and shares initial format detection',
+    async (version) => {
+      const nodes = store_nodes();
+      const requests = [];
+      const source = await make_anndata_zarr_source(
+        protocol_zarr(nodes, requests, { version, consolidated: false })
+      )('https://example.org/cells.zarr', {
+        cluster_attr: 'leiden',
+        layer: 'counts_csc',
+      });
+      expect(source.cell_names).toEqual(['c0', 'c1', 'c2', 'c3']);
+      if (version === 'v2') {
+        expect(requests.filter((name) => name.endsWith('/zarr.json'))).toEqual([
+          '/zarr.json',
+          '/obs/zarr.json',
+        ]);
+      } else {
+        expect(requests.filter((name) => name.endsWith('/.zgroup'))).toEqual(
+          []
+        );
+      }
+      expect(
+        Array.from((await source.cbg_reader.readGeneExpression('G2')).cell_exp)
+      ).toEqual([5, 2]);
+    }
+  );
+
+  it('fetches nodes omitted from stale consolidated metadata instead of treating them as absent', async () => {
+    const nodes = store_nodes({
+      'obsm/spatial': array(Int32Array.from(new Array(12).fill(0)), [4, 3]),
+    });
+    const requests = [];
+    const source = await make_anndata_zarr_source(
+      protocol_zarr(nodes, requests, {
+        omitted: ['obsm/spatial', 'layers/counts_csc'],
+      })
+    )('https://example.org/cells.zarr', {
+      technology: 'point-cloud',
+      cluster_attr: 'leiden',
+      layer: 'counts_csc',
+    });
+    expect(source.positions).toHaveLength(12);
+    expect(requests).toContain('/obsm/spatial/.zarray');
+    expect(requests).toContain('/layers/counts_csc/.zgroup');
+  });
   it('reads cells, genes, metadata, and the UMAP from the store', async () => {
     const source = await open(store_nodes());
 
@@ -166,6 +324,71 @@ describe('anndata_zarr_source', () => {
     );
     empty.forEach(({ cell_names }) => expect(cell_names).toHaveLength(0));
     expect(requested).toHaveLength(2);
+  });
+
+  it('reads CellCloud xyz and clusters directly without per-cell metadata or UMAP objects', async () => {
+    const nodes = store_nodes({
+      'obsm/spatial': array(
+        Int32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -2, -3]),
+        [4, 3]
+      ),
+    });
+    const source = await open(nodes, { technology: 'point-cloud' });
+
+    expect(source.landscape_parameters).toMatchObject({
+      technology: 'point-cloud',
+      use_int_index: true,
+    });
+    expect(source.cell_names).toEqual(['c0', 'c1', 'c2', 'c3']);
+    expect(source.positions).toEqual(
+      Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -2, -3])
+    );
+    expect(source.cell_categories).toEqual(['T', 'B', 'T', 'nan']);
+    expect(source.cell_category_attr).toBe('leiden');
+    expect(source.meta_cell).toEqual({ result: {}, attr: [] });
+    expect(source.umap).toBeNull();
+    expect(
+      Array.from((await source.cbg_reader.readGeneExpression('G0')).cell_names)
+    ).toEqual([0, 1]);
+  });
+
+  it('selects a named CellCloud alignment, including column-major xyz arrays', async () => {
+    const nodes = store_nodes({
+      'obsm/spatial_neighborhood': {
+        data: Int32Array.from([1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12]),
+        shape: [4, 3],
+        stride: [1, 4],
+      },
+    });
+    const source = await open(nodes, {
+      technology: 'point-cloud',
+      alignment: 'neighborhood',
+    });
+    expect(Array.from(source.positions)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ]);
+    await expect(
+      open(nodes, { technology: 'point-cloud', alignment: 'missing' })
+    ).rejects.toThrow(/obsm\/spatial_missing.*shape \(4, 3\)/);
+    await expect(
+      open(nodes, { technology: 'point-cloud', alignment: '../bad' })
+    ).rejects.toThrow(/Invalid alignment name/);
+  });
+
+  it('rejects malformed CellCloud coordinates rather than rendering invalid positions', async () => {
+    await Promise.all(
+      [
+        array(Float32Array.from([1, 2, 3, 4, 5, 6]), [2, 3]),
+        array(Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8]), [4, 2]),
+        array(Float32Array.from([NaN, ...new Array(11).fill(0)]), [4, 3]),
+      ].map((spatial) =>
+        expect(
+          open(store_nodes({ 'obsm/spatial': spatial }), {
+            technology: 'point-cloud',
+          })
+        ).rejects.toThrow(/CellCloud needs|non-finite coordinates/)
+      )
+    );
   });
 
   it('falls back to detection rates, generated colors, and sorted clusters', async () => {

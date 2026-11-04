@@ -77,7 +77,8 @@ All notable changes to Celldega are documented here. This project follows
 - Fixed cluster colors and selections when Parquet categorical dictionaries
   change between Arrow record batches.
 - Added the Atera kidney Yearbook review example, which uses `dega.select` to
-  find large cells that express both EPCAM and PTPRC.
+  find large glomerular endothelial cells containing podocyte (NPHS2)
+  transcripts as potential doublets.
 
 ## [0.28.0a5] - 2026-11-04
 

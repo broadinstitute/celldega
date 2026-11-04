@@ -57,8 +57,8 @@ import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { set_image_layer_sliders } from '../ui/sliders';
-import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { make_yearbook_selection } from '../ui/yearbook_selection';
+import { make_yearbook_ui_container } from '../ui/yearbook_ui';
 import { execute_cell_query } from '../utils/cell_query';
 import {
   areBarDataEqual,

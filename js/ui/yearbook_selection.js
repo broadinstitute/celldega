@@ -8,7 +8,7 @@ const unique_ids = (values) =>
 
 /** Review selections are cell IDs, independent of the current page/query. */
 export const make_yearbook_selection = (root, viz_state) => {
-  const model = viz_state.model;
+  const { model } = viz_state;
   let selected = new Set(unique_ids(model?.get?.('selected_cells')));
   let disposed = false;
 
@@ -160,12 +160,13 @@ export const make_yearbook_selection = (root, viz_state) => {
     model?.set?.('selected_cells', get_selected_cells());
     model?.save_changes?.();
   };
-  const toggle = (id) => {
+  // A hoisted declaration: render's click handlers reference it before this line.
+  function toggle(id) {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);
     set_selected_cells([...next]);
-  };
+  }
   const on_selection_change = () => {
     selected = new Set(unique_ids(model.get('selected_cells')));
     render();

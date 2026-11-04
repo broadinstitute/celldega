@@ -1282,6 +1282,10 @@ class Yearbook(CelldegaWidget):
         base_url (str): The base URL for the dataset.
         cells (list, optional): List of cell identifiers to display as portraits.
             If not provided and no query is given, random cells will be selected.
+        selected_cells (list[str], optional): IDs checked in the portrait grid.
+            Independent of the portrait candidates in ``cells`` and the input
+            ``selection``. Checked IDs persist across page and query changes.
+            Assign a new list to update the checked portraits from Python.
         selection (Selection or dict or list, optional): Ordered selection of
             cells to display as portraits. Accepts a selection object exposing
             ``to_json()``/``to_dict()`` (e.g. a ``celldega.select``
@@ -1357,6 +1361,9 @@ class Yearbook(CelldegaWidget):
 
     # Cell list to display as portraits
     cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+
+    # Checked portrait IDs, kept independently of the current candidates/page.
+    selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
 
     # JSON-ready selector output used to populate cells and preserve provenance.
     selection = traitlets.Dict({}).tag(sync=True)
@@ -1541,6 +1548,13 @@ class Yearbook(CelldegaWidget):
         self.meta_cell = meta_cell_df
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
+
+    def get_selected_cells(self, adata=None):
+        """Return checked IDs, or a copied AnnData subset in its original row order."""
+        ids = list(self.selected_cells)
+        if adata is None:
+            return ids
+        return adata[adata.obs_names.isin(ids)].copy()
 
     @property
     def total_pages(self):

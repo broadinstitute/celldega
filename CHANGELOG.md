@@ -4,75 +4,82 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.28.0] - Unreleased
+## [0.28.0]
 
 ### Breaking
 
-- Separated neighborhood calculations from collection storage. Use public
-  `nbhd.calc_nbhd_*` functions and `calc_gradient` with AnnData/MuData and
-  GeoDataFrame neighborhoods; store results with `add_mod`, `add_relation`,
-  or `obs`. `NeighborhoodCollection.subset` replaces `drop_missing`.
-  Collections, `select`, and `align` remain in their own Celldega modules.
-- Renamed `Matrix(collection=...)` to `Matrix(mdata=...)` and moved point-cloud
-  and neighborhood-cloud writers from `align` to `pre`.
-- Removed per-gene alpha-shape APIs in favor of gene cell scatter.
-  Neighborhood overlap/bordering use `nbhd_col` instead of `name_col`;
-  `stamp_z` and `read_transcripts` are public.
+- Neighborhood calculations are now functions that take a neighborhood
+  GeoDataFrame and cell-level AnnData/MuData: `nbhd.calc_nbhd_by_pop`,
+  `calc_nbhd_by_gene`, `calc_nbhd_overlap`, `calc_nbhd_bordering`,
+  `calc_nbhd_transcript_assignment`, and `calc_gradient`. They replace the
+  `NeighborhoodCollection.calc_*` methods. `NeighborhoodCollection` now only
+  stores results (`add_mod`, `add_relation`, `obs`), and
+  `NeighborhoodCollection.subset` replaces the `drop_missing` argument. The
+  collection, `select`, and `align` modules remain in Celldega.
+- `Matrix(collection=...)` is now `Matrix(mdata=...)`.
+- Removed `align.write_alignment_point_cloud` and `align.write_nbhd_cloud`; use
+  `pre.write_point_cloud_dataset` and `pre.write_nbhd_cloud_dataset`.
+- Removed per-gene alpha shapes (`iter_gene_alpha_shapes*`,
+  `alpha_shape_gene_expression_by_slice`, `pre.write_gene_shapes*`); use the
+  gene cell scatter (`pre.write_gene_cell_scatter`) instead.
 
 ### Added
 
-- **Efficient CellCloud data sources:** export indexed, rounded Parquet
-  DegaFiles or AnnData Zarr, with gene expression loaded on demand.
-- **Low dimensional embedding landscapes:** improved single-cell UMAP support
-  and a new gene-expression XY view with linear/log axes and animated layout
-  transitions.
+- **Yearbook review selection:** check cells in Yearbook, keep the selection
+  across pages and queries, and read the selected IDs from
+  `Yearbook.selected_cells`.
+- **Compact CellCloud data:** export CellCloud data as indexed Parquet DegaFiles
+  or AnnData Zarr (`pre.write_point_cloud_zarr`), with optional coordinate
+  rounding. Gene expression loads on demand.
+- **Embedding Landscapes:** improved single-cell UMAP support and a new
+  two-gene expression XY view with linear/log axes and animated transitions
+  between layouts.
 - **Viewport summaries:** cell-type counts and signature-based gene-expression
-  estimates update as users pan and zoom in UMAP/XY.
-- **Neighborhoods across views:** draw, save, restore, and select polygons in
-  spatial, UMAP, and XY spaces, including freehand drawing and access to
-  selected cells from Python.
-- **AnnData Zarr Landscapes:** read single-cell metadata, UMAP coordinates,
-  and per-gene CSC expression directly in the browser.
-- **On-disk Matrix representation:** save and restore clustered Matrices as
-  AnnData Zarr, preserving values, optional dot sizes, metadata, dendrograms,
-  precomputed views, colors, axis entities, and marker rankings.
-- **Single-cell analysis:** build marker dot plots with
-  `Matrix(adata, groupby=...)`, filter by detection fraction with
-  `filter_by_size`, and build Composition directly from cell-level data.
-- **Aligned H&E:** add an aligned H&E background to existing Landscape
-  DegaFiles and switch between fluorescence and H&E in Landscape/Yearbook.
+  estimates update as you pan and zoom in UMAP/XY.
+- **Neighborhoods across views:** draw (including freehand), save, restore, and
+  select polygons in spatial, UMAP, and XY views, and read the selected cells
+  from Python.
+- **AnnData Zarr Landscapes:** `Landscape(zarr_url=...)` reads single-cell
+  metadata, UMAP coordinates, and per-gene expression directly in the browser.
+- **On-disk Matrix:** `Matrix.write_zarr` / `Matrix.read_zarr` save and restore
+  clustered Matrices as AnnData Zarr (local or HTTPS), including dot sizes,
+  metadata, dendrograms, colors, axis entities, and marker rankings.
+- **Single-cell analysis:** marker dot plots with `Matrix(adata, groupby=...)`,
+  detection-fraction filtering with `Matrix.filter_by_size`, and
+  `Composition(adata, groupby=...)` from cell-level data.
+- **Aligned H&E:** `pre.add_aligned_he` adds an aligned H&E image to existing
+  DegaFiles; Landscape and Yearbook switch between fluorescence and H&E.
 - **Browser APIs:** render and link Landscapes and Clustergrams without Python,
-  including loading saved Matrix Zarr stores.
-- Updated single-cell, multi-omic, and spatial tutorials, gallery examples,
-  file-format documentation, and Python API guides.
+  including from saved Matrix Zarr stores.
+- `nbhd.stamp_z` and `nbhd.read_transcripts` are public (formerly the private
+  `_stamp_z` and `_get_gdf_trx`).
+- `get_local_server(file_server_root=...)` serves files from a chosen
+  directory.
+- New docs: Chromium PBMC Landscape-Clustergram-Enrich tutorial, Broad-Allen 3D
+  mouse brain tutorials and gallery, Tabula Sapiens and CITE-seq PBMC gallery
+  pages, and an Atera kidney Yearbook review example; updated file-format and
+  API guides.
 
 ### Changed
 
 - Improved Landscape/Yearbook gene and cluster multiselection, gene search,
-  tooltips, sliders, and intermediate-zoom transcript loading.
-- Matched UMAP orientation to Scanpy/CELLxGENE; UMAP/XY points scale with zoom
-  and zooming out stops beyond the full embedding.
-- Expanded AnnData/MuData interoperability and documented point-cloud exports.
-- Improved Windows development support and optional image-dependency handling;
-  updated Zarr/HTTP support, JavaScript dependencies, and CI tooling.
+  tooltips, sliders, and transcript loading at intermediate zoom.
+- UMAP orientation now matches Scanpy/CELLxGENE; UMAP/XY points scale with zoom,
+  and you can no longer zoom out past the full embedding.
+- Requires `zarr>=3,<4` and adds an `fsspec[http]` dependency for reading
+  Zarr stores over HTTPS. JavaScript dependencies and CI tooling are updated.
+- Improved Windows support for development.
 
 ### Fixed
 
-- Fixed CellCloud expression transparency from opposite camera angles and
-  refreshed point data after programmatic gene selections.
-- Fixed garbled cell polygons and boundary rendering after zooming, with more
-  robust tile loading and recovery.
-- Fixed various bugs in linked selections, expression loading, viewport
-  updates, metadata handling, Clustergram layouts, and neighborhood calculations.
-
-## [0.28.0a5] - 2026-11-04
-
-- Added compact CellCloud exports as indexed Parquet DegaFiles or AnnData Zarr,
-  with optional coordinate rounding and gene expression loaded on demand.
-- Improved AnnData Zarr metadata loading and fixed linked gene-expression updates.
-- Fixed CellCloud expression transparency when viewing cells from behind.
-- Updated the 3D mouse brain gallery and notebook to demonstrate both formats,
-  with a hosted performance comparison.
+- Cluster colors and selections are correct when Parquet categorical
+  dictionaries change between Arrow record batches.
+- Cell polygons no longer appear garbled after zooming out and back in.
+- CellCloud expression transparency is correct when cells are viewed from
+  behind, and points refresh after genes are selected from Python.
+- By-slice alpha shapes use the cluster colors from `uns`.
+- Fixed bugs in linked selections, expression loading, viewport updates,
+  metadata handling, and Clustergram layouts.
 
 ## [0.27.0]
 

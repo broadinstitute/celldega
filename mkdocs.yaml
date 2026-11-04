@@ -133,6 +133,7 @@ nav:
       - Landscape View Xenium: examples/brief_notebooks/Landscape_View_Xenium.ipynb
       - Landscape from a Local Server: examples/brief_notebooks/Landscape_Local_Server.ipynb
       - Atera Pre-process: examples/brief_notebooks/Atera_Pre-process.ipynb
+      - Atera Kidney Yearbook Review: examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb
       - CellCloud Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
       - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb

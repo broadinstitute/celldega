@@ -43,6 +43,7 @@ import {
   update_cell_color_buffer,
   writeCellColor,
 } from './cell_color';
+import { CellCloudLayer } from './CellCloudLayer';
 
 export { get_cell_color, update_cell_color_buffer } from './cell_color';
 
@@ -123,6 +124,13 @@ const get_meta_cell_attrs = (name, meta_cell, cell_name_prefix) => {
 
 const is_point_cloud_viz = (viz_state) =>
   is_orbit_technology(viz_state.img?.landscape_parameters?.technology);
+
+const point_cloud_transparency_props = (viz_state) => {
+  const context = getVizCellColorContext(viz_state);
+  return {
+    cellCloudTransparent: !context.isClusterMode && !context.hasHighlights,
+  };
+};
 
 // PointCloudLayer's pointSize is a radius in coordinate units. CellCloud's
 // cell_size is a diameter in microns; the slider's midpoint is a 1× multiplier.
@@ -663,7 +671,9 @@ export const refresh_cell_layer_data = (
   layers_obj.cell_layer = layers_obj.cell_layer.clone({
     transitions: false,
     ...stableLayerProps,
-    ...(!isPointCloud ? scatterplot_view_props(viz_state) : {}),
+    ...(isPointCloud
+      ? point_cloud_transparency_props(viz_state)
+      : scatterplot_view_props(viz_state)),
     data: isPointCloud
       ? get_point_cloud_cell_data(viz_state)
       : get_scatterplot_cell_data(viz_state),
@@ -1145,7 +1155,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
   let cell_layer;
   if (pointCloud) {
     const pointCloudData = get_point_cloud_cell_data(viz_state);
-    cell_layer = new PointCloudLayer({
+    cell_layer = new CellCloudLayer({
       id: 'cell-layer',
       sizeUnits: 'meters',
       pointSize: get_point_cloud_cell_radius(viz_state),
@@ -1157,6 +1167,7 @@ export const ini_cell_layer = async (base_url, viz_state) => {
         getColor: [viz_state.selection_token],
       },
       opacity: 1,
+      ...point_cloud_transparency_props(viz_state),
       ...getModelMatrixProps(viz_state.rotation),
     });
   } else {
@@ -1241,6 +1252,7 @@ export const toggle_spatial_umap = (_deck_ist, layers_obj, viz_state) => {
   if (is_point_cloud_viz(viz_state)) {
     layers_obj.cell_layer = layers_obj.cell_layer.clone({
       data: get_point_cloud_cell_data(viz_state),
+      ...point_cloud_transparency_props(viz_state),
       transitions,
       updateTriggers: {
         ...layers_obj.cell_layer.props.updateTriggers,

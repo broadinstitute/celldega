@@ -16,6 +16,11 @@ the 3D gallery rendered, and the notebook supported orbiting and Clustergram
 gene selection. The full scientific analysis was not rerun. The notebook's
 2D image view still logs requests for tiles outside the image boundary.
 
+The follow-up [CellCloud storage comparison](CELLCLOUD_STORAGE.md) documents
+the new compact Parquet and AnnData Zarr exports. Both have been generated and
+verified locally from the complete stack; uploading them under new versioned
+paths and switching the public gallery remain hosting follow-ups.
+
 There are 33 notebook files under `docs/examples/` in this checkout: 16 listed,
 4 unlisted, 11 excluded, and 2 built without a navigation entry. Another 45
 tracked development notebooks were inventoried, excluding historical archives.

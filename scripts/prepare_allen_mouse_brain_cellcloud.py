@@ -344,6 +344,9 @@ def main():
         "anndata_zarr": sum(report["zarr"].values()),
     }
     (output / "size-report.json").write_text(json.dumps(report, indent=2) + "\n")
+    comparison = Path(__file__).resolve().parents[1] / ".github/CELLCLOUD_STORAGE.md"
+    if comparison.exists():
+        shutil.copyfile(comparison, output / "README.md")
     checksums = []
     for p in sorted(output.rglob("*")):
         if p.is_file() and p.name != "SHA256SUMS":

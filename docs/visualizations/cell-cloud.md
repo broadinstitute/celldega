@@ -23,6 +23,9 @@ Use `base_url` for point-cloud DegaFiles or `zarr_url` for a cell-level
 AnnData Zarr store. The browser reads positions, categories, and the selected
 genes directly from either source; an in-memory AnnData is optional.
 
+When testing the unreleased checkout, run `npm run build` and start the notebook
+kernel with `CELLDEGA_LOCAL_ESM=1` before importing Celldega to use its new reader.
+
 ```python
 import celldega as dega
 

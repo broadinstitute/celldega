@@ -1396,7 +1396,7 @@ export const landscape_ist = async (
         new_cat === 'cluster' ? [] : [inst_gene],
         viz_state.obs_store
       );
-      await update_cell_exp_array(
+      const applied = await update_cell_exp_array(
         viz_state.cats,
         viz_state.genes,
         viz_state.global_base_url,
@@ -1406,6 +1406,11 @@ export const landscape_ist = async (
         viz_state.aws,
         viz_state.row_group_readers?.cbg
       );
+      if (!applied) return;
+
+      // Selecting a gene can compact the point layer to zero rows before the
+      // async expression read finishes. Rebuild its binary data before repaint.
+      refresh_cell_layer();
 
       // deck_ready (the only general repaint signal) fires setProps only on a
       // false→true transition of the all-layers-ready AND, so a true-only

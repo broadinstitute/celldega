@@ -50,6 +50,8 @@ use the appropriate readers and lower-level writers described in the reference.
 
 Use `pre.add_aligned_he` to add an already aligned histology background, or
 `pre.write_point_cloud_dataset` and `pre.write_nbhd_cloud_dataset` for the 3D views.
+CellCloud also accepts AnnData Zarr written with `pre.write_point_cloud_zarr`;
+see the [two export formats](../visualizations/cell-cloud.md#prepare-either-format).
 Preparing DegaFiles is separate from clustering an AnnData for analysis.
 
 **Examples:** [Atera preprocessing](../examples/brief_notebooks/Atera_Pre-process.ipynb),

@@ -34,6 +34,7 @@ const controls = new Function(`
     cellNames: state.cats.cell_names_array, isClusterMode: true, clusterFilter: []
   });
   const update_cell_color_buffer = () => new Uint8Array(8);
+  ${stripImports(readSource('deck-gl/layers/CellCloudLayer.js'))}
   ${stripImports(readSource('global_variables/image_info.js'))}
   ${stripImports(readSource('deck-gl/layers/cell_layer.js'))}
   ${stripImports(readSource('utils/refresh_layer.js'))}

@@ -21,6 +21,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
+- **Efficient CellCloud data sources:** export indexed, rounded Parquet
+  DegaFiles or AnnData Zarr, with gene expression loaded on demand.
 - **Low dimensional embedding landscapes:** improved single-cell UMAP support
   and a new gene-expression XY view with linear/log axes and animated layout
   transitions.

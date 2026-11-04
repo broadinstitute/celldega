@@ -60,8 +60,7 @@ test('a gene read rebuilds initially empty point data before repainting', async 
   const loaded = new Promise((done) => {
     resolve = done;
   });
-  let fixture;
-  fixture = makeHandler(async () => {
+  const fixture = makeHandler(async () => {
     await loaded;
     fixture.viz.cats.values = [0, 7];
     return true;

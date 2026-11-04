@@ -701,6 +701,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mark-cells-for-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mark cells for review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2798,6 +2809,8 @@
       
         
       
+        
+      
     
     
     
@@ -2909,6 +2922,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
   
 
     
@@ -3137,6 +3178,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mark-cells-for-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mark cells for review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3180,6 +3232,8 @@ or a random sample from a cluster).</p>
   <a href="../landscape/">Landscape</a>.</li>
 <li><strong>Pagination</strong> controls to page through a larger cell selection than fits
   on one page.</li>
+<li>A small <strong>review checkbox</strong> at the bottom right of each portrait. Checked
+  portraits have a blue border, and their cell IDs remain selected across pages.</li>
 <li>A <strong>query box</strong> for selecting cells by cluster and/or gene directly in the
   browser (see <code>front_end_query</code> below), independent of pagination.</li>
 </ul>
@@ -3211,9 +3265,31 @@ yb
 <a href="../../python/viz/api/"><code>dega.viz.spatial_clustergram</code></a>, exactly like
 <code>Landscape</code>. For the full query/selection algebra and constructor arguments,
 see the <a href="../../python/viz/api/">Viz Module API reference</a>.</p>
+<h2 id="mark-cells-for-review">Mark cells for review</h2>
+<p>Click a portrait's checkbox to select or deselect its cell. The control has a
+transparent background and becomes clearer on hover or keyboard focus. Checked
+portraits have a blue border. Selections persist when changing pages or replacing
+the displayed cells with another query.</p>
+<p>With a live notebook kernel, read the selected IDs from <code>selected_cells</code> or
+<code>get_selected_cells()</code>:</p>
+<pre><code class="language-python">reviewed_ids = yb.get_selected_cells()  # same IDs as yb.selected_cells
+adata.obs[&quot;yearbook_review&quot;] = adata.obs_names.isin(reviewed_ids)
+
+# Or get a copy of the marked cells for downstream work.
+reviewed = yb.get_selected_cells(adata)
+
+# Clear every review checkbox, including those on other pages.
+yb.selected_cells = []
+</code></pre>
+<p>Use <code>cells=</code> or <code>selection=</code> to choose the portraits to display, and
+<code>selected_cells=</code> to initialize the review checkboxes. The selected list stores
+original cell IDs independently of the current page and query.</p>
 <h2 id="example">Example</h2>
 <p>The <a href="../../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/">Atera kidney tutorial</a>
 includes a Yearbook for inspecting individual cells alongside a Landscape.</p>
+<p>The <a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/">Atera kidney Yearbook review</a>
+brief example uses <code>dega.select</code> to build a candidate queue, inspect portraits
+across pages, and retrieve checked cell IDs for follow-up.</p>
 
 
 

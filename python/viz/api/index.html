@@ -1678,6 +1678,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#celldega.viz.Yearbook.get_selected_cells" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_selected_cells
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#celldega.viz.Yearbook.go_to_page" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3342,6 +3353,8 @@
       
         
       
+        
+      
     
     
     
@@ -3453,6 +3466,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
   
 
     
@@ -4093,6 +4134,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#celldega.viz.Yearbook.get_selected_cells" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_selected_cells
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#celldega.viz.Yearbook.go_to_page" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4534,6 +4586,44 @@ distinguish this stateless browser query from the Python-side
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>zarr_url</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> or <span title="Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Self-contained AnnData Zarr instead
+of <code>base_url</code>. <code>X</code> (or <code>zarr_layer</code>) is CSC;
+<code>obsm['spatial']</code> holds XYZ positions, with named variants at
+<code>obsm['spatial_&lt;alignment&gt;']</code>. Original observation IDs retain cell
+identity. Export with <code>celldega.pre.write_point_cloud_zarr</code>.
+Local paths use the shared local HTTP server.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>zarr_layer</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>CSC expression layer, or <code>"X"</code>. Defaults
+to CSC <code>X</code> or the only CSC layer in the store.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>adata</code>
             </td>
             <td>
@@ -4543,7 +4633,8 @@ distinguish this stateless browser query from the Python-side
               <div class="doc-md-description">
                 <p>Source of cell attributes/metadata (clusters,
 colors, UMAP). Never used for spatial positions — those come from the
-DegaFiles — except when <code>use_adata_3d_centroids</code> is set.</p>
+DegaFiles — except when <code>use_adata_3d_centroids</code> is set. With
+<code>zarr_url</code>, positions always come from the store.</p>
               </div>
             </td>
             <td>
@@ -6665,6 +6756,25 @@ If not provided and no query is given, random cells will be selected.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>selected_cells</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>IDs checked in the portrait grid.
+Independent of the portrait candidates in <code>cells</code> and the input
+<code>selection</code>. Checked IDs persist across page and query changes.
+Assign a new list to update the checked portraits from Python.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>selection</code>
             </td>
             <td>
@@ -6981,6 +7091,24 @@ yb = Yearbook(
 
 
 
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="celldega.viz.Yearbook.get_selected_cells" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_selected_cells</span><span class="p">(</span><span class="n">adata</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return checked IDs, or a copied AnnData subset in its original row order.</p>
+
+
+    </div>
+
+</div>
 
 <div class="doc doc-object doc-function">
 

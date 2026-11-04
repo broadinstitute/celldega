@@ -603,6 +603,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#anndata-zarr-for-cellcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnData Zarr for CellCloud
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#anndata-zarr-before-and-after-matrix-clustering" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2910,6 +2921,8 @@
       
         
       
+        
+      
     
     
     
@@ -3021,6 +3034,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
   
 
     
@@ -3294,6 +3335,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#anndata-zarr-for-cellcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AnnData Zarr for CellCloud
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#anndata-zarr-before-and-after-matrix-clustering" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3393,9 +3445,10 @@
 
 <h1 id="celldega-file-formats">Celldega File Formats</h1>
 <p>Celldega uses two complementary storage approaches: <strong>DegaFiles</strong> prepare
-spatial data for interactive Landscape rendering, and <strong>AnnData Zarr</strong> stores
-analysis inputs, single-cell Landscape data, and complete clustered Matrix
-objects. Both can be served over HTTP from a local server or cloud storage.</p>
+spatial data for interactive rendering, and <strong>AnnData Zarr</strong> stores analysis
+inputs and visualization data. CellCloud can read either format; AnnData Zarr
+also supports single-cell Landscape data and complete clustered Matrix objects.
+Both can be served over HTTP from a local server or cloud storage.</p>
 <table>
 <thead>
 <tr>
@@ -3411,9 +3464,14 @@ objects. Both can be served over HTTP from a local server or cloud storage.</p>
 <td>Landscape and Yearbook</td>
 </tr>
 <tr>
+<td>Point-cloud DegaFiles</td>
+<td>XYZ cell positions, categories, per-gene expression, and a manifest</td>
+<td>CellCloud</td>
+</tr>
+<tr>
 <td>Cell-level AnnData Zarr</td>
-<td>Cell metadata, an optional UMAP, and a CSC expression matrix</td>
-<td>Single-cell Landscape; Python analysis</td>
+<td>Cell metadata, optional UMAP or XYZ positions, and a CSC expression matrix</td>
+<td>Single-cell Landscape, CellCloud, and Python analysis</td>
 </tr>
 <tr>
 <td>Analysis AnnData Zarr</td>
@@ -3728,6 +3786,86 @@ estimated expression.</p>
 <a href="https://github.com/broadinstitute/celldega/blob/main/js/celldega.js">Landscape entry point</a>,
 <a href="https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/gene_signatures.js">signature reader</a>,
 and <a href="https://github.com/broadinstitute/celldega/blob/main/js/umap/viewport_summary.js">viewport summaries</a>.</p>
+<h2 id="anndata-zarr-for-cellcloud">AnnData Zarr for CellCloud</h2>
+<p><code>CellCloud(zarr_url=...)</code> reads a self-contained cell-level AnnData Zarr store
+as an alternative to <a href="#point-cloud-degafiles">point-cloud DegaFiles</a>.
+Both sources support 3D positions, cluster colors, on-demand gene-expression
+coloring, named alignments, and links to a Clustergram.</p>
+<table>
+<thead>
+<tr>
+<th>AnnData location</th>
+<th>Meaning in CellCloud</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>obs_names</code> / <code>var_names</code></td>
+<td>Original cell IDs / gene names</td>
+</tr>
+<tr>
+<td><code>obs[cluster_attr]</code></td>
+<td>Categories used to color cells</td>
+</tr>
+<tr>
+<td><code>uns[f"{cluster_attr}_colors"]</code></td>
+<td>Palette in category order</td>
+</tr>
+<tr>
+<td><code>obsm["spatial"]</code></td>
+<td>Default cell positions, shape <code>(n_cells, 3)</code>, in microns</td>
+</tr>
+<tr>
+<td><code>obsm["spatial_&lt;alignment&gt;"]</code></td>
+<td>Optional named XYZ alignment in the same cell order</td>
+</tr>
+<tr>
+<td>CSC <code>X</code> or a CSC layer</td>
+<td>Sparse expression indexed by zero-based observation position</td>
+</tr>
+<tr>
+<td><code>var["mean"]</code>, <code>var["max"]</code>, <code>var["color"]</code></td>
+<td>Gene statistics and colors</td>
+</tr>
+<tr>
+<td><code>uns["cell_cloud"]</code></td>
+<td>Export metadata: alignment names, coordinate units, and optional rounding resolution</td>
+</tr>
+</tbody>
+</table>
+<p><a href="../../python/pre/api/"><code>pre.write_point_cloud_zarr</code></a> prepares this layout from
+an AnnData. It writes CSC expression, consolidated Zarr v2 metadata, and
+compressed position arrays; its default 1 µm rounding uses int32 coordinates.
+Original cell IDs remain in <code>obs_names</code>, while numeric row positions index
+expression. The writer requires a new output path unless <code>overwrite=True</code>
+is explicitly selected.</p>
+<pre><code class="language-python">dega.pre.write_point_cloud_zarr(
+    adata,
+    &quot;data/cells.zarr&quot;,
+    cluster_key=&quot;cell_type&quot;,
+    coordinate_resolution=1.0,
+)
+
+cell_cloud = dega.viz.CellCloud(
+    zarr_url=&quot;data/cells.zarr&quot;,
+    cluster_attr=&quot;cell_type&quot;,
+)
+</code></pre>
+<p>The browser loads cell IDs, category labels and colors, positions, and CSC
+column pointers to initialize the view. Selecting a gene fetches only the
+chunks covering its sparse values and row indices. It does not load the
+entire expression matrix. A named <code>alignment="neighborhood"</code> reads
+<code>obsm["spatial_neighborhood"]</code>; omit <code>alignment</code> to use <code>obsm["spatial"]</code>.
+Use <code>zarr_layer</code> when the expression is in a CSC layer rather than <code>X</code>.</p>
+<p>Pass an HTTP(S) URL, or a local store beneath the working directory; Python
+serves local paths over HTTP. Pass one of <code>base_url</code> or <code>zarr_url</code> per widget.
+See the <a href="../../visualizations/cell-cloud/">CellCloud guide</a> and
+<a href="../../gallery/gallery_broad_allen_mouse_brain_3d/">3D mouse brain example</a>
+for equivalent DegaFiles and Zarr usage.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/point_cloud.py">point-cloud exporters</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/viz/cloud.py">CellCloud Python widget</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/read_zarr/anndata_zarr.js">AnnData Zarr reader</a>,
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/deck-gl/layers/cell_layer.js">cell initialization</a>.</p>
 <h2 id="anndata-zarr-before-and-after-matrix-clustering">AnnData Zarr before and after Matrix clustering</h2>
 <p>Both stages use AnnData's observations-by-variables orientation. A Matrix
 displays the transpose: genes/features are rows, and cells/groups are columns.</p>
@@ -3835,23 +3973,64 @@ and <a href="https://github.com/broadinstitute/celldega/blob/main/js/celldega.js
 and rendered by <a href="../../visualizations/cell-cloud/"><code>CellCloud</code></a>. There is no
 image pyramid or transcript layer; cells are points with 3D positions.</p>
 <pre><code>point_cloud_files/
-├── cell_metadata.parquet               # name + geometry ([x, y, z] fixed-size list)
+├── cell_metadata.parquet               # cell key + geometry ([x, y, z] fixed-size list)
 ├── cell_metadata_&lt;name&gt;.parquet        # optional named position variants
+├── cell_ids.parquet                    # original IDs once, in the optional indexed layout
 ├── cell_clusters/
 │   ├── cluster.parquet
 │   └── meta_cluster.parquet
-├── cbg/&lt;gene&gt;.parquet                  # expressing cells only, keyed by cell name
+├── cbg/&lt;gene&gt;.parquet                  # expressing cells only, keyed by cell name or row index
 ├── meta_gene.parquet
 ├── cell_cloud.json                     # manifest
 └── landscape_parameters.json           # same manifest, for older loaders
 </code></pre>
-<p>The manifest has <code>"technology": "point-cloud"</code>, <code>"use_int_index": false</code>
-(gene files are keyed by cell name), and an <code>"alignments"</code> list naming the
-position variants. <code>CellCloud(alignment="&lt;name&gt;")</code> reads positions from
+<p>The manifest has <code>"technology": "point-cloud"</code> and an <code>"alignments"</code> list
+naming the position variants. <code>CellCloud(alignment="&lt;name&gt;")</code> reads positions from
 <code>cell_metadata_&lt;name&gt;.parquet</code> while clusters and genes keep loading from the
 shared files, so several 3D alignments of the same cells share one dataset.
 Variant names may contain only letters, digits, <code>.</code>, <code>_</code>, and <code>-</code>, and
 <code>default</code> is reserved.</p>
+<p>The writer supports two cell-key layouts:</p>
+<table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Geometry and cluster keys</th>
+<th>Expression keys</th>
+<th>Original cell identity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name-based, the existing default (<code>use_int_index=False</code>)</td>
+<td>String IDs in <code>name</code></td>
+<td>String IDs in <code>__index_level_0__</code></td>
+<td>Repeated in the data files</td>
+</tr>
+<tr>
+<td>Indexed (<code>use_int_index=True</code>)</td>
+<td>uint32 row positions in <code>name</code></td>
+<td>uint32 row positions in <code>__index_level_0__</code></td>
+<td>Stored once in <code>cell_ids.parquet</code>, whose <code>name</code> column follows canonical row order</td>
+</tr>
+</tbody>
+</table>
+<p>For an indexed dataset, the manifest records <code>"use_int_index": true</code> and
+<code>"cell_ids": "cell_ids.parquet"</code>. Geometry rows follow the canonical
+<code>0..n_cells-1</code> order. Appending an alignment requires exactly the same original
+cell IDs; the writer reorders its positions to match before writing.
+The browser resolves original IDs for selections and tooltips while reading
+expression by numeric row index.</p>
+<p>Use <code>coordinate_resolution=1.0</code> with micron inputs to round XYZ to the nearest
+micron and store int32 coordinates. This changes each axis by at most 0.5 µm.
+The manifest records the resolution. With the default <code>None</code>, coordinates
+remain float32. <code>compression="zstd", compression_level=6</code> provides a compact
+Parquet alternative to the default Snappy codec. These options reduce data
+transfer and decoding costs; the number of rendered cells is unchanged.</p>
+<p>See the <a href="../../visualizations/cell-cloud/#prepare-either-format">CellCloud preparation examples</a>.</p>
+<p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/point_cloud.py">point-cloud writer</a>,
+<a href="https://github.com/broadinstitute/celldega/blob/main/js/global_variables/cell_names_array.js">indexed identity reader</a>,
+and <a href="https://github.com/broadinstitute/celldega/blob/main/js/deck-gl/layers/cell_layer.js">cell initialization</a>.</p>
 <h3 id="neighborhood-cloud-degafiles">Neighborhood-Cloud DegaFiles</h3>
 <p>Written by <a href="../../python/pre/api/"><code>celldega.pre.write_nbhd_cloud_dataset</code></a> from
 a cell-level <code>AnnData</code> plus a <code>GeoDataFrame</code> of per-slice neighborhoods (e.g.

@@ -1915,6 +1915,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#celldega.pre.write_point_cloud_zarr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_point_cloud_zarr
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="write_point_cloud_zarr">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.pre.write_point_cloud_zarr--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.pre.write_point_cloud_zarr--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#celldega.pre.write_xenium_transform" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3559,6 +3598,8 @@
       
         
       
+        
+      
     
     
     
@@ -3670,6 +3711,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
   
 
     
@@ -4659,6 +4728,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#celldega.pre.write_point_cloud_zarr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_point_cloud_zarr
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="write_point_cloud_zarr">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#celldega.pre.write_point_cloud_zarr--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#celldega.pre.write_point_cloud_zarr--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#celldega.pre.write_xenium_transform" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4696,6 +4804,11 @@ Examples include <a href="../../../examples/brief_notebooks/Atera_Pre-process/">
 and <a href="../../../examples/brief_notebooks/Custom_Segmentation/">custom segmentation</a>.</p>
 <p>See <a href="../../aligned_he/">Add aligned H&amp;E to DegaFiles</a> for importing an optional
 histology background into Landscape and Yearbook.</p>
+<p>For CellCloud, use <code>write_point_cloud_dataset</code> for compact indexed Parquet
+DegaFiles or <code>write_point_cloud_zarr</code> for an AnnData Zarr with sparse CSC
+expression. Both support rounded XYZ positions and named alignments; see the
+<a href="../../../visualizations/cell-cloud/#prepare-either-format">CellCloud preparation examples</a>
+and <a href="../../../gallery/gallery_broad_allen_mouse_brain_3d/#use-degafiles-or-anndata-zarr">mouse-brain workflow</a>.</p>
 <!-- ::: celldega.pre.landscape -->
 
 
@@ -6929,7 +7042,7 @@ path_dega_files : str | Path
 
 
 <h2 id="celldega.pre.write_point_cloud_dataset" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">write_point_cloud_dataset</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">path_dega_files</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z_key</span><span class="o">=</span><span class="s1">'Z'</span><span class="p">,</span> <span class="n">cluster_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_base_metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">write_point_cloud_dataset</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">path_dega_files</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z_key</span><span class="o">=</span><span class="s1">'Z'</span><span class="p">,</span> <span class="n">cluster_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">write_base_metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">use_int_index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coordinate_resolution</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="s1">'snappy'</span><span class="p">,</span> <span class="n">compression_level</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h2>
 
@@ -6969,10 +7082,84 @@ write_base_metadata : bool, optional
 overwrite : bool, default False
     Allow overwriting an existing <code>cell_metadata_&lt;name&gt;.parquet</code>, or an
     existing dataset when no <code>name</code> is given.</p>
+
+
+<details class="use_int_index-" open>
+  <summary>bool, optional</summary>
+  <p>Store original observation IDs once in <code>cell_ids.parquet</code>; use uint32
+row positions in geometry, clustering and per-gene files. Defaults to
+False for a new dataset, or inherits the existing dataset on append.
+Appending requires exactly the same cells and preserves their original
+order even when the new AnnData is reordered.</p>
+</details>        <p>coordinate_resolution : float, optional
+    Round coordinates to this step in their physical units. Use 1.0 for
+    nearest-micron positions (at most 0.5 microns of error on each axis).
+    Integral steps use int32 coordinates; the default keeps float32. An
+    appended alignment inherits the existing resolution.
+compression : str
+    Parquet compression codec; defaults to <code>"snappy"</code>. <code>"zstd"</code> with
+    <code>compression_level=6</code> provides compact storage. Integer IDs also use
+    delta encoding.
+compression_level : int, optional
+    Compression level, when supported by the chosen codec.</p>
 <h4 id="celldega.pre.write_point_cloud_dataset--returns">Returns</h4>
 <p>pathlib.Path
     Path to the written positions file (the named variant when <code>name</code> is
     given, else <code>cell_metadata.parquet</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="celldega.pre.write_point_cloud_zarr" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">write_point_cloud_zarr</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">z_key</span><span class="o">=</span><span class="s1">'Z'</span><span class="p">,</span> <span class="n">cluster_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alignments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coordinate_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">obs_columns</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chunk_rows</span><span class="o">=</span><span class="mi">262144</span><span class="p">,</span> <span class="n">expression_chunk_size</span><span class="o">=</span><span class="mi">262144</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write a self-contained CellCloud AnnData Zarr store for HTTP hosting.</p>
+<p><code>X</code> is CSC, so selecting a gene reads only its sparse values and cell-row
+indices. <code>obs_names</code> retain the original cell IDs; expression is indexed
+by their zero-based row positions. <code>obsm['spatial']</code> stores default XYZ
+coordinates and <code>obsm['spatial_&lt;name&gt;']</code> stores each named alignment.
+Pass <code>CellCloud(zarr_url=..., alignment='&lt;name&gt;')</code> to choose one.</p>
+<p>Coordinates remain in their physical units. With the default
+<code>coordinate_resolution=1.0</code>, micron coordinates are rounded to the
+nearest micron and saved as int32, with at most half a micron of error on
+each axis. Pass <code>None</code> to retain float32 positions. Original inputs are
+never modified. A new output path is required unless <code>overwrite=True</code>.</p>
+<h4 id="celldega.pre.write_point_cloud_zarr--parameters">Parameters</h4>
+<p>adata : AnnData
+    Cells, original observation IDs, gene IDs, and counts in
+    <code>layers['counts']</code> or <code>X</code>. Spatial positions follow the same rules
+    as <code>write_point_cloud_dataset</code>.
+store : str or Path
+    New local directory; upload its complete contents to a static host.
+cluster_key : str, optional
+    Cluster observation column. Its palette is retained and missing colors
+    are generated. Other requested observation columns remain available.
+alignments : mapping of str to array, optional
+    Additional <code>(n_cells, 3)</code> XYZ arrays in exactly <code>adata.obs_names</code>
+    order. These are rounded using the same coordinate resolution.
+obs_columns : sequence of str, optional
+    Observation columns to keep; defaults to all columns. <code>cluster_key</code>
+    is always retained when provided.
+chunk_rows : int
+    Number of cells per coordinate chunk (default 262,144).
+expression_chunk_size : int
+    Number of sparse expression entries per chunk (default 262,144).
+overwrite : bool
+    Replace an existing local store only when explicitly requested.</p>
+<h4 id="celldega.pre.write_point_cloud_zarr--returns">Returns</h4>
+<p>pathlib.Path
+    The completed Zarr v2 store. Numeric arrays use Zstandard compression
+    with bit shuffle; consolidated metadata reduces HTTP round trips.</p>
 
 
     </div>

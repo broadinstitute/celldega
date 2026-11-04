@@ -2879,6 +2879,8 @@
       
         
       
+        
+      
     
     
     
@@ -2990,6 +2992,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
   
 
     
@@ -5232,14 +5262,17 @@ all 480 genes (<code>cbg/</code>, one file per gene). The second call only adds 
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">s</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">])</span>
 
 
-<span class="n">CELL_CLOUD_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"DegaFiles/xenium_E15.5_cell_cloud"</span><span class="p">)</span>
+<span class="n">CELL_CLOUD_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"DegaFiles/xenium_E15.5_cell_cloud_v2_1um"</span><span class="p">)</span>
+<span class="n">CELL_CLOUD_ZARR</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"data/xenium_E15.5_cellcloud_v2_1um.zarr"</span><span class="p">)</span>
 <span class="n">draw_order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">slices</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">"stable"</span><span class="p">)</span>  <span class="c1"># posterior slices last</span>
 
 <span class="n">cloud</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">read_h5ad</span><span class="p">(</span><span class="n">H5AD_PATH</span><span class="p">)[</span><span class="n">keep</span><span class="p">][</span><span class="n">draw_order</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># raw counts in X</span>
 <span class="n">cloud</span><span class="o">.</span><span class="n">obs</span> <span class="o">=</span> <span class="n">cloud</span><span class="o">.</span><span class="n">obs</span><span class="p">[[</span><span class="n">CLUSTER_KEY</span><span class="p">]]</span>
-<span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"neighborhood"</span><span class="p">,</span> <span class="s2">"centroids"</span><span class="p">]:</span>
-    <span class="c1"># rounded to 1 um: sub-micron precision isn't needed and the files shrink by ~30%</span>
-    <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">side_view_coords</span><span class="p">(</span><span class="n">aligned_xy</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">draw_order</span><span class="p">],</span> <span class="n">stack_um</span><span class="p">[</span><span class="n">draw_order</span><span class="p">]))</span>
+<span class="n">alignment_xyz</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">side_view_coords</span><span class="p">(</span><span class="n">aligned_xy</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">draw_order</span><span class="p">],</span> <span class="n">stack_um</span><span class="p">[</span><span class="n">draw_order</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"neighborhood"</span><span class="p">,</span> <span class="s2">"centroids"</span><span class="p">]</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">xyz</span> <span class="ow">in</span> <span class="n">alignment_xyz</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
     <span class="n">cloud</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="s2">"spatial"</span><span class="p">],</span> <span class="n">cloud</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">"Z"</span><span class="p">]</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">],</span> <span class="n">xyz</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
     <span class="n">dega</span><span class="o">.</span><span class="n">pre</span><span class="o">.</span><span class="n">write_point_cloud_dataset</span><span class="p">(</span>
         <span class="n">cloud</span><span class="p">,</span>
@@ -5248,9 +5281,28 @@ all 480 genes (<code>cbg/</code>, one file per gene). The second call only adds 
         <span class="n">z_key</span><span class="o">=</span><span class="s2">"Z"</span><span class="p">,</span>
         <span class="n">cluster_key</span><span class="o">=</span><span class="n">CLUSTER_KEY</span><span class="p">,</span>
         <span class="n">write_base_metadata</span><span class="o">=</span><span class="p">(</span><span class="n">name</span> <span class="o">==</span> <span class="s2">"neighborhood"</span><span class="p">),</span>
-        <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">use_int_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">coordinate_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">compression</span><span class="o">=</span><span class="s2">"zstd"</span><span class="p">,</span>
+        <span class="n">compression_level</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
     <span class="p">)</span>
+
+<span class="c1"># The same cells and alignments, as a self-contained AnnData Zarr alternative</span>
+<span class="n">cloud</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="s2">"spatial"</span><span class="p">]</span> <span class="o">=</span> <span class="n">alignment_xyz</span><span class="p">[</span><span class="s2">"neighborhood"</span><span class="p">]</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">pre</span><span class="o">.</span><span class="n">write_point_cloud_zarr</span><span class="p">(</span>
+    <span class="n">cloud</span><span class="p">,</span>
+    <span class="n">CELL_CLOUD_ZARR</span><span class="p">,</span>
+    <span class="n">z_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">cluster_key</span><span class="o">=</span><span class="n">CLUSTER_KEY</span><span class="p">,</span>
+    <span class="n">alignments</span><span class="o">=</span><span class="n">alignment_xyz</span><span class="p">,</span>
+    <span class="n">coordinate_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
+<p>Both writers use new output paths and refuse accidental replacement. Original cell
+IDs are retained once; repeated Parquet tables use numeric row IDs. Rounding is
+limited to positions (at most 0.5 µm per axis); raw expression and cluster labels
+are unchanged. See the <a href="https://broadinstitute.github.io/celldega/visualizations/cell-cloud/">CellCloud guide</a>
+for either <code>base_url=</code> (DegaFiles) or <code>zarr_url=</code> (AnnData Zarr).</p>
 </div>
 </div>
 </div>

@@ -1675,6 +1675,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad-Allen Dev Mouse Brain E15.5 3D
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1691,6 +1709,64 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#use-degafiles-or-anndata-zarr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use DegaFiles or AnnData Zarr
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Use DegaFiles or AnnData Zarr">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measured-loading-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured loading performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prepare-your-own-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prepare your own copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -2721,6 +2797,8 @@
       
         
       
+        
+      
     
     
     
@@ -2832,6 +2910,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
   
 
     
@@ -3020,6 +3126,53 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#use-degafiles-or-anndata-zarr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use DegaFiles or AnnData Zarr
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Use DegaFiles or AnnData Zarr">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measured-loading-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured loading performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prepare-your-own-copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prepare your own copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -3039,25 +3192,114 @@
 
 
 <h1 class="gallery-title-compact" id="broad-allen-developing-mouse-brain-e155-3d">Broad-Allen Developing Mouse Brain E15.5: 3D</h1>
+<p>
+    <label for="cell-cloud-broad-allen-source">Data source:</label>
+    <select id="cell-cloud-broad-allen-source" aria-label="Data source">
+        <option value="degafiles" selected>Compact DegaFiles (Parquet)</option>
+        <option value="zarr">AnnData Zarr</option>
+    </select>
+</p>
+
 <div id="cell-cloud-container" style="position: relative; display: flex; width: 100%; height: 700px; overflow: hidden; border: 1px solid #ccc;">
-    <p id="cell-cloud-broad-allen-status" role="status" style="position: absolute; top: 10px; left: 15px; z-index: 1;">Loading 3.8 million cells. The first load may take a minute or more…</p>
+    <p id="cell-cloud-broad-allen-status" role="status" style="position: absolute; top: 10px; left: 15px; z-index: 1;">Loading 3.8 million cells…</p>
     <div id="cell-cloud-broad-allen" style="height: 700px; width: 100%;"></div>
 </div>
 
-<div style="text-align: justify; font-size: 0.9em; color: gray; margin-top: 10px;">
-    Celldega CellCloud of a whole E15.5 mouse embryo brain: 3.8 million cells from 43 coronal Xenium sections
-    (480-gene panel), aligned in 3D in two steps (Leiden cluster centroids, then neighborhood overlap) and colored
-    by Leiden cluster. Drag to orbit around the brain and scroll to zoom. Data generated in collaboration with the
-    <a href="https://alleninstitute.org/" target="_blank">Allen Institute</a>. See the
-    <a href="../../visualizations/cell-cloud/">CellCloud guide</a> and the
-    <a href="https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud" target="_blank">celldega_xenium_E15.5_cell_cloud</a>
-    DegaFiles repository.
-</div>
-
-<p>Follow the <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/">preprocessing and alignment notebook</a>
-to prepare the stack, then the
+<ul>
+<li><strong>Dataset:</strong> 3.8 million cells from 43 coronal Xenium sections of a whole E15.5 mouse embryo brain, measured with a 480-gene panel.</li>
+<li><strong>Alignment:</strong> sections are aligned first by Leiden cluster centroids, then by neighborhood overlap. Colors show Leiden clusters.</li>
+<li><strong>Controls:</strong> drag to orbit and scroll to zoom. Select a cluster or gene to explore its distribution; see the <a href="../../visualizations/cell-cloud/">CellCloud guide</a>.</li>
+<li><strong>Data:</strong> generated in collaboration with the <a href="https://alleninstitute.org/">Allen Institute</a>. Choose the <a href="https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr">AnnData Zarr on Hugging Face</a> or <a href="https://github.com/cornhundred/celldega_xenium_E15.5_cell_cloud/tree/8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact">compact DegaFiles on GitHub</a>. The <a href="https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/tree/main/xenium_E15.5_cell_cloud">original DegaFiles</a> remain available.</li>
+<li><strong>Prepare the stack:</strong> follow the <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/">preprocessing and alignment notebook</a>.</li>
+<li><strong>Explore linked views:</strong> the <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/">visualization notebook</a> introduces slice composition and links CellCloud to a Clustergram.</li>
+</ul>
+<h2 id="use-degafiles-or-anndata-zarr">Use DegaFiles or AnnData Zarr</h2>
+<p>Both hosted sources show the same cells, clusters, and alignments. This gallery
+defaults to compact Parquet DegaFiles; the
 <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/">visualization notebook</a>
-to explore slice composition and link the CellCloud to a Clustergram.</p>
+uses AnnData Zarr. Use the source picker above to compare them. In Python,
+change only the source argument.</p>
+<p>For this unreleased checkout, run <code>npm run build</code> and start the notebook kernel
+with <code>CELLDEGA_LOCAL_ESM=1</code> before importing Celldega. This uses the new browser
+reader instead of an older published bundle.</p>
+<pre><code class="language-python">import celldega as dega
+
+options = dict(alignment=&quot;neighborhood&quot;, cluster_attr=&quot;leiden_1.0&quot;,
+               rotation_x=20, rotation_orbit=-25, ini_zoom=-3.6, height=700)
+
+from_zarr = dega.viz.CellCloud(
+    zarr_url=(
+        &quot;https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/&quot;
+        &quot;resolve/main/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr&quot;
+    ),
+    **options,
+)
+
+from_degafiles = dega.viz.CellCloud(
+    base_url=(
+        &quot;https://raw.githubusercontent.com/cornhundred/celldega_xenium_E15.5_cell_cloud/&quot;
+        &quot;8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact&quot;
+    ),
+    **options,
+)
+
+from_degafiles  # display this widget, or from_zarr
+</code></pre>
+<p>The compact DegaFiles are currently served from a fork while
+<a href="https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/pull/1">upstream PR #1</a>
+awaits merge. Both sources support cluster colors, gene-expression
+coloring, named alignments, and a
+<a href="../../visualizations/cell-cloud-clustergram/">linked Clustergram</a>.
+See <a href="../../getting-started/file_formats/#anndata-zarr-for-cellcloud">File Formats</a>
+for their storage layout.</p>
+<h3 id="measured-loading-performance">Measured loading performance</h3>
+<p>Compact Parquet was slightly faster in our hosted comparison, so it is the
+gallery default. These are medians from three loads and first Dcx selections
+per source, using the same browser renderer and bypassing browser HTTP caching:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th style="text-align: right;">Initial load</th>
+<th style="text-align: right;">First Dcx coloring</th>
+<th style="text-align: right;">Initial transfer / requests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Compact Parquet on GitHub</td>
+<td style="text-align: right;">3.6 s</td>
+<td style="text-align: right;">0.67 s</td>
+<td style="text-align: right;">31.3 MB / 7</td>
+</tr>
+<tr>
+<td>AnnData Zarr on Hugging Face</td>
+<td style="text-align: right;">4.4 s</td>
+<td style="text-align: right;">1.08 s</td>
+<td style="text-align: right;">25.7 MB / 39</td>
+</tr>
+</tbody>
+</table>
+<p>Parquet uses fewer requests, which can reduce time spent waiting on the network.
+Zarr transfers fewer bytes for the initial view. For Dcx, Parquet transfers
+3.34 MB in one request, versus 3.43 MB across 28 requests for Zarr. We expect
+slightly faster loading with compact Parquet for this hosted example; network
+conditions and CDN caching can change the result. Timings include transfer,
+decoding, and rendering updates, and exclude the JavaScript bundle startup.</p>
+<p>The complete exports are 494 MB for compact Parquet and 583 MB for Zarr, versus
+4.59 GB for the original DegaFiles (9.3× and 7.9× smaller, respectively). Both
+use positions rounded to 1 µm and preserve original cell IDs and gene counts.</p>
+<h3 id="prepare-your-own-copy">Prepare your own copy</h3>
+<p>The <a href="https://github.com/broadinstitute/celldega/blob/main/scripts/prepare_allen_mouse_brain_cellcloud.py">preparation script</a>
+builds new exports of these same cells and alignments, rounding positions to
+the nearest 1 µm and using numeric row indices for repeated cell references.
+Original cell IDs, gene counts, cluster labels, and colors are retained.
+It writes a new local directory and does not upload or change the hosted data:</p>
+<pre><code class="language-bash">python scripts/prepare_allen_mouse_brain_cellcloud.py --download
+</code></pre>
+<p>Run this from the checkout to produce the new local exports. Existing hosted
+files are not modified. The complete output directories can also be served
+from another static host.</p>
 
 
 

@@ -69,6 +69,16 @@ All notable changes to Celldega are documented here. This project follows
 - Fixed various bugs in linked selections, expression loading, viewport
   updates, metadata handling, Clustergram layouts, and neighborhood calculations.
 
+## [0.28.0a6] - 2026-11-04
+
+- Added Yearbook review checkboxes: select a cell with the checkbox at the lower
+  right of its portrait and read the IDs from `Yearbook.selected_cells`.
+  Selections persist across pages and queries.
+- Fixed cluster colors and selections when Parquet categorical dictionaries
+  change between Arrow record batches.
+- Added the Atera kidney Yearbook review example, which uses `dega.select` to
+  find large cells that express both EPCAM and PTPRC.
+
 ## [0.28.0a5] - 2026-11-04
 
 - Added compact CellCloud exports as indexed Parquet DegaFiles or AnnData Zarr,

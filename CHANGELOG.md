@@ -21,6 +21,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Added
 
+- **Yearbook review selection:** check individual cell portraits, retain selected
+  IDs across pagination and queries, and retrieve them through `selected_cells`.
 - **Efficient CellCloud data sources:** export indexed, rounded Parquet
   DegaFiles or AnnData Zarr, with gene expression loaded on demand.
 - **Low dimensional embedding landscapes:** improved single-cell UMAP support
@@ -58,6 +60,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Fixed cluster colors and selections when Parquet categorical dictionaries
+  change between Arrow record batches.
 - Fixed CellCloud expression transparency from opposite camera angles and
   refreshed point data after programmatic gene selections.
 - Fixed garbled cell polygons and boundary rendering after zooming, with more

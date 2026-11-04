@@ -372,6 +372,7 @@ const make_pagination_container = (viz_state, handle_page_change) => {
   // Previous button
   const prev_button = document.createElement('button');
   prev_button.textContent = '◀';
+  prev_button.setAttribute('aria-label', 'Previous page');
   prev_button.style.padding = '4px 8px';
   prev_button.style.cursor = 'pointer';
   prev_button.style.border = '1px solid #d3d3d3';
@@ -390,6 +391,7 @@ const make_pagination_container = (viz_state, handle_page_change) => {
   // Next button
   const next_button = document.createElement('button');
   next_button.textContent = '▶';
+  next_button.setAttribute('aria-label', 'Next page');
   next_button.style.padding = '4px 8px';
   next_button.style.cursor = 'pointer';
   next_button.style.border = '1px solid #d3d3d3';

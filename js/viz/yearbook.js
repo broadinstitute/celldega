@@ -58,6 +58,7 @@ import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
+import { make_yearbook_selection } from '../ui/yearbook_selection';
 import { execute_cell_query } from '../utils/cell_query';
 import {
   areBarDataEqual,
@@ -564,6 +565,8 @@ export const yearbook = async (
   set_views_prop(deck_yearbook, views);
   set_get_tooltip(deck_yearbook, viz_state);
 
+  const review_selection = make_yearbook_selection(root, viz_state);
+
   // Set up layer filter to render per-portrait image layers only in their target viewport
   // Image layer IDs are like "yb-DAPI-p0-page0" where p0 means portrait 0
   // Viewport IDs are like "portrait-0"
@@ -843,6 +846,8 @@ export const yearbook = async (
       initialViewState: view_states,
       layers: layers_list,
     });
+
+    review_selection.render();
 
     // Update bar graphs based on visible data
     update_bar_graphs();
@@ -1270,6 +1275,8 @@ export const yearbook = async (
 
   const yearbook_api = {
     update_page: handle_page_change,
+    get_selected_cells: review_selection.get_selected_cells,
+    set_selected_cells: review_selection.set_selected_cells,
     refresh: async () => {
       await update_all_portraits();
       initViewStates();
@@ -1318,6 +1325,7 @@ export const yearbook = async (
     },
     finalize: () => {
       viz_state.disposed = true;
+      review_selection.dispose();
       run_ui_cleanups(viz_state);
       viz_state.cache?.cell?.clear?.();
       viz_state.cache?.trx?.clear?.();

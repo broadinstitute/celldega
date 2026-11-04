@@ -29,7 +29,7 @@ function disposeMouseBrainCloud() {
 }
 
 async function loadMouseBrainSource(state) {
-  const source = SOURCES[state.selector?.value] || SOURCES.zarr;
+  const source = SOURCES[state.selector?.value] || SOURCES.degafiles;
   const request = ++state.request;
   state.selector?.setAttribute('disabled', '');
   state.root.setAttribute('aria-busy', 'true');

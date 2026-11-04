@@ -90,9 +90,10 @@ The script and documentation are tracked here.
   is open and awaiting merge.
 - [AnnData Zarr on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/f76a3fa95ed9af8b6e96484a720cf4cbedc31819/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr):
   all 3,828 file sizes and Git/LFS hashes match the validated local store.
-- The gallery and saved CellCloud notebook now default to this Zarr. The gallery
-  has a source picker, and the notebook demonstrates changing `zarr_url=` to
-  `base_url=`. Neither original dataset was overwritten.
+- The gallery defaults to compact Parquet DegaFiles and offers a source picker;
+  the saved CellCloud notebook uses this Zarr to demonstrate the AnnData workflow.
+  The notebook demonstrates changing `zarr_url=` to `base_url=`. Neither original
+  dataset was overwritten.
 
 Three new-widget loads and first Dcx selections were measured per source,
 alternating their order, from the actual hosts with browser HTTP caching
@@ -107,10 +108,10 @@ clones each response, adding some instrumentation overhead.
 | Hugging Face AnnData Zarr | 4.429 (4.409–6.691) | 1.081 (0.841–2.121) | 25.687 MB / 39 | 3.432 MB / 28 |
 
 All twelve measured operations completed without HTTP errors. DegaFiles was
-faster in this small test. Zarr remains the default to support the requested
-AnnData/Scverse workflow: its median overhead was about 0.8 seconds initially
-and 0.4 seconds for Dcx, while its initial payload was smaller. The source
-picker retains the faster Parquet alternative. These observations concern one
+faster in this small test and is now the gallery default. The notebook retains
+Zarr to demonstrate the AnnData/Scverse workflow: its median overhead was about
+0.8 seconds initially and 0.4 seconds for Dcx, while its initial payload was
+smaller. Parquet's lower request count can reduce network latency. These observations concern one
 client, one gene, and these hosts; they are not universal performance guarantees.
 The DegaFiles reader requests its small gene-metadata file twice, so the hosted
 payload/request totals differ slightly from the unique-file inventory above.

@@ -18,8 +18,8 @@ gene selection. The full scientific analysis was not rerun. The notebook's
 
 The follow-up [CellCloud storage comparison](CELLCLOUD_STORAGE.md) documents
 the new compact Parquet and AnnData Zarr exports. Both have been generated, uploaded under new versioned paths, and verified
-against the complete stack. The gallery/notebook default to the hosted Zarr;
-compact Parquet remains selectable. Merging the
+against the complete stack. The gallery defaults to compact Parquet and offers
+a source picker; the notebook uses the hosted Zarr. Merging the
 [data-repository PR #1](https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/pull/1)
 and publishing the matching JavaScript release remain follow-ups.
 
@@ -53,6 +53,11 @@ Development notebooks should be promoted selectively, rather than all rerun.
 The npm registry currently reports `latest=0.27.0` and
 `alpha=0.28.0-alpha.4`; `0.28.0` is not published. Python's `0.28.0a4` spelling
 is not the npm version spelling. Do not embed an unpublished `celldega@0.28.0` URL.
+
+The next prepared release is Python `0.28.0a5` and npm `0.28.0-alpha.5`.
+The Broad–Allen 3D visualization notebook now pins these versions, including
+its four saved widgets. Publish the npm package before deploying that notebook;
+the gallery continues to use the documentation bundle.
 
 - [ ] Test against the current checkout before publication; use the local bundle
   for development checks when the matching package is not yet published.

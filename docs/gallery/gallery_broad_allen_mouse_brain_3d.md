@@ -3,8 +3,8 @@
 <p>
     <label for="cell-cloud-broad-allen-source">Data source:</label>
     <select id="cell-cloud-broad-allen-source" aria-label="Data source">
-        <option value="zarr" selected>AnnData Zarr</option>
-        <option value="degafiles">Compact DegaFiles (Parquet)</option>
+        <option value="degafiles" selected>Compact DegaFiles (Parquet)</option>
+        <option value="zarr">AnnData Zarr</option>
     </select>
 </p>
 
@@ -22,7 +22,10 @@
 
 ## Use DegaFiles or AnnData Zarr
 
-Both hosted sources show the same cells, clusters, and alignments. In Python,
+Both hosted sources show the same cells, clusters, and alignments. This gallery
+defaults to compact Parquet DegaFiles; the
+[visualization notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb)
+uses AnnData Zarr. Use the source picker above to compare them. In Python,
 change only the source argument.
 
 For this unreleased checkout, run `npm run build` and start the notebook kernel
@@ -51,7 +54,7 @@ from_degafiles = dega.viz.CellCloud(
     **options,
 )
 
-from_zarr  # display this widget, or from_degafiles
+from_degafiles  # display this widget, or from_zarr
 ```
 
 The compact DegaFiles are currently served from a fork while
@@ -61,6 +64,28 @@ coloring, named alignments, and a
 [linked Clustergram](../visualizations/cell-cloud-clustergram.md).
 See [File Formats](../getting-started/file_formats.md#anndata-zarr-for-cellcloud)
 for their storage layout.
+
+### Measured loading performance
+
+Compact Parquet was slightly faster in our hosted comparison, so it is the
+gallery default. These are medians from three loads and first Dcx selections
+per source, using the same browser renderer and bypassing browser HTTP caching:
+
+| Source | Initial load | First Dcx coloring | Initial transfer / requests |
+| --- | ---: | ---: | ---: |
+| Compact Parquet on GitHub | 3.6 s | 0.67 s | 31.3 MB / 7 |
+| AnnData Zarr on Hugging Face | 4.4 s | 1.08 s | 25.7 MB / 39 |
+
+Parquet uses fewer requests, which can reduce time spent waiting on the network.
+Zarr transfers fewer bytes for the initial view. For Dcx, Parquet transfers
+3.34 MB in one request, versus 3.43 MB across 28 requests for Zarr. We expect
+slightly faster loading with compact Parquet for this hosted example; network
+conditions and CDN caching can change the result. Timings include transfer,
+decoding, and rendering updates, and exclude the JavaScript bundle startup.
+
+The complete exports are 494 MB for compact Parquet and 583 MB for Zarr, versus
+4.59 GB for the original DegaFiles (9.3× and 7.9× smaller, respectively). Both
+use positions rounded to 1 µm and preserve original cell IDs and gene counts.
 
 ### Prepare your own copy
 

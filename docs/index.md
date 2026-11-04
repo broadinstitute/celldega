@@ -34,7 +34,7 @@ This video shows how to link a Landscape, Clustergram, and Enrich to analyze a V
 
 ### 3D Developing Mouse Brain
 
-Explore 3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain as a 3D CellCloud. See the [interactive CellCloud gallery](gallery/gallery_broad_allen_mouse_brain_3d.md).
+Explore 3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain as a 3D CellCloud. Open the [interactive CellCloud gallery](gallery/gallery_broad_allen_mouse_brain_3d.md) using compact Parquet DegaFiles, or follow the [visualization notebook](examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) using AnnData Zarr on Hugging Face to link CellCloud with a Clustergram.
 
 <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
     <iframe src="https://www.youtube.com/embed/a9fSskh1A1g" title="Broad-Allen Developing Mouse Brain E15.5 in 3D" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>

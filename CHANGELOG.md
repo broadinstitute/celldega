@@ -4,7 +4,7 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.28.0] - Unreleased
+## [0.28.0]
 
 ### Breaking
 

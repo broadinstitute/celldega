@@ -16,7 +16,7 @@
 - **Dataset:** 3.8 million cells from 43 coronal Xenium sections of a whole E15.5 mouse embryo brain, measured with a 480-gene panel.
 - **Alignment:** sections are aligned first by Leiden cluster centroids, then by neighborhood overlap. Colors show Leiden clusters.
 - **Controls:** drag to orbit and scroll to zoom. Select a cluster or gene to explore its distribution; see the [CellCloud guide](../visualizations/cell-cloud.md).
-- **Data:** generated in collaboration with the [Allen Institute](https://alleninstitute.org/). Choose the [AnnData Zarr on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr) or [compact DegaFiles on GitHub](https://github.com/cornhundred/celldega_xenium_E15.5_cell_cloud/tree/759d338d32404719759ed9a5ec6ba0e4eac9c577/xenium_E15.5_cell_cloud_compact). The [original DegaFiles](https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/tree/main/xenium_E15.5_cell_cloud) remain available.
+- **Data:** generated in collaboration with the [Allen Institute](https://alleninstitute.org/). Choose the [AnnData Zarr on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr) or [compact DegaFiles on GitHub](https://github.com/cornhundred/celldega_xenium_E15.5_cell_cloud/tree/8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact). The [original DegaFiles](https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/tree/main/xenium_E15.5_cell_cloud) remain available.
 - **Prepare the stack:** follow the [preprocessing and alignment notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb).
 - **Explore linked views:** the [visualization notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb) introduces slice composition and links CellCloud to a Clustergram.
 
@@ -46,7 +46,7 @@ from_zarr = dega.viz.CellCloud(
 from_degafiles = dega.viz.CellCloud(
     base_url=(
         "https://raw.githubusercontent.com/cornhundred/celldega_xenium_E15.5_cell_cloud/"
-        "759d338d32404719759ed9a5ec6ba0e4eac9c577/xenium_E15.5_cell_cloud_compact"
+        "8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact"
     ),
     **options,
 )
@@ -54,8 +54,9 @@ from_degafiles = dega.viz.CellCloud(
 from_zarr  # display this widget, or from_degafiles
 ```
 
-The compact DegaFiles are currently served from a fork while the upstream
-contribution is pending. Both sources support cluster colors, gene-expression
+The compact DegaFiles are currently served from a fork while
+[upstream PR #1](https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/pull/1)
+awaits merge. Both sources support cluster colors, gene-expression
 coloring, named alignments, and a
 [linked Clustergram](../visualizations/cell-cloud-clustergram.md).
 See [File Formats](../getting-started/file_formats.md#anndata-zarr-for-cellcloud)

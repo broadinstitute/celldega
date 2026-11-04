@@ -4,7 +4,7 @@ Measured on 2026-11-03 using the full Broad–Allen developing mouse brain E15.5
 stack: 3,787,366 cells, 43 sections, 480 genes, and 481,070,559 nonzero counts.
 This comparison concerns transfer and loading, rather than orbit frame rate.
 
-| Artifact | Complete dataset | Data requested for first view | Initial data requests | Additional data for Dcx |
+| Artifact | Complete dataset | Unique data for first view | Initial unique files | Additional data for Dcx |
 | --- | ---: | ---: | ---: | ---: |
 | Original name-based DegaFiles | 4,585.70 MB | 100.60 MB | 5 | 30.76 MB |
 | Compact indexed DegaFiles | 493.58 MB | 31.31 MB | 6 | 3.34 MB |
@@ -81,18 +81,65 @@ belong in a new directory in the existing **data repository**, rather than
 adding approximately 494 MB of scientific data to this library repository.
 The script and documentation are tracked here.
 
-## Hosting follow-up
+## Hosted exports and comparison
 
-- Publish the compact directory at a new GitHub path, leaving
-  `xenium_E15.5_cell_cloud/` intact.
-- Upload the complete Zarr directory to the new HF path
-  `Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr/`. Confirm that path
-  does not already exist; retain the source-data attribution and provenance.
-- Publish a matching Celldega JavaScript bundle before pointing notebook
-  saved state at it. For checkout testing, build the bundle and start the
-  kernel with `CELLDEGA_LOCAL_ESM=1` before importing Celldega.
-- Test both hosted URLs, then switch the gallery/default notebook source.
-  The current public gallery still uses the original data until this step.
+- [Compact DegaFiles on the cornhundred fork](https://github.com/cornhundred/celldega_xenium_E15.5_cell_cloud/tree/8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact):
+  491 uploaded files, including README and checksums. Every Git blob matches the
+  prepared copy; the original root entries are unchanged. The upstream
+  [data PR #1](https://github.com/broadinstitute/celldega_xenium_E15.5_cell_cloud/pull/1)
+  is open and awaiting merge.
+- [AnnData Zarr on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/f76a3fa95ed9af8b6e96484a720cf4cbedc31819/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr):
+  all 3,828 file sizes and Git/LFS hashes match the validated local store.
+- The gallery and saved CellCloud notebook now default to this Zarr. The gallery
+  has a source picker, and the notebook demonstrates changing `zarr_url=` to
+  `base_url=`. Neither original dataset was overwritten.
+
+Three new-widget loads and first Dcx selections were measured per source,
+alternating their order, from the actual hosts with browser HTTP caching
+bypassed. CDN cache state was uncontrolled. The same local renderer was used
+for both; times include transfer, decoding, point-buffer updates, and two
+animation frames, excluding JavaScript-bundle startup. Counting response bytes
+clones each response, adding some instrumentation overhead.
+
+| Hosted source | Initial median (range), seconds | First Dcx median (range), seconds | Initial payload / requests | Dcx payload / requests |
+| --- | ---: | ---: | ---: | ---: |
+| GitHub compact DegaFiles | 3.616 (3.528–8.232) | 0.669 (0.445–0.690) | 31.335 MB / 7 | 3.336 MB / 1 |
+| Hugging Face AnnData Zarr | 4.429 (4.409–6.691) | 1.081 (0.841–2.121) | 25.687 MB / 39 | 3.432 MB / 28 |
+
+All twelve measured operations completed without HTTP errors. DegaFiles was
+faster in this small test. Zarr remains the default to support the requested
+AnnData/Scverse workflow: its median overhead was about 0.8 seconds initially
+and 0.4 seconds for Dcx, while its initial payload was smaller. The source
+picker retains the faster Parquet alternative. These observations concern one
+client, one gene, and these hosts; they are not universal performance guarantees.
+The DegaFiles reader requests its small gene-metadata file twice, so the hosted
+payload/request totals differ slightly from the unique-file inventory above.
+
+Results: `data/allen_mouse_brain_cellcloud_v2/hosted-final-benchmark-results.jsonl`.
+Repeat with [the benchmark script](../scripts/benchmark_cellcloud_sources.py);
+see [benchmark details](CELLCLOUD_HOSTED_BENCHMARK.md).
+
+## Rendering validation
+
+Translucent expression cells skip depth testing/writes during the color pass;
+opaque clusters and the picking pass retain depth behavior. Expression uses a
+single red hue with per-cell alpha, so consistent blending does not require
+sorting millions of points on camera movement. The full brain was inspected
+from front and back. A three-cell WebGL fixture reproduced the original
+front/back alpha difference (90 versus 148) and showed matching alpha 148 from
+both sides after the fix, with no GL errors. Picking still returns the nearest
+original cell in regression tests.
+
+Programmatic gene selection also rebuilds binary point data after expression
+loads; previously it could repaint the empty pre-load buffer. The updated
+front-end passes all 639 JavaScript tests. The existing exporter validation
+passed 531 Python tests (2 skipped). The original full scientific clustering
+and alignment analyses were not rerun.
+
+A matching JavaScript bundle still needs to be published with the library
+release. Saved documentation widgets use the documentation bundle; for local
+checkout testing, build it and start the kernel with `CELLDEGA_LOCAL_ESM=1`
+before importing Celldega.
 
 The public writers are `pre.write_point_cloud_dataset` (opt into
 `use_int_index=True`, `coordinate_resolution=1.0`, and `compression="zstd"`)

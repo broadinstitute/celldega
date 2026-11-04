@@ -210,6 +210,26 @@ describe('linked Clustergram gene selection for Landscape', () => {
     expect(vizState.cats.cat).toBe('cluster');
   });
 
+  test.each([false, true])(
+    'matrix cell selection uses the configured expression source (transposed=%s)',
+    async (transposed) => {
+      const gene = { entity: 'gene', attr: 'name', name: 'Matn1' };
+      const cluster = { entity: 'cell', attr: 'leiden', name: '5' };
+      const vizState = makeVizState([], {
+        type: 'mat_value',
+        value: {
+          row: transposed ? cluster : gene,
+          col: transposed ? gene : cluster,
+        },
+      });
+      await update_ist_landscape_from_cgm(null, {}, vizState);
+      expect(calls.expression).toEqual([
+        { gene: 'Matn1', cbgReader: vizState.cbgReader },
+      ]);
+      expect(calls.selectedCats).toEqual([['5']]);
+    }
+  );
+
   test('a gene x cluster matrix click yields to a cluster clicked meanwhile', async () => {
     const vizState = makeVizState([], {
       type: 'mat_value',

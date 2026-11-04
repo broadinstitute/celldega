@@ -661,7 +661,8 @@ export const update_ist_landscape_from_cgm = async (
           gene_name,
           viz_state.seg.version,
           viz_state.vector_name_integer,
-          viz_state.aws
+          viz_state.aws,
+          viz_state.row_group_readers?.cbg
         );
         // A newer selection replaced this one while its expression loaded.
         if (!is_current_gene_load(viz_state.cats, applied, gene_name)) return;
@@ -704,7 +705,8 @@ export const update_ist_landscape_from_cgm = async (
           gene_name,
           viz_state.seg.version,
           viz_state.vector_name_integer,
-          viz_state.aws
+          viz_state.aws,
+          viz_state.row_group_readers?.cbg
         );
         // A newer selection replaced this one while its expression loaded.
         if (!is_current_gene_load(viz_state.cats, applied, gene_name)) return;

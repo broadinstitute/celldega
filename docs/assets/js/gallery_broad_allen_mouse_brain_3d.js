@@ -5,14 +5,14 @@ const SOURCES = {
     label: 'AnnData Zarr',
     options: {
       zarr_url:
-        'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr',
+        'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/f76a3fa95ed9af8b6e96484a720cf4cbedc31819/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr',
     },
   },
   degafiles: {
     label: 'compact DegaFiles',
     options: {
       base_url:
-        'https://raw.githubusercontent.com/cornhundred/celldega_xenium_E15.5_cell_cloud/759d338d32404719759ed9a5ec6ba0e4eac9c577/xenium_E15.5_cell_cloud_compact',
+        'https://raw.githubusercontent.com/cornhundred/celldega_xenium_E15.5_cell_cloud/8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact',
     },
   },
 };

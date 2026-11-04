@@ -1,7 +1,8 @@
 # Hosted CellCloud benchmark
 
 This benchmark compares the actual GitHub and Hugging Face services, using the
-current local Celldega JavaScript bundle for both. It never uploads data or
+current local Celldega JavaScript bundle for both. Defaults are pinned to the
+verified fork and HF upload commits. It never uploads data or
 proxies dataset requests through Python.
 
 ```bash
@@ -55,3 +56,5 @@ Where results are comparable, AnnData Zarr offers a directly reusable scverse
 object; where a service is noticeably slower, keep that distinction separate
 from the total-byte savings. A Zarr load may transfer fewer bytes while making
 more requests, which can matter on a high-latency connection.
+
+The completed three-trial comparison is recorded in [the storage report](CELLCLOUD_STORAGE.md#hosted-exports-and-comparison).

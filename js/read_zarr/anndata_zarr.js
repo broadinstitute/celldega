@@ -101,7 +101,7 @@ export const fetch_with_retry = async (
  * @returns {function(string|URL|object, object=): Promise<object>}
  */
 export const make_anndata_zarr_source = (zarr) => {
-  const open_store = (url, fetchOptions) => {
+  const open_store = async (url, fetchOptions, point_cloud) => {
     // Drop trailing slashes with a scan rather than a regex, which backtracks
     // quadratically on long runs of '/'.
     let href = String(url);
@@ -113,7 +113,21 @@ export const make_anndata_zarr_source = (zarr) => {
     });
     // With consolidated metadata (zarr.consolidate_metadata), one request
     // covers every node; without it, each node is fetched as it is opened.
-    return zarr.withMaybeConsolidatedMetadata(store, { format: ['v3', 'v2'] });
+    // The CellCloud exporter writes v2. Try that first so its normal load
+    // doesn't wait for a missing zarr.json; keep Chromium's v3 preference.
+    const formats = point_cloud ? ['v2', 'v3'] : ['v3', 'v2'];
+    for (const format of formats) {
+      // Pin the format whose consolidated metadata actually opened, rather
+      // than having concurrent obs/var/X opens probe the other format again.
+      // eslint-disable-next-line no-await-in-loop
+      const consolidated = await zarr.withMaybeConsolidatedMetadata(store, {
+        format,
+      });
+      if (typeof consolidated.contents === 'function') {
+        return { store: consolidated, format };
+      }
+    }
+    return { store, format: null };
   };
 
   return async (
@@ -129,12 +143,12 @@ export const make_anndata_zarr_source = (zarr) => {
   ) => {
     const label = typeof url_or_store === 'string' ? url_or_store : 'store';
     // Anything with a `get` method is already a zarrita store; otherwise a URL.
-    const store =
-      typeof url_or_store?.get === 'function'
-        ? url_or_store
-        : await open_store(url_or_store, fetchOptions);
-    const root = zarr.root(store);
     const point_cloud = technology === 'point-cloud';
+    const { store, format } =
+      typeof url_or_store?.get === 'function'
+        ? { store: url_or_store, format: null }
+        : await open_store(url_or_store, fetchOptions, point_cloud);
+    const root = zarr.root(store);
     if (!['Chromium', 'point-cloud'].includes(technology)) {
       throw new Error(
         `[anndata_zarr_source] Unsupported technology: ${technology}`
@@ -144,20 +158,39 @@ export const make_anndata_zarr_source = (zarr) => {
       throw new Error('[anndata_zarr_source] Invalid alignment name');
     }
 
-    // zarrita's auto-detection probes v2 before v3; pin whichever opens first.
-    let opener = null;
+    const kinds = new Map(
+      typeof store.contents === 'function'
+        ? store
+            .contents()
+            .map(({ path, kind }) => [path.replace(/^\//, ''), kind])
+        : []
+    );
+    let opener = format ? zarr.open[format] : null;
+    let detecting = null;
     const node = async (path) => {
       const location = root.resolve(path);
-      if (opener) return opener(location);
-      try {
-        const opened = await zarr.open.v3(location);
-        opener = zarr.open.v3;
-        return opened;
-      } catch {
-        const opened = await zarr.open.v2(location);
-        opener = zarr.open.v2;
-        return opened;
+      const kind = kinds.get(path);
+      const options = kind ? { kind } : undefined;
+      if (!opener) {
+        if (!detecting) {
+          detecting = (async () => {
+            try {
+              const opened = await zarr.open.v3(location, options);
+              opener = zarr.open.v3;
+              return opened;
+            } catch {
+              const opened = await zarr.open.v2(location, options);
+              opener = zarr.open.v2;
+              return opened;
+            }
+          })();
+          return detecting;
+        }
+        await detecting;
       }
+      // Unknown paths still go to the store: consolidated listings can be
+      // stale, so an absent entry must not hide newly written arrays/layers.
+      return opener(location, options);
     };
     const maybe_node = (path) => node(path).catch(() => null);
     const encoding = (opened) => opened?.attrs?.['encoding-type'];

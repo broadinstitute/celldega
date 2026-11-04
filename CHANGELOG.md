@@ -58,6 +58,8 @@ All notable changes to Celldega are documented here. This project follows
 
 ### Fixed
 
+- Fixed CellCloud expression transparency from opposite camera angles and
+  refreshed point data after programmatic gene selections.
 - Fixed garbled cell polygons and boundary rendering after zooming, with more
   robust tile loading and recovery.
 - Fixed various bugs in linked selections, expression loading, viewport

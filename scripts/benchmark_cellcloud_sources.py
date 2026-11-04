@@ -23,12 +23,14 @@ from urllib.parse import urlsplit
 
 
 DEFAULT_DEGAFILES = (
-    "https://raw.githubusercontent.com/broadinstitute/"
-    "celldega_xenium_E15.5_cell_cloud/main/xenium_E15.5_cell_cloud_compact"
+    "https://raw.githubusercontent.com/cornhundred/"
+    "celldega_xenium_E15.5_cell_cloud/8d3cd06fc1a478f386826c27ba0e900b40703a3a/"
+    "xenium_E15.5_cell_cloud_compact"
 )
 DEFAULT_ZARR = (
     "https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/"
-    "resolve/main/Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr"
+    "resolve/f76a3fa95ed9af8b6e96484a720cf4cbedc31819/"
+    "Allen-Broad_Dev-Mouse-Brain/E15.5/cellcloud_v2_1um.zarr"
 )
 
 PAGE = r"""<!doctype html>

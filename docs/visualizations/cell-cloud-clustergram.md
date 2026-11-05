@@ -8,6 +8,16 @@ relationships across slices.
 CellCloud shows cell positions in physical space. Clustergram compares
 expression across cell groups; its selections update the 3D view.
 
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+    <iframe src="https://www.youtube.com/embed/a9fSskh1A1g" title="Broad-Allen developing mouse brain E15.5 in 3D, a CellCloud linked to a Clustergram" loading="lazy" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
+</div>
+
+*The Broad–Allen developing mouse brain: 3.8 million cells from 43 aligned
+Xenium sections in a CellCloud. Explore it in the
+[3D gallery](../gallery/gallery_broad_allen_mouse_brain_3d.md), or link it to a
+Clustergram in the
+[visualization notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb).*
+
 ## What you can explore
 
 - Select a cell group and inspect its distribution across the 3D dataset.

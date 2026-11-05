@@ -1,9 +1,10 @@
 # CellCloud
 
-`CellCloud` is a 3D, orbit-camera spatial view of cell centroids — for
-inspecting a dataset's overall shape (thick tissue, multi-slice alignments)
-rather than the tile-based 2D detail `Landscape` is optimized for. It
-replaces `Landscape`'s older `technology="point-cloud"` mode.
+`CellCloud` shows cells in 3D, as points you can rotate and zoom. Use it for
+data with depth, such as thick tissue or serial sections aligned into a stack,
+to see how cell types and gene expression are arranged through the tissue. For
+2D detail, such as images, cell boundaries, and transcripts, use a
+[Landscape](landscape/index.md).
 
 <div class="viz-preview">
   <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
@@ -14,15 +15,43 @@ replaces `Landscape`'s older `technology="point-cloud"` mode.
 to orbit and scroll to zoom. Open the [full-size view](../gallery/gallery_merfish_thick_tissue.md)
 in the Gallery.*
 
-## What it shows
+## Reading a CellCloud
 
-- Cell **centroids** in 3D, colored by cluster/category or gene expression,
-  rendered as a rotatable/orbit-able point cloud rather than tiled polygons.
-- The same **CELL** color/size controls as `Landscape`, minus the
-  tile-specific image and transcript layers (there's no underlying image
-  pyramid or per-transcript layer in this view).
-- Support for **named alignment variants** of the same cells, stored in
-  DegaFiles or AnnData Zarr.
+Each point is a cell, colored by its cluster or by a gene's expression. The
+control panel matches a Landscape's, without the image and transcript layers,
+which have no 3D form.
+
+[![A CellCloud of the developing mouse brain with numbered callouts](../assets/img/visualizations/cell-cloud/overview.webp)](../assets/img/visualizations/cell-cloud/overview.webp)
+
+*3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain,
+colored by cluster.*
+
+| | Control | What it does |
+| --- | --- | --- |
+| 1 | **CELL** | The slider scales the point size, from 0 to twice `cell_size`. Click a cluster's bar to show only its cells; click again to show all. |
+| 2 | Genes | Click a gene's bar to color cells by its expression. |
+| 3 | Gene search | Color cells by one or more genes, typed by name. |
+| 4 | Celldega logo | Opens this page. |
+| 5 | The view | Drag to rotate, scroll to zoom, and hover for details. |
+
+## Rotating and zooming
+
+Drag to rotate the cells around their center, horizontally and vertically, all
+the way around and past the poles. Scroll to zoom. Hover over a cell for its ID
+and cluster; tooltips pause briefly after the view moves, so that rotating stays
+smooth. Click a cell to select its cluster.
+
+[![Rotating the developing mouse brain, selecting cluster 2, and showing SPARC](../assets/img/visualizations/cell-cloud/orbit.webp){ width="880" loading=lazy }](../assets/img/visualizations/cell-cloud/orbit.webp)
+
+*Turning the mouse brain fully around and tilting it, selecting cluster 2, and
+searching for SPARC, which outlines the meninges around the brain.*
+
+## Widget: Python-backed interactions
+
+A CellCloud responds to Python and to linked views: a linked Clustergram's clicks
+color or select its cells, and setting `cell_size` updates the point size. It
+does not send selections back to Python; use a Landscape of the same cells for
+that.
 
 ## Usage
 
@@ -133,3 +162,10 @@ for a CellCloud linked to a Clustergram. The companion
 [preprocessing and alignment notebook](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb)
 shows how to build the stack and write DegaFiles. For thick tissue, see the
 [MERFISH notebook](../examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb).
+
+## Screenshot sources
+
+The screenshot and animation show the
+[Broad–Allen developing mouse brain](../gallery/gallery_broad_allen_mouse_brain_3d.md)
+compact DegaFiles, captured with Celldega 0.28.0 using
+[`scripts/docs_screenshots/capture.py`](https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots).

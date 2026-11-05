@@ -235,6 +235,26 @@ def cluster_bar(name: str) -> str:
     return f'#panel-0 .cell_container svg text:text-is("{name}")'
 
 
+# The Broad-Allen E15.5 mouse brain: 43 aligned Xenium sections, 3.8M cells
+# (compact DegaFiles, as on gallery/gallery_broad_allen_mouse_brain_3d.md).
+BROAD_ALLEN_3D = {
+    "technology": "point-cloud",
+    "manifest_name": "cell_cloud.json",
+    "base_url": (
+        "https://raw.githubusercontent.com/cornhundred/celldega_xenium_E15.5_cell_cloud/"
+        "8d3cd06fc1a478f386826c27ba0e900b40703a3a/xenium_E15.5_cell_cloud_compact"
+    ),
+    "alignment": "neighborhood",
+    "cluster_attr": "leiden_1.0",
+    "use_adata_3d_centroids": False,
+    "ini_zoom": -3.6,
+    "rotation_orbit": -25,
+    "rotation_x": 20,
+    "cell_size": 10,
+    "width": 880,
+    "height": 520,
+}
+
 # Callout anchors in the Landscape control panel (js/ui/ui_containers.js).
 CONTROL_PANEL_CALLOUTS = [
     {"label": "1", "selector": "#panel-0 .image_container"},
@@ -414,7 +434,7 @@ enrich.gene_list = genes
 enrich
 """
 ENRICH_TERM = '.celldega-enrich svg text:text-is("{}")'
-ENRICH_GENE = '.celldega-enrich__paragraph span:text-matches("^{}\\b")'
+ENRICH_GENE = '.celldega-enrich__paragraph span:text-matches("^{},")'
 
 TABULA_SPERMATIDS = [460, 75]  # the swirl at the top of the Tabula Sapiens UMAP
 
@@ -459,6 +479,39 @@ YEARBOOK_CALLOUTS = [
     {"label": "9", "selector": "#panel-0 .yearbook-select-cell", "place": "left"},
 ]
 YB_CHECK = "#panel-0 .yearbook-select-cell >> nth="
+
+# Positions in the linked pancreas Clustergram (".widget-hbox > :nth-child(2) .fill").
+PANCREAS_CGM = ".widget-hbox > :nth-child(2) .fill"
+PANCREAS_INS_LABEL = [50, 314]
+PANCREAS_ISLET_COLUMN = [80, 38]
+PANCREAS_ISLET_BRANCH = [500, 330]
+
+# PBMC 3k single-cell Landscape linked to its marker Clustergram (viewer page).
+PBMC_LINKED = {
+    "panels": [
+        {
+            **PBMC3K_LANDSCAPE,
+            "width": 640,
+            "options": {
+                **PBMC3K_LANDSCAPE["options"],
+                "width": 640,
+                "height": 560,
+                "ini_zoom": -4.3,
+            },
+        },
+        {
+            "kind": "clustergram",
+            "options": {
+                "url": f"{PBMC3K}/pbmc3k_leiden_markers.zarr",
+                "width": 460,
+                "height": 460,
+                "rank_dim": 3,
+            },
+        },
+    ],
+    "links": [[1, "click_info", 0, "update_trigger"]],
+}
+PBMC_CGM = "#panel-1 .fill"
 
 # The same anchors without NBHD (drawing off), numbered 1-6.
 LANDSCAPE_CALLOUTS = [
@@ -940,6 +993,153 @@ CAPTURES = [
             {"hover": ENRICH_GENE.format("SST"), "wait": 2500, "hold": 6},
             {"click": ENRICH_GENE.format("GCG"), "wait": 2500, "hold": 10},
             {"click": ENRICH_TERM.format("Alpha Cell Pancreas Human"), "wait": 1200, "hold": 6},
+        ],
+        crop="#stage",
+        settle_ms=8000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    # CellCloud guide: the Broad-Allen developing mouse brain in 3D.
+    Capture(
+        group="cell-cloud",
+        name="overview",
+        spec={"panels": [{"kind": "landscape", "width": 880, "options": BROAD_ALLEN_3D}]},
+        annotate=[
+            {"label": "1", "selector": "#panel-0 .cell_container"},
+            {"label": "2", "selector": "#panel-0 .gene_container"},
+            {"label": "3", "selector": "#panel-0 .search_logo_row", "parent": True},
+            {"label": "4", "selector": "#panel-0 .logo_button", "place": "right"},
+            {"label": "5", "selector": "#panel-0 .fill", "place": "inside"},
+        ],
+        pad_top=30,
+        settle_ms=40000,
+        scale=1.3,
+    ),
+    Capture(
+        group="cell-cloud",
+        name="orbit",
+        # Turn the brain fully around and tilt it, select cluster 2, then show
+        # SPARC, which marks the meninges.
+        spec={"panels": [{"kind": "landscape", "width": 880, "options": BROAD_ALLEN_3D}]},
+        frames=[
+            {"mouse": [140, 300], "relative_to": LS, "steps": 4, "wait": 300, "hold": 3},
+            # A full turn around the brain, then a tilt.
+            {"mouse": [140, 300], "relative_to": LS, "action": "down", "wait": 60},
+            *[
+                {"mouse": [140 + 25 * i, 300], "relative_to": LS, "steps": 2, "wait": 90}
+                for i in range(1, 25)
+            ],
+            {"mouse": [740, 300], "relative_to": LS, "action": "up", "wait": 100},
+            {"mouse": [140, 300], "relative_to": LS, "steps": 2, "wait": 60},
+            {"mouse": [140, 300], "relative_to": LS, "action": "down", "wait": 60},
+            *[
+                {"mouse": [140 + 25 * i, 300], "relative_to": LS, "steps": 2, "wait": 90}
+                for i in range(1, 25)
+            ],
+            {"mouse": [740, 300], "relative_to": LS, "action": "up", "wait": 100},
+            {"mouse": [440, 380], "relative_to": LS, "steps": 2, "wait": 60},
+            {"mouse": [440, 380], "relative_to": LS, "action": "down", "wait": 60},
+            *[
+                {"mouse": [440, 380 - 15 * i], "relative_to": LS, "steps": 2, "wait": 90}
+                for i in range(1, 11)
+            ],
+            {"mouse": [440, 230], "relative_to": LS, "action": "up", "wait": 300, "hold": 3},
+            {"mouse": [440, 260], "relative_to": LS, "action": "wheel", "delta": -60, "wait": 600},
+            {"click": cluster_bar("2"), "wait": 2500, "hold": 10},
+            {"click": cluster_bar("2"), "wait": 1000},
+            {"click": GENE_SEARCH, "wait": 200},
+            *[{"type": c, "wait": 120} for c in "SPARC"],
+            {"key": "Enter", "wait": 600},
+            {"mouse": [700, 60], "relative_to": "#panel-0", "steps": 4, "wait": 3000, "hold": 12},
+        ],
+        crop="#panel-0",
+        settle_ms=40000,
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
+    ),
+    # Landscape-Clustergram-Enrich: spatial and single-cell linking.
+    Capture(
+        group="landscape-clustergram-enrich",
+        name="spatial",
+        notebook=PANCREAS_LINKED_NOTEBOOK,
+        fit_widget=False,
+        viewport=(1700, 1000),
+        frames=[
+            {"mouse": [300, 300], "relative_to": PANCREAS_CGM, "steps": 4, "wait": 300, "hold": 4},
+            # A gene: INS colors the cells in the tissue.
+            {
+                "mouse": PANCREAS_INS_LABEL,
+                "relative_to": PANCREAS_CGM,
+                "action": "click",
+                "wait": 300,
+            },
+            {
+                "mouse": [520, 60],
+                "relative_to": ".widget-hbox",
+                "steps": 4,
+                "wait": 3000,
+                "hold": 10,
+            },
+            # A cluster: the islets, and their top markers in Enrich.
+            {
+                "mouse": PANCREAS_ISLET_COLUMN,
+                "relative_to": PANCREAS_CGM,
+                "action": "click",
+                "wait": 300,
+            },
+            {
+                "mouse": [520, 60],
+                "relative_to": ".widget-hbox",
+                "steps": 4,
+                "wait": 4000,
+                "hold": 10,
+            },
+            # A gene group: the dendrogram branch's genes go to Enrich.
+            {
+                "mouse": PANCREAS_ISLET_BRANCH,
+                "relative_to": PANCREAS_CGM,
+                "action": "click",
+                "wait": 300,
+            },
+            {
+                "mouse": [520, 60],
+                "relative_to": ".widget-hbox",
+                "steps": 4,
+                "wait": 4000,
+                "hold": 10,
+            },
+            # A term: its genes turn blue in the Clustergram.
+            {"click": ".celldega-enrich svg text >> nth=0", "wait": 2500, "hold": 14},
+        ],
+        crop=".widget-hbox",
+        settle_ms=15000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape-clustergram-enrich",
+        name="single_cell",
+        spec=PBMC_LINKED,
+        viewport=(1300, 760),
+        steps=[{"set_range": "#panel-0 .cell_container input.slider", "value": "max", "wait": 500}],
+        frames=[
+            {"mouse": [300, 300], "relative_to": PBMC_CGM, "steps": 4, "wait": 300, "hold": 4},
+            # A cluster: its cells in the UMAP.
+            {"mouse": [380, 40], "relative_to": PBMC_CGM, "action": "click", "wait": 300},
+            {"mouse": [300, 520], "relative_to": PBMC_CGM, "steps": 4, "wait": 2500, "hold": 10},
+            # Genes: B-cell CD79A, then monocyte LYZ.
+            {"mouse": [40, 164], "relative_to": PBMC_CGM, "action": "click", "wait": 300},
+            {"set_range": "#panel-0 .trx_container input.slider", "value": "max", "wait": 300},
+            {"mouse": [300, 520], "relative_to": PBMC_CGM, "steps": 4, "wait": 2500, "hold": 10},
+            {"mouse": [60, 220], "relative_to": PBMC_CGM, "action": "click", "wait": 300},
+            {"set_range": "#panel-0 .trx_container input.slider", "value": "max", "wait": 300},
+            {"mouse": [300, 520], "relative_to": PBMC_CGM, "steps": 4, "wait": 2500, "hold": 12},
         ],
         crop="#stage",
         settle_ms=8000,
@@ -1555,6 +1755,9 @@ def capture(page: Page, port: int, item: Capture) -> Path:
                 root.parentElement.id = 'stage';
             }""",
             item.fit_widget,
+        )
+        page.add_style_tag(
+            content=f"#stage {{ padding-top: {item.pad_top}px; padding-left: {item.pad_left}px; }}"
         )
     else:
         url = f"http://127.0.0.1:{port}/{VIEWER}?spec={quote(json.dumps(item.spec))}"

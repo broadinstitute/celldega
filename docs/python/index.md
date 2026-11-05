@@ -9,6 +9,44 @@ You can start with these objects directly. Celldega's collection classes are
 useful when you want to keep several feature spaces, metadata, and relationships
 organized around the same datasets, neighborhoods, or cell sets.
 
+## How the modules support the visualizations
+
+Celldega's [interactive visualizations](../visualizations/index.md) support
+human-in-the-loop analysis: you explore, select, and annotate in the browser.
+The Python modules perform the analysis behind those views. They prepare data,
+cluster it, define neighborhoods, organize higher-level biological entities,
+choose cells to review, and align serial sections in 3D. Each produces something
+a visualization displays:
+
+```text
+ Your analysis (AnnData, MuData, GeoDataFrame)
+   │
+   ├─ pre ─────────► DegaFiles ──────► Landscape, Yearbook, CellCloud
+   ├─ clust ───────► Matrix ─────────► Clustergram, Composition
+   ├─ nbhd ────────► neighborhoods ──► Landscape, NeighborhoodCloud, Clustergram
+   ├─ collections ─► summaries ──────► Clustergram, Composition
+   ├─ select ──────► selections ─────► Yearbook
+   └─ align ───────► 3D coordinates ─► CellCloud, NeighborhoodCloud
+```
+
+- **`clust`** hierarchically bi-clusters genes and cell groups, and precomputes
+  views at several numbers of genes, for Clustergrams.
+- **`nbhd`** creates tissue neighborhoods (alpha shapes, hextiles, gradients)
+  and calculates their attributes, such as cell-type composition and expression.
+  Neighborhoods display in Landscape and NeighborhoodCloud; their summaries
+  cluster into Clustergrams.
+- **Collections** (`collection`, `dataset`, `set`) are data structures for
+  higher-level biological entities, such as neighborhoods, samples, and sets of
+  cells, that keep several feature spaces together.
+- **`select`** chooses and ranks cells for review in Yearbook.
+- **`align`** quickly aligns serial sections into 3D coordinates for CellCloud
+  and NeighborhoodCloud.
+- **`pre`** turns instrument output into DegaFiles that the browser loads a
+  piece at a time.
+
+Results flow back too: selections, drawn neighborhoods, and annotations made in a
+widget are available to these modules for the next step of the analysis.
+
 ## Choose a module
 
 | Module | What you use it for | Main inputs and results |

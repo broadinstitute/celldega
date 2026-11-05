@@ -10,10 +10,16 @@ with linked Landscape–Clustergram panels, Yearbook cell portraits, and saved
 Clustergrams. [Download the latest build](https://github.com/broadinstitute/celldega-app/releases/latest)
 or see the [desktop guide and screenshots](../getting-started/desktop-app.md).
 
-!!! tip "Watch a linked-workflow tutorial"
-    [Watch the narrated Landscape, Clustergram, and Enrich walkthrough](https://www.youtube.com/watch?v=IjGsIykVIUE)
-    to see how the views work together on a Visium HD dataset.
-    [Follow along in the notebook](../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb).
+## Video tutorial
+
+This narrated walkthrough links a Landscape, Clustergram, and Enrich to explore
+a Visium HD human colorectal cancer dataset. Follow along in the
+[Visium HD Human CRC Landscape-Clustergram-Enrich](../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb)
+notebook.
+
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">
+    <iframe src="https://www.youtube.com/embed/IjGsIykVIUE" title="Landscape, Clustergram, and Enrich tutorial in Celldega" loading="lazy" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
+</div>
 
 ## Two ways to use a visualization
 
@@ -24,7 +30,7 @@ browser. You can use it in two ways:
  Notebook widget (Jupyter or marimo)      JavaScript on a web page
 ┌────────────────────────────────────┐   ┌────────────────────────────────────┐
 │ Python kernel                      │   │ Gallery, standalone web page,      │
-│   AnnData, Matrix, your analysis   │   │ or published notebook (no Python)  │
+│   AnnData, Matrix, your analysis   │   │ or notebook report (no Python)     │
 │     │ options        ▲ selections, │   │                                    │
 │     ▼ and data       │ drawings    │   │                                    │
 │ Browser                            │   │ Browser                            │
@@ -41,12 +47,16 @@ browser. You can use it in two ways:
   back-end makes the widget stateful: selections, drawn neighborhoods, and
   annotations are available to your analysis, and Python can update the view.
   Links between widgets, such as a Clustergram click coloring a Landscape, run in
-  the browser through the widget framework (`jslink`). Those links keep working
-  when an executed notebook is saved with its widget state and published as HTML,
-  which is how the example notebooks on this site are shown.
+  the browser through the widget framework (`jslink`).
+
+  You can also embed visualizations in notebook **reports**: static HTML pages
+  made from pre-executed notebooks saved with their widget state. The
+  visualizations and their links stay interactive in the report, without a
+  running kernel. The [Example Notebooks](../examples/index.md) on this site are
+  shown this way.
 - **As JavaScript on a web page, without Python.** The [Gallery](../gallery/index.md)
   pages, standalone pages built with the [JavaScript API](../javascript/index.md),
-  and published notebooks all run the same visualizations in the browser. Every
+  and notebook reports all run the same visualizations in the browser. Every
   interaction and browser link works; there is no Python back-end to receive
   selections or annotations.
 

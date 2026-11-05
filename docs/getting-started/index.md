@@ -10,15 +10,43 @@ This narrated tutorial links a Landscape, Clustergram, and Enrich to analyze a V
     <iframe src="https://www.youtube.com/embed/IjGsIykVIUE" title="Visium HD human colorectal cancer tutorial in Celldega" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe>
 </div>
 
+## Visualization and supporting analysis
+
+Celldega has two parts that work together:
+
+1. **Interactive visualizations** for human-in-the-loop analysis. Explore tissue,
+   cells, and gene expression; select, draw, and annotate what you find; and
+   bring those selections back into your analysis. See
+   [Visualizations](../visualizations/index.md).
+2. **A Python back-end** that performs the analysis behind the visualizations:
+    - hierarchical bi-clustering of genes and cell groups for Clustergrams
+      ([`clust`](../python/clust/api.md));
+    - creating tissue neighborhoods and calculating their attributes, such as
+      cell-type composition and gene expression ([`nbhd`](../python/nbhd/api.md));
+    - Collections: data structures for higher-level biological entities, such as
+      neighborhoods, samples, and sets of cells, that keep several feature spaces
+      together ([`collection`](../python/collection/api.md),
+      [`dataset`](../python/dataset/api.md), [`set`](../python/set/api.md));
+    - choosing and ranking cells to review in Yearbook
+      ([`select`](../python/select/api.md));
+    - fast alignment of serial sections into 3D for CellCloud and
+      NeighborhoodCloud ([`align`](../python/align/api.md));
+    - preparing instrument output as DegaFiles for the browser
+      ([`pre`](../python/pre/api.md)).
+
+The [Python API overview](../python/index.md) shows how the modules feed the
+visualizations.
+
 ## What you can explore
 
 Celldega provides:
 
-- **Landscape**: Explore tissue images, cells, transcripts, and neighborhoods, or switch to UMAP and gene-expression XY views
-- **Matrix/Clustergram Visualization**: View hierarchical clustering heatmaps linked to spatial data
-- **Yearbook View**: Visualize individual cells as "portraits" in a grid layout
-- **Neighborhood Analysis**: Define and analyze tissue neighborhoods with alpha shapes and hextiles
-- **Multi-dataset Support**: Compare multiple datasets side-by-side
+- **[Landscape](../visualizations/landscape.md)**: Explore tissue images, cells, transcripts, and neighborhoods, or switch to UMAP and gene-expression XY views
+- **[Matrix/Clustergram Visualization](../visualizations/clustergram.md)**: View hierarchical clustering heatmaps linked to spatial data
+- **[Yearbook View](../visualizations/yearbook.md)**: Visualize individual cells as "portraits" in a grid layout
+- **[CellCloud](../visualizations/cell-cloud.md)**: Explore cells in 3D, from thick tissue or aligned serial sections
+- **[Neighborhood Analysis](../python/nbhd/api.md)**: Define and analyze tissue neighborhoods with alpha shapes and hextiles
+- **[Multi-dataset Support](../visualizations/landscape.md#what-it-shows)**: Compare multiple datasets side-by-side
 
 ## Interacting with the Visualizations
 

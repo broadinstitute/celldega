@@ -32,6 +32,7 @@ from playwright.sync_api import Page, sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / "docs" / "assets" / "img" / "visualizations"
+GALLERY_DIR = REPO / "docs" / "assets" / "img"
 VIEWER = "scripts/docs_screenshots/viewer.html"
 
 # Size budget for committed media (bytes).
@@ -59,10 +60,11 @@ class Capture:
     settle_ms: int = 6000  # time for tiles to arrive after rendering
     pad_top: int = 12  # room above the panels for callouts
     scale: float = 2  # device pixel ratio; lower for dense tissue views
+    root: Path = OUT_DIR  # e.g. GALLERY_DIR for gallery thumbnails
 
     @property
     def path(self) -> Path:
-        return OUT_DIR / self.group / f"{self.name}.webp"
+        return self.root / self.group / f"{self.name}.webp"
 
 
 def kidney_landscape(**options) -> dict:
@@ -80,6 +82,25 @@ def kidney_landscape(**options) -> dict:
         },
     }
 
+
+# Thick-tissue MERFISH as a CellCloud (point-cloud DegaFiles, centroids in µm).
+THICK_MERFISH = {
+    "technology": "point-cloud",
+    "manifest_name": "landscape_parameters.json",
+    "base_url": (
+        "https://raw.githubusercontent.com/broadinstitute/"
+        "scverse-owkin_thick_merfish/main/landscape_files"
+    ),
+    "cell_size": 10,
+    "ini_x": 1461,
+    "ini_y": 1196,
+    "ini_z": 50,
+    "ini_zoom": -2.3,
+    "rotation_x": 45,
+    "rotation_orbit": -30,
+    "width": 880,
+    "height": 520,
+}
 
 # Callout anchors in the Landscape control panel (js/ui/ui_containers.js).
 CONTROL_PANEL_CALLOUTS = [
@@ -107,6 +128,15 @@ CAPTURES = [
         annotate=CONTROL_PANEL_CALLOUTS,
         pad_top=30,
         scale=1.6,
+    ),
+    Capture(
+        group="gallery",
+        name="merfish_thick_tissue",
+        # Same camera as docs/assets/js/gallery_merfish_thick_tissue.js.
+        spec={"panels": [{"kind": "landscape", "width": 880, "options": THICK_MERFISH}]},
+        crop="#panel-0 .fill",
+        root=GALLERY_DIR,
+        scale=1.25,
     ),
 ]
 

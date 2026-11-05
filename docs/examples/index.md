@@ -1,6 +1,6 @@
 # Jupyter Notebook Examples
 
-These example notebooks demonstrate how to use Celldega for spatial transcriptomics and multi-omics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
+These example notebooks demonstrate how to use Celldega to analyze and visualize spatial and single-cell data. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
 
 ## Spatial Transcriptomics Tutorials
 

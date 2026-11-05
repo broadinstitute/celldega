@@ -1,6 +1,6 @@
 # Getting Started
 
-Celldega is a spatial analysis and visualization library developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org). Use its linked views to explore spatial tissue data, single-cell UMAP/XY landscapes, expression patterns, and gene-set enrichment.
+Celldega is a spatial and single-cell analysis and visualization library developed by the [Spatial Technology Platform](https://www.broadinstitute.org/spatial-technology-platform) at the [Broad Institute of MIT and Harvard](https://www.broadinstitute.org). Use its linked views to explore spatial tissue data, single-cell UMAP/XY landscapes, expression patterns, and gene-set enrichment.
 
 ## Video Tutorial
 
@@ -117,14 +117,17 @@ use them together.
 
 ### Supported Technologies
 
-Celldega supports multiple spatial transcriptomics platforms:
+Celldega works with spatial and single-cell data:
 
-- **Xenium** (10x Genomics)
-- **MERSCOPE** (Vizgen)
-- **Visium HD** (10x Genomics)
-- **CosMx** (NanoString)
-- **Chromium** (single-cell RNA-seq)
-- **Custom point-cloud data**
+- **Spatial transcriptomics**: **Xenium**, including Atera (10x Genomics);
+  **MERSCOPE** (Vizgen); **Visium HD** (10x Genomics); and **CosMx** (NanoString).
+  3D data, such as aligned serial sections and thick-tissue MERFISH, display as
+  point clouds.
+- **Single-cell**: any AnnData, such as 10x **Chromium** RNA-seq
+  ([PBMC 3k tutorial](../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)), a
+  cell atlas ([Tabula Sapiens](../gallery/gallery_tabula_sapiens.md)), or RNA and
+  surface protein measured in the same cells with CITE-seq
+  ([PBMC cell types](../gallery/gallery_citeseq_pbmc.md)).
 
 ## Quick Start
 

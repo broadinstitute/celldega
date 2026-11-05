@@ -998,10 +998,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-you-can-explore" class="md-nav__link">
+  <a href="#how-the-views-connect" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What you can explore
+        How the views connect
       
     </span>
   </a>
@@ -1009,10 +1009,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#before-you-start" class="md-nav__link">
+  <a href="#spatial-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Before you start
+        Spatial data
       
     </span>
   </a>
@@ -1020,10 +1020,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#single-cell-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Single-cell data
       
     </span>
   </a>
@@ -1046,6 +1046,17 @@
     <span class="md-ellipsis">
       
         Examples and reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screenshot-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshot sources
       
     </span>
   </a>
@@ -3249,10 +3260,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-you-can-explore" class="md-nav__link">
+  <a href="#how-the-views-connect" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What you can explore
+        How the views connect
       
     </span>
   </a>
@@ -3260,10 +3271,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#before-you-start" class="md-nav__link">
+  <a href="#spatial-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Before you start
+        Spatial data
       
     </span>
   </a>
@@ -3271,10 +3282,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
+  <a href="#single-cell-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage
+        Single-cell data
       
     </span>
   </a>
@@ -3303,6 +3314,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#screenshot-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshot sources
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3325,84 +3347,156 @@
 
 <h1 id="landscapeclustergramenrich">Landscape–Clustergram–Enrich</h1>
 <p>Link a <a href="../landscape/">Landscape</a>, <a href="../clustergram/">Clustergram</a>, and
-<a href="../enrich/">Enrich</a> to move between cell positions, expression patterns,
-and the biological functions associated with a gene set.</p>
-<p>Landscape provides the tissue or UMAP/XY context. Clustergram organizes
-expression across genes and cell groups. Enrich helps interpret a selected
-group of genes through gene-set enrichment.</p>
-<h2 id="what-you-can-explore">What you can explore</h2>
-<ul>
-<li>Locate the cells expressing a gene selected in the Clustergram.</li>
-<li>Select a cell group in the Clustergram and inspect its distribution
-  in tissue or an embedding.</li>
-<li>Select a gene group, explore its enriched terms, and focus on individual
-  genes across the linked views.</li>
-</ul>
-<h2 id="before-you-start">Before you start</h2>
-<p>Use a cell-level AnnData, <code>adata</code>, with prepared, nonnegative expression in
-<code>adata.X</code> and cell labels in <code>adata.obs["leiden"]</code>. Its <code>obs_names</code> must match
-the cell IDs in the Landscape's DegaFiles.</p>
-<p>The example summarizes cells into Leiden groups using <code>celldega[scanpy]</code>.
-Use the same grouping for Matrix's <code>groupby</code> and Landscape's <code>cluster_attr</code>.
-For a different annotation, replace <code>"leiden"</code> with its column name in both
-places. See <a href="../../getting-started/installation/">installation</a> for the optional
-Scanpy dependency.</p>
-<h2 id="usage">Usage</h2>
-<p>Prepare a clustered expression summary, then create and link the views:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
+<a href="../enrich/">Enrich</a> to move between where cells are, which genes distinguish
+them, and what those genes mean. The Landscape shows the cells, in tissue or in
+a UMAP; the Clustergram organizes expression across genes and cell groups; and
+Enrich interprets a selected group of genes through gene-set enrichment.</p>
+<h2 id="how-the-views-connect">How the views connect</h2>
+<table>
+<thead>
+<tr>
+<th>In the Clustergram</th>
+<th>Landscape</th>
+<th>Enrich</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Click a gene label</td>
+<td>Colors cells by that gene; click again to return to clusters</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Click a column label</td>
+<td>Shows that group's cells</td>
+<td>Receives the group's top marker genes</td>
+</tr>
+<tr>
+<td>Click a row dendrogram branch</td>
+<td>Colors cells by the genes' combined expression</td>
+<td>Receives the branch's genes</td>
+</tr>
+<tr>
+<td>Click a mark</td>
+<td>Colors cells by that gene within that group</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>In Enrich</th>
+<th>Clustergram</th>
+<th>Landscape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Click a term</td>
+<td>Its genes' labels turn blue</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Click a gene</td>
+<td>Zooms to the gene</td>
+<td>Colors cells by the gene</td>
+</tr>
+</tbody>
+</table>
+<p>Selections made in the Landscape do not change the other views. The links run
+in the browser, so they keep working in a published
+<a href="../#two-ways-to-use-a-visualization">notebook report</a>.</p>
+<h2 id="spatial-data">Spatial data</h2>
+<p>For spatial data, the Landscape shows the tissue from DegaFiles, with your
+clusters from an AnnData.</p>
+<p><a href="../../assets/img/visualizations/landscape-clustergram-enrich/spatial.webp"><img alt="Clicking a gene, a cluster, a gene group, and a term in a linked pancreas view" loading="lazy" src="../../assets/img/visualizations/landscape-clustergram-enrich/spatial.webp" /></a></p>
+<p><em>Xenium pancreas: clicking INS colors the islets in the tissue; clicking the islet
+cluster (9) shows its cells and sends its markers to Enrich; clicking the
+INS–GCG–SCGN branch sends those genes to Enrich and colors cells by their
+combined expression; and clicking a term turns its genes blue in the
+Clustergram.</em></p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">scanpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
 
-<span class="n">mat</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">clust</span><span class="o">.</span><span class="n">Matrix</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">groupby</span><span class="o">=</span><span class="s2">"leiden"</span><span class="p">)</span>
-<span class="n">mat</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s2">"row"</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">"var"</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="n">adata</span><span class="o">.</span><span class="n">n_vars</span><span class="p">))</span>
-<span class="n">mat</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="s2">"row"</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">"zscore"</span><span class="p">)</span>
-<span class="n">mat</span><span class="o">.</span><span class="n">cluster</span><span class="p">()</span>
+<span class="n">sc</span><span class="o">.</span><span class="n">tl</span><span class="o">.</span><span class="n">rank_genes_groups</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">groupby</span><span class="o">=</span><span class="s2">"leiden"</span><span class="p">)</span>
+<span class="n">markers</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">clust</span><span class="o">.</span><span class="n">Matrix</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">groupby</span><span class="o">=</span><span class="s2">"leiden"</span><span class="p">)</span>
+<span class="n">markers</span><span class="o">.</span><span class="n">filter_by_size</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+<span class="n">markers</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="s2">"row"</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">"zscore"</span><span class="p">)</span>
+<span class="n">markers</span><span class="o">.</span><span class="n">cluster</span><span class="p">(</span><span class="n">view</span><span class="o">=</span><span class="s2">"rank_genes_groups"</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">])</span>
 
 <span class="n">landscape</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Landscape</span><span class="p">(</span>
     <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://your-data-host/DegaFiles"</span><span class="p">,</span>
     <span class="n">adata</span><span class="o">=</span><span class="n">adata</span><span class="p">,</span>
     <span class="n">cluster_attr</span><span class="o">=</span><span class="s2">"leiden"</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">cgm</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clustergram</span><span class="p">(</span><span class="n">matrix</span><span class="o">=</span><span class="n">mat</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"landscape_clusters"</span><span class="p">)</span>
+<span class="n">cgm</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clustergram</span><span class="p">(</span><span class="n">matrix</span><span class="o">=</span><span class="n">markers</span><span class="p">,</span> <span class="n">rank_dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 
-<span class="n">linked</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spatial_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="n">linked</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spatial_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
-<p>Replace <code>base_url</code> with your hosted DegaFiles URL. The Matrix has genes as
-rows and Leiden groups as columns. Its color values are row-z-scored group
-means; dot sizes are the fraction of cells expressing each gene.
-See <a href="../clustergram/#advanced-usage">Clustergram advanced usage</a> for marker
-ranking, different feature views, and saving the clustered Matrix.</p>
-<p><code>spatial_clustergram</code> places the views side by side.
-<code>enrich=True</code> creates Enrich and connects it to the other two widgets.</p>
+<p>The AnnData's <code>obs_names</code> must match the DegaFiles' cell IDs, and the Matrix's
+<code>groupby</code> must be the Landscape's <code>cluster_attr</code>. Color is each group's mean
+expression, z-scored across groups; dot size is the fraction of the group's
+cells that express the gene. <a href="../../getting-started/your-data/">Visualize Your Own Data</a>
+walks through this example from the instrument output.</p>
+<h2 id="single-cell-data">Single-cell data</h2>
+<p>For single-cell data, the Landscape shows the UMAP from an AnnData Zarr store,
+read directly in the browser, with no DegaFiles. The linked Clustergram adds a
+higher-dimensional view: which genes distinguish the clusters you see in the
+UMAP.</p>
+<p><a href="../../assets/img/visualizations/landscape-clustergram-enrich/single_cell.webp"><img alt="Clicking a cluster and genes in a PBMC marker Clustergram linked to its UMAP" loading="lazy" src="../../assets/img/visualizations/landscape-clustergram-enrich/single_cell.webp" /></a></p>
+<p><em>PBMC 3k: clicking cluster 1 shows its cells in the UMAP; clicking the B-cell
+gene CD79A colors those cells; clicking the monocyte gene LYZ colors the
+monocytes.</em></p>
+<div class="highlight"><pre><span></span><code><span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">"counts_csc"</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">"counts"</span><span class="p">]</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
+<span class="n">adata</span><span class="o">.</span><span class="n">write_zarr</span><span class="p">(</span><span class="s2">"cells.zarr"</span><span class="p">)</span>
+
+<span class="n">landscape</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Landscape</span><span class="p">(</span>
+    <span class="n">zarr_url</span><span class="o">=</span><span class="s2">"cells.zarr"</span><span class="p">,</span> <span class="n">zarr_layer</span><span class="o">=</span><span class="s2">"counts_csc"</span><span class="p">,</span> <span class="n">cluster_attr</span><span class="o">=</span><span class="s2">"leiden"</span>
+<span class="p">)</span>
+<span class="n">cgm</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clustergram</span><span class="p">(</span><span class="n">matrix</span><span class="o">=</span><span class="n">markers</span><span class="p">,</span> <span class="n">rank_dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>  <span class="c1"># markers as above</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spatial_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p>A Clustergram can also show individual cells instead of cluster summaries, for
+example a single-cell Clustergram of a selected population; the
+<a href="../../examples/tutorial_notebooks/Scanpy_Chromium/">Chromium PBMC tutorial</a>
+links both kinds to UMAP Landscapes.</p>
 <h2 id="try-the-linked-selections">Try the linked selections</h2>
 <ol>
-<li><strong>Click a gene in the Clustergram.</strong> Landscape colors cells by that
-   gene's expression, so you can inspect its location in tissue or UMAP/XY.</li>
-<li><strong>Select a cell group in the Clustergram.</strong> Landscape highlights the
-   corresponding cells using the shared cell annotation.</li>
-<li><strong>Select a gene group with the row dendrogram.</strong> Enrich updates its
-   gene-set query and shows enriched terms from the selected library.</li>
-<li><strong>Select an enriched term.</strong> Its associated genes are highlighted in the
-   Clustergram.</li>
-<li><strong>Click a gene in Enrich.</strong> The Clustergram focuses that gene and Landscape
-   colors cells by its expression.</li>
+<li><strong>Click a gene in the Clustergram.</strong> The Landscape colors cells by that
+   gene's expression, in tissue or the UMAP.</li>
+<li><strong>Select a cell group in the Clustergram.</strong> The Landscape shows those cells,
+   and Enrich receives the group's top marker genes.</li>
+<li><strong>Select a gene group with the row dendrogram.</strong> Enrich looks up the genes
+   in the selected library.</li>
+<li><strong>Select an enriched term.</strong> Its genes are highlighted in the Clustergram.</li>
+<li><strong>Click a gene in Enrich.</strong> The Clustergram zooms to that gene and the
+   Landscape colors cells by its expression.</li>
 </ol>
 <p>A focused gene and the enrichment gene set are kept separate: inspecting one
-gene does not replace the multi-gene enrichment query. Use the
-<a href="../enrich/">Enrich guide</a> for library selection and result interpretation.</p>
+gene does not replace the multi-gene enrichment query.</p>
 <h2 id="examples-and-reference">Examples and reference</h2>
 <ul>
-<li><a href="../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich/">Visium HD notebook</a>:
+<li><a href="../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich/">Visium HD tutorial</a>:
   a complete spatial Landscape–Clustergram–Enrich workflow.</li>
-<li><a href="../../getting-started/#video-tutorial">Narrated walkthrough</a>:
-  watch the linked spatial workflow.</li>
-<li><a href="../../examples/tutorial_notebooks/Scanpy_Chromium/">Chromium PBMC notebook</a>:
-  single-cell UMAP Landscapes linked to Clustergrams and enrichment.</li>
+<li><a href="../#video-tutorial">Narrated walkthrough</a>: watch the linked spatial
+  workflow.</li>
+<li><a href="../../examples/tutorial_notebooks/Scanpy_Chromium/">Chromium PBMC tutorial</a>
+  and <a href="../../examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich/">Tabula Sapiens tutorial</a>:
+  single-cell UMAP Landscapes linked to Clustergrams and Enrich.</li>
 <li><a href="../../python/viz/api/#celldega.viz.spatial_clustergram">Python linking API</a>:
   layout and enrichment options.</li>
-<li><a href="../cell-cloud-clustergram/">CellCloud–Clustergram</a>:
-  the same linking approach for cells in 3D.</li>
+<li><a href="../cell-cloud-clustergram/">CellCloud–Clustergram</a>: the same linking for
+  cells in 3D.</li>
 </ul>
 <p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/viz/__init__.py">linking helpers</a>.</p>
+<h2 id="screenshot-sources">Screenshot sources</h2>
+<p>The animations show the Xenium pancreas DegaFiles with the
+<a href="https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Xenium_V1_human_Pancreas_FFPE_outs.h5ad">hosted Scanpy AnnData</a>,
+and the PBMC 3k AnnData Zarr and marker Matrix from the
+<a href="../../examples/tutorial_notebooks/Scanpy_Chromium/">Chromium PBMC tutorial</a>,
+captured with Celldega 0.28.0 using
+<a href="https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots"><code>scripts/docs_screenshots/capture.py</code></a>.</p>
 
 
 

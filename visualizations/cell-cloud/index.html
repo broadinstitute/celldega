@@ -858,10 +858,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-shows" class="md-nav__link">
+  <a href="#reading-a-cellcloud" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it shows
+        Reading a CellCloud
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rotating-and-zooming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating and zooming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#widget-python-backed-interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Widget: Python-backed interactions
       
     </span>
   </a>
@@ -912,6 +934,17 @@
     <span class="md-ellipsis">
       
         Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screenshot-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshot sources
       
     </span>
   </a>
@@ -3255,10 +3288,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-shows" class="md-nav__link">
+  <a href="#reading-a-cellcloud" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it shows
+        Reading a CellCloud
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rotating-and-zooming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating and zooming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#widget-python-backed-interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Widget: Python-backed interactions
       
     </span>
   </a>
@@ -3315,6 +3370,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#screenshot-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshot sources
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3336,10 +3402,11 @@
 
 
 <h1 id="cellcloud">CellCloud</h1>
-<p><code>CellCloud</code> is a 3D, orbit-camera spatial view of cell centroids — for
-inspecting a dataset's overall shape (thick tissue, multi-slice alignments)
-rather than the tile-based 2D detail <code>Landscape</code> is optimized for. It
-replaces <code>Landscape</code>'s older <code>technology="point-cloud"</code> mode.</p>
+<p><code>CellCloud</code> shows cells in 3D, as points you can rotate and zoom. Use it for
+data with depth, such as thick tissue or serial sections aligned into a stack,
+to see how cell types and gene expression are arranged through the tissue. For
+2D detail, such as images, cell boundaries, and transcripts, use a
+<a href="../landscape/">Landscape</a>.</p>
 <div class="viz-preview">
   <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
   <div id="preview-cell-cloud"></div>
@@ -3348,16 +3415,62 @@ replaces <code>Landscape</code>'s older <code>technology="point-cloud"</code> mo
 <p><em>Interactive preview: 76,356 cells imaged in 3D with thick-tissue MERFISH. Drag
 to orbit and scroll to zoom. Open the <a href="../../gallery/gallery_merfish_thick_tissue/">full-size view</a>
 in the Gallery.</em></p>
-<h2 id="what-it-shows">What it shows</h2>
-<ul>
-<li>Cell <strong>centroids</strong> in 3D, colored by cluster/category or gene expression,
-  rendered as a rotatable/orbit-able point cloud rather than tiled polygons.</li>
-<li>The same <strong>CELL</strong> color/size controls as <code>Landscape</code>, minus the
-  tile-specific image and transcript layers (there's no underlying image
-  pyramid or per-transcript layer in this view).</li>
-<li>Support for <strong>named alignment variants</strong> of the same cells, stored in
-  DegaFiles or AnnData Zarr.</li>
-</ul>
+<h2 id="reading-a-cellcloud">Reading a CellCloud</h2>
+<p>Each point is a cell, colored by its cluster or by a gene's expression. The
+control panel matches a Landscape's, without the image and transcript layers,
+which have no 3D form.</p>
+<p><a href="../../assets/img/visualizations/cell-cloud/overview.webp"><img alt="A CellCloud of the developing mouse brain with numbered callouts" src="../../assets/img/visualizations/cell-cloud/overview.webp" /></a></p>
+<p><em>3.8 million cells from 43 aligned Xenium sections of an E15.5 mouse brain,
+colored by cluster.</em></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>CELL</strong></td>
+<td>The slider scales the point size, from 0 to twice <code>cell_size</code>. Click a cluster's bar to show only its cells; click again to show all.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Genes</td>
+<td>Click a gene's bar to color cells by its expression.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Gene search</td>
+<td>Color cells by one or more genes, typed by name.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Celldega logo</td>
+<td>Opens this page.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>The view</td>
+<td>Drag to rotate, scroll to zoom, and hover for details.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rotating-and-zooming">Rotating and zooming</h2>
+<p>Drag to rotate the cells around their center, horizontally and vertically, all
+the way around and past the poles. Scroll to zoom. Hover over a cell for its ID
+and cluster; tooltips pause briefly after the view moves, so that rotating stays
+smooth. Click a cell to select its cluster.</p>
+<p><a href="../../assets/img/visualizations/cell-cloud/orbit.webp"><img alt="Rotating the developing mouse brain, selecting cluster 2, and showing SPARC" loading="lazy" src="../../assets/img/visualizations/cell-cloud/orbit.webp" width="880" /></a></p>
+<p><em>Turning the mouse brain fully around and tilting it, selecting cluster 2, and
+searching for SPARC, which outlines the meninges around the brain.</em></p>
+<h2 id="widget-python-backed-interactions">Widget: Python-backed interactions</h2>
+<p>A CellCloud responds to Python and to linked views: a linked Clustergram's clicks
+color or select its cells, and setting <code>cell_size</code> updates the point size. It
+does not send selections back to Python; use a Landscape of the same cells for
+that.</p>
 <h2 id="usage">Usage</h2>
 <h3 id="choose-a-data-source">Choose a data source</h3>
 <p>Use <code>base_url</code> for point-cloud DegaFiles or <code>zarr_url</code> for a cell-level
@@ -3448,6 +3561,11 @@ for a CellCloud linked to a Clustergram. The companion
 <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/">preprocessing and alignment notebook</a>
 shows how to build the stack and write DegaFiles. For thick tissue, see the
 <a href="../../examples/brief_notebooks/Landscape-3D_thick_MERFISH/">MERFISH notebook</a>.</p>
+<h2 id="screenshot-sources">Screenshot sources</h2>
+<p>The screenshot and animation show the
+<a href="../../gallery/gallery_broad_allen_mouse_brain_3d/">Broad–Allen developing mouse brain</a>
+compact DegaFiles, captured with Celldega 0.28.0 using
+<a href="https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots"><code>scripts/docs_screenshots/capture.py</code></a>.</p>
 
 
 

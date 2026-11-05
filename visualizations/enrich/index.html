@@ -970,10 +970,43 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-shows" class="md-nav__link">
+  <a href="#reading-enrich" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it shows
+        Reading Enrich
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interacting-with-terms-and-genes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interacting with terms and genes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-genes-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the genes come from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#widget-python-backed-interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Widget: Python-backed interactions
       
     </span>
   </a>
@@ -992,10 +1025,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screenshot-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshot sources
       
     </span>
   </a>
@@ -3227,10 +3271,43 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-shows" class="md-nav__link">
+  <a href="#reading-enrich" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it shows
+        Reading Enrich
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interacting-with-terms-and-genes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interacting with terms and genes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-genes-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the genes come from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#widget-python-backed-interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Widget: Python-backed interactions
       
     </span>
   </a>
@@ -3249,10 +3326,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#screenshot-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Screenshot sources
       
     </span>
   </a>
@@ -3280,42 +3368,144 @@
 
 
 <h1 id="enrich">Enrich</h1>
-<p><code>Enrich</code> is an informational widget for gene set enrichment analysis: given a
-list of genes (e.g. the top marker genes for a cluster), it looks up
-enriched terms against public gene-set libraries via the
-<a href="https://maayanlab.cloud/Enrichr/">Enrichr</a> API.</p>
-<h2 id="what-it-shows">What it shows</h2>
+<p><code>Enrich</code> interprets a list of genes, such as the marker genes of a cluster, by
+looking them up in public gene-set libraries through
+<a href="https://maayanlab.cloud/Enrichr/">Enrichr</a>. It answers questions such as
+"which cell types or biological processes are associated with these genes?"</p>
+<h2 id="reading-enrich">Reading Enrich</h2>
+<p>Enrich shows the top-ranked gene sets, or <strong>terms</strong>, for the current gene list,
+and the genes themselves.</p>
+<p><a href="../../assets/img/visualizations/enrich/overview.webp"><img alt="Enrich showing islet marker genes, with numbered callouts" src="../../assets/img/visualizations/enrich/overview.webp" /></a></p>
+<p><em>The top 20 marker genes of the pancreatic islet cluster, looked up in
+CellMarker 2024. With the Alpha Cell Pancreas Human term selected, its genes are
+highlighted in the gene list.</em></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Library</td>
+<td>Choose the gene-set library to search, such as <code>CellMarker_2024</code> for cell types; the default list includes cell-type, pathway, and tissue libraries.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Terms</td>
+<td>The top terms, ranked by Enrichr's combined score; the bar length shows the score.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Gene list</td>
+<td>The genes being looked up.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Gene information</td>
+<td>The name and description of a clicked gene, from UniProt.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Source, <strong>CLEAR</strong>, and Enrichr link</td>
+<td>Where the genes came from, a button to clear them, and a link to the full results on the Enrichr website.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Celldega logo</td>
+<td>Opens this page.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="interacting-with-terms-and-genes">Interacting with terms and genes</h2>
 <ul>
-<li>A <strong>library selector</strong> for choosing which Enrichr gene-set library to query
-  (e.g. <code>CellMarker_2024</code>).</li>
-<li>A <strong>bar chart</strong> of the top enriched terms for the current gene list,
-  ranked by score. Clicking a bar highlights the genes it's associated with.</li>
-<li>A <strong>gene list panel</strong> — clicking a gene shows detail about that gene and
-  highlights it across the term bar chart.</li>
-<li>A link to view the full result set on Enrichr.</li>
+<li><strong>Hover a term</strong> for its full name, combined score, p-value, adjusted
+  p-value, odds ratio, and overlap with your gene list.</li>
+<li><strong>Click a term</strong> to highlight its genes in the gene list; the other terms are
+  dimmed. In a linked Clustergram, the term's genes turn blue. Click the term
+  again to clear it.</li>
+<li><strong>Hover a gene</strong> for its UniProt description and how many of the shown terms
+  include it.</li>
+<li><strong>Click a gene</strong> to bold it and show its description below the list. In
+  linked views, the Clustergram zooms to the gene and a Landscape colors cells by
+  it. Click it again to clear the focus.</li>
+<li><strong>CLEAR</strong> empties the gene list.</li>
+<li><strong>Choose a library</strong> to look up the same genes in another library.</li>
 </ul>
+<p><a href="../../assets/img/visualizations/enrich/terms_and_genes.webp"><img alt="Hovering and selecting terms, then hovering and clicking genes in Enrich" loading="lazy" src="../../assets/img/visualizations/enrich/terms_and_genes.webp" width="640" /></a></p>
+<p><em>Hovering a term shows its statistics; selecting the delta and alpha cell terms
+highlights their genes, such as SST and GCG; clicking GCG shows its
+description.</em></p>
+<p>Enrich queries Enrichr from your browser, so it needs an internet connection.
+Gene descriptions come from UniProt and are available for human gene symbols.</p>
+<h2 id="where-the-genes-come-from">Where the genes come from</h2>
+<p>Set the gene list from Python, or link Enrich to a
+<a href="../clustergram/">Clustergram</a> so that selections there update it:</p>
+<table>
+<thead>
+<tr>
+<th>In the Clustergram</th>
+<th>Genes sent to Enrich</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Click a column label</td>
+<td>That column's top marker genes</td>
+</tr>
+<tr>
+<td>Click a row dendrogram branch</td>
+<td>The branch's genes</td>
+</tr>
+<tr>
+<td>Crop rows</td>
+<td>The cropped genes</td>
+</tr>
+<tr>
+<td>Click a column dendrogram branch</td>
+<td>Its top marker genes, when <code>col_enrich=True</code></td>
+</tr>
+</tbody>
+</table>
+<p>Clicking a single gene in the Clustergram focuses it without replacing the
+enrichment gene list. See
+<a href="../landscape-clustergram-enrich/">Landscape–Clustergram–Enrich</a> for a linked
+example.</p>
+<h2 id="widget-python-backed-interactions">Widget: Python-backed interactions</h2>
+<p>As a notebook widget, Enrich shares its state with Python:</p>
+<ul>
+<li><code>enrich.gene_list</code> sets or reads the genes, and <code>enrich.background_list</code> an
+  optional background.</li>
+<li><code>enrich.inst_lib</code> is the selected library.</li>
+<li><code>enrich.selected_term</code> and <code>enrich.term_genes</code> hold the selected term and its
+  genes.</li>
+<li><code>enrich.focused_gene</code> is the clicked gene.</li>
+</ul>
+<p>The links to a Clustergram run in the browser, so they keep working in a
+<a href="../#two-ways-to-use-a-visualization">notebook report</a>.</p>
 <h2 id="usage">Usage</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
 
 <span class="n">enrich</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Enrich</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="mi">650</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">650</span><span class="p">)</span>
-<span class="n">enrich</span><span class="o">.</span><span class="n">gene_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"BRCA1"</span><span class="p">,</span> <span class="s2">"TP53"</span><span class="p">,</span> <span class="s2">"EGFR"</span><span class="p">]</span>
+<span class="n">enrich</span><span class="o">.</span><span class="n">gene_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"INS"</span><span class="p">,</span> <span class="s2">"GCG"</span><span class="p">,</span> <span class="s2">"SST"</span><span class="p">,</span> <span class="s2">"CHGA"</span><span class="p">,</span> <span class="s2">"PCSK2"</span><span class="p">]</span>
 <span class="n">enrich</span>
 </code></pre></div>
-<p><code>Enrich</code> is commonly driven by a gene list derived from a <code>Clustergram</code> or
-<code>Landscape</code> selection (e.g. marker genes for a clicked cluster). Use
-<code>dega.viz.clustergram_enrich(cgm)</code> or
-<code>dega.viz.spatial_clustergram(spatial, cgm, enrich=True)</code> to create that link.
-The core Clustergram-to-Enrich gene-list link runs in the browser, so it also
-works in a statically embedded documentation notebook without a live Python
-kernel. Clustergram keeps this enrichment set separate from its focused gene:
-clicking one row can focus that gene across the linked views without replacing
-the multi-gene enrichment query. Dendrogram/crop selections and a column's
-top-marker selection update the enrichment set. For the full list of
-constructor arguments, see the
-<a href="../../python/viz/api/">Viz Module API reference</a>.</p>
-<h2 id="example">Example</h2>
+<p>Link it to a Clustergram with <code>dega.viz.clustergram_enrich(cgm)</code>, or to a
+Landscape and Clustergram with
+<code>dega.viz.spatial_clustergram(landscape, cgm, enrich=True)</code>. For the full list of
+constructor arguments, see the <a href="../../python/viz/api/">Viz Module API reference</a>.</p>
+<h2 id="examples">Examples</h2>
 <p>The <a href="../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich/">Visium HD tutorial</a>
-connects Enrich to a Clustergram and Landscape.</p>
+and <a href="../../examples/tutorial_notebooks/Scanpy_Chromium/">Chromium PBMC tutorial</a>
+connect Enrich to a Clustergram and Landscape.</p>
+<h2 id="screenshot-sources">Screenshot sources</h2>
+<p>The screenshot and animation show the top 20 Scanpy marker genes of the islet
+cluster in the <a href="https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Xenium_V1_human_Pancreas_FFPE_outs.h5ad">hosted Xenium pancreas AnnData</a>,
+captured with Celldega 0.28.0 using
+<a href="https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots"><code>scripts/docs_screenshots/capture.py</code></a>.</p>
 
 
 

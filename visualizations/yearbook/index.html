@@ -830,10 +830,65 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-shows" class="md-nav__link">
+  <a href="#reading-a-yearbook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it shows
+        Reading a Yearbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zooming-and-panning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zooming and panning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#querying-cells" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Querying cells
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#marking-cells-for-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marking cells for review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#widget-python-backed-interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Widget: Python-backed interactions
       
     </span>
   </a>
@@ -863,10 +918,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mark-cells-for-review" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mark cells for review
+        Examples
       
     </span>
   </a>
@@ -874,10 +929,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#screenshot-sources" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        Screenshot sources
       
     </span>
   </a>
@@ -3249,10 +3304,65 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-shows" class="md-nav__link">
+  <a href="#reading-a-yearbook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it shows
+        Reading a Yearbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zooming-and-panning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zooming and panning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#querying-cells" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Querying cells
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#marking-cells-for-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marking cells for review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#widget-python-backed-interactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Widget: Python-backed interactions
       
     </span>
   </a>
@@ -3282,10 +3392,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mark-cells-for-review" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Mark cells for review
+        Examples
       
     </span>
   </a>
@@ -3293,10 +3403,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#screenshot-sources" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        Screenshot sources
       
     </span>
   </a>
@@ -3324,11 +3434,10 @@
 
 
 <h1 id="yearbook">Yearbook</h1>
-<p><code>Yearbook</code> renders a grid of cell "portraits" — small, zoomed-in spatial
-crops centered on individual cells, all sharing synchronized zoom/pan state
-while each shows a different region of the tissue. It's useful for
-inspecting many individual cells side by side (e.g. the top cells for a gene,
-or a random sample from a cluster).</p>
+<p><code>Yearbook</code> shows a grid of cell <strong>portraits</strong>: small, zoomed-in views of the
+tissue, each centered on one cell. Use it to compare many individual cells side
+by side, such as the cells with the highest expression of a gene or a sample of
+a cluster, and to mark cells for review.</p>
 <div class="viz-preview">
   <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
   <div id="preview-yearbook"></div>
@@ -3337,53 +3446,109 @@ or a random sample from a cluster).</p>
 <p><em>Interactive preview: kidney cells with the highest expression of the podocyte
 marker NPHS2, from the same Atera kidney section. Page through the portraits,
 scroll to zoom them together, or query another gene or cluster.</em></p>
-<h2 id="what-it-shows">What it shows</h2>
+<h2 id="reading-a-yearbook">Reading a Yearbook</h2>
+<p>Each portrait shows the image, cell boundaries, and transcripts around one cell,
+using the same layers and colors as a <a href="../landscape/">Landscape</a>. The
+portraits share one zoom level, so cells of different sizes are compared at the
+same scale.</p>
+<p><a href="../../assets/img/visualizations/yearbook/overview.webp"><img alt="A Yearbook of kidney podocytes with numbered callouts" src="../../assets/img/visualizations/yearbook/overview.webp" /></a></p>
+<p><em>Podocytes (cluster 16) ranked by their expression of NPHS2.</em></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Image</td>
+<td><strong>IMG</strong> shows or hides the image; each channel button toggles a channel, and its slider sets the channel's brightness.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>CELL</strong></td>
+<td>Shows or hides the cells; the slider sets their size. The bars count the clusters of the cells shown; click a bar to show only that cluster's cells.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>TRX</strong></td>
+<td>Shows or hides transcripts; the slider sets their size. Click a gene's bar, or shift-click several, to show only those genes' transcripts.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Gene search</td>
+<td>Choose genes by name, as in a Landscape.</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Query Cells</strong></td>
+<td>Find cells by cluster, gene, or both; see <a href="#querying-cells">Querying cells</a>.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Pages</td>
+<td>Move between pages of portraits.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Celldega logo</td>
+<td>Opens this page.</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Portrait</td>
+<td>One cell, centered. Hover a cell for its ID and cluster.</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Review checkbox</td>
+<td>Marks the cell for review; see <a href="#marking-cells-for-review">Marking cells for review</a>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="zooming-and-panning">Zooming and panning</h2>
+<p>Scroll over any portrait to zoom <strong>all</strong> portraits together; each stays centered
+on its own cell. Drag a portrait to look around its cell; the view re-centers
+when you zoom or change pages. Double-clicking does not zoom.</p>
+<h2 id="querying-cells">Querying cells</h2>
+<p>The <strong>Query Cells</strong> box finds cells in the browser, without Python:</p>
 <ul>
-<li>A <strong>grid</strong> of portraits (configurable <code>rows</code>/<code>cols</code>), each centered on one
-  cell, with the same CELL/TRX controls and gene search as
-  <a href="../landscape/">Landscape</a>.</li>
-<li><strong>Pagination</strong> controls to page through a larger cell selection than fits
-  on one page.</li>
-<li>A small <strong>review checkbox</strong> at the bottom right of each portrait. Checked
-  portraits have a blue border, and their cell IDs remain selected across pages.</li>
-<li>A <strong>query box</strong> for selecting cells by cluster and/or gene directly in the
-  browser (see <code>front_end_query</code> below), independent of pagination.</li>
+<li><strong>Cluster only</strong>: a random sample of that cluster's cells.</li>
+<li><strong>Gene only</strong>: all cells, ranked by their expression of the gene, highest
+  first; the portraits are colored by its expression.</li>
+<li><strong>Cluster and gene</strong>: that cluster's cells, ranked by the gene.</li>
 </ul>
-<h2 id="choosing-which-cells-to-show">Choosing which cells to show</h2>
-<p>There are three ways to choose which cells <code>Yearbook</code> displays, in increasing
-order of power:</p>
-<ol>
-<li><strong>An explicit id list</strong> — <code>cells=["cell_1", "cell_2", ...]</code>.</li>
-<li><strong>A back-end selection</strong> — <code>selection=...</code>, accepting a
-   <a href="../../python/select/api/"><code>celldega.select.Selection</code></a>, a JSON-ready
-   selection dict, or a plain id list. This is the recommended way to drive
-   the grid from a Python <code>AnnData</code> object.</li>
-<li><strong>A stateless front-end query</strong> — <code>front_end_query=...</code>, evaluated in the
-   browser against the dataset's DegaFiles, needing only a <code>base_url</code>
-   and no Python <code>AnnData</code>.</li>
-</ol>
-<h2 id="usage">Usage</h2>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
-
-<span class="n">yb</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Yearbook</span><span class="p">(</span>
-    <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://your-landscape-files-url"</span><span class="p">,</span>
-    <span class="n">front_end_query</span><span class="o">=</span><span class="p">{</span><span class="s2">"gene"</span><span class="p">:</span> <span class="s2">"BRCA1"</span><span class="p">,</span> <span class="s2">"max_cells"</span><span class="p">:</span> <span class="mi">50</span><span class="p">},</span>
-    <span class="n">rows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-    <span class="n">cols</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">yb</span>
-</code></pre></div>
-<p><code>Yearbook</code> can also be linked to a <code>Clustergram</code> via
-<a href="../../python/viz/api/"><code>dega.viz.spatial_clustergram</code></a>, exactly like
-<code>Landscape</code>. For the full query/selection algebra and constructor arguments,
-see the <a href="../../python/viz/api/">Viz Module API reference</a>.</p>
-<h2 id="mark-cells-for-review">Mark cells for review</h2>
-<p>Click a portrait's checkbox to select or deselect its cell. The control has a
-transparent background and becomes clearer on hover or keyboard focus. Checked
-portraits have a blue border. Selections persist when changing pages or replacing
-the displayed cells with another query.</p>
-<p>With a live notebook kernel, read the selected IDs from <code>selected_cells</code> or
-<code>get_selected_cells()</code>:</p>
+<p>Type a cluster or gene, choosing from the suggestions, and click <strong>Query</strong> or
+press <span class="keys"><kbd class="key-enter">Enter</kbd></span>. The status line reports how many cells were found. <strong>Clear</strong>
+empties the boxes without changing the portraits.</p>
+<p><a href="../../assets/img/visualizations/yearbook/query_review.webp"><img alt="Querying glomerular endothelial cells by EMCN, zooming out, and checking cells across pages" loading="lazy" src="../../assets/img/visualizations/yearbook/query_review.webp" width="880" /></a></p>
+<p><em>Querying cluster 20, the glomerular endothelium, ranked by the endothelial
+marker EMCN, finds 3,967 cells. Zooming out shows each cell's glomerulus;
+checking cells on two pages and returning to the start shows that the checks
+are kept.</em></p>
+<h2 id="paging">Paging</h2>
+<p>The page indicator shows the current page and the total, such as <code>1 / 8</code>. Use
+◀ and ▶ to move one page, or <strong>START</strong>, <strong>MID</strong>, and <strong>END</strong> to jump.</p>
+<h2 id="marking-cells-for-review">Marking cells for review</h2>
+<p>Click a portrait's checkbox, at its bottom right, to mark or unmark its cell.
+Checked portraits have a blue border. The checks belong to the cells, not the
+page, so they are kept when you change pages or run another query. Build a
+review set this way, such as possible doublets or segmentation errors, and read
+it in Python.</p>
+<h2 id="widget-python-backed-interactions">Widget: Python-backed interactions</h2>
+<p>As a notebook widget, a Yearbook shares its state with Python:</p>
+<ul>
+<li><strong>Review set</strong>: <code>yb.selected_cells</code>, or <code>yb.get_selected_cells(adata)</code> for an
+  AnnData of the checked cells. Set <code>yb.selected_cells = []</code> to clear every
+  checkbox.</li>
+<li><strong>Portraits</strong>: <code>yb.cells</code> lists the cells being shown, and <code>yb.front_end_query</code>
+  the last query run in the browser.</li>
+<li><strong>Pages and zoom</strong>: <code>yb.current_page</code>, <code>yb.zoom_level</code>, and the methods
+  <code>next_page()</code>, <code>prev_page()</code>, and <code>go_to_page(n)</code>.</li>
+</ul>
 <div class="highlight"><pre><span></span><code><span class="n">reviewed_ids</span> <span class="o">=</span> <span class="n">yb</span><span class="o">.</span><span class="n">get_selected_cells</span><span class="p">()</span>  <span class="c1"># same IDs as yb.selected_cells</span>
 <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">"yearbook_review"</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs_names</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">reviewed_ids</span><span class="p">)</span>
 
@@ -3393,15 +3558,48 @@ the displayed cells with another query.</p>
 <span class="c1"># Clear every review checkbox, including those on other pages.</span>
 <span class="n">yb</span><span class="o">.</span><span class="n">selected_cells</span> <span class="o">=</span> <span class="p">[]</span>
 </code></pre></div>
-<p>Use <code>cells=</code> or <code>selection=</code> to choose the portraits to display, and
-<code>selected_cells=</code> to initialize the review checkboxes. The selected list stores
-original cell IDs independently of the current page and query.</p>
-<h2 id="example">Example</h2>
+<p>A Yearbook linked to a Clustergram with
+<a href="../../python/viz/api/"><code>dega.viz.spatial_clustergram</code></a>, or to a Landscape with
+<code>dega.viz.landscape_yearbook</code>, updates its query through Python, so these links
+need a running kernel.</p>
+<h2 id="choosing-which-cells-to-show">Choosing which cells to show</h2>
+<p>There are three ways to choose which cells <code>Yearbook</code> displays, in increasing
+order of power:</p>
+<ol>
+<li><strong>An explicit id list</strong>: <code>cells=["cell_1", "cell_2", ...]</code>.</li>
+<li><strong>A back-end selection</strong>: <code>selection=...</code>, accepting a
+   <a href="../../python/select/api/"><code>celldega.select.Selection</code></a>, a JSON-ready
+   selection dict, or a plain id list. This is the recommended way to drive
+   the grid from a Python <code>AnnData</code> object.</li>
+<li><strong>A front-end query</strong>: <code>front_end_query=...</code>, evaluated in the browser
+   against the dataset's DegaFiles, needing only a <code>base_url</code> and no Python
+   <code>AnnData</code>.</li>
+</ol>
+<p>Use <code>selected_cells=</code> to initialize the review checkboxes. The selected list
+stores original cell IDs independently of the current page and query.</p>
+<h2 id="usage">Usage</h2>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
+
+<span class="n">yb</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Yearbook</span><span class="p">(</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">"https://your-landscape-files-url"</span><span class="p">,</span>
+    <span class="n">front_end_query</span><span class="o">=</span><span class="p">{</span><span class="s2">"gene"</span><span class="p">:</span> <span class="s2">"NPHS2"</span><span class="p">,</span> <span class="s2">"max_cells"</span><span class="p">:</span> <span class="mi">50</span><span class="p">},</span>
+    <span class="n">rows</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">cols</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">yb</span>
+</code></pre></div>
+<p>For constructor arguments, see the <a href="../../python/viz/api/">Viz Module API reference</a>.</p>
+<h2 id="examples">Examples</h2>
 <p>The <a href="../../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/">Atera kidney tutorial</a>
-includes a Yearbook for inspecting individual cells alongside a Landscape.</p>
-<p>The <a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/">Atera kidney Yearbook review</a>
-brief example uses <code>dega.select</code> to build a candidate queue, inspect portraits
-across pages, and retrieve checked cell IDs for follow-up.</p>
+includes a Yearbook for inspecting individual cells alongside a Landscape. The
+<a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/">Atera kidney Yearbook review</a>
+uses <code>dega.select</code> to build a candidate queue, inspect portraits across pages,
+and retrieve checked cell IDs for follow-up.</p>
+<h2 id="screenshot-sources">Screenshot sources</h2>
+<p>The screenshot and animation show the
+<a href="https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE">Atera whole-transcriptome kidney DegaFiles</a>,
+captured with Celldega 0.28.0 using
+<a href="https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots"><code>scripts/docs_screenshots/capture.py</code></a>.</p>
 
 
 

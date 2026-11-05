@@ -213,6 +213,8 @@ extra_javascript:
     type: module
   - path: assets/js/gallery_merfish_thick_tissue.js
     type: module
+  - path: assets/js/visualization_previews.js
+    type: module
   - path: assets/js/gallery_citeseq_pbmc.js
     type: module
 

@@ -6,6 +6,15 @@ while each shows a different region of the tissue. It's useful for
 inspecting many individual cells side by side (e.g. the top cells for a gene,
 or a random sample from a cluster).
 
+<div class="viz-preview">
+  <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
+  <div id="preview-yearbook"></div>
+</div>
+
+*Interactive preview: kidney cells with the highest expression of the podocyte
+marker NPHS2, from the same Atera kidney section. Page through the portraits,
+scroll to zoom them together, or query another gene or cluster.*
+
 ## What it shows
 
 - A **grid** of portraits (configurable `rows`/`cols`), each centered on one

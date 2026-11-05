@@ -9,6 +9,16 @@ expression one gene at a time in the browser.
 See [File Formats](../getting-started/file_formats.md) for the storage layouts and
 the division of work between Python and JavaScript.
 
+<div class="viz-preview">
+  <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
+  <div id="preview-landscape"></div>
+</div>
+
+*Interactive preview: an Atera whole-transcriptome kidney section. Scroll to zoom
+into glomeruli, tubules, and individual transcripts; drag to pan; and click a
+cluster or gene. Open a [larger view](../gallery/gallery_atera_kidney.md) in the
+Gallery.*
+
 ## What it shows
 
 - **Image**: the underlying microscopy image (e.g. H&E, DAPI), rendered as a

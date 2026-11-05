@@ -12,6 +12,18 @@ Celldega can summarize expression within those groups, then hierarchically
 cluster the genes and groups to explore marker programs and relationships
 between cell populations.
 
+<div class="viz-preview">
+  <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
+  <div id="preview-clustergram"></div>
+</div>
+
+*Interactive preview: top marker genes of 180 Tabula Sapiens cell types. Color
+shows mean expression scaled per gene; dot size shows the fraction of cells
+expressing the gene. Use **DIM** to change the number of markers per cell type.
+Data: Tabula Sapiens Consortium, via
+[CZ CELLxGENE Discover](https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5)
+· [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*
+
 ## What it shows
 
 - A **heatmap or dot plot** of matrix values, with gene and metadata labels.

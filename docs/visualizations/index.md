@@ -27,7 +27,7 @@ Explore cells and neighborhoods in **physical space** (x/y, and sometimes z)
 across a tissue section, or compare cells in a low dimensional embedding
 landscape (UMAP/XY).
 
-- **[Landscape](landscape.md)**: Where are cell types in the tissue, and
+- **[Landscape](landscape/index.md)**: Where are cell types in the tissue, and
   which cells express a gene? Explore cells, transcripts, images, and
   neighborhoods over tissue, or switch to UMAP and gene-expression XY views.
 - **[Yearbook](yearbook.md)**: What do individual cells look like? Compare a

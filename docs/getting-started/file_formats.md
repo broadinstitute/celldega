@@ -15,7 +15,7 @@ Both can be served over HTTP from a local server or cloud storage.
 | Clustered Matrix AnnData Zarr | Values plus clustering, precomputed views, colors, metadata, and optional sizes | Python Matrix/Clustergram and browser Clustergram |
 | Cell-type signature AnnData Zarr | A small dense cell-type-by-gene matrix with units and grouping metadata | UMAP/XY viewport expression estimates |
 
-See the [Landscape guide](../visualizations/landscape.md) for spatial and
+See the [Landscape guide](../visualizations/landscape/index.md) for spatial and
 **low dimensional embedding landscapes** (UMAP/XY), and the
 [Matrix Python API](../python/clust/api.md) for analysis and persistence.
 For an end-to-end preparation and sharing workflow, see
@@ -251,7 +251,7 @@ Pass one of `base_url` or `zarr_url`.
 Cell-type signature stores are separate from this cell-level store. They
 contain dense, finite, nonnegative means and `uns["viewport_signature"]`
 grouping/units metadata. See
-[viewport estimates](../visualizations/landscape.md#viewport-cell-types-and-estimated-expression)
+[viewport estimates](../visualizations/landscape/umap-xy.md#viewport-cell-types-and-estimated-expression)
 for `adata_sig` and `gene_signature_url`, including exact counts versus
 estimated expression.
 

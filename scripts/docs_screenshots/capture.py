@@ -20,8 +20,10 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 import functools
+import hashlib
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -39,7 +41,7 @@ VIEWER = "scripts/docs_screenshots/viewer.html"
 
 # Size budget for committed media (bytes).
 MAX_IMAGE_BYTES = 300_000
-MAX_GIF_BYTES = 2_000_000
+MAX_GIF_BYTES = 5_000_000  # animations are lazy-loaded; history is the real cost
 
 ATERA_KIDNEY = (
     "https://raw.githubusercontent.com/broadinstitute/"
@@ -54,7 +56,7 @@ class Capture:
 
     group: str  # output subdirectory, usually the docs page
     name: str  # file stem
-    spec: dict  # viewer.html spec: panels and links
+    spec: dict = field(default_factory=dict)  # viewer.html panels and links
     viewport: tuple[int, int] = (960, 760)
     steps: list[dict] = field(default_factory=list)
     crop: str = "#stage"  # element to capture
@@ -68,10 +70,13 @@ class Capture:
     frames: list[dict] = field(default_factory=list)  # steps, one GIF frame each
     fps: int = 10
     cursor: bool = False  # draw a mouse pointer (screenshots omit the real one)
+    anim: str = "gif"  # animation format: "gif", or "webp" for tissue (much smaller)
+    notebook: str | None = None  # Python code run in the dega env instead of `spec`
+    quality: int | None = None  # WebP quality (default 80 for images, 70 for animations)
 
     @property
     def path(self) -> Path:
-        suffix = "gif" if self.frames else "webp"
+        suffix = self.anim if self.frames else "webp"
         return self.root / self.group / f"{self.name}.{suffix}"
 
 
@@ -165,6 +170,68 @@ CLUSTERGRAM_CALLOUTS = [
     {"label": "10", "selector": CGM, "place": "at", "xy": [200, 548]},
 ]
 
+# Landscape: Atera kidney (spatial) positions.
+KIDNEY_GLOMERULUS = {"ini_x": 19484, "ini_y": 16408}  # a glomerulus in the cortex
+KIDNEY_CORTEX = {"ini_x": 18572, "ini_y": 16190}  # several glomeruli
+LS = "#panel-0 .fill"  # the Landscape map
+LS_CENTER = [440, 260]  # center of an 880 x 520 map
+GENE_SEARCH = "#panel-0 .search_logo_row input"
+VISIUM_HD_CRC = (
+    "https://raw.githubusercontent.com/SharkieJones/celldega_Visium-HD_hCRC/refs/heads/main/"
+    "Visium_HD_Human_Colon_Cancer_2025-10-25_2um"
+)
+VISIUM_HD_CRYPTS = [545, 330]  # normal crypts ringed by plasma cells, in the default view
+
+
+def loop(center, radius, points=28):
+    """Mouse positions around an ellipse, for drawing a neighborhood by dragging."""
+    import math
+
+    cx, cy = center
+    rx, ry = radius
+    return [
+        [cx + rx * math.cos(2 * math.pi * i / points), cy + ry * math.sin(2 * math.pi * i / points)]
+        for i in range(points + 1)
+    ]
+
+
+def draw_neighborhood(center, radius, name, sketch_key=False):
+    """Frames: start sketching, drag a loop, name the neighborhood, and apply."""
+    path = loop(center, radius)
+    start = (
+        [
+            {"mouse": path[0], "relative_to": LS, "steps": 6, "wait": 150},
+            {"key": "s", "wait": 300, "hold": 3},
+        ]
+        if sketch_key
+        else [
+            {"click_text": "SKTCH", "within": "#panel-0", "wait": 300, "hold": 3},
+            {"mouse": path[0], "relative_to": LS, "steps": 8, "wait": 150},
+        ]
+    )
+    return [
+        {"click_text": "NBHD", "within": "#panel-0", "wait": 600, "hold": 3},
+        *start,
+        {"mouse": path[0], "relative_to": LS, "action": "down", "wait": 60},
+        *[{"mouse": xy, "relative_to": LS, "steps": 2, "wait": 50} for xy in path[1:]],
+        {"mouse": path[-1], "relative_to": LS, "action": "up", "wait": 700, "hold": 4},
+        {"key": "Meta+A", "wait": 60},
+        *[{"type": c, "wait": 90} for c in name],
+        {"wait": 300, "hold": 3},
+        {"click_text": "Apply", "within": "body", "wait": 1200, "hold": 16},
+    ]
+
+
+def gene_bar(name: str) -> str:
+    """A gene bar's label in the Landscape TRX bar graph."""
+    return f'#panel-0 .gene_container svg text:text-is("{name}")'
+
+
+def cluster_bar(name: str) -> str:
+    """A cluster bar's label in the Landscape CELL bar graph."""
+    return f'#panel-0 .cell_container svg text:text-is("{name}")'
+
+
 # Callout anchors in the Landscape control panel (js/ui/ui_containers.js).
 CONTROL_PANEL_CALLOUTS = [
     {"label": "1", "selector": "#panel-0 .image_container"},
@@ -174,6 +241,159 @@ CONTROL_PANEL_CALLOUTS = [
     {"label": "5", "selector": "#panel-0 .search_logo_row", "parent": True},
     {"label": "6", "selector": "#panel-0 .logo_button", "place": "right"},
     {"label": "7", "selector": "#panel-0 .fill", "place": "inside"},
+]
+
+# A Python-built kidney Landscape with the AnnData's UMAP (rendered from saved
+# widget state). Reads only labels and X_umap, not the expression matrix.
+KIDNEY_H5AD = (
+    REPO
+    / "notebooks/data/atera_data/Atera_v1_WTA_Kidney_non_diseased_FFPE"
+    / "Atera_v1_WTA_Kidney_non_diseased_FFPE.h5ad"
+)
+KIDNEY_H5AD_URL = (
+    "https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/"
+    "Atera_v1_WTA_Kidney_non_diseased_FFPE.h5ad"
+)
+KIDNEY_UMAP_NOTEBOOK = f"""
+from pathlib import Path
+from urllib.request import urlopen, urlretrieve
+
+import anndata as ad
+import numpy as np
+import celldega as dega
+
+BASE_URL = "{ATERA_KIDNEY}"
+h5ad = Path("{KIDNEY_H5AD}")
+if not h5ad.exists():
+    h5ad = Path("kidney.h5ad")
+    if not h5ad.exists():
+        urlretrieve("{KIDNEY_H5AD_URL}", h5ad)
+source = ad.read_h5ad(h5ad, backed="r")
+cells = ad.AnnData(obs=source.obs[["leiden", "azimuth_coarse"]].copy())
+cells.obsm["X_umap"] = np.asarray(source.obsm["X_umap"])
+cells.uns["leiden_colors"] = list(source.uns["leiden_colors"])
+source.file.close()
+with urlopen(f"{{BASE_URL}}/micron_to_image_transform.csv") as response:
+    transform = np.loadtxt(response)
+dega.viz.Landscape(
+    base_url=BASE_URL, transform=transform, adata=cells,
+    cluster_attr="leiden", cell_attr=["leiden", "azimuth_coarse"],
+    ini_x=28322, ini_y=16570, ini_zoom=-6.5, width=880, height=520,
+)
+"""
+
+# Tabula Sapiens atlas UMAP (AnnData Zarr) with a cell-type signature store:
+# zooming in shows estimated viewport expression (purple TRX).
+TABULA_SAPIENS = (
+    "https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/"
+    "Tabula_Sapiens"
+)
+TABULA_LANDSCAPE = {
+    "kind": "landscape",
+    "width": 880,
+    "options": {
+        "zarr_url": f"{TABULA_SAPIENS}/tabula_sapiens.zarr",
+        "zarr_layer": "log1p_csc",
+        "gene_signature_url": f"{TABULA_SAPIENS}/tabula_sapiens_cell_type_signatures.zarr",
+        "cell_attr": ["cell_type", "tissue_in_publication", "compartment"],
+        "cluster_attr": "cell_type",
+        "landscape_state": "umap",
+        "ini_zoom": -4.6,
+        "ini_x": 5000,
+        "ini_y": 5000,
+        "width": 880,
+        "height": 520,
+    },
+}
+
+# PBMC 3k single-cell Landscape (AnnData Zarr) for UMAP views.
+PBMC3K_LANDSCAPE = {
+    "kind": "landscape",
+    "width": 880,
+    "options": {
+        "zarr_url": f"{PBMC3K}/pbmc3k.zarr",
+        "cluster_attr": "leiden",
+        "ini_zoom": -4.1,
+        "ini_x": 5000,
+        "ini_y": 5000,
+        "width": 880,
+        "height": 520,
+    },
+}
+
+# Xenium pancreas DegaFiles with the precomputed Scanpy UMAP from the hosted
+# AnnData (as in the Scanpy-Squidpy tutorial); obs_names become Xenium cell IDs.
+PANCREAS = (
+    "https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_human_Pancreas_FFPE/main/"
+    "Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp"
+)
+PANCREAS_H5AD = REPO / "data/celldega_supporting_data/Xenium_V1_human_Pancreas_FFPE_outs.h5ad"
+PANCREAS_H5AD_URL = (
+    "https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/"
+    "Xenium_V1_human_Pancreas_FFPE_outs.h5ad"
+)
+PANCREAS_UMAP_NOTEBOOK = f"""
+from pathlib import Path
+from urllib.request import urlretrieve
+
+import anndata as ad
+import numpy as np
+import celldega as dega
+
+h5ad = Path("{PANCREAS_H5AD}")
+if not h5ad.exists():
+    h5ad = Path("pancreas.h5ad")
+    if not h5ad.exists():
+        urlretrieve("{PANCREAS_H5AD_URL}", h5ad)
+source = ad.read_h5ad(h5ad, backed="r")
+cells = ad.AnnData(obs=source.obs[["leiden"]].copy())
+cells.obs_names = source.obs["cell_id"].astype(str).to_numpy()
+cells.obsm["X_umap"] = np.asarray(source.obsm["X_umap"])
+cells.uns["leiden_colors"] = list(source.uns["leiden_colors"])
+source.file.close()
+dega.viz.Landscape(
+    technology="Xenium", base_url="{PANCREAS}", adata=cells, cluster_attr="leiden",
+    ini_x=17064, ini_y=6887, ini_zoom=-5.4, width=880, height=520,
+)
+"""
+# The linked pancreas Landscape, marker dot plot, and Enrich from the "Visualize
+# your own data" page, built from the hosted Scanpy AnnData.
+PANCREAS_LINKED_NOTEBOOK = f"""
+from pathlib import Path
+from urllib.request import urlretrieve
+
+import anndata as ad
+import scanpy as sc
+import celldega as dega
+
+h5ad = Path("{PANCREAS_H5AD}")
+if not h5ad.exists():
+    h5ad = Path("pancreas.h5ad")
+    if not h5ad.exists():
+        urlretrieve("{PANCREAS_H5AD_URL}", h5ad)
+adata = ad.read_h5ad(h5ad)
+adata.obs_names = adata.obs["cell_id"].astype(str).to_numpy()
+
+sc.tl.rank_genes_groups(adata, groupby="leiden")
+markers = dega.clust.Matrix(adata, groupby="leiden")
+markers.filter_by_size(0.05)
+markers.norm("row", by="zscore")
+markers.cluster(view="rank_genes_groups", levels=[1, 3, 5, 10])
+
+landscape = dega.viz.Landscape(
+    base_url="{PANCREAS}", adata=adata, cluster_attr="leiden",
+    ini_x=17064, ini_y=6887, ini_zoom=-5.6,
+)
+cgm = dega.viz.Clustergram(matrix=markers, rank_dim=3, width=420, height=520)
+dega.viz.spatial_clustergram(landscape, cgm, enrich=True, width="560px", height="660px")
+"""
+
+TABULA_SPERMATIDS = [460, 75]  # the swirl at the top of the Tabula Sapiens UMAP
+
+# The same anchors without NBHD (drawing off), numbered 1-6.
+LANDSCAPE_CALLOUTS = [
+    {**c, "label": str(i)}
+    for i, c in enumerate((c for c in CONTROL_PANEL_CALLOUTS if c["label"] != "4"), start=1)
 ]
 
 CAPTURES = [
@@ -200,6 +420,427 @@ CAPTURES = [
         crop="#panel-0 .fill",
         root=GALLERY_DIR,
         scale=1.25,
+    ),
+    # Landscape guide: Atera kidney, whole-transcriptome Xenium.
+    Capture(
+        group="landscape",
+        name="overview",
+        # Close up on a glomerulus: image, cell boundaries, and transcripts.
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=-0.4)]},
+        annotate=LANDSCAPE_CALLOUTS,
+        pad_top=30,
+        settle_ms=15000,
+        scale=1.4,
+    ),
+    Capture(
+        group="landscape",
+        name="zoom",
+        # Scroll from tissue scale into a glomerulus until transcripts load.
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=-5.5)]},
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 6, "wait": 300, "hold": 6},
+            *[
+                {
+                    "mouse": LS_CENTER,
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": -60,
+                    "wait": 450,
+                }
+                for _ in range(17)
+            ],
+            # Keep recording while the transcript tiles in view load and draw.
+            *[{"wait": 700} for _ in range(10)],
+            {"wait": 800, "hold": 6},
+        ],
+        crop="#panel-0",
+        settle_ms=6000,
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape",
+        name="select_clusters",
+        # Podocytes (cluster 16), then add glomerular endothelium (20).
+        spec={"panels": [kidney_landscape(**KIDNEY_CORTEX, ini_zoom=-3.6)]},
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 200, "hold": 4},
+            {"click": cluster_bar("16"), "wait": 1500, "hold": 10},
+            {"click": cluster_bar("20"), "modifiers": ["Shift"], "wait": 1500, "hold": 12},
+        ],
+        crop="#panel-0",
+        settle_ms=8000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape",
+        name="search_genes",
+        # Two orthogonal markers across the whole section, then their transcripts
+        # in one glomerulus: podocytes (NPHS2) and endothelium (EMCN).
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=-6.3)]},
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 200, "hold": 3},
+            {"click": GENE_SEARCH, "wait": 200},
+            *[{"type": c, "wait": 120} for c in "NPHS2, EMCN"],
+            {"key": "Enter", "wait": 3000, "hold": 8},
+            # Stronger cell colors zoomed out; the same slider sets transcript size
+            # once zoomed in.
+            {
+                "set_range": "#panel-0 .trx_container input.slider",
+                "value": "max",
+                "wait": 1200,
+                "hold": 10,
+            },
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 100},
+            *[
+                {
+                    "mouse": LS_CENTER,
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": -60,
+                    "wait": 450,
+                }
+                for _ in range(19)
+            ],
+            *[{"wait": 700} for _ in range(16)],
+            {"wait": 1000, "hold": 16},
+        ],
+        crop="#panel-0",
+        settle_ms=8000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape",
+        name="genes_zoomed_out",
+        # The whole section, to see where the genes are expressed.
+        spec={"panels": [kidney_landscape(ini_zoom=-6.4)]},
+        steps=[
+            {"fill": GENE_SEARCH, "value": "NPHS2, EMCN", "enter": True, "wait": 4000},
+            # Zoomed out, the TRX slider sets how strongly cells are colored.
+            {"set_range": "#panel-0 .trx_container input.slider", "value": "max", "wait": 1500},
+        ],
+        crop="#panel-0",
+        settle_ms=8000,
+        scale=1.6,
+    ),
+    Capture(
+        group="landscape",
+        name="genes_zoomed_in",
+        # Only the two markers' transcripts over DAPI: cells and other channels off.
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=0.3)]},
+        steps=[
+            {"fill": GENE_SEARCH, "value": "NPHS2, EMCN", "enter": True, "wait": 6000},
+            {"set_range": "#panel-0 .trx_container input.slider", "value": "max", "wait": 1000},
+            {"click_text": "CELL", "within": "#panel-0", "wait": 800},
+            {"click_text": "BOUND", "within": "#panel-0", "wait": 800},
+            {"click_text": "RNA", "within": "#panel-0", "wait": 1500},
+        ],
+        crop="#panel-0",
+        settle_ms=15000,
+        scale=1.6,
+    ),
+    Capture(
+        group="landscape",
+        name="transcript_tooltip",
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=0.6)]},
+        steps=[{"mouse": LS_CENTER, "relative_to": LS, "wait": 4000}],
+        crop="#panel-0",
+        settle_ms=15000,
+        scale=1.3,
+    ),
+    Capture(
+        group="landscape",
+        name="image_channels",
+        # Hide cells, turn channels off and on, and change the DAPI brightness.
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=-1.2)]},
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 200, "hold": 3},
+            {"click_text": "CELL", "within": "#panel-0", "wait": 800, "hold": 6},
+            {"click_text": "BOUND", "within": "#panel-0", "wait": 800, "hold": 6},
+            {"click_text": "RNA", "within": "#panel-0", "wait": 800, "hold": 6},
+            *[
+                {
+                    "set_range": "#panel-0 .image_container input.slider >> nth=0",
+                    "value": v,
+                    "wait": 300,
+                }
+                for v in (60, 70, 80, 90, 80, 60, 40, 30, 50)
+            ],
+            {"click_text": "BOUND", "within": "#panel-0", "wait": 800},
+            {"click_text": "RNA", "within": "#panel-0", "wait": 800},
+            {"click_text": "CELL", "within": "#panel-0", "wait": 1200, "hold": 8},
+        ],
+        crop="#panel-0",
+        settle_ms=10000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape",
+        name="visium_hd",
+        # Visium HD colorectal cancer: zoom from the whole section into plasma
+        # cells around crypts, where IGKC leads the bars; select IGKC to see its
+        # jittered transcripts, then zoom out to its expression across the section.
+        spec={
+            "panels": [
+                {
+                    "kind": "landscape",
+                    "width": 880,
+                    "options": {
+                        "base_url": VISIUM_HD_CRC,
+                        "technology": "Visium-HD",
+                        "width": 880,
+                        "height": 520,
+                    },
+                }
+            ]
+        },
+        frames=[
+            {"mouse": VISIUM_HD_CRYPTS, "relative_to": LS, "steps": 6, "wait": 300, "hold": 6},
+            *[
+                {
+                    "mouse": VISIUM_HD_CRYPTS,
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": -100,
+                    "wait": 450,
+                }
+                for _ in range(11)
+            ],
+            # Transcript tiles load; IGKC tops the TRX bars.
+            *[{"wait": 700} for _ in range(8)],
+            {"wait": 500, "hold": 10},
+            {"click": gene_bar("IGKC"), "wait": 600},
+            {"mouse": PANEL_BLANK, "steps": 6, "wait": 1800, "hold": 4},
+            # Hide the H&E so the IGKC transcripts stand out.
+            {"click_text": "IMG", "within": "#panel-0", "wait": 1000, "hold": 2},
+            {
+                "set_range": "#panel-0 .trx_container input.slider",
+                "value": 45,
+                "wait": 1200,
+                "hold": 12,
+            },
+            *[
+                {
+                    "mouse": VISIUM_HD_CRYPTS,
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": 100,
+                    "wait": 350,
+                }
+                for _ in range(11)
+            ],
+            # Zoomed out, the same slider sets how strongly cells are colored.
+            {
+                "set_range": "#panel-0 .trx_container input.slider",
+                "value": "max",
+                "wait": 2000,
+                "hold": 16,
+            },
+        ],
+        crop="#panel-0",
+        settle_ms=10000,
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape",
+        name="spaces",
+        # Pancreas: tissue to UMAP, select the islet cluster (9), and back to tissue.
+        notebook=PANCREAS_UMAP_NOTEBOOK,
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 300, "hold": 4},
+            # Zoom out first: the UMAP keeps the tissue view's zoom.
+            *[
+                {"mouse": LS_CENTER, "relative_to": LS, "action": "wheel", "delta": 60, "wait": 250}
+                for _ in range(4)
+            ],
+            {"wait": 300, "hold": 3},
+            {"click_text": "UMAP", "within": "#panel-0", "wait": 80},
+            *[{"wait": 120} for _ in range(12)],
+            {"wait": 300, "hold": 6},
+            {"click": cluster_bar("9"), "wait": 1500, "hold": 8},
+            {"click_text": "SPATIAL", "within": "#panel-0", "wait": 80},
+            *[{"wait": 120} for _ in range(12)],
+            {"wait": 2500, "hold": 12},
+        ],
+        settle_ms=15000,
+        crop="#panel-0",
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape",
+        name="single_cell",
+        # Tabula Sapiens: query the spermatids' neighborhood, then see one gene's reach.
+        spec={"panels": [TABULA_LANDSCAPE]},
+        frames=[
+            {"mouse": TABULA_SPERMATIDS, "relative_to": LS, "steps": 6, "wait": 300, "hold": 4},
+            *[
+                {
+                    "mouse": TABULA_SPERMATIDS,
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": -60,
+                    "wait": 400,
+                }
+                for _ in range(14)
+            ],
+            {"mouse": TABULA_SPERMATIDS, "relative_to": LS, "steps": 2, "wait": 2500, "hold": 8},
+            # The bars now describe the spermatids in view; select their top
+            # non-mitochondrial gene.
+            {"click": gene_bar("RGMB-AS1"), "wait": 2500, "hold": 8},
+            *[
+                {
+                    "mouse": TABULA_SPERMATIDS,
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": 60,
+                    "wait": 350,
+                }
+                for _ in range(14)
+            ],
+            {"wait": 2000, "hold": 14},
+        ],
+        settle_ms=25000,
+        crop="#panel-0",
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    # Landscape UMAP page.
+    Capture(
+        group="landscape/umap-xy",
+        name="spatial_umap",
+        # Kidney cells move between tissue and UMAP coordinates.
+        notebook=KIDNEY_UMAP_NOTEBOOK,
+        frames=[
+            {"mouse": [440, 260], "relative_to": LS, "steps": 4, "wait": 300, "hold": 6},
+            {"click_text": "UMAP", "within": "#panel-0", "wait": 80},
+            *[{"wait": 120} for _ in range(14)],
+            {"wait": 300, "hold": 12},
+            {"click_text": "SPATIAL", "within": "#panel-0", "wait": 80},
+            *[{"wait": 120} for _ in range(14)],
+            {"wait": 3000, "hold": 12},
+        ],
+        settle_ms=20000,
+        crop="#panel-0",
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape/umap-xy",
+        name="viewport_estimates",
+        # Zooming updates cell-type counts; gene bars become signature estimates.
+        spec={"panels": [TABULA_LANDSCAPE]},
+        frames=[
+            {"mouse": [300, 300], "relative_to": LS, "steps": 6, "wait": 300, "hold": 6},
+            *[
+                {
+                    "mouse": [300, 300],
+                    "relative_to": LS,
+                    "action": "wheel",
+                    "delta": -60,
+                    "wait": 500,
+                }
+                for _ in range(8)
+            ],
+            {"mouse": [40, 40], "relative_to": "#panel-0", "steps": 6, "wait": 1500, "hold": 14},
+        ],
+        settle_ms=25000,
+        crop="#panel-0",
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape/umap-xy",
+        name="pbmc_umap",
+        spec={"panels": [PBMC3K_LANDSCAPE]},
+        steps=[{"set_range": "#panel-0 .cell_container input.slider", "value": "max", "wait": 800}],
+        annotate=LANDSCAPE_CALLOUTS,
+        pad_top=30,
+        settle_ms=6000,
+        scale=1.6,
+    ),
+    Capture(
+        group="landscape/umap-xy",
+        name="pbmc_gene",
+        # Color the UMAP by a monocyte marker.
+        spec={"panels": [PBMC3K_LANDSCAPE]},
+        frames=[
+            {"mouse": [440, 260], "relative_to": LS, "steps": 4, "wait": 200, "hold": 4},
+            {"click": GENE_SEARCH, "wait": 200},
+            *[{"type": c, "wait": 120} for c in "LYZ"],
+            {"key": "Enter", "wait": 2500, "hold": 6},
+            # Larger cells and stronger expression opacity.
+            {"set_range": "#panel-0 .cell_container input.slider", "value": "max", "wait": 600},
+            {
+                "set_range": "#panel-0 .trx_container input.slider",
+                "value": "max",
+                "wait": 1200,
+                "hold": 14,
+            },
+        ],
+        crop="#panel-0",
+        settle_ms=6000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    # Landscape neighborhoods page.
+    Capture(
+        group="landscape/neighborhoods",
+        name="draw_tissue",
+        spec={"panels": [kidney_landscape(**KIDNEY_GLOMERULUS, ini_zoom=-1.5, nbhd_edit=True)]},
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 200, "hold": 3},
+            *draw_neighborhood(LS_CENTER, (175, 175), "glomerulus"),
+        ],
+        crop="#panel-0",
+        settle_ms=12000,
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
+    ),
+    Capture(
+        group="landscape/neighborhoods",
+        name="draw_umap",
+        spec={
+            "panels": [
+                {**PBMC3K_LANDSCAPE, "options": {**PBMC3K_LANDSCAPE["options"], "nbhd_edit": True}}
+            ]
+        },
+        frames=[
+            {"mouse": LS_CENTER, "relative_to": LS, "steps": 4, "wait": 200, "hold": 3},
+            *draw_neighborhood((209, 257), (80, 150), "monocytes", sketch_key=True),
+        ],
+        crop="#panel-0",
+        settle_ms=6000,
+        scale=1,
+        fps=8,
+        cursor=True,
+        anim="webp",
     ),
     # Clustergram guide: PBMC 3k marker genes of Leiden clusters.
     Capture(
@@ -435,7 +1076,7 @@ CAPTURES = [
             {"wait": 300, "hold": 12},
             {"click": "#panel-0 .search_logo_row input", "wait": 100},
             {"key": "Meta+A", "wait": 100},
-            *[{"type": c, "wait": 150} for c in "CD79A"],
+            *[{"type": c, "wait": 150} for c in "LYZ"],
             {"key": "Enter", "wait": 100},
             *[{"wait": 120} for _ in range(8)],
             {"wait": 300, "hold": 12},
@@ -478,7 +1119,7 @@ def run_step(page: Page, step: dict) -> None:
     elif "set_range" in step:  # an <input type=range>, as if dragged
         page.locator(step["set_range"]).first.evaluate(
             """(el, value) => {
-                el.value = value;
+                el.value = value === 'max' ? el.max : value;
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             }""",
@@ -596,17 +1237,96 @@ def screenshot(page: Page, item: Capture, path: Path) -> None:
         page.locator(item.crop).screenshot(path=str(path))
 
 
-def capture(page: Page, port: int, item: Capture) -> Path:
-    url = f"http://127.0.0.1:{port}/{VIEWER}?spec={quote(json.dumps(item.spec))}"
-    page.set_viewport_size({"width": item.viewport[0], "height": item.viewport[1]})
-    page.goto(url)
-    page.add_style_tag(
-        content=f"#stage {{ padding-top: {item.pad_top}px; padding-left: {item.pad_left}px; }}"
+CACHE = Path(__file__).resolve().parent / ".cache"
+JUPYTER = Path(os.environ.get("DEGA_JUPYTER", REPO / "dega" / "bin" / "jupyter"))
+
+
+def notebook_html(code: str) -> Path:
+    """Run `code` as a notebook in the dega env and export it as HTML with widget state.
+
+    Widgets built in Python (for example a Landscape with an AnnData's UMAP)
+    render from the saved state without a kernel, as in the documentation.
+    Results are cached by code, so captures that share a notebook run it once.
+    """
+    CACHE.mkdir(exist_ok=True)
+    name = "nb_" + hashlib.sha1(code.encode()).hexdigest()[:12]
+    html = CACHE / f"{name}.html"
+    if html.exists():
+        return html
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": code,
+            }
+        ],
+        "metadata": {
+            "kernelspec": {"name": "python3", "display_name": "Python 3", "language": "python"}
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    source = CACHE / f"{name}.ipynb"
+    source.write_text(json.dumps(notebook))
+    subprocess.run(
+        [
+            str(JUPYTER),
+            "nbconvert",
+            "--to",
+            "html",
+            "--execute",
+            "--ExecutePreprocessor.timeout=1800",
+            "--ExecutePreprocessor.iopub_timeout=300",
+            "--output-dir",
+            str(CACHE),
+            "--output",
+            name,
+            str(source),
+        ],
+        check=True,
+        cwd=CACHE,
+        env={**os.environ, "CELLDEGA_LOCAL_ESM": "1"},
     )
-    page.wait_for_function("window.__dega_ready || window.__dega_error", timeout=180_000)
-    error = page.evaluate("window.__dega_error")
-    if error:
-        raise RuntimeError(f"{item.group}/{item.name}: {error}")
+    return html
+
+
+def capture(page: Page, port: int, item: Capture) -> Path:
+    width, height = item.viewport
+    if item.notebook:  # notebook pages need room beyond the widget's own width
+        width = max(width, 1200)
+    page.set_viewport_size({"width": width, "height": height})
+    if item.notebook:
+        html = notebook_html(item.notebook).relative_to(REPO)
+        page.goto(f"http://127.0.0.1:{port}/{html}")
+        page.wait_for_selector(".ui_container", timeout=300_000)
+        # Show only the widget: hide code, prompts, and page margins.
+        page.add_style_tag(
+            content=".jp-InputArea, .jp-InputPrompt, .jp-OutputPrompt { display: none !important; }"
+            " body, .jp-Notebook, .jp-Cell, .jp-OutputArea-output { margin: 0 !important;"
+            " padding: 0 !important; }"
+        )
+        # Name the widget like viewer.html panels, so selectors are shared.
+        page.evaluate(
+            """() => {
+                const root = document.querySelector('.ui_container').parentElement;
+                root.id = 'panel-0';
+                root.style.width = '880px';  // the map fills its container here
+                root.parentElement.id = 'stage';
+            }"""
+        )
+    else:
+        url = f"http://127.0.0.1:{port}/{VIEWER}?spec={quote(json.dumps(item.spec))}"
+        page.goto(url)
+        page.add_style_tag(
+            content=f"#stage {{ padding-top: {item.pad_top}px; padding-left: {item.pad_left}px; }}"
+        )
+        page.wait_for_function("window.__dega_ready || window.__dega_error", timeout=180_000)
+        error = page.evaluate("window.__dega_error")
+        if error:
+            raise RuntimeError(f"{item.group}/{item.name}: {error}")
     page.wait_for_timeout(item.settle_ms)
     if item.cursor:
         page.evaluate(CURSOR_JS)
@@ -621,39 +1341,42 @@ def capture(page: Page, port: int, item: Capture) -> Path:
     png = item.path.with_suffix(".png")
     screenshot(page, item, png)
     # WebP keeps dense tissue screenshots within the size budget.
-    subprocess.run(["magick", str(png), "-strip", "-quality", "80", str(item.path)], check=True)
+    subprocess.run(
+        ["magick", str(png), "-strip", "-quality", str(item.quality or 80), str(item.path)],
+        check=True,
+    )
     png.unlink()
     return item.path
 
 
 def capture_gif(page: Page, item: Capture) -> Path:
     """One frame per step (a step's `hold` repeats its frame), then a GIF."""
+    # Every frame uses the first frame's region: panels can grow as their
+    # text changes, and frames of different sizes break the animation.
+    page.locator(item.crop).first.scroll_into_view_if_needed()
+    box = page.locator(item.crop).first.bounding_box()
+    if item.clip:
+        x, y, w, h = item.clip
+        box = {"x": box["x"] + x, "y": box["y"] + y, "width": w, "height": h}
     with tempfile.TemporaryDirectory() as tmp:
         count = 0
         for step in item.frames:
             run_step(page, step)
             frame = Path(tmp) / f"frame_{count:04d}.png"
-            screenshot(page, item, frame)
+            page.screenshot(path=str(frame), clip=box)
             count += 1
             for _ in range(step.get("hold", 0)):
                 shutil.copy(frame, Path(tmp) / f"frame_{count:04d}.png")
                 count += 1
-        # ImageMagick: delay is in hundredths of a second; Optimize keeps only
-        # the pixels that change between frames.
-        subprocess.run(
-            [
-                "magick",
-                "-delay",
-                str(round(100 / item.fps)),
-                "-loop",
-                "0",
-                *sorted(str(f) for f in Path(tmp).glob("frame_*.png")),
-                "-layers",
-                "Optimize",
-                str(item.path),
-            ],
-            check=True,
-        )
+        # ImageMagick: delay is in hundredths of a second. GIF keeps only the
+        # pixels that change between frames; animated WebP suits tissue images.
+        frames = sorted(str(f) for f in Path(tmp).glob("frame_*.png"))
+        delay = ["-delay", str(round(100 / item.fps)), "-loop", "0"]
+        if item.anim == "webp":
+            options = ["-quality", str(item.quality or 70), "-define", "webp:method=6"]
+        else:
+            options = ["-layers", "Optimize"]
+        subprocess.run(["magick", *delay, *frames, *options, str(item.path)], check=True)
     return item.path
 
 
@@ -692,7 +1415,7 @@ def main() -> None:
                 path = capture(page, port, item)
                 page.close()
                 size = path.stat().st_size
-                limit = MAX_GIF_BYTES if path.suffix == ".gif" else MAX_IMAGE_BYTES
+                limit = MAX_GIF_BYTES if item.frames else MAX_IMAGE_BYTES
                 flag = "" if size <= limit else "  OVER BUDGET"
                 if flag:
                     over_budget.append(path)

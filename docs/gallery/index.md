@@ -5,7 +5,7 @@ This gallery collects project web presentations and visualizations made with the
 ## Spatial Landscapes
 
 Tissue images, cells, and transcripts from spatial transcriptomics, explored with
-a [Landscape](../visualizations/landscape.md).
+a [Landscape](../visualizations/landscape/index.md).
 
 ### Atera
 
@@ -65,7 +65,7 @@ with a [CellCloud](../visualizations/cell-cloud.md).
 
 ## Single-Cell Landscapes and Clustergrams
 
-Single-cell data explored as UMAP [Landscapes](../visualizations/landscape.md)
+Single-cell data explored as UMAP [Landscapes](../visualizations/landscape/umap-xy.md)
 and cell-type [Clustergrams](../visualizations/clustergram.md).
 
 ### Single-cell RNA-seq

@@ -19,7 +19,7 @@ scroll to zoom them together, or query another gene or cluster.*
 
 - A **grid** of portraits (configurable `rows`/`cols`), each centered on one
   cell, with the same CELL/TRX controls and gene search as
-  [Landscape](landscape.md).
+  [Landscape](landscape/index.md).
 - **Pagination** controls to page through a larger cell selection than fits
   on one page.
 - A small **review checkbox** at the bottom right of each portrait. Checked

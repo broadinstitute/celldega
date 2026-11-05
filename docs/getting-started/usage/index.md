@@ -102,7 +102,7 @@ explains the working-directory and URL conventions.
 Analysis and visualization preparation can run separately. Pass an analyzed
 `adata` to Landscape to supply cluster labels, colors, and UMAP coordinates;
 its cell IDs must match the DegaFiles. A single-cell UMAP/XY Landscape can
-instead use [AnnData Zarr](../../visualizations/landscape.md#single-cell-anndata-zarr)
+instead use [AnnData Zarr](../../visualizations/landscape/umap-xy.md#single-cell-landscapes-from-anndata-zarr)
 directly, without spatial DegaFiles.
 
 ## Host and share prepared data

@@ -14,7 +14,7 @@ to display regardless of dataset size. It replaces `Landscape`'s older
 - A **slice** control for stepping through multi-slice datasets.
 
 Draw and edit neighborhoods in spatial, UMAP, and XY views with
-[`Landscape`](landscape.md). `NeighborhoodCloud` displays precomputed
+[`Landscape`](landscape/index.md). `NeighborhoodCloud` displays precomputed
 neighborhoods across slices.
 
 ## Usage

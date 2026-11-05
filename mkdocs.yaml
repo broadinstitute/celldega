@@ -26,7 +26,6 @@ not_in_nav: |
   examples/tutorial_notebooks/CST_Lung_Cancer_PTM_Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
-  examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb
   # Companion to python/aligned_he.md; source: notebooks/Xenium_Aligned_HE.ipynb.
   examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb
 
@@ -64,7 +63,10 @@ nav:
       - File Formats: getting-started/file_formats.md
   - Visualizations:
       - visualizations/index.md
-      - Landscape: visualizations/landscape.md
+      - Landscape:
+          - visualizations/landscape/index.md
+          - UMAP and XY: visualizations/landscape/umap-xy.md
+          - Neighborhoods: visualizations/landscape/neighborhoods.md
       - Yearbook: visualizations/yearbook.md
       - CellCloud: visualizations/cell-cloud.md
       - NeighborhoodCloud: visualizations/neighborhood-cloud.md
@@ -125,6 +127,7 @@ nav:
         - Broad-Allen Mouse Brain Visualization: examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
     - Single Cell Tutorials:
       - Chromium PBMC Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Scanpy_Chromium.ipynb
+      - Tabula Sapiens Atlas Landscape-Clustergram-Enrich: examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb
       # MIX-seq is shareable as an unlisted page (see not_in_nav above).
       # - MIX-seq Drug Screen Landscape-Clustergram-Enrich: examples/tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb
     # - Multi-Omic Tutorials:

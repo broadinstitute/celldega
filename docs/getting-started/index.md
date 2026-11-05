@@ -41,12 +41,12 @@ visualizations.
 
 Celldega provides:
 
-- **[Landscape](../visualizations/landscape.md)**: Explore tissue images, cells, transcripts, and neighborhoods, or switch to UMAP and gene-expression XY views
+- **[Landscape](../visualizations/landscape/index.md)**: Explore tissue images, cells, transcripts, and neighborhoods, or switch to UMAP and gene-expression XY views
 - **[Matrix/Clustergram Visualization](../visualizations/clustergram.md)**: View hierarchical clustering heatmaps linked to spatial data
 - **[Yearbook View](../visualizations/yearbook.md)**: Visualize individual cells as "portraits" in a grid layout
 - **[CellCloud](../visualizations/cell-cloud.md)**: Explore cells in 3D, from thick tissue or aligned serial sections
 - **[Neighborhood Analysis](../python/nbhd/api.md)**: Define and analyze tissue neighborhoods with alpha shapes and hextiles
-- **[Multi-dataset Support](../visualizations/landscape.md#what-it-shows)**: Compare multiple datasets side-by-side
+- **[Multi-dataset Support](../visualizations/landscape/index.md#multiple-datasets)**: Compare multiple datasets side-by-side
 
 ## Interacting with the Visualizations
 
@@ -62,7 +62,7 @@ visualizations share, and the
 as notebook widgets with a Python back-end, or as JavaScript on a web page.
 Each visualization's page then describes its interactions in detail. The
 Celldega logo in every control panel opens that page:
-[Landscape](../visualizations/landscape.md) ·
+[Landscape](../visualizations/landscape/index.md) ·
 [Yearbook](../visualizations/yearbook.md) ·
 [CellCloud](../visualizations/cell-cloud.md) ·
 [NeighborhoodCloud](../visualizations/neighborhood-cloud.md) ·
@@ -231,7 +231,7 @@ single_cell = dega.viz.Landscape(
 ```
 
 This example assumes sparse counts in `adata.layers["counts"]`.
-See the [Landscape guide](../visualizations/landscape.md) for preparation,
+See the [Landscape guide](../visualizations/landscape/index.md) for preparation,
 viewport summaries, and neighborhood selection.
 
 ### 5. Create a Clustergram

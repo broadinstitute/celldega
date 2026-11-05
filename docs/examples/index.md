@@ -1,6 +1,6 @@
 # Jupyter Notebook Examples
 
-These example notebooks demonstrate how to use Celldega for spatial transcriptomics and multi-omics analysis and visualization. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
+These example notebooks demonstrate how to use Celldega to analyze and visualize spatial and single-cell data. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
 
 ## Spatial Transcriptomics Tutorials
 
@@ -30,6 +30,7 @@ directly to use the already hosted DegaFiles:
 Tutorials that explore single-cell RNA-seq data with UMAP Landscapes linked to Clustergrams:
 
 - [Chromium PBMC Landscape-Clustergram-Enrich](tutorial_notebooks/Scanpy_Chromium.ipynb) - Clusters the 10x Chromium PBMC 3k dataset with Scanpy and explores it from Hugging Face: a UMAP Landscape that reads the AnnData Zarr store in the browser, a Clustergram of each cluster's `rank_genes_groups` markers loaded from a Matrix Zarr store, and a single-cell Clustergram of the same markers linked to its own Landscape, each with Enrich
+- [Tabula Sapiens Atlas Landscape-Clustergram-Enrich](tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb) - Explores the 1.1-million-cell Tabula Sapiens atlas from AnnData Zarr stores on Hugging Face: a UMAP Landscape with cell-type signature estimates as you zoom, a cell-type marker Clustergram and Enrich linked to it, and a plasma-cell subset with its own signatures
 <!-- Shared as an unlisted page while revised (see not_in_nav in mkdocs.yaml):
 - [MIX-seq Drug Screen Landscape-Clustergram-Enrich](tutorial_notebooks/MIX-seq_Drug_Screen_Landscape-Clustergram-Enrich.ipynb) - Explores the McFarland et al. 2020 screen of 13 drugs across about 170 pooled cancer cell lines: cell line identity, the drug responses within one cell line, and the response to the BRAF inhibitor dabrafenib across 94 cell lines, the analysis behind Fig. 3 of the pertpy paper
 -->

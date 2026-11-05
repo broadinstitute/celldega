@@ -76,7 +76,7 @@ UMAP/XY viewport cell-type counts are exact. Gene bars estimate expression
 from matching cell-type signatures; no per-cell expression is fetched on
 pan/zoom. TRX indicates the summary mode in these views. Selected-gene
 coloring and XY coordinates read actual expression. See the
-[Landscape guide](../../visualizations/landscape.md) for signature preparation,
+[Landscape guide](../../visualizations/landscape/index.md) for signature preparation,
 selection behavior, and adding aligned H&E to DegaFiles, and
 [File Formats](../../getting-started/file_formats.md) for storage schemas.
 

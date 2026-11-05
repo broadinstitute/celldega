@@ -1,5 +1,5 @@
 # Technologies
-Celldega utilizes a suite of complementary technologies to develop an efficient web-based spatial-omics analysis and visualization toolkit.
+Celldega utilizes a suite of complementary technologies to develop an efficient web-based analysis and visualization toolkit for spatial and single-cell data.
 
 ## Visualization Technologies
 Spatial transcriptomics (ST) datasets can be very large and difficult for researchers to analyze and visualize collaboratively. Additionally, visualization that is linked to analysis is key to extracting biological insights. To address these issues, we built the Celldega [`viz`](../../visualizations/index.md) module to help researchers interactively visualize large ST datasets within notebook-based workflows on the cloud (e.g., Terra.bio).

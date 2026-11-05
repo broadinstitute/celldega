@@ -1,6 +1,6 @@
 # Landscape–Clustergram–Enrich
 
-Link a [Landscape](landscape.md), [Clustergram](clustergram.md), and
+Link a [Landscape](landscape/index.md), [Clustergram](clustergram.md), and
 [Enrich](enrich.md) to move between cell positions, expression patterns,
 and the biological functions associated with a gene set.
 

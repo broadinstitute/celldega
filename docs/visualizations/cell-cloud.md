@@ -5,6 +5,15 @@ inspecting a dataset's overall shape (thick tissue, multi-slice alignments)
 rather than the tile-based 2D detail `Landscape` is optimized for. It
 replaces `Landscape`'s older `technology="point-cloud"` mode.
 
+<div class="viz-preview">
+  <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
+  <div id="preview-cell-cloud"></div>
+</div>
+
+*Interactive preview: 76,356 cells imaged in 3D with thick-tissue MERFISH. Drag
+to orbit and scroll to zoom. Open the [full-size view](../gallery/gallery_merfish_thick_tissue.md)
+in the Gallery.*
+
 ## What it shows
 
 - Cell **centroids** in 3D, colored by cluster/category or gene expression,

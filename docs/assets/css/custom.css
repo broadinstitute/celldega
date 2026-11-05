@@ -214,3 +214,19 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
 .tabula-gallery [data-tabula-clustergram] {
     min-height: 650px;
 }
+
+/* Interactive previews at the top of the visualization guides
+   (docs/assets/js/visualization_previews.js). */
+.viz-preview {
+    position: relative;
+    margin: 1em 0 0.4em;
+    border: 1px solid #ccc;
+    overflow: hidden;
+}
+.viz-preview-status {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    z-index: 1;
+    margin: 0;
+}

@@ -57,6 +57,8 @@ nav:
   - Getting Started:
       - getting-started/index.md
       - Installation: getting-started/installation.md
+      - Visualize Your Own Data: getting-started/your-data.md
+      - From Scanpy & Squidpy: getting-started/from-scanpy.md
       - Usage: getting-started/usage/index.md
       - Desktop App: getting-started/desktop-app.md
       - Technologies: getting-started/technologies/index.md

@@ -181,7 +181,8 @@ linked layout; the explicit `jslink` above also works in Google Colab.
 
 ### 3. Pre-process Your Own Data
 
-For Xenium data:
+For Xenium data (see
+[Visualize Your Own Data](your-data.md) for a complete walkthrough):
 
 ```python
 import celldega as dega
@@ -278,6 +279,8 @@ Explore Celldega as a standalone JavaScript library:
 ## Next Steps
 
 - [Installation](installation.md) - Detailed installation instructions
+- [Visualize Your Own Data](your-data.md) - From a Xenium output bundle and a Scanpy analysis to linked views
+- [From Scanpy & Squidpy](from-scanpy.md) - Explore your existing analysis and bring results back into your AnnData
 - [Usage](usage/index.md) - Notebook, web, and desktop options
 - [Visualizations](../visualizations/index.md) - The control panel and each visualization's interactions
 - [Technologies](technologies/index.md) - Visualization and analysis foundations

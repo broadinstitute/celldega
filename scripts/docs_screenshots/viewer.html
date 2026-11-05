@@ -19,7 +19,8 @@
      "links": [[0, "click_info", 1, "update_trigger"]]}
 
   `kind` is a standalone entry point (landscape or clustergram) and `options`
-  are its arguments. Sets window.__dega_ready once every panel has rendered.
+  are its arguments; `args` instead passes positional arguments after the
+  element, as yearbook(el, ...args) expects. Sets window.__dega_ready once every panel has rendered.
   -->
   <div id="stage"></div>
   <script type="module">
@@ -36,7 +37,12 @@
         el.id = `panel-${index}`;
         if (panel.width) el.style.width = `${panel.width}px`;
         stage.appendChild(el);
-        vizs.push(await celldega[panel.kind](el, panel.options));
+        // `args` calls a positional entry point, such as yearbook(el, ...args).
+        vizs.push(
+          await (panel.args
+            ? celldega[panel.kind](el, ...panel.args)
+            : celldega[panel.kind](el, panel.options))
+        );
       }
       for (const [source, source_key, target, target_key] of spec.links ?? []) {
         celldega.link_models(vizs[source].model, source_key, vizs[target].model, target_key);

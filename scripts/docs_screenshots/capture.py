@@ -13,6 +13,8 @@ Run from the repository root (Playwright is not a Celldega dependency):
     uv run --with playwright python scripts/docs_screenshots/capture.py --list
 
 Rebuild the bundle (`npm run build`) first when capturing unreleased changes.
+Set CELLDEGA_ESM_VERSION to a published npm version (e.g. 0.28.0) so notebook
+captures load that bundle from jsdelivr instead of inlining the local one.
 """
 
 from __future__ import annotations
@@ -73,6 +75,7 @@ class Capture:
     anim: str = "gif"  # animation format: "gif", or "webp" for tissue (much smaller)
     notebook: str | None = None  # Python code run in the dega env instead of `spec`
     quality: int | None = None  # WebP quality (default 80 for images, 70 for animations)
+    fit_widget: bool = True  # notebook captures: size the first widget like a viewer panel
 
     @property
     def path(self) -> Path:
@@ -388,7 +391,74 @@ cgm = dega.viz.Clustergram(matrix=markers, rank_dim=3, width=420, height=520)
 dega.viz.spatial_clustergram(landscape, cgm, enrich=True, width="560px", height="660px")
 """
 
+# Enrich with the islet cluster's top Scanpy markers (the hosted pancreas AnnData).
+PANCREAS_ENRICH_NOTEBOOK = f"""
+from pathlib import Path
+from urllib.request import urlretrieve
+
+import anndata as ad
+import scanpy as sc
+import celldega as dega
+
+h5ad = Path("{PANCREAS_H5AD}")
+if not h5ad.exists():
+    h5ad = Path("pancreas.h5ad")
+    if not h5ad.exists():
+        urlretrieve("{PANCREAS_H5AD_URL}", h5ad)
+adata = ad.read_h5ad(h5ad)
+sc.tl.rank_genes_groups(adata, groupby="leiden")
+genes = sc.get.rank_genes_groups_df(adata, group="9")["names"][:20].tolist()
+
+enrich = dega.viz.Enrich(width=640, height=620)
+enrich.gene_list = genes
+enrich
+"""
+ENRICH_TERM = '.celldega-enrich svg text:text-is("{}")'
+ENRICH_GENE = '.celldega-enrich__paragraph span:text-matches("^{}\\b")'
+
 TABULA_SPERMATIDS = [460, 75]  # the swirl at the top of the Tabula Sapiens UMAP
+
+
+def kidney_yearbook(query: dict, rows: int = 2, cols: int = 4) -> dict:
+    """An Atera kidney Yearbook: celldega.yearbook(el, ...args)."""
+    args = [
+        {},
+        "",
+        ATERA_KIDNEY,
+        "Atera kidney",
+        [],
+        rows,
+        cols,
+        50,
+        4,
+        920,
+        560,
+        {},
+        [],
+        {},
+        [],
+        "default",
+        {},
+        None,
+        0,
+        query,
+    ]
+    return {"panels": [{"kind": "yearbook", "width": 920, "args": args}]}
+
+
+PODOCYTES = {"cluster": {"attr": "cluster", "value": "16"}, "gene": "NPHS2", "max_cells": 64}
+YEARBOOK_CALLOUTS = [
+    {"label": "1", "selector": "#panel-0 .image_container"},
+    {"label": "2", "selector": "#panel-0 .cell_container"},
+    {"label": "3", "selector": "#panel-0 .gene_container"},
+    {"label": "4", "selector": "#panel-0 .ctrl_container > div:nth-child(4)"},
+    {"label": "5", "selector": "#panel-0 .query_container"},
+    {"label": "6", "selector": "#panel-0 .pagination_container"},
+    {"label": "7", "selector": "#panel-0 .logo_button", "place": "at", "xy": [-14, 8]},
+    {"label": "8", "selector": "#panel-0 .yearbook-portrait-selection", "place": "inside"},
+    {"label": "9", "selector": "#panel-0 .yearbook-select-cell", "place": "left"},
+]
+YB_CHECK = "#panel-0 .yearbook-select-cell >> nth="
 
 # The same anchors without NBHD (drawing off), numbered 1-6.
 LANDSCAPE_CALLOUTS = [
@@ -718,6 +788,161 @@ CAPTURES = [
         ],
         settle_ms=25000,
         crop="#panel-0",
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    # "Visualize your own data" page: the linked pancreas views.
+    Capture(
+        group="your-data",
+        name="linked",
+        # Click the islet cluster (9) in the Clustergram: the Landscape shows its
+        # cells and Enrich receives its top marker genes.
+        notebook=PANCREAS_LINKED_NOTEBOOK,
+        fit_widget=False,
+        viewport=(1700, 1000),
+        steps=[
+            {"mouse": [80, 38], "relative_to": ".fill >> nth=1", "action": "click", "wait": 4000},
+            {"mouse": [5, 5], "relative_to": ".widget-hbox", "wait": 800},
+        ],
+        annotate=[
+            # 1: the clicked column label; 2: the Landscape; 3: Enrich.
+            {
+                "label": "1",
+                "selector": ".widget-hbox > :nth-child(2) .fill",
+                "place": "at",
+                "xy": [80, 10],
+            },
+            {
+                "label": "2",
+                "selector": ".widget-hbox > :nth-child(1) .fill",
+                "place": "at",
+                "xy": [24, 24],
+            },
+            {
+                "label": "3",
+                "selector": ".widget-hbox > :nth-child(3)",
+                "place": "at",
+                "xy": [-12, 44],
+            },
+        ],
+        crop=".widget-hbox",
+        settle_ms=15000,
+        scale=1.2,
+    ),
+    # Yearbook guide: Atera kidney portraits.
+    Capture(
+        group="yearbook",
+        name="overview",
+        spec=kidney_yearbook(PODOCYTES),
+        annotate=YEARBOOK_CALLOUTS,
+        pad_top=30,
+        pad_left=34,
+        settle_ms=15000,
+        scale=1.4,
+    ),
+    Capture(
+        group="yearbook",
+        name="query_review",
+        # Query glomerular endothelial cells (cluster 20) ranked by EMCN, zoom
+        # every portrait at once, check cells on two pages, and return.
+        spec=kidney_yearbook(PODOCYTES),
+        frames=[
+            {"mouse": [460, 300], "relative_to": "#panel-0", "steps": 4, "wait": 300, "hold": 3},
+            {"click": "#panel-0 .query_container input >> nth=0", "wait": 150},
+            {"key": "Meta+A", "wait": 50},
+            *[{"type": c, "wait": 120} for c in "20"],
+            {"click": "#panel-0 .query_container input >> nth=1", "wait": 150},
+            {"key": "Meta+A", "wait": 50},
+            *[{"type": c, "wait": 120} for c in "EMCN"],
+            {"click_text": "Query", "within": "#panel-0", "wait": 5000, "hold": 8},
+            *[
+                {
+                    "mouse": [115, 225],
+                    "relative_to": "#panel-0",
+                    "action": "wheel",
+                    "delta": 120,
+                    "wait": 500,
+                }
+                for _ in range(3)
+            ],
+            {"wait": 2500, "hold": 6},
+            {"click": YB_CHECK + "0", "wait": 500, "hold": 3},
+            {"click": YB_CHECK + "2", "wait": 500, "hold": 3},
+            {"click_text": "▶", "within": "#panel-0", "wait": 4000, "hold": 4},
+            {"click": YB_CHECK + "1", "wait": 500, "hold": 3},
+            {"click_text": "START", "within": "#panel-0", "wait": 4000, "hold": 14},
+        ],
+        crop="#panel-0",
+        settle_ms=15000,
+        scale=1,
+        fps=6,
+        cursor=True,
+        anim="webp",
+    ),
+    # Enrich guide: the islet cluster's top markers.
+    Capture(
+        group="enrich",
+        name="overview",
+        notebook=PANCREAS_ENRICH_NOTEBOOK,
+        fit_widget=False,
+        steps=[
+            {"click": ENRICH_TERM.format("Alpha Cell Pancreas Human"), "wait": 1200},
+            {"click": ENRICH_GENE.format("GCG"), "wait": 3000},
+            {"mouse": [5, 5], "relative_to": ".celldega-enrich", "wait": 500},
+        ],
+        annotate=[
+            {"label": "1", "selector": ".celldega-enrich select", "place": "left"},
+            {"label": "2", "selector": ".celldega-enrich svg", "place": "at", "xy": [-14, 40]},
+            {
+                "label": "3",
+                "selector": ".celldega-enrich__paragraph",
+                "place": "at",
+                "xy": [-14, 14],
+            },
+            {
+                "label": "4",
+                "selector": ".celldega-enrich__gene-info",
+                "place": "at",
+                "xy": [-14, 14],
+            },
+            {"label": "5", "selector": ".celldega-enrich a", "place": "left"},
+            {"label": "6", "selector": ".celldega-enrich .logo_button", "place": "left"},
+        ],
+        crop="#stage",
+        pad_left=34,
+        settle_ms=8000,
+        scale=1.3,
+    ),
+    Capture(
+        group="enrich",
+        name="terms_and_genes",
+        notebook=PANCREAS_ENRICH_NOTEBOOK,
+        fit_widget=False,
+        frames=[
+            {
+                "mouse": [320, 300],
+                "relative_to": ".celldega-enrich",
+                "steps": 4,
+                "wait": 200,
+                "hold": 3,
+            },
+            {
+                "mouse": [90, 160],
+                "relative_to": ".celldega-enrich",
+                "steps": 8,
+                "wait": 900,
+                "hold": 5,
+            },
+            {"click": ENRICH_TERM.format("Delta Cell Pancreas Human"), "wait": 1200, "hold": 7},
+            {"click": ENRICH_TERM.format("Alpha Cell Pancreas Human"), "wait": 1200, "hold": 7},
+            {"hover": ENRICH_GENE.format("SST"), "wait": 2500, "hold": 6},
+            {"click": ENRICH_GENE.format("GCG"), "wait": 2500, "hold": 10},
+            {"click": ENRICH_TERM.format("Alpha Cell Pancreas Human"), "wait": 1200, "hold": 6},
+        ],
+        crop="#stage",
+        settle_ms=8000,
         scale=1,
         fps=6,
         cursor=True,
@@ -1110,6 +1335,8 @@ def run_step(page: Page, step: dict) -> None:
         )
     elif "click" in step:
         page.locator(step["click"]).first.click(modifiers=step.get("modifiers", []))
+    elif "hover" in step:
+        page.locator(step["hover"]).first.hover()
     elif "fill" in step:
         page.locator(step["fill"]).first.fill(step["value"])
         if step.get("enter"):
@@ -1246,10 +1473,18 @@ def notebook_html(code: str) -> Path:
 
     Widgets built in Python (for example a Landscape with an AnnData's UMAP)
     render from the saved state without a kernel, as in the documentation.
-    Results are cached by code, so captures that share a notebook run it once.
+    With CELLDEGA_ESM_VERSION set (e.g. 0.28.0), widgets load that published
+    bundle from jsdelivr; otherwise each widget inlines the local bundle (about
+    12 MB per widget), for capturing unreleased changes. Results are cached by
+    code and bundle, so captures that share a notebook run it once.
     """
     CACHE.mkdir(exist_ok=True)
-    name = "nb_" + hashlib.sha1(code.encode()).hexdigest()[:12]
+    esm_version = os.environ.get("CELLDEGA_ESM_VERSION")
+    env = {**os.environ}
+    if not esm_version:
+        env["CELLDEGA_LOCAL_ESM"] = "1"
+    key = f"{code}\n# esm: {esm_version or 'local'}"
+    name = "nb_" + hashlib.sha1(key.encode()).hexdigest()[:12]
     html = CACHE / f"{name}.html"
     if html.exists():
         return html
@@ -1288,7 +1523,7 @@ def notebook_html(code: str) -> Path:
         ],
         check=True,
         cwd=CACHE,
-        env={**os.environ, "CELLDEGA_LOCAL_ESM": "1"},
+        env=env,
     )
     return html
 
@@ -1301,7 +1536,7 @@ def capture(page: Page, port: int, item: Capture) -> Path:
     if item.notebook:
         html = notebook_html(item.notebook).relative_to(REPO)
         page.goto(f"http://127.0.0.1:{port}/{html}")
-        page.wait_for_selector(".ui_container", timeout=300_000)
+        page.wait_for_selector(".ui_container, .celldega-enrich", timeout=300_000)
         # Show only the widget: hide code, prompts, and page margins.
         page.add_style_tag(
             content=".jp-InputArea, .jp-InputPrompt, .jp-OutputPrompt { display: none !important; }"
@@ -1310,12 +1545,16 @@ def capture(page: Page, port: int, item: Capture) -> Path:
         )
         # Name the widget like viewer.html panels, so selectors are shared.
         page.evaluate(
-            """() => {
-                const root = document.querySelector('.ui_container').parentElement;
+            """(fit) => {
+                const widget =
+                    document.querySelector('.ui_container') ||
+                    document.querySelector('.celldega-enrich');
+                const root = widget.parentElement;
                 root.id = 'panel-0';
-                root.style.width = '880px';  // the map fills its container here
+                if (fit) root.style.width = '880px';  // the map fills its container here
                 root.parentElement.id = 'stage';
-            }"""
+            }""",
+            item.fit_widget,
         )
     else:
         url = f"http://127.0.0.1:{port}/{VIEWER}?spec={quote(json.dumps(item.spec))}"

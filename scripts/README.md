@@ -67,6 +67,21 @@ can reuse completed DegaFiles after an interrupted Zarr export.
 See the [3D mouse brain example](../docs/gallery/gallery_broad_allen_mouse_brain_3d.md)
 for using either source with `CellCloud`.
 
+## Capture documentation screenshots
+
+[`docs_screenshots/capture.py`](docs_screenshots/capture.py) renders
+visualizations from public data with the documentation bundle in your installed
+Google Chrome, performs scripted interactions, and writes WebP images under
+`docs/assets/img/visualizations/`. Rerun a page's captures after its UI changes:
+
+```bash
+uv run --with playwright python scripts/docs_screenshots/capture.py --only index
+```
+
+Playwright is not a Celldega dependency; `uv run --with` provides it for one run.
+Captures are declared once in `CAPTURES`; the script reports any image over the
+size budget.
+
 ## ❤️‍🩹 Common Issues & Solutions
 
 **"Permission denied"?**

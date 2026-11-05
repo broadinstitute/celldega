@@ -20,6 +20,40 @@ Celldega provides:
 - **Neighborhood Analysis**: Define and analyze tissue neighborhoods with alpha shapes and hextiles
 - **Multi-dataset Support**: Compare multiple datasets side-by-side
 
+## Interacting with the Visualizations
+
+Every Celldega visualization is interactive: scroll to zoom, drag to pan, hover
+for details, and click to select clusters, genes, or regions. Selections can
+also update other views. For example, clicking a gene in a Clustergram colors
+the cells that express it in a linked Landscape.
+
+The [Visualizations](../visualizations/index.md) overview introduces the
+[control panel](../visualizations/index.md#the-control-panel) that most
+visualizations share, and the
+[two ways to use them](../visualizations/index.md#two-ways-to-use-a-visualization):
+as notebook widgets with a Python back-end, or as JavaScript on a web page.
+Each visualization's page then describes its interactions in detail. The
+Celldega logo in every control panel opens that page:
+[Landscape](../visualizations/landscape.md) ·
+[Yearbook](../visualizations/yearbook.md) ·
+[CellCloud](../visualizations/cell-cloud.md) ·
+[NeighborhoodCloud](../visualizations/neighborhood-cloud.md) ·
+[Clustergram](../visualizations/clustergram.md) ·
+[Composition](../visualizations/composition.md) ·
+[Enrich](../visualizations/enrich.md).
+
+## Performance
+
+Celldega provides responsive exploration of spatial transcriptomics datasets
+with over 1 billion transcripts. Landscape loads data in spatial tiles: as you
+zoom in, it fetches and draws every transcript in view, so you can move from a
+whole tissue section to individual transcripts without waiting for the full
+dataset to load. The [Celldega preprint](https://doi.org/10.64898/2026.08.13.744672)
+benchmarks loading, transcript display, and interactive exploration on datasets
+of 10 million to 1 billion transcripts; Celldega displayed transcripts without
+delay and completed the exploration task at every size. See
+[Technologies](technologies/index.md) for the visualization approach.
+
 ## Key Concepts
 
 ### DegaFiles and AnnData Zarr
@@ -35,16 +69,20 @@ per-gene expression directly from an AnnData Zarr store.
 See [File Formats](file_formats.md) for layouts, row-group storage within
 DegaFiles, and Matrix persistence before and after clustering.
 
-### Widgets
+### Visualizations
 
-Celldega provides several Jupyter Widget classes for interactive visualization:
+Each visualization is a notebook widget in `dega.viz`. Landscape and Clustergram
+also have [JavaScript entry points](../javascript/index.md) for web pages.
 
-| Widget | Description |
+| Visualization | What you explore |
 |--------|-------------|
-| `Landscape` | Spatial tissue and low dimensional embedding landscapes (UMAP/XY) |
-| `Clustergram` | Hierarchical clustering heatmap (matrix) |
-| `Yearbook` | Grid of cell portraits |
-| `Enrich` | Gene enrichment analysis widget |
+| `Landscape` | Tissue images, cells, transcripts, and neighborhoods, or UMAP and gene-expression XY views |
+| `Yearbook` | A grid of individual cell portraits |
+| `CellCloud` | Cells in 3D, from thick tissue or aligned serial sections |
+| `NeighborhoodCloud` | Tissue neighborhoods across slices in 3D |
+| `Clustergram` | Hierarchically clustered heatmaps and dot plots |
+| `Composition` | Cell-type proportions across groups |
+| `Enrich` | Gene-set enrichment through Enrichr |
 
 See [Visualizations](../visualizations/index.md) for all views and how to
 use them together.
@@ -68,23 +106,47 @@ Celldega supports multiple spatial transcriptomics platforms:
 pip install celldega
 ```
 
-### 2. Visualize Pre-processed Data
+### 2. Explore a public Xenium dataset
 
-If you have prepared DegaFiles:
+Open a prepared Xenium human pancreas dataset, hosted as DegaFiles on GitHub,
+and link it to a Clustergram of each default cluster's mean gene expression:
 
 ```python
+import ipywidgets as widgets
+import pandas as pd
 import celldega as dega
 
-# Create a Landscape widget
-landscape = dega.viz.Landscape(
-    base_url="https://your-landscape-files-url",
-    ini_x=10000,
-    ini_y=10000,
-    ini_zoom=-5,
-    height=600
+base_url = (
+    "https://raw.githubusercontent.com/broadinstitute/celldega_Xenium_human_Pancreas_FFPE/"
+    "main/Landscape_Xenium_V1_human_Pancreas_FFPE_outs_webp"
 )
-landscape
+
+# Tissue image, cells, and transcripts, with neighborhood drawing turned on.
+landscape = dega.viz.Landscape(base_url=base_url, height=600, nbhd_edit=True)
+
+# Genes by default clusters (mean counts per cell), from the same DegaFiles.
+df_sig = pd.read_parquet(f"{base_url}/df_sig.parquet")
+mat = dega.clust.Matrix(df_sig)
+mat.norm(axis="col", by="total")
+mat.norm(axis="row", by="zscore")
+mat.cluster()
+cgm = dega.viz.Clustergram(matrix=mat, width=500, height=500)
+
+# Clicking a gene or cluster in the Clustergram updates the Landscape.
+widgets.jslink((cgm, "click_info"), (landscape, "update_trigger"))
+widgets.HBox([landscape, cgm])
 ```
+
+Click **NBHD**, then **SKTCH** (or press ++s++ over the tissue), and drag to
+outline a region. The drawn neighborhood and its cells are then available in
+Python:
+
+```python
+landscape.nbhd  # a GeoDataFrame of drawn neighborhoods
+```
+
+In Jupyter, `dega.viz.spatial_clustergram(landscape, cgm)` builds the same
+linked layout; the explicit `jslink` above also works in Google Colab.
 
 ### 3. Pre-process Your Own Data
 
@@ -166,7 +228,15 @@ for details.
 
 Try Celldega in Google Colab without any installation:
 
+- [Celldega 0.28.0 Xenium pancreas Landscape and Clustergram](https://colab.research.google.com/drive/1HE7sa5Ju43fbVepF7YEhixjqWo5tRwpD?usp=sharing),
+  the Quick Start example above
 - [Celldega Xenium Landscape Visualizations](https://colab.research.google.com/drive/1NVZ07R0Eb-Xz6KBmMGRe3qmksYdeSBWc?usp=sharing)
+
+### marimo molab
+
+Open a prepared Atera dataset in a Landscape in marimo's cloud notebooks:
+
+[![Open in molab](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_QLzYVa6S9nBApCwvw9vzni)
 
 ### ObservableHQ
 
@@ -178,6 +248,7 @@ Explore Celldega as a standalone JavaScript library:
 
 - [Installation](installation.md) - Detailed installation instructions
 - [Usage](usage/index.md) - Notebook, web, and desktop options
+- [Visualizations](../visualizations/index.md) - The control panel and each visualization's interactions
 - [Technologies](technologies/index.md) - Visualization and analysis foundations
 - [File Formats](file_formats.md) - DegaFiles and AnnData Zarr format guide
 - [Python API](../python/index.md) - Full Python API reference

@@ -3,6 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/celldega.svg)](https://pypi.org/project/celldega/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://broadinstitute.github.io/celldega/)
+[![Open in molab](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_QLzYVa6S9nBApCwvw9vzni)
 
 # Celldega
 
@@ -12,7 +13,9 @@ neighborhoods with **Landscape**; compare expression patterns with **Clustergram
 heatmaps and dot plots; and interpret gene sets with **Enrich**. Other views
 include cell portraits, composition charts, and 3D cell and neighborhood clouds.
 
-Use Celldega in Jupyter notebooks or as a standalone JavaScript library. For
+Use Celldega in Jupyter or marimo notebooks, or as a standalone JavaScript
+library. Try it instantly in [molab](https://molab.marimo.io/notebooks/nb_QLzYVa6S9nBApCwvw9vzni),
+marimo's cloud notebooks, with a prepared Atera dataset. For
 desktop viewing of prepared data, try
 [Celldega-App](https://broadinstitute.github.io/celldega/getting-started/desktop-app/).
 [Download the latest desktop build](https://github.com/broadinstitute/celldega-app/releases/latest).

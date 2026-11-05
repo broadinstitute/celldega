@@ -44,6 +44,7 @@ theme:
     repo: lucide/github
   features:
     - navigation.indexes
+    - content.code.copy
 
 extra:
   social:
@@ -159,6 +160,12 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
+  # Collapsible blocks, tabs, and keyboard keys (++s++) in the visualization guides.
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
 
 
 plugins:

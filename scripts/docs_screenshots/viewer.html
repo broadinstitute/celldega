@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Celldega docs capture</title>
+  <style>
+    html, body { margin: 0; background: #fff; font-family: system-ui, sans-serif; }
+    #stage { display: inline-flex; gap: 12px; padding: 12px; align-items: flex-start; }
+    .panel { flex: none; }
+  </style>
+</head>
+<body>
+  <!--
+  Renders the visualizations described by the `spec` query parameter (JSON)
+  with the documentation bundle, for scripts/docs_screenshots/capture.py:
+
+    {"panels": [{"kind": "landscape", "width": 900, "options": {...}},
+                {"kind": "clustergram", "options": {...}}],
+     "links": [[0, "click_info", 1, "update_trigger"]]}
+
+  `kind` is a standalone entry point (landscape or clustergram) and `options`
+  are its arguments. Sets window.__dega_ready once every panel has rendered.
+  -->
+  <div id="stage"></div>
+  <script type="module">
+    import celldega from '../../docs/assets/js/celldega.js';
+
+    const spec = JSON.parse(new URLSearchParams(location.search).get('spec'));
+    const stage = document.getElementById('stage');
+    const vizs = [];
+
+    try {
+      for (const [index, panel] of spec.panels.entries()) {
+        const el = document.createElement('div');
+        el.className = 'panel';
+        el.id = `panel-${index}`;
+        if (panel.width) el.style.width = `${panel.width}px`;
+        stage.appendChild(el);
+        vizs.push(await celldega[panel.kind](el, panel.options));
+      }
+      for (const [source, source_key, target, target_key] of spec.links ?? []) {
+        celldega.link_models(vizs[source].model, source_key, vizs[target].model, target_key);
+      }
+      window.__dega_vizs = vizs;
+      window.__dega_ready = true;
+    } catch (error) {
+      window.__dega_error = String(error?.stack ?? error);
+    }
+  </script>
+</body>
+</html>

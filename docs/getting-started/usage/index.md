@@ -126,9 +126,10 @@ endpoint. Cross-origin hosts must allow requests from the notebook or web page,
 and access permissions must work for browser requests as well as Python downloads.
 
 **Packed row-group DegaFiles require HTTP byte-range support**, including
-`206 Partial Content` responses. Celldega's simple local file-server helper adds
-CORS headers but does not implement byte ranges; use the individual-tile layout
-with that helper, or a range-capable host for packed files. See
+`206 Partial Content` responses. Celldega's local file server
+(`viz.get_local_server`) supports byte ranges from version 0.28.1; with earlier
+versions, use the individual-tile layout locally, or a range-capable host for
+packed files. See
 [row-group hosting requirements](../file_formats.md#row-group-storage-mode-optional)
 and the [HTTP range-request guide](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests).
 

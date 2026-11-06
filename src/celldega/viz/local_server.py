@@ -4,6 +4,7 @@ Local server module for handling HTTP requests with CORS support.
 
 from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 import ipaddress
+import os
 from pathlib import Path
 import socket
 from socketserver import ThreadingMixIn
@@ -20,8 +21,96 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
 
+def _parse_byte_range(header: str, size: int) -> tuple[int, int] | str | None:
+    """Parse a single ``Range: bytes=...`` header against a file of ``size`` bytes.
+
+    Returns the inclusive ``(start, end)`` byte offsets, ``"unsatisfiable"`` for a
+    range outside the file, or ``None`` to ignore the header and send the whole
+    file (malformed or multi-range requests, as RFC 9110 permits).
+    """
+    units, _, spec = header.strip().partition("=")
+    if units.strip().lower() != "bytes" or "," in spec:
+        return None
+    first, dash, last = spec.strip().partition("-")
+    if not dash:
+        return None
+    try:
+        if not first:  # a suffix range: the last N bytes
+            length = int(last)
+            if length <= 0 or size == 0:
+                return "unsatisfiable"
+            return max(size - length, 0), size - 1
+        start = int(first)
+        end = int(last) if last else size - 1
+    except ValueError:
+        return None
+    if start < 0:
+        return None
+    if start >= size:
+        return "unsatisfiable"
+    if end < start:
+        return None
+    return start, min(end, size - 1)
+
+
 class CORSHTTPRequestHandler(SimpleHTTPRequestHandler):
-    """Custom HTTP request handler with CORS support."""
+    """Custom HTTP request handler with CORS and byte-range support.
+
+    Single ``Range`` requests are answered with ``206 Partial Content``, which
+    the row-group DegaFiles readers need to fetch Parquet footers and row
+    groups; other requests are served as by ``SimpleHTTPRequestHandler``.
+    """
+
+    _range_remaining: int | None = None
+
+    def send_head(self):
+        """Send headers for a full or single byte-range response."""
+        self._range_remaining = None
+        range_header = self.headers.get("Range")
+        path = self.translate_path(self.path)
+        if not range_header or Path(path).is_dir():
+            return super().send_head()
+        try:
+            source = Path(path).open("rb")  # noqa: SIM115 - closed by do_GET/do_HEAD
+        except OSError:
+            self.send_error(404, "File not found")
+            return None
+        stat = os.fstat(source.fileno())
+        byte_range = _parse_byte_range(range_header, stat.st_size)
+        if byte_range is None:
+            source.close()
+            return super().send_head()
+        if byte_range == "unsatisfiable":
+            source.close()
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{stat.st_size}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        start, end = byte_range
+        self.send_response(206)
+        self.send_header("Content-Type", self.guess_type(path))
+        self.send_header("Content-Range", f"bytes {start}-{end}/{stat.st_size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+        self.end_headers()
+        source.seek(start)
+        self._range_remaining = end - start + 1
+        return source
+
+    def copyfile(self, source, outputfile) -> None:
+        """Copy the whole file, or only the requested byte range."""
+        remaining = self._range_remaining
+        if remaining is None:
+            super().copyfile(source, outputfile)
+            return
+        while remaining > 0:
+            chunk = source.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            outputfile.write(chunk)
+            remaining -= len(chunk)
 
     def end_headers(self) -> None:
         """Add CORS headers to the response."""

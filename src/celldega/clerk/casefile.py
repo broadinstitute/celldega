@@ -39,6 +39,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+from pathlib import Path
 
 
 @dataclass
@@ -83,26 +84,26 @@ class CaseFile:
     history: list = field(default_factory=list)
 
     # ---- transcript / evidence -------------------------------------------
-    def add_message(self, role: str, content: str) -> "CaseFile":
+    def add_message(self, role: str, content: str) -> CaseFile:
         """Append a message to the transcript. Returns self for chaining."""
         self.messages.append({"role": role, "content": content})
         return self
 
     # ---- rulings ----------------------------------------------------------
-    def propose(self, label: str) -> "CaseFile":
+    def propose(self, label: str) -> CaseFile:
         """Record the label Clerk is making the case for (no human ruling yet)."""
         self.proposed_label = label
         self.history.append({"action": "propose", "label": label})
         return self
 
-    def accept(self, label: str | None = None) -> "CaseFile":
+    def accept(self, label: str | None = None) -> CaseFile:
         """The human accepts the proposed label (or an override)."""
         self.final_label = label if label is not None else self.proposed_label
         self.status = "accepted"
         self.history.append({"action": "accept", "label": self.final_label})
         return self
 
-    def edit(self, label: str) -> "CaseFile":
+    def edit(self, label: str) -> CaseFile:
         """The human overrides with a corrected label."""
         self.final_label = label
         self.status = "edited"
@@ -138,25 +139,23 @@ class CaseFile:
         return json.dumps(self.to_dict(), **kwargs)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CaseFile":
+    def from_dict(cls, data: dict) -> CaseFile:
         data = dict(data)
         if "entity_id" not in data:
             raise ValueError("CaseFile requires an 'entity_id'.")
         # Only keep known fields so unknown/future keys don't break construction.
-        known = {f for f in cls.__dataclass_fields__}
+        known = set(cls.__dataclass_fields__)
         return cls(**{k: v for k, v in data.items() if k in known})
 
     @classmethod
-    def from_json(cls, text: str) -> "CaseFile":
+    def from_json(cls, text: str) -> CaseFile:
         return cls.from_dict(json.loads(text))
 
     def save(self, path) -> None:
         """Write the CaseFile to a JSON file."""
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(self.to_json())
+        Path(path).write_text(self.to_json(), encoding="utf-8")
 
     @classmethod
-    def load(cls, path) -> "CaseFile":
+    def load(cls, path) -> CaseFile:
         """Read a CaseFile back from a JSON file."""
-        with open(path, encoding="utf-8") as fh:
-            return cls.from_json(fh.read())
+        return cls.from_json(Path(path).read_text(encoding="utf-8"))

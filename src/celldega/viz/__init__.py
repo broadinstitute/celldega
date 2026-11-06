@@ -415,6 +415,8 @@ def _feed_landscape_raster_to_clerk(
     def _copy_raster(change):
         png = change["new"] or ""
         if png:
+            # Preview first: the panel redraws when ``has_image`` flips.
+            clerk.image_thumb_b64 = landscape.raster_thumb or ""
             clerk.image_b64 = png
 
     def _copy_view_state(change):

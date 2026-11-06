@@ -17,6 +17,12 @@ Two invocation modes (see :func:`run_claude`):
 
 Reasoning is single-shot with no tools: Celldega pre-gathers the evidence (gene list,
 Enrichr terms, the Landscape raster, free-text context) and bundles it into one prompt.
+
+Every call is isolated from the user's Claude Code setup (see :data:`ISOLATION_FLAGS`):
+Clerk's own system prompt replaces Claude Code's, no tools or MCP servers are available,
+the user's settings and hooks are not loaded, nothing is saved as a session, and the CLI
+runs in a throwaway working directory so no project ``CLAUDE.md`` or memory is picked up.
+Only the CLI's login is shared.
 """
 
 from __future__ import annotations
@@ -24,11 +30,23 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import tempfile
 
 
 DEFAULT_TIMEOUT = 180
 
-_SYSTEM_PREAMBLE = (
+# Flags that keep each call independent of the user's Claude Code configuration. Clerk's
+# system prompt is passed separately via ``--system-prompt``.
+ISOLATION_FLAGS = (
+    "--tools",
+    "",  # no built-in tools
+    "--strict-mcp-config",  # ignore the user's MCP servers (none are passed)
+    "--no-session-persistence",  # don't save Clerk calls as resumable sessions
+    "--setting-sources",
+    "",  # skip user/project/local settings, including hooks
+)
+
+SYSTEM_PROMPT = (
     "You are Celldega Clerk, an assistant embedded in a spatial-transcriptomics "
     "visualization tool. You help a scientist interpret evidence about a cluster or "
     "region of cells -- proposing cell-type annotations, explaining marker genes, and "
@@ -64,7 +82,7 @@ def build_prompt(
         info: Any extra free-text context (dataset, cluster id, notes).
         has_image: Whether a Landscape raster is attached to the message.
     """
-    parts: list[str] = [_SYSTEM_PREAMBLE, ""]
+    parts: list[str] = []
 
     if info:
         parts += ["## Context", info.strip(), ""]
@@ -156,7 +174,7 @@ def run_claude(
             "widget works without an open terminal session."
         )
 
-    cmd = ["claude", "-p"]
+    cmd = ["claude", "-p", "--system-prompt", SYSTEM_PROMPT, *ISOLATION_FLAGS]
     if model:
         cmd += ["--model", model]
 
@@ -194,13 +212,17 @@ def run_claude(
         streaming = False
 
     try:
-        proc = subprocess.run(
-            cmd,
-            input=stdin_data,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        # A throwaway working directory keeps the CLI from discovering a project
+        # CLAUDE.md or per-project memory from wherever the kernel happens to run.
+        with tempfile.TemporaryDirectory(prefix="celldega-clerk-") as workdir:
+            proc = subprocess.run(
+                cmd,
+                input=stdin_data,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=workdir,
+            )
     except subprocess.TimeoutExpired as exc:
         raise ClerkBackendError(f"claude timed out after {timeout}s.") from exc
     except OSError as exc:  # pragma: no cover - depends on environment

@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import threading
 from typing import Any, Literal
 import urllib.error
 from urllib.parse import quote, urlparse
@@ -497,24 +498,69 @@ class Landscape(CelldegaWidget):
     use_adata_3d_centroids = traitlets.Bool(True).tag(sync=True)
     centroids_url = traitlets.Unicode("").tag(sync=True)
 
-    # Raster capture: incrementing ``raster_request`` asks the frontend to snapshot the
-    # deck.gl canvas; the base64 PNG (no ``data:`` prefix) is written back to
-    # ``raster_png``. Kept in memory only -- nothing is written to disk.
-    raster_request = traitlets.Int(0).tag(sync=True)
-    raster_png = traitlets.Unicode("").tag(sync=True)
+    # Raster capture, kept in memory only. ``request_raster()`` sends the browser a
+    # one-off message; its reply fills these Python-side traits. They are deliberately
+    # *not* synced, so captured images never end up in the notebook's saved widget state.
+    raster_png = traitlets.Unicode("")
+    raster_thumb = traitlets.Unicode("")
     # The exact deck.gl view state (zoom/pan/rotation) at capture time, for
     # reproducibility -- pairs with ``raster_png``.
-    raster_view_state = traitlets.Dict(default_value={}).tag(sync=True)
+    raster_view_state = traitlets.Dict(default_value={})
+    raster_error = traitlets.Unicode("")
+    # Id of the latest request the browser answered (successfully or not). Set last,
+    # so observers of this trait see the finished capture.
+    raster_capture_id = traitlets.Int(0)
 
-    def request_raster(self):
-        """Ask the frontend to capture the current view as a PNG.
+    def request_raster(self, max_size: int = 1024, thumb_size: int = 192) -> int:
+        """Ask the browser to capture the current view.
 
-        Capture is asynchronous: the browser writes the base64 payload to
-        ``raster_png``. Read that trait (or ``observe`` it) once the frontend has
-        responded. Returns the request id that was sent.
+        Capture is asynchronous. The reply sets ``raster_png`` (base64 PNG with no
+        ``data:`` prefix, longest side at most ``max_size`` px), ``raster_thumb`` (a
+        preview at most ``thumb_size`` px) and ``raster_view_state`` (the exact zoom/pan
+        at capture time). ``observe`` those traits, or read them once the browser has
+        replied; a failed capture sets ``raster_error`` instead. Nothing is written to
+        disk.
+
+        Args:
+            max_size (int): Longest side of the captured image, in pixels.
+            thumb_size (int): Longest side of the preview, in pixels.
+
+        Returns:
+            int: The id of this request.
         """
-        self.raster_request += 1
-        return self.raster_request
+        self._raster_request_id += 1
+        self.send(
+            {
+                "event": "capture_raster",
+                "id": self._raster_request_id,
+                "max_size": int(max_size),
+                "thumb_size": int(thumb_size),
+            }
+        )
+        return self._raster_request_id
+
+    def _on_custom_msg(self, _widget, content, _buffers) -> None:
+        """Handle one-off messages from the browser (currently raster captures)."""
+        if not isinstance(content, dict):
+            return
+        event = content.get("event")
+        if event not in ("raster", "raster_error"):
+            return
+        reply_id = content.get("id")
+        reply_id = reply_id if isinstance(reply_id, int) else self.raster_capture_id
+        # Ignore stale replies (e.g. a second view answering an older request).
+        if reply_id < self.raster_capture_id:
+            return
+        if event == "raster_error":
+            self.raster_error = str(content.get("error") or "Raster capture failed")
+        else:
+            self.raster_error = ""
+            # View state and preview first, so observers of ``raster_png`` see a
+            # consistent capture.
+            self.raster_view_state = dict(content.get("view_state") or {})
+            self.raster_thumb = content.get("thumb") or ""
+            self.raster_png = content.get("png") or ""
+        self.raster_capture_id = reply_id
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -807,6 +853,9 @@ class Landscape(CelldegaWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+
+        self._raster_request_id = 0
+        self.on_msg(self._on_custom_msg)
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr
@@ -1111,8 +1160,8 @@ class Clerk(CelldegaWidget):
             (roadmap).
         gene_list (list): Marker / DE genes for the selection.
         context_info (str): Free-text context (dataset, cluster id, notes).
-        model (str): Optional Claude model id/alias (e.g. ``"sonnet"``,
-            ``"claude-haiku-4-5"``). Empty inherits the CLI default. A smaller model is
+        model (str): Optional Claude model alias or id (e.g. ``"opus"``, ``"sonnet"``,
+            ``"haiku"``). Empty inherits the CLI default. A smaller model is
             cheaper/faster for routine annotation.
         width (int): Widget width in px; 0 (default) means full container width.
         name (str): Registry key; creating a new Clerk with the same name closes the old.
@@ -1130,7 +1179,11 @@ class Clerk(CelldegaWidget):
     # Evidence
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
     context_info = traitlets.Unicode("").tag(sync=True)
-    image_b64 = traitlets.Unicode("").tag(sync=True)
+    # The full image sent to the model stays Python-side (not synced), so it is never
+    # saved into the notebook's widget state; the panel only gets a small preview.
+    image_b64 = traitlets.Unicode("")
+    image_thumb_b64 = traitlets.Unicode("").tag(sync=True)
+    has_image = traitlets.Bool(False).tag(sync=True)
     # View state (zoom/pan) paired with image_b64, captured from the linked Landscape.
     image_view_state = traitlets.Dict(default_value={}).tag(sync=True)
 
@@ -1162,55 +1215,129 @@ class Clerk(CelldegaWidget):
         super().__init__(name=name, registry_key=registry_key, **kwargs)
         self._last_request_id = None
         self._linked_widgets = {}
+        self._worker: threading.Thread | None = None
+        self.has_image = bool(self.image_b64)
         self.observe(self._on_request, names="request")
+        self.observe(self._on_image, names="image_b64")
 
         if any(w is not None for w in link_targets.values()):
             from . import link_clerk
 
             link_clerk(self, capture_on_select=capture_on_select, **link_targets)
 
-    def _on_request(self, change):
-        """Handle an ``ask`` triggered from the chat UI (single-shot, no tools)."""
-        from .. import clerk
+    def _on_image(self, change):
+        self.has_image = bool(change["new"])
+        if not change["new"]:
+            self.image_thumb_b64 = ""
 
+    def _on_request(self, change):
+        """Handle a question from the chat UI.
+
+        The model call runs in a background thread so the kernel stays free while
+        Claude thinks: other cells can run, and linked widgets keep updating.
+        """
         req = change["new"] or {}
         req_id = req.get("id")
         if not req_id or req_id == self._last_request_id:
             return
         self._last_request_id = req_id
 
+        if self._worker is not None and self._worker.is_alive():
+            self.error = "Clerk is still answering the previous question."
+            return
+
         question = req.get("question", "")
-        genes = req.get("gene_list") or list(self.gene_list)
-        enrichr_terms = req.get("enrichr_terms") or []
+        call = {
+            "gene_list": req.get("gene_list") or list(self.gene_list),
+            "enrichr_terms": req.get("enrichr_terms") or [],
+            "info": self.context_info,
+            "image_b64": self.image_b64 or None,
+            "model": self.model,
+            "timeout": self.timeout,
+        }
 
         # Append the user's message so it renders immediately.
         self.messages = [*self.messages, {"role": "user", "content": question}]
         self.error = ""
         self.pending = True
+        self._worker = threading.Thread(
+            target=self._answer, args=(question, call), name="celldega-clerk", daemon=True
+        )
+        self._worker.start()
+
+    # Seconds to wait for a fresh Landscape snapshot before asking anyway.
+    snapshot_timeout = 5.0
+
+    def _refresh_snapshot(self) -> None:
+        """Capture the linked Landscape's current view and wait for it (worker thread).
+
+        The kernel's main thread is free while this waits, so it can receive the
+        browser's reply; the ``link_clerk`` observers then copy the new image into
+        ``image_b64`` before the question is sent. Without a linked, displayed
+        Landscape this times out and the question goes ahead with whatever image Clerk
+        already has.
+        """
+        landscape = self._linked_widgets.get("landscape")
+        if landscape is None or not hasattr(landscape, "request_raster"):
+            return
+        done = threading.Event()
+        target = {"id": None}
+
+        def _on_capture(change):
+            if target["id"] is not None and (change["new"] or 0) >= target["id"]:
+                done.set()
+
+        landscape.observe(_on_capture, names="raster_capture_id")
         try:
-            answer = clerk.ask(
-                question,
-                gene_list=genes,
-                enrichr_terms=enrichr_terms,
-                info=self.context_info,
-                image_b64=self.image_b64 or None,
-                model=self.model,
-                timeout=self.timeout,
-            )
+            target["id"] = landscape.request_raster()
+            if landscape.raster_capture_id >= target["id"]:
+                done.set()
+            done.wait(self.snapshot_timeout)
+        finally:
+            landscape.unobserve(_on_capture, names="raster_capture_id")
+
+    def _answer(self, question, call):
+        """Run one model call (in the worker thread) and record the outcome."""
+        from .. import clerk
+
+        try:
+            self._refresh_snapshot()
+            call["image_b64"] = self.image_b64 or None
+            answer = clerk.ask(question, **call)
             self.messages = [*self.messages, {"role": "assistant", "content": answer}]
-        except clerk.ClerkBackendError as exc:
-            self.error = str(exc)
-            self.messages = [
-                *self.messages,
-                {"role": "error", "content": str(exc)},
-            ]
+        except Exception as exc:  # surface every failure in the panel, not the log
+            message = (
+                str(exc)
+                if isinstance(exc, clerk.ClerkBackendError)
+                else f"Unexpected error: {exc}"
+            )
+            self.error = message
+            self.messages = [*self.messages, {"role": "error", "content": message}]
         finally:
             self.pending = False
 
+    def wait(self, timeout: float | None = None) -> bool:
+        """Block until the question in flight (if any) has been answered.
+
+        Args:
+            timeout (float | None): Seconds to wait; ``None`` waits indefinitely.
+
+        Returns:
+            bool: ``True`` if Clerk is idle afterwards.
+        """
+        worker = self._worker
+        if worker is not None:
+            worker.join(timeout)
+        return worker is None or not worker.is_alive()
+
     def ask(self, question, **kwargs):
-        """Ask a question from Python (bypasses the chat UI). Returns the answer text."""
+        """Ask a question from Python (bypasses the chat UI). Returns the answer text.
+
+        Unlike the chat box, this blocks until the answer arrives.
+        """
         from .. import clerk
 
+        self.wait()
         genes = kwargs.pop("gene_list", None) or list(self.gene_list)
         self.messages = [*self.messages, {"role": "user", "content": question}]
         self.pending = True

@@ -70,11 +70,26 @@ read directly in the browser, with no DegaFiles. The linked Clustergram adds a
 higher-dimensional view: which genes distinguish the clusters you see in the
 UMAP.
 
-[![Clicking a cluster and genes in a PBMC marker Clustergram linked to its UMAP](../assets/img/visualizations/landscape-clustergram-enrich/single_cell.webp){ loading=lazy }](../assets/img/visualizations/landscape-clustergram-enrich/single_cell.webp)
+[![Exploring the Tabula Sapiens atlas with a linked Landscape, Clustergram, and Enrich](../assets/img/visualizations/landscape-clustergram-enrich/single_cell_tabula.webp){ loading=lazy }](../assets/img/visualizations/landscape-clustergram-enrich/single_cell_tabula.webp)
 
-*PBMC 3k: clicking cluster 1 shows its cells in the UMAP; clicking the B-cell
-gene CD79A colors those cells; clicking the monocyte gene LYZ colors the
-monocytes.*
+*Tabula Sapiens, 1.1 million cells and 180 cell types:*
+
+1. *Zooming toward the spermatids updates the CELL and gene bars to the cells in
+   view, and PRM1 colors the spermatid swirl; zoomed out, PRM1 stays confined to
+   it.*
+2. *Dragging the column dendrogram slider previews the cell-type tree and its
+   cut, then selecting column dendrogram branches highlights meta-clusters of
+   cell types in the UMAP.*
+3. *Double-clicking the spermatid column ranks the genes by spermatid expression,
+   selects the spermatids, and sends their top markers to Enrich, which ranks
+   Germ Cell Testis first. Zooming into the top rows and clicking PRM1 colors its
+   cells.*
+4. *Clicking the plasma cell column selects plasma cells across tissues, and
+   Enrich ranks plasma cell gene sets first.*
+
+Follow along in the
+[Tabula Sapiens tutorial](../examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb),
+or explore the atlas in the [Gallery](../gallery/gallery_tabula_sapiens_clustergram.md).
 
 ```python
 adata.layers["counts_csc"] = adata.layers["counts"].tocsc()
@@ -127,7 +142,7 @@ Source: [linking helpers](https://github.com/broadinstitute/celldega/blob/main/s
 
 The animations show the Xenium pancreas DegaFiles with the
 [hosted Scanpy AnnData](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Xenium_V1_human_Pancreas_FFPE_outs.h5ad),
-and the PBMC 3k AnnData Zarr and marker Matrix from the
-[Chromium PBMC tutorial](../examples/tutorial_notebooks/Scanpy_Chromium.ipynb),
+and the [Tabula Sapiens tutorial](../examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb)
+(Tabula Sapiens Consortium, via CZ CELLxGENE Discover, CC BY 4.0),
 captured with Celldega 0.28.0 using
 [`scripts/docs_screenshots/capture.py`](https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots).

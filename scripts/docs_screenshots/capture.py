@@ -76,6 +76,7 @@ class Capture:
     notebook: str | None = None  # Python code run in the dega env instead of `spec`
     quality: int | None = None  # WebP quality (default 80 for images, 70 for animations)
     fit_widget: bool = True  # notebook captures: size the first widget like a viewer panel
+    notebook_file: str | None = None  # an executed docs notebook (repo path), rendered as is
 
     @property
     def path(self) -> Path:
@@ -486,32 +487,17 @@ PANCREAS_INS_LABEL = [50, 314]
 PANCREAS_ISLET_COLUMN = [80, 38]
 PANCREAS_ISLET_BRANCH = [500, 330]
 
-# PBMC 3k single-cell Landscape linked to its marker Clustergram (viewer page).
-PBMC_LINKED = {
-    "panels": [
-        {
-            **PBMC3K_LANDSCAPE,
-            "width": 640,
-            "options": {
-                **PBMC3K_LANDSCAPE["options"],
-                "width": 640,
-                "height": 560,
-                "ini_zoom": -4.3,
-            },
-        },
-        {
-            "kind": "clustergram",
-            "options": {
-                "url": f"{PBMC3K}/pbmc3k_leiden_markers.zarr",
-                "width": 460,
-                "height": 460,
-                "rank_dim": 3,
-            },
-        },
-    ],
-    "links": [[1, "click_info", 0, "update_trigger"]],
-}
-PBMC_CGM = "#panel-1 .fill"
+
+# The linked view in the Tabula Sapiens notebook (its first widget row).
+TABULA_NOTEBOOK = (
+    "docs/examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich.ipynb"
+)
+TS_LS = ".widget-hbox >> nth=0 >> .fill >> nth=0"
+TS_CGM = ".widget-hbox >> nth=0 >> .fill >> nth=1"
+TS_COL_SLIDER = ".widget-hbox >> nth=0 >> .matrix_controls input.slider >> nth=0"
+TS_GENE_SEARCH = ".widget-hbox >> nth=0 >> .search_logo_row input >> nth=0"
+TS_SWIRL = [300, 185]  # spermatids in the linked UMAP
+TS_CENTER = [299, 375]
 
 # The same anchors without NBHD (drawing off), numbered 1-6.
 LANDSCAPE_CALLOUTS = [
@@ -1124,25 +1110,121 @@ CAPTURES = [
     ),
     Capture(
         group="landscape-clustergram-enrich",
-        name="single_cell",
-        spec=PBMC_LINKED,
-        viewport=(1300, 760),
-        steps=[{"set_range": "#panel-0 .cell_container input.slider", "value": "max", "wait": 500}],
+        name="single_cell_tabula",
+        notebook_file=TABULA_NOTEBOOK,
+        fit_widget=False,
+        viewport=(1700, 1000),
         frames=[
-            {"mouse": [300, 300], "relative_to": PBMC_CGM, "steps": 4, "wait": 300, "hold": 4},
-            # A cluster: its cells in the UMAP.
-            {"mouse": [380, 40], "relative_to": PBMC_CGM, "action": "click", "wait": 300},
-            {"mouse": [300, 520], "relative_to": PBMC_CGM, "steps": 4, "wait": 2500, "hold": 10},
-            # Genes: B-cell CD79A, then monocyte LYZ.
-            {"mouse": [40, 164], "relative_to": PBMC_CGM, "action": "click", "wait": 300},
-            {"set_range": "#panel-0 .trx_container input.slider", "value": "max", "wait": 300},
-            {"mouse": [300, 520], "relative_to": PBMC_CGM, "steps": 4, "wait": 2500, "hold": 10},
-            {"mouse": [60, 220], "relative_to": PBMC_CGM, "action": "click", "wait": 300},
-            {"set_range": "#panel-0 .trx_container input.slider", "value": "max", "wait": 300},
-            {"mouse": [300, 520], "relative_to": PBMC_CGM, "steps": 4, "wait": 2500, "hold": 12},
+            {"mouse": TS_SWIRL, "relative_to": TS_LS, "steps": 6, "wait": 400, "hold": 4},
+            # Zoom in near the spermatids: the CELL and gene bars describe the view.
+            *[
+                {
+                    "mouse": TS_SWIRL,
+                    "relative_to": TS_LS,
+                    "action": "wheel",
+                    "delta": -100,
+                    "wait": 450,
+                }
+                for _ in range(6)
+            ],
+            {"wait": 1500, "hold": 6},
+            # Pan the spermatids to the center and show PRM1.
+            {"mouse": TS_SWIRL, "relative_to": TS_LS, "action": "down", "wait": 60},
+            *[
+                {"mouse": [300, 185 + 19 * i], "relative_to": TS_LS, "steps": 2, "wait": 80}
+                for i in range(1, 11)
+            ],
+            {"mouse": TS_CENTER, "relative_to": TS_LS, "action": "up", "wait": 800, "hold": 4},
+            {"click": TS_GENE_SEARCH, "wait": 200},
+            *[{"type": c, "wait": 120} for c in "PRM1"],
+            {"key": "Enter", "wait": 2500, "hold": 6},
+            # Zoom out: PRM1 is confined to the spermatids.
+            *[
+                {
+                    "mouse": TS_CENTER,
+                    "relative_to": TS_LS,
+                    "action": "wheel",
+                    "delta": 100,
+                    "wait": 350,
+                }
+                for _ in range(6)
+            ],
+            {"wait": 1500, "hold": 8},
+            # The interactive dendrogram: drag the column cut, then restore it.
+            {"mouse": [40, 10], "relative_to": TS_COL_SLIDER, "action": "down", "wait": 200},
+            *[
+                {"mouse": [40 - 3 * i, 10], "relative_to": TS_COL_SLIDER, "steps": 2, "wait": 150}
+                for i in range(1, 10)
+            ],
+            {"wait": 300, "hold": 4},
+            *[
+                {"mouse": [13 + 4 * i, 10], "relative_to": TS_COL_SLIDER, "steps": 2, "wait": 150}
+                for i in range(1, 13)
+            ],
+            {"wait": 300, "hold": 4},
+            *[
+                {"mouse": [61 - 3 * i, 10], "relative_to": TS_COL_SLIDER, "steps": 2, "wait": 150}
+                for i in range(1, 8)
+            ],
+            {"mouse": [40, 10], "relative_to": TS_COL_SLIDER, "action": "up", "wait": 900},
+            # Column dendrogram branches: meta-clusters of cell types in the UMAP.
+            {"mouse": [275, 636], "relative_to": TS_CGM, "steps": 8, "wait": 900, "hold": 4},
+            {
+                "mouse": [275, 636],
+                "relative_to": TS_CGM,
+                "action": "click",
+                "wait": 2500,
+                "hold": 6,
+            },
+            {"mouse": [170, 636], "relative_to": TS_CGM, "steps": 8, "wait": 900, "hold": 3},
+            {
+                "mouse": [170, 636],
+                "relative_to": TS_CGM,
+                "action": "click",
+                "wait": 2500,
+                "hold": 6,
+            },
+            # Double-click the spermatid column: genes ranked by spermatid expression,
+            # spermatids selected, and their markers sent to Enrich.
+            {"mouse": [378, 78], "relative_to": TS_CGM, "steps": 8, "wait": 300},
+            {"mouse": [378, 78], "relative_to": TS_CGM, "action": "dblclick", "wait": 300},
+            {"mouse": [300, 700], "relative_to": TS_CGM, "steps": 4, "wait": 3500, "hold": 8},
+            # A top-ranked gene in the UMAP.
+            *[
+                {
+                    "mouse": [40, 118],
+                    "relative_to": TS_CGM,
+                    "action": "wheel",
+                    "delta": -100,
+                    "wait": 400,
+                }
+                for _ in range(4)
+            ],
+            {"wait": 1200, "hold": 4},
+            {
+                "seek_click": "Row Label: PRM1",
+                "at": [60, 110, 135],
+                "relative_to": TS_CGM,
+                "wait": 300,
+            },
+            {"mouse": [300, 700], "relative_to": TS_CGM, "steps": 4, "wait": 3500, "hold": 8},
+            *[
+                {
+                    "mouse": [40, 118],
+                    "relative_to": TS_CGM,
+                    "action": "wheel",
+                    "delta": 100,
+                    "wait": 300,
+                }
+                for _ in range(5)
+            ],
+            # Another column: plasma cells and a new enrichment.
+            {"mouse": [388, 78], "relative_to": TS_CGM, "steps": 8, "wait": 300},
+            {"mouse": [388, 78], "relative_to": TS_CGM, "action": "click", "wait": 300},
+            {"mouse": [300, 700], "relative_to": TS_CGM, "steps": 4, "wait": 4500, "hold": 14},
         ],
-        crop="#stage",
-        settle_ms=8000,
+        crop=".widget-hbox",
+        settle_ms=30000,
         scale=1,
         fps=6,
         cursor=True,
@@ -1575,6 +1657,24 @@ def run_step(page: Page, step: dict) -> None:
         elif action == "wheel":
             page.mouse.move(x, y)
             page.mouse.wheel(0, step["delta"])
+    elif "seek_click" in step:
+        # Slide down a column of pixels until the tooltip names the target, then
+        # click there: for labels too small to place by coordinates alone.
+        box = page.locator(step["relative_to"]).first.bounding_box()
+        x, y0, y1 = step["at"]
+        y = y0
+        while y <= y1:
+            page.mouse.move(box["x"] + x, box["y"] + y)
+            page.wait_for_timeout(40)
+            tip = page.evaluate(
+                """() => [...document.querySelectorAll('.deck-tooltip')]
+                    .filter(t => getComputedStyle(t).display !== 'none')
+                    .map(t => t.innerText).join(' ')"""
+            )
+            if step["seek_click"] in tip:
+                page.mouse.click(box["x"] + x, box["y"] + y)
+                break
+            y += 0.5
     elif "key" in step:
         page.keyboard.press(step["key"])
     elif "type" in step:  # keyboard input into the focused element
@@ -1728,13 +1828,41 @@ def notebook_html(code: str) -> Path:
     return html
 
 
+def executed_notebook_html(path: str) -> Path:
+    """Export an executed notebook, with its saved widget state, to HTML."""
+    source = REPO / path
+    CACHE.mkdir(exist_ok=True)
+    name = "file_" + hashlib.sha1(source.read_bytes()).hexdigest()[:12]
+    html = CACHE / f"{name}.html"
+    if not html.exists():
+        subprocess.run(
+            [
+                str(JUPYTER),
+                "nbconvert",
+                "--to",
+                "html",
+                "--output-dir",
+                str(CACHE),
+                "--output",
+                name,
+                str(source),
+            ],
+            check=True,
+        )
+    return html
+
+
 def capture(page: Page, port: int, item: Capture) -> Path:
     width, height = item.viewport
-    if item.notebook:  # notebook pages need room beyond the widget's own width
+    if item.notebook or item.notebook_file:  # room beyond the widget's own width
         width = max(width, 1200)
     page.set_viewport_size({"width": width, "height": height})
-    if item.notebook:
-        html = notebook_html(item.notebook).relative_to(REPO)
+    if item.notebook or item.notebook_file:
+        html = (
+            executed_notebook_html(item.notebook_file)
+            if item.notebook_file
+            else notebook_html(item.notebook)
+        ).relative_to(REPO)
         page.goto(f"http://127.0.0.1:{port}/{html}")
         page.wait_for_selector(".ui_container, .celldega-enrich", timeout=300_000)
         # Show only the widget: hide code, prompts, and page margins.
@@ -1769,6 +1897,7 @@ def capture(page: Page, port: int, item: Capture) -> Path:
         error = page.evaluate("window.__dega_error")
         if error:
             raise RuntimeError(f"{item.group}/{item.name}: {error}")
+    page.locator(item.crop).first.evaluate("el => el.scrollIntoView({block: 'start'})")
     page.wait_for_timeout(item.settle_ms)
     if item.cursor:
         page.evaluate(CURSOR_JS)
@@ -1795,7 +1924,7 @@ def capture_gif(page: Page, item: Capture) -> Path:
     """One frame per step (a step's `hold` repeats its frame), then a GIF."""
     # Every frame uses the first frame's region: panels can grow as their
     # text changes, and frames of different sizes break the animation.
-    page.locator(item.crop).first.scroll_into_view_if_needed()
+    page.locator(item.crop).first.evaluate("el => el.scrollIntoView({block: 'start'})")
     box = page.locator(item.crop).first.bounding_box()
     if item.clip:
         x, y, w, h = item.clip

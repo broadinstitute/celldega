@@ -170,7 +170,8 @@ footer metadata supplies the byte ranges for that group's data.
 
 The browser uses HTTP Range requests to read the required groups. Hosting must
 support byte ranges and, for cross-origin access, CORS. The readers require
-range-capable hosting; there is no general whole-file fallback. Larger chunks
+range-capable hosting; there is no general whole-file fallback. Celldega's local
+file server, `viz.get_local_server`, supports byte ranges from version 0.28.1. Larger chunks
 reduce file counts but increase footer and memory costs. Individual-tile
 DegaFiles remain supported, with `use_row_groups=False`.
 

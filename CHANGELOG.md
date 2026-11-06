@@ -4,6 +4,15 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.28.1] - 2026-11-05
+
+### Fixed
+
+- `viz.get_local_server` answers single HTTP `Range` requests with
+  `206 Partial Content`, so packed row-group DegaFiles load from a local server.
+  It previously returned the whole file for every range request, which made the
+  row-group readers download each chunk file in full and fail.
+
 ## [0.28.0]
 
 ### Breaking

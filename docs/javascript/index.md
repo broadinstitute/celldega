@@ -1,83 +1,60 @@
 # JavaScript API Overview
 
-Celldega's visualization methods can be used as a stand-alone JavaScript library outside the context of a Jupyter notebook. This enables creating showcase visualizations with publicly hosted data, embedding visualizations in web applications, and building custom interactive experiences.
+Use Celldega in a web page to explore prepared datasets without a Python
+kernel. The same Landscape and Clustergram views used in notebooks can read
+hosted DegaFiles or AnnData Zarr directly.
 
-## Getting Started
+## Quick start
 
-### Using in HTML
-
-You can include Celldega in any HTML page by importing the bundled JavaScript module:
+Serve the page and the built `celldega.js` module over HTTP. This example
+opens a spatial Landscape; replace `base_url` with your dataset's DegaFiles URL.
 
 ```html
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        #landscape-container {
-            width: 100%;
-            height: 800px;
-            border: 1px solid #ccc;
-        }
-    </style>
-</head>
+<!doctype html>
+<html lang="en">
 <body>
-    <div id="landscape-container"></div>
+  <div id="landscape"></div>
+  <script type="module">
+    import celldega from "./celldega.js";
 
-    <script type="module">
-        import celldega from './celldega.js';
-
-        document.addEventListener("DOMContentLoaded", async () => {
-            const el = document.getElementById('landscape-container');
-
-            const landscape = await celldega.landscape_ist(
-                el,                    // DOM element
-                {},                    // model (empty for standalone)
-                '',                    // token
-                10000,                 // initial X
-                10000,                 // initial Y
-                0,                     // initial Z
-                -5,                    // initial zoom
-                'https://your-data-url/LandscapeFiles',  // base URL
-                'Dataset Name',        // dataset name
-                0.25,                  // transcript radius
-                '100%',                // width
-                '100%'                 // height
-            );
-        });
-    </script>
+    const landscape = await celldega.landscape(
+      document.getElementById("landscape"),
+      {
+        base_url: "https://your-data-host/DegaFiles",
+        width: 900,
+        height: 600,
+      },
+    );
+  </script>
 </body>
 </html>
 ```
 
-### Using with ObservableHQ
+For a single-cell UMAP/XY Landscape, use `zarr_url` and `zarr_layer` instead.
+For a saved clustered Matrix, use `clustergram(element, {url})`.
 
-Celldega can be used in ObservableHQ notebooks. See the [Celldega Landscape Xenium example](https://observablehq.com/@cornhundred/celldega-landscape-xenium-observablehq) for a working demo.
+## Main APIs
 
-## Available Functions
+| Function | Purpose |
+| --- | --- |
+| `landscape(element, options)` | Spatial tissue and low dimensional embedding landscapes |
+| `clustergram(element, options)` | Heatmap or dot plot from a network, DegaFiles, or a saved Matrix Zarr |
+| `link_models(source, key, target, key)` | Link selections between visualizations |
+| `anndata_zarr_source(url, options)` | Cell-level Zarr metadata and per-gene expression reader |
+| `network_from_zarr(url)` | Restore a saved Matrix's browser visualization network |
 
-Celldega exports the following main visualization functions:
+See the [API reference](api.md#visualizations-without-python-landscape-clustergram-and-link_models)
+for complete options and a linked Landscape/Clustergram example. Lower-level
+renderers remain available for custom integrations.
 
-| Function | Description |
-|----------|-------------|
-| `landscape_ist` | Create an interactive spatial transcriptomics (IST) landscape visualization |
-| `landscape_sst` | Create a spatial spot transcriptomics (SST) visualization for Visium HD |
-| `landscape_h_e` | Create an H&E image visualization |
-| `matrix_viz` | Create a Clustergrammer-style matrix/heatmap visualization |
-| `yearbook` | Create a yearbook-style grid of cell portraits |
+## Data and hosting
 
-## Data Requirements
+- Spatial Landscapes use image pyramids, cell metadata, transcript/boundary
+  tiles, and expression in DegaFiles.
+- Single-cell Landscapes use AnnData Zarr with a CSC expression matrix.
+- Clustergrams can read the complete clustered Matrix AnnData Zarr format.
+- Cross-origin hosting must allow browser requests. Row-group DegaFiles
+  also require HTTP byte ranges.
 
-For standalone JavaScript visualizations, your data must be hosted publicly (e.g., on GitHub, S3, or a web server). The data should be in the LandscapeFiles format, which includes:
-
-- `landscape_parameters.json` - Configuration file
-- `pyramid_images/` - Image tile pyramids
-- `cell_metadata.parquet` - Cell positions
-- `cell_segmentation/` - Cell boundary tiles
-- `trx_tiles/` - Transcript location tiles
-- `meta_gene.parquet` - Gene metadata
-
-See the [File Formats](../overview/file_formats.md) documentation for details.
-
-## API Reference
-
-For detailed API documentation of each function, see the [API Reference](api.md).
+See [File Formats](../getting-started/file_formats.md) for the layouts, and
+the [Gallery](../gallery/index.md) for live examples.

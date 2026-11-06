@@ -12,12 +12,16 @@ import polars as pl
 from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
+from .atera import is_atera_store, iter_atera_transcript_chunks
 from .boundary_tile import _get_name_mapping
 
 
 # Above this row count, row-group transcript tiling spills to disk during tile assignment
 # to avoid OOM from ``partition_by`` materializing every non-empty tile at once.
 STREAMING_TILE_ASSIGN_ROW_THRESHOLD = 500_000
+
+# Minimum rows per shard when streaming transcripts from a chunked source (e.g. Atera zarr)
+STREAMING_BATCH_ROWS = 20_000_000
 
 
 def _process_coarse_tile_transcripts(
@@ -310,11 +314,57 @@ def _transform_coordinates_in_chunks(trx_ini, chunk_size, transformation_matrix,
     return pl.concat(all_chunks)
 
 
+def _load_transcripts(technology, path_trx, gene_str_to_int_mapping):
+    """
+    Load transcripts with gene names mapped to integer ids.
+
+    Returns ``(trx_ini, None)`` for sources read into memory, or ``(None, chunks)`` for
+    sources streamed chunk by chunk (Atera ``transcripts.zarr.zip``).
+    """
+    if technology == "Xenium" and is_atera_store(path_trx):
+        chunks = iter_atera_transcript_chunks(path_trx, gene_str_to_int_mapping)
+        return None, _rebatch_chunks(chunks, STREAMING_BATCH_ROWS)
+
+    trx_ini = _load_transcript_data_by_technology(technology, path_trx)
+    return _apply_gene_mapping(trx_ini, gene_str_to_int_mapping), None
+
+
+def _rebatch_chunks(chunks, min_rows):
+    """Concatenate small chunks so each shard holds at least ``min_rows`` rows."""
+    pending = []
+    pending_rows = 0
+    for chunk in chunks:
+        pending.append(chunk)
+        pending_rows += chunk.height
+        if pending_rows >= min_rows:
+            yield pl.concat(pending)
+            pending = []
+            pending_rows = 0
+    if pending:
+        yield pl.concat(pending)
+
+
+def _slice_into_chunks(trx_ini, chunk_size):
+    for start_row in range(0, trx_ini.height, chunk_size):
+        yield trx_ini.slice(start_row, chunk_size)
+
+
 def _transform_coordinates_to_parquet_shards(
     trx_ini, chunk_size, transformation_matrix, image_scale, shard_dir
 ):
     """
     Transform transcripts in chunks and write each chunk to a Parquet shard (no full concat).
+
+    Returns global max transformed x/y for tile grid sizing (x_min/y_min assumed 0 as elsewhere).
+    """
+    return _transform_chunks_to_parquet_shards(
+        _slice_into_chunks(trx_ini, chunk_size), transformation_matrix, image_scale, shard_dir
+    )
+
+
+def _transform_chunks_to_parquet_shards(chunks, transformation_matrix, image_scale, shard_dir):
+    """
+    Transform an iterable of transcript chunks and write each to a Parquet shard.
 
     Returns global max transformed x/y for tile grid sizing (x_min/y_min assumed 0 as elsewhere).
     """
@@ -324,10 +374,7 @@ def _transform_coordinates_to_parquet_shards(
     max_x = 0.0
     max_y = 0.0
 
-    for shard_idx, start_row in enumerate(
-        tqdm(range(0, trx_ini.height, chunk_size), desc="Processing chunks")
-    ):
-        chunk = trx_ini.slice(start_row, chunk_size)
+    for shard_idx, chunk in enumerate(tqdm(chunks, desc="Processing chunks")):
         points = np.hstack([chunk.select(["x", "y"]).to_numpy(), np.ones((chunk.height, 1))])
         transformed_points = sparse_matrix.dot(points.T).T[:, :2]
 
@@ -737,22 +784,27 @@ def make_trx_tiles(
         transformation_matrix = np.loadtxt(path_transformation_matrix)
 
         gene_str_to_int_mapping = _get_name_mapping(
-            path_trx_tiles.replace("/transcript_tiles", ""),
+            str(tiles_path.parent),
             layer="transcript",
         )
 
-        trx_ini = _load_transcript_data_by_technology(technology, path_trx)
-        trx_ini = _apply_gene_mapping(trx_ini, gene_str_to_int_mapping)
+        trx_ini, trx_chunks = _load_transcripts(technology, path_trx, gene_str_to_int_mapping)
 
         use_streaming = streaming_tile_assignment
-        if use_streaming is None:
+        if trx_chunks is not None:
+            use_streaming = True
+        elif use_streaming is None:
             use_streaming = trx_ini.height >= STREAMING_TILE_ASSIGN_ROW_THRESHOLD
 
         if use_streaming:
-            print(
-                f"Using disk-backed traditional transcript tiles ({trx_ini.height:,} rows; "
-                f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
-            )
+            if trx_chunks is None:
+                print(
+                    f"Using disk-backed traditional transcript tiles ({trx_ini.height:,} rows; "
+                    f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
+                )
+                trx_chunks = _slice_into_chunks(trx_ini, chunk_size)
+            else:
+                print("Using disk-backed traditional transcript tiles (streaming source).")
             tmp_root = tiles_path / "_tmp_trx_traditional_build"
             try:
                 shards_dir = tmp_root / "shards"
@@ -760,14 +812,13 @@ def make_trx_tiles(
                 shards_dir.mkdir(parents=True, exist_ok=True)
                 spill_dir.mkdir(parents=True, exist_ok=True)
 
-                max_x, max_y = _transform_coordinates_to_parquet_shards(
-                    trx_ini,
-                    chunk_size,
+                max_x, max_y = _transform_chunks_to_parquet_shards(
+                    trx_chunks,
                     transformation_matrix,
                     image_scale,
                     shards_dir,
                 )
-                trx_ini = None
+                trx_ini = trx_chunks = None
                 gc.collect()
 
                 x_min, y_min = 0.0, 0.0
@@ -1123,34 +1174,38 @@ def make_trx_tiles_row_groups(
     else:
         gene_str_to_int_mapping = {}
 
-    trx_ini = _load_transcript_data_by_technology(technology, path_trx)
-    trx_ini = _apply_gene_mapping(trx_ini, gene_str_to_int_mapping)
+    trx_ini, trx_chunks = _load_transcripts(technology, path_trx, gene_str_to_int_mapping)
 
     use_streaming = streaming_tile_assignment
-    if use_streaming is None:
+    if trx_chunks is not None:
+        use_streaming = True
+    elif use_streaming is None:
         use_streaming = trx_ini.height >= STREAMING_TILE_ASSIGN_ROW_THRESHOLD
 
     tmp_root = None
     try:
         if use_streaming:
-            print(
-                f"Using disk-backed tile assignment ({trx_ini.height:,} rows; "
-                f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
-            )
+            if trx_chunks is None:
+                print(
+                    f"Using disk-backed tile assignment ({trx_ini.height:,} rows; "
+                    f"threshold {STREAMING_TILE_ASSIGN_ROW_THRESHOLD:,})."
+                )
+                trx_chunks = _slice_into_chunks(trx_ini, chunk_size)
+            else:
+                print("Using disk-backed tile assignment (streaming source).")
             tmp_root = Path(path_output_dir) / "_tmp_trx_row_group_build"
             shards_dir = tmp_root / "shards"
             spill_dir = tmp_root / "spill"
             shards_dir.mkdir(parents=True, exist_ok=True)
             spill_dir.mkdir(parents=True, exist_ok=True)
 
-            max_x, max_y = _transform_coordinates_to_parquet_shards(
-                trx_ini,
-                chunk_size,
+            max_x, max_y = _transform_chunks_to_parquet_shards(
+                trx_chunks,
                 transformation_matrix,
                 image_scale,
                 shards_dir,
             )
-            trx_ini = None
+            trx_ini = trx_chunks = None
             gc.collect()
 
             x_min, y_min = 0.0, 0.0

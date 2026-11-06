@@ -1,13 +1,17 @@
+import {
+  get_axis_slot_size,
+  get_default_pan_y,
+} from '../../matrix/crop_filter';
+
 export const curate_pan_y = (target_y, zoom_curated_y, viz_state) => {
-  const { ini_pan_y } = viz_state.zoom;
+  const ini_pan_y = get_default_pan_y(viz_state);
+  const row_slot = get_axis_slot_size(viz_state, 'row');
 
   let pan_curated_y;
 
   const zoom_factor_y = Math.pow(2, zoom_curated_y);
 
-  viz_state.zoom.min_pan_y =
-    (ini_pan_y - viz_state.viz.row_offset) / zoom_factor_y +
-    viz_state.viz.row_offset;
+  viz_state.zoom.min_pan_y = (ini_pan_y - row_slot) / zoom_factor_y + row_slot;
 
   // calculating the shift to the min, to re-use for the max
   const min_diff = ini_pan_y - viz_state.zoom.min_pan_y;

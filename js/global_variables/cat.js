@@ -6,23 +6,73 @@
 
 // import { obs_store } from '../obs_store/obs_store.js';
 
+import {
+  getAlignedColumnArray,
+  getTableColumnArray,
+} from '../read_parquet/table_accessors';
+
 export const update_cat = (cats, new_cat) => {
   cats.cat = new_cat;
 };
 
+const normalizeCellCat = (cat) => {
+  if (cat === 'nan' || cat === undefined) {
+    return null;
+  }
+
+  return cat;
+};
+
 export const set_cell_cats = (cats, cell_arrow_table, column_name) => {
-  cats.cell_cats = cell_arrow_table.getChild(column_name).toArray();
+  if (cats.cell_ids_are_indexed) {
+    const indices = getTableColumnArray(cell_arrow_table, [
+      'name',
+      'cell_id',
+      '__index_level_0__',
+      'index',
+    ]);
+    const values = getTableColumnArray(cell_arrow_table, column_name);
+    const count = cats.cell_names_array.length;
+    const seen = new Uint8Array(count);
+    const aligned = new Array(count);
+    if (indices.length !== count || values.length !== count) {
+      throw new Error('[CellCloud] Indexed clusters must cover every cell.');
+    }
+    indices.forEach((raw, row) => {
+      const index = Number(raw);
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index >= count ||
+        seen[index]
+      ) {
+        throw new Error('[CellCloud] Invalid or duplicate cluster cell index.');
+      }
+      seen[index] = 1;
+      aligned[index] = normalizeCellCat(values[row]);
+    });
+    cats.cell_cats = aligned;
+    return;
+  }
+  cats.cell_cats = getAlignedColumnArray(
+    cell_arrow_table,
+    column_name,
+    cats.cell_names_array,
+    ['name', 'cell_id', '__index_level_0__', 'index']
+  ).map(normalizeCellCat);
 };
 
 export const update_cell_cats = (cats, new_cell_cats) => {
   // swap 'nan' for null in new cats
-  cats.cell_cats = new_cell_cats.map((cat) => (cat === 'nan' ? null : cat));
+  cats.cell_cats = new_cell_cats.map(normalizeCellCat);
 };
 
 export const set_dict_cell_cats = (cats) => {
+  cats.dict_cell_cats = {};
   cats.cell_names_array.forEach((name, index) => {
     cats.dict_cell_cats[name] = cats.cell_cats[index];
   });
+  cats.has_dict_cell_cats = true;
 };
 
 export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
@@ -37,5 +87,15 @@ export const update_selected_cats = (cats, new_selected_cats, obs_store) => {
   cats.selected_cats = cats.reset_cat ? [] : new_selected_cats;
 
   // Update obs_store
+  obs_store.selected_cats.set(cats.selected_cats);
+};
+
+/**
+ * Set selected_cats to exactly `new_selected_cats`, skipping
+ * update_selected_cats' "same array toggles off" heuristic.
+ */
+export const force_set_selected_cats = (cats, new_selected_cats, obs_store) => {
+  cats.reset_cat = new_selected_cats.length === 0;
+  cats.selected_cats = new_selected_cats;
   obs_store.selected_cats.set(cats.selected_cats);
 };

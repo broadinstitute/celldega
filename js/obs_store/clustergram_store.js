@@ -24,6 +24,7 @@ const Observable = (initialValue) => {
       }
       return () => subscribers.delete(fn);
     },
+    dispose: () => subscribers.clear(),
   };
 };
 

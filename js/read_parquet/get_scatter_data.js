@@ -1,6 +1,6 @@
 import { handleAsyncError } from '../temp_utils/errorHandler';
 
-export const get_scatter_data = (arrow_table) => {
+export const get_scatter_data = (arrow_table, { float32 = false } = {}) => {
   // Handle null or undefined table
   if (!arrow_table) {
     return {
@@ -16,7 +16,9 @@ export const get_scatter_data = (arrow_table) => {
     const chunks = geometryColumn?.data?.map((x) => x.values) || [];
 
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const flatCoordinateArray = new Float64Array(totalLength);
+    const flatCoordinateArray = float32
+      ? new Float32Array(totalLength)
+      : new Float64Array(totalLength);
 
     let offset = 0;
     for (const chunk of chunks) {

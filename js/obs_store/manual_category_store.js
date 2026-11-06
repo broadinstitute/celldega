@@ -137,6 +137,11 @@ export class ManualCategoryStore {
     return () => this.listeners.delete(fn);
   }
 
+  dispose() {
+    this.listeners.clear();
+    this.getNodeNames = defaultGetter;
+  }
+
   emit() {
     this.listeners.forEach((fn) => fn());
   }

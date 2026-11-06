@@ -5,8 +5,14 @@ import {
 } from '@deck.gl-community/editable-layers';
 import * as d3 from 'd3';
 
+import { is_orbit_technology } from '../../global_variables/image_info';
 import { handleValidationWarning } from '../../temp_utils/errorHandler';
 import { make_bar_graph, bar_callback_nbhd } from '../../ui/bar_plot';
+import {
+  allocate_neighborhood_name,
+  publish_selected_cells,
+  sync_embedding_gates,
+} from '../../umap/embedding_gates';
 import { hexToRgb, randomHexColor } from '../../utils/hexToRgb';
 import { getModelMatrixProps } from '../../utils/rotation';
 import { get_layers_list } from '../utils/layers_ist';
@@ -15,10 +21,18 @@ import { update_cell_pickable_state } from './cell_layer';
 import { update_path_pickable_state } from './path_layer';
 import { update_trx_pickable_state } from './trx_layer';
 
+const has_edit_layer = (layers_obj) =>
+  layers_obj?.edit_layer && typeof layers_obj.edit_layer.clone === 'function';
+
 // Forward declaration for function used before definition
-function update_edit_layer_mode(layers_obj, mode) {
+function update_edit_layer_mode(layers_obj, mode, modeConfig = null) {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     mode,
+    ...(modeConfig ? { modeConfig } : {}),
   });
 }
 
@@ -58,6 +72,7 @@ const calc_region_areas = (featureCollection) => {
 };
 
 export const sync_region_to_model = (viz_state) => {
+  if (sync_embedding_gates(viz_state)) return;
   if (viz_state.model?.set) {
     if (viz_state.nbhd?.edit) {
       viz_state.model.set('nbhd_geojson', {});
@@ -133,12 +148,23 @@ const edit_layer_on_edit = async (
   edit_info
 ) => {
   const { updatedData, editType, featureIndexes } = edit_info;
+  viz_state.edit.last_feature_index = featureIndexes?.[0];
 
   viz_state.edit.feature_collection = updatedData;
 
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     data: viz_state.edit.feature_collection,
   });
+
+  if (editType === 'addTentativePosition' || editType === 'cancelFeature') {
+    const layers_list = get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
+    deck_ist.setProps({ layers: layers_list });
+    return;
+  }
 
   if (editType === 'addFeature') {
     update_edit_layer_mode(layers_obj, ViewMode);
@@ -162,7 +188,10 @@ const edit_layer_on_edit = async (
     // Assign a temporary name and color to the new feature
     const feature = viz_state.edit.feature_collection.features[newFeatureIndex];
     if (feature && !feature.properties.name) {
-      feature.properties.name = `nbhd_${newFeatureIndex + 1}`;
+      feature.properties.name = allocate_neighborhood_name(
+        viz_state,
+        newFeatureIndex
+      );
       feature.properties.cat = feature.properties.name;
       feature.properties.color = feature.properties.color || randomHexColor();
     }
@@ -198,7 +227,8 @@ const edit_layer_on_edit = async (
 
           const layers_list_updated = get_layers_list(
             layers_obj,
-            viz_state.close_up
+            viz_state.close_up,
+            viz_state
           );
           deck_ist.setProps({ layers: layers_list_updated });
         },
@@ -209,13 +239,21 @@ const edit_layer_on_edit = async (
     sync_region_to_model(viz_state);
   }
 
-  const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+  const layers_list = get_layers_list(
+    layers_obj,
+    viz_state.close_up,
+    viz_state
+  );
   deck_ist.setProps({ layers: layers_list });
   await calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
   sync_region_to_model(viz_state);
 };
 
 const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
+  const feature = viz_state.edit.feature_collection.features[event.index];
+  if (viz_state.neighborhood_space && feature?.properties.cell_ids) {
+    publish_selected_cells(viz_state, feature.properties.cell_ids);
+  }
   if (event.featureType === 'polygons' && viz_state.edit.mode === 'view') {
     // switch to modify mode
     layers_obj.edit_layer = layers_obj.edit_layer.clone({
@@ -228,7 +266,11 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
       },
     });
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+    const layers_list = await get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
     deck_ist.setProps({ layers: layers_list });
 
     viz_state.edit.mode = 'modify';
@@ -255,7 +297,11 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
       selectedFeatureIndexes: [],
     });
 
-    const layers_list = await get_layers_list(layers_obj, viz_state.close_up);
+    const layers_list = await get_layers_list(
+      layers_obj,
+      viz_state.close_up,
+      viz_state
+    );
     deck_ist.setProps({ layers: layers_list });
 
     viz_state.edit.mode = 'view';
@@ -275,6 +321,12 @@ const edit_layer_on_click = async (event, deck_ist, layers_obj, viz_state) => {
 };
 
 export const ini_edit_layer = (viz_state) => {
+  if (is_orbit_technology(viz_state.img?.landscape_parameters?.technology)) {
+    // EditableGeoJsonLayer expects 2D view coordinates; OrbitView point clouds
+    // can throw during its global pointermove handler even when hidden.
+    return null;
+  }
+
   const edit_layer = new EditableGeoJsonLayer({
     id: 'edit-layer',
     data: viz_state.edit.feature_collection,
@@ -308,6 +360,10 @@ export const ini_edit_layer = (viz_state) => {
 };
 
 export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     onEdit: (edit_info) =>
       edit_layer_on_edit(deck_ist, layers_obj, viz_state, edit_info),
@@ -315,6 +371,10 @@ export const set_edit_layer_on_edit = (deck_ist, layers_obj, viz_state) => {
 };
 
 export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   // Track double-click timing
   let lastClickTime = 0;
   let lastClickIndex = -1;
@@ -361,7 +421,11 @@ export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
             calc_and_update_rgn_bar_graph(viz_state, deck_ist, layers_obj);
             sync_region_to_model(viz_state);
 
-            const layers_list = get_layers_list(layers_obj, viz_state.close_up);
+            const layers_list = get_layers_list(
+              layers_obj,
+              viz_state.close_up,
+              viz_state
+            );
             deck_ist.setProps({ layers: layers_list });
           },
         });
@@ -380,12 +444,20 @@ export const set_edit_layer_on_click = (deck_ist, layers_obj, viz_state) => {
 export { update_edit_layer_mode };
 
 export const update_edit_visitility = (layers_obj, visible) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     visible,
   });
 };
 
 export const update_edit_layer_opacity = (layers_obj, opacity) => {
+  if (!has_edit_layer(layers_obj)) {
+    return;
+  }
+
   layers_obj.edit_layer = layers_obj.edit_layer.clone({
     opacity,
   });

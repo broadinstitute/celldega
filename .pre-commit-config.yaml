@@ -65,6 +65,8 @@ repos:
       # Prevent large files
       - id: check-added-large-files
         args: [--maxkb=1000]  # Max 1MB files
+        # These restored published tutorials retain their figures/widget state.
+        exclude: ^docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15\.5_(Align|Viz)\.ipynb$
       # Cross-platform compatibility
       - id: check-case-conflict
 

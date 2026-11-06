@@ -4,9 +4,9 @@ Thank you for your interest in contributing to Celldega! 🧬
 
 ## What You Need
 
-- **Python 3.10+** → [Download here](https://python.org/downloads/)
-- **Node.js 16+** → [Download here](https://nodejs.org/)
-- **npm 8+** → [Install guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- **Python 3.11 or 3.12** → [Download here](https://python.org/downloads/)
+- **uv** → [Installation guide](https://docs.astral.sh/uv/getting-started/installation/) (the setup script creates a standalone Python 3.12 environment)
+- **Node.js and npm** → [Package requirements](package.json)
 - **Git** → [Download here](https://git-scm.com/)
 
 ## 🚀 Quick Start (one-time!)
@@ -35,7 +35,7 @@ npm run dev                 # Start development server
 
 - Write clear, descriptive code
 - Add tests for new features
-- Test in Jupyter: `jupyter lab examples/`
+- Test in Jupyter: `jupyter lab notebooks/`; published tutorials live in `docs/examples/`
 
 ### 3. Before Committing
 
@@ -123,6 +123,9 @@ test('should handle basic case', () => {
 
 ## 📓 Rendering Docs Notebooks (Widget Embedding)
 
+See the [documentation maintenance checklist](.github/DOCS_MAINTENANCE.md) for
+prioritized notebook reruns, supporting-data uploads, and screenshots.
+
 The example notebooks under `docs/examples/` render their interactive widgets
 (`Landscape`, `Clustergram`, …) statically in the built docs by **embedding the
 widget state** into the notebook. `mkdocs-jupyter` renders that saved state — it
@@ -173,6 +176,24 @@ Notes:
 
 - These notebooks are matched by the `*.ipynb` rule in `.gitignore`, so commit a
   new one explicitly with `git add -f docs/examples/.../YourNotebook.ipynb`.
+
+### Sharing an unlisted example
+
+To share a work-in-progress notebook without listing it in the documentation:
+
+1. Copy the dev notebook into `docs/examples/tutorial_notebooks/`, removing
+   local-only `CELLDEGA_LOCAL_ESM` / `ANYWIDGET_HMR` setup, and embed its widget
+   state as described above. Preserve the dev notebook's current display sizes.
+2. Add its docs-relative path to `not_in_nav` in `mkdocs.yaml`. Do not put it in
+   `exclude_docs` (that prevents publication), `nav`, or the examples index.
+3. Build and publish the docs, then share the notebook's direct URL:
+   `https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/YourNotebook/`.
+
+`scripts/unlisted_docs.py` adds a work-in-progress notice and `noindex` metadata,
+and excludes these pages from site search and the sitemap. Unlisted pages are
+still public, and readers can forward their links. To graduate a notebook into
+the listed examples, remove it from `not_in_nav` and add its navigation/index
+entries.
 
 ## 🎨 Code Style
 
@@ -369,19 +390,12 @@ npm install                    # Reinstall JavaScript dependencies
 <details>
 <summary>Click for advanced setup options</summary>
 
-### Custom Environment Name
+### JavaScript Build Options
 
 ```bash
-bash ./scripts/setup.sh --env-name my-celldega-env
-```
-
-### Development Server Options
-
-```bash
-npm run dev                # Standard development
-npm run dev:watch         # Watch mode with hot reload
+npm run dev               # Watch and rebuild the widget bundle
+npm run watch             # Watch mode (same build script)
 npm run build             # Production build
-npm run serve             # Serve production build
 ```
 
 ### Testing Options
@@ -421,7 +435,6 @@ Install these extensions for the best experience:
 
 Contributors are celebrated in:
 
-- 📋 `CONTRIBUTORS.md` file
 - 📈 GitHub contributors graph
 - 📰 Release notes for significant contributions
 - 🎉 Special mentions in community updates

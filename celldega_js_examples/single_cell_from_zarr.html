@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single-cell Landscape and Clustergram from Zarr</title>
+    <style>
+        #container { display: flex; gap: 10px; }
+        #landscape { flex: 1; min-width: 500px; }
+    </style>
+</head>
+
+<body>
+    <!--
+    A single-cell Landscape and Clustergram without Python. The Landscape reads
+    an AnnData Zarr store (saved by Scanpy with a CSC copy of the counts) and
+    fetches each gene's counts when you select it; the Clustergram reads a
+    clustered Matrix saved with `Matrix.write_zarr`. Clicking a Clustergram gene
+    or cluster updates the Landscape, as `spatial_clustergram` does in Python.
+
+    Serve the repository root (e.g. `python -m http.server`) and open
+    /celldega_js_examples/single_cell_from_zarr.html.
+    -->
+    <div id="container">
+        <div id="landscape"></div>
+        <div id="matrix"></div>
+    </div>
+
+<script type="module">
+    import celldega from '../src/celldega/static/celldega.js';
+
+    const HF_URL =
+        'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/pbmc3k';
+
+    // The options are the Python Landscape's arguments.
+    const landscape = await celldega.landscape(document.getElementById('landscape'), {
+        zarr_url: `${HF_URL}/pbmc3k.zarr`,
+        cluster_attr: 'leiden',
+        dataset_name: 'PBMC 3k (Scanpy)',
+        height: 700,
+        ini_zoom: -4.5,
+        ini_x: 5000,
+        ini_y: 5000,
+    });
+
+    const clustergram = await celldega.clustergram(document.getElementById('matrix'), {
+        url: `${HF_URL}/pbmc3k_leiden_markers.zarr`,
+        width: 470,
+        height: 600,
+        rank_dim: 10,
+    });
+
+    // Clustergram clicks drive the Landscape, like jslink in a notebook.
+    celldega.link_models(clustergram.model, 'click_info', landscape.model, 'update_trigger');
+</script>
+</body>
+</html>

@@ -1,10 +1,19 @@
 import { get_arrow_table } from '../read_parquet/get_arrow_table';
+import {
+  getRowKeyArray,
+  getTableColumnArray,
+} from '../read_parquet/table_accessors';
 import { hexToRgb } from '../utils/hexToRgb';
 
 import { options } from './fetch_options';
 
 export const update_meta_cluster = (cats, new_meta_cluster) => {
-  cats.color_dict_cluster = new_meta_cluster.color;
+  cats.color_dict_cluster = {};
+
+  for (const cluster_name in new_meta_cluster.color) {
+    cats.color_dict_cluster[String(cluster_name)] =
+      new_meta_cluster.color[cluster_name];
+  }
 
   // convert each hexcode color value to rgb
   for (const cluster_name in cats.color_dict_cluster) {
@@ -19,7 +28,7 @@ export const update_meta_cluster = (cats, new_meta_cluster) => {
   cats.cluster_counts = [];
   for (const cluster_name in cluster_counts_ini) {
     cats.cluster_counts.push({
-      name: cluster_name,
+      name: String(cluster_name),
       value: cluster_counts_ini[cluster_name],
     });
   }
@@ -34,7 +43,7 @@ export const set_cluster_metadata = async (viz_state) => {
 
     // loop through the keys of meta_cluster and assemble a dictionary of colors use a map or something functional
     for (const cluster_name in viz_state.cats.meta_cluster) {
-      viz_state.cats.color_dict_cluster[cluster_name] = hexToRgb(
+      viz_state.cats.color_dict_cluster[String(cluster_name)] = hexToRgb(
         viz_state.cats.meta_cluster[cluster_name][color_index] || '#000000'
       );
     }
@@ -47,7 +56,7 @@ export const set_cluster_metadata = async (viz_state) => {
       const value = raw !== undefined ? Number(raw) : 0;
 
       viz_state.cats.cluster_counts.push({
-        name: cluster_name,
+        name: String(cluster_name),
         value,
       });
     }
@@ -66,32 +75,27 @@ export const set_cluster_metadata = async (viz_state) => {
       viz_state.aws
     );
 
-    let cluster_names = [];
-    let colors = [];
-    let counts = [];
+    let cluster_names = getRowKeyArray(meta_cell_arrow_table, [
+      'cluster',
+      'leiden',
+      '__index_level_0__',
+      'index',
+    ]);
+    const colors = getTableColumnArray(meta_cell_arrow_table, 'color');
+    const counts = getTableColumnArray(meta_cell_arrow_table, 'count');
 
-    const cluster_name_column =
-      meta_cell_arrow_table.getChild('__index_level_0__');
-    const color_column = meta_cell_arrow_table.getChild('color');
-    const counts_column = meta_cell_arrow_table.getChild('count');
-
-    const column_names = [];
-    for (const field of meta_cell_arrow_table.schema.fields) {
-      column_names.push(field.name);
-    }
-
-    if (cluster_name_column && color_column) {
-      cluster_names = cluster_name_column.toArray();
-      colors = color_column.toArray();
-      counts = counts_column.toArray();
+    if (cluster_names.length !== colors.length) {
+      cluster_names = colors.map((_color, index) => String(index));
     }
 
     cluster_names.forEach((cluster_name, index) => {
-      viz_state.cats.color_dict_cluster[cluster_name] = hexToRgb(colors[index]);
+      viz_state.cats.color_dict_cluster[String(cluster_name)] = hexToRgb(
+        colors[index]
+      );
 
       viz_state.cats.cluster_counts.push({
-        name: cluster_name,
-        value: Number(counts[index]),
+        name: String(cluster_name),
+        value: Number(counts[index] ?? 0),
       });
     });
   }

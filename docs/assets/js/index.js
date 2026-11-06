@@ -2,10 +2,9 @@ import celldega from './celldega.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
 
-    // Check if we are on the home page
-    const isHomePage = window.location.pathname === '/' || window.location.pathname.endsWith('/index.html');
-
-    const landscape_el = document.getElementById('landscape');
+    // Use a homepage-specific id so section headings such as `## Landscape`
+    // on other docs pages cannot be mistaken for the demo container.
+    const landscape_el = document.getElementById('home-landscape');
 
     if (landscape_el) {
 
@@ -37,5 +36,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
 });
-
-

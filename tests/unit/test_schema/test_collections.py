@@ -1,5 +1,3 @@
-import sys
-
 from anndata import AnnData
 import geopandas as gpd
 from mudata import MuData
@@ -302,20 +300,17 @@ def test_dataset_write_read_round_trips_mudata(tmp_path):
     np.testing.assert_array_equal(loaded.mod["population"].X, np.array([[1, 1], [2, 0]]))
 
 
-def test_dataset_methods_are_not_exposed_at_package_root():
-    for module in ("celldega", "celldega.nbhd", "celldega.nbhd.neighborhoods"):
-        sys.modules.pop(module, None)
-
+def test_collections_are_exposed_at_package_root():
     import celldega as dega
     import celldega.collection as collection_module
     import celldega.dataset as dataset_module
 
     assert hasattr(dega, "collection")
     assert hasattr(dega, "dataset")
+    assert hasattr(dega, "DatasetCollection")
     assert not hasattr(dega, "calc_population")
     assert not hasattr(dega, "construct_population_space")
     assert not hasattr(dega, "from_adata")
-    assert hasattr(dega, "DatasetCollection")
     assert not hasattr(dega, "Dataset")
     assert not hasattr(dataset_module, "calc_population")
     assert not hasattr(dataset_module, "construct_population_space")

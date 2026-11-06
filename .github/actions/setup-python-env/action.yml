@@ -33,4 +33,4 @@ runs:
       if: inputs.install-deps == 'true'
       shell: bash
       run: |
-        pip install -e ".[dev]"
+        pip install -e ".[dev,scanpy]"

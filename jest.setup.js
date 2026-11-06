@@ -1,6 +1,10 @@
 // Jest setup file - CommonJS format
 require('@testing-library/jest-dom');
 
+const { TextDecoder, TextEncoder } = require('node:util');
+global.TextDecoder ??= TextDecoder;
+global.TextEncoder ??= TextEncoder;
+
 // Mock browser APIs that your code might use
 global.console = {
   ...console,

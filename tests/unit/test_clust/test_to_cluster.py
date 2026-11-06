@@ -1,4 +1,4 @@
-"""Tests for dendrogram cutting via Matrix.to_cluster / Clustergram.to_cluster."""
+"""Tests for dendrogram cutting via Matrix.cut_tree / Clustergram.to_cluster."""
 
 import numpy as np
 import pandas as pd
@@ -17,13 +17,13 @@ def _two_block_matrix(seed=0):
             rng.normal(0, 0.1, (3, 8)) + np.array([0, 0, 0, 0, 5, 5, 5, 5]),
         ]
     )
-    return Matrix(pd.DataFrame(block, index=rows, columns=cols), disable_processing=True)
+    return Matrix(pd.DataFrame(block, index=rows, columns=cols))
 
 
-def test_to_cluster_n_clusters_splits_blocks():
+def test_cut_tree_n_clusters_splits_blocks():
     mat = _two_block_matrix()
-    mat.clust()
-    labels = mat.to_cluster(axis="row", n_clusters=2)
+    mat.cluster()
+    labels = mat.cut_tree(axis="row", n_clusters=2)
     assert isinstance(labels, pd.Series)
     assert list(labels.index) == list(mat.data.index)
     assert labels["r0"] == labels["r1"] == labels["r2"]
@@ -31,33 +31,43 @@ def test_to_cluster_n_clusters_splits_blocks():
     assert labels["r0"] != labels["r3"]
 
 
-def test_to_cluster_threshold_and_axis():
+def test_cut_tree_threshold_and_axis():
     mat = _two_block_matrix()
-    mat.clust()
-    row_labels = mat.to_cluster(axis="row", threshold=0.5)
-    col_labels = mat.to_cluster(axis="col", n_clusters=2)
+    mat.cluster()
+    row_labels = mat.cut_tree(axis="row", threshold=0.5)
+    col_labels = mat.cut_tree(axis="col", n_clusters=2)
     assert row_labels.nunique() == 2
     assert list(col_labels.index) == list(mat.data.columns)
 
 
-def test_to_cluster_requires_clustering():
+def test_cut_tree_requires_clustering():
     mat = _two_block_matrix()
     with pytest.raises(ValueError, match="no linkage for axis"):
-        mat.to_cluster(axis="row", n_clusters=2)
+        mat.cut_tree(axis="row", n_clusters=2)
 
 
-def test_to_cluster_requires_a_cut_argument():
+def test_cut_tree_requires_exactly_one_cut_argument():
     mat = _two_block_matrix()
-    mat.clust()
-    with pytest.raises(ValueError, match="n_clusters or threshold"):
-        mat.to_cluster(axis="row")
+    mat.cluster()
+    with pytest.raises(ValueError, match="exactly one"):
+        mat.cut_tree(axis="row")
+    with pytest.raises(ValueError, match="exactly one"):
+        mat.cut_tree(axis="row", n_clusters=2, threshold=0.5)
+
+
+def test_deprecated_to_cluster_alias():
+    mat = _two_block_matrix()
+    mat.cluster()
+    with pytest.deprecated_call(match="cut_tree"):
+        labels = mat.to_cluster(axis="row", n_clusters=2)
+    assert labels.nunique() == 2
 
 
 def test_clustergram_to_cluster_reads_slider_state():
     from celldega.viz import Clustergram
 
     mat = _two_block_matrix()
-    mat.clust()
+    mat.cluster()
     cgm = Clustergram(matrix=mat)
 
     explicit = cgm.to_cluster(axis="row", n_clusters=2)

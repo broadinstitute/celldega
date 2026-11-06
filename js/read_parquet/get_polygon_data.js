@@ -9,24 +9,69 @@ import { concatenate_polygon_data } from '../vector_tile/concatenate_functions';
  */
 function getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk) {
   const polygonOffsets = polygonChunk.valueOffsets;
-  const ringOffsets = ringChunk.valueOffsets;
-  const flatCoordinateArray = coordChunk.values;
+  const ringOffsets = ringChunk?.valueOffsets;
+  const flatCoordinateArray = coordChunk?.values;
 
-  // Number of polygons is offsets length - 1
-  const numPolygons = polygonOffsets.length - 1;
+  // IPC buffers are padded for alignment. Their capacity can exceed the
+  // logical length, and the trailing bytes are not polygon offsets.
+  const numPolygons = polygonChunk.length;
+  if (
+    !polygonOffsets ||
+    polygonOffsets.length < numPolygons + 1 ||
+    !ringOffsets ||
+    !flatCoordinateArray
+  ) {
+    throw new Error('Invalid polygon geometry: missing coordinate offsets');
+  }
 
   // Build resolved indices: for each polygon, find coordinate start
-  const resolvedIndices = new Int32Array(polygonOffsets.length);
-  for (let i = 0; i < polygonOffsets.length; i++) {
+  const resolvedIndices = new Int32Array(numPolygons + 1);
+  let previousRing = -1;
+  let previousPoint = -1;
+  for (let i = 0; i <= numPolygons; i++) {
     const ringIdx = polygonOffsets[i];
-    resolvedIndices[i] = ringOffsets[ringIdx];
+    const pointIdx = ringOffsets[ringIdx];
+    if (
+      !Number.isInteger(ringIdx) ||
+      ringIdx < previousRing ||
+      ringIdx < 0 ||
+      ringIdx > ringChunk.length ||
+      !Number.isInteger(pointIdx) ||
+      pointIdx < previousPoint ||
+      pointIdx < 0 ||
+      pointIdx * 2 > coordChunk.length ||
+      pointIdx * 2 > flatCoordinateArray.length
+    ) {
+      throw new Error(
+        'Invalid polygon geometry: coordinate offsets out of bounds'
+      );
+    }
+    resolvedIndices[i] = pointIdx;
+    previousRing = ringIdx;
+    previousPoint = pointIdx;
+  }
+
+  // A sliced Arrow list can reference the middle of its child buffers. Keep
+  // only that slice and rebase its offsets before concatenating with tiles.
+  const firstPoint = resolvedIndices[0];
+  const lastPoint = resolvedIndices[numPolygons];
+  const coordinates = new Float64Array(
+    flatCoordinateArray.subarray(firstPoint * 2, lastPoint * 2)
+  );
+  for (let i = 0; i < coordinates.length; i++) {
+    if (!Number.isFinite(coordinates[i])) {
+      throw new Error('Invalid polygon geometry: non-finite coordinate');
+    }
+  }
+  for (let i = 0; i < resolvedIndices.length; i++) {
+    resolvedIndices[i] -= firstPoint;
   }
 
   return {
     length: numPolygons,
     startIndices: resolvedIndices,
     attributes: {
-      getPolygon: { value: flatCoordinateArray, size: 2 },
+      getPolygon: { value: coordinates, size: 2 },
     },
   };
 }
@@ -45,24 +90,24 @@ export const get_polygon_data = (arrowTable) => {
   }
 
   // Check if this is the expected nested list type (typeId 12 = List)
-  if (geometryColumn.data[0].type.typeId !== 12) {
+  if (geometryColumn.data[0]?.type.typeId !== 12) {
     return null;
   }
 
   const dataChunks = geometryColumn.data;
   const numChunks = dataChunks.length;
 
-  // Get child columns for ring and coordinate data
-  const ringChild = geometryColumn.getChildAt(0);
-  const coordChild = geometryColumn.getChildAt(0).getChildAt(0).getChildAt(0);
+  // Follow each chunk's own children so sliced or empty chunks cannot shift
+  // the association between polygon offsets and their coordinate buffers.
+  const extractChunk = (polygonChunk) => {
+    const ringChunk = polygonChunk.children[0];
+    const coordChunk = ringChunk?.children[0]?.children[0];
+    return getPolygonDataFromChunk(polygonChunk, ringChunk, coordChunk);
+  };
 
   // For single chunk (original behavior), use direct extraction
   if (numChunks === 1) {
-    return getPolygonDataFromChunk(
-      dataChunks[0],
-      ringChild.data[0],
-      coordChild.data[0]
-    );
+    return extractChunk(dataChunks[0]);
   }
 
   // Multi-chunk handling (multiple row groups)
@@ -71,19 +116,13 @@ export const get_polygon_data = (arrowTable) => {
 
   for (let chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
     const polygonChunk = dataChunks[chunkIdx];
-    const ringChunk = ringChild.data[chunkIdx];
-    const coordChunk = coordChild.data[chunkIdx];
 
     // Skip empty chunks
     if (polygonChunk.length === 0) {
       continue;
     }
 
-    const chunkData = getPolygonDataFromChunk(
-      polygonChunk,
-      ringChunk,
-      coordChunk
-    );
+    const chunkData = extractChunk(polygonChunk);
     if (chunkData && chunkData.length > 0) {
       chunkPolygonData.push(chunkData);
     }

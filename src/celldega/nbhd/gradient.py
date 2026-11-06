@@ -5,23 +5,20 @@ A "gradient" is a set of fixed-width bands measured from the boundary of an inpu
 geometry (e.g. a tumor alpha shape). Outward bands grow away from the ROI, inward
 bands erode into it, and each band carries a signed micron distance so downstream
 analyses can correlate cell composition or gene expression with distance from the
-ROI edge. The bands are returned as a tidy ``GeoDataFrame`` that plugs directly
-into :class:`~celldega.nbhd.collection.NeighborhoodCollection`.
+ROI edge. :func:`calc_gradient` returns a tidy ``GeoDataFrame`` of rings, itself
+a neighborhood GeoDataFrame for :func:`calc_nbhd_by_pop` / :func:`calc_nbhd_by_gene`.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import colorsys
+from typing import Any
 
 import geopandas as gpd
 import numpy as np
 from shapely.geometry.base import BaseGeometry
 
 from .alpha_shapes import alpha_shape
-
-
-if TYPE_CHECKING:
-    from celldega.nbhd.collection import NeighborhoodCollection
 
 
 # Native micron-per-pixel scale of common imaging-based spatial platforms. Used to
@@ -67,19 +64,25 @@ def _get_micron_per_pixel(technology: str) -> float:
 def _resolve_roi_geometry(source: Any, nbhd_col: str = "name") -> tuple[BaseGeometry, Any]:
     """Coerce a flexible ``source`` into a single merged ROI geometry.
 
-    Accepts a :class:`~celldega.nbhd.collection.NeighborhoodCollection` (its
-    ``gdf`` is used), a ``GeoDataFrame``/``GeoSeries`` (all rows are dissolved
-    into one shape), or a bare shapely ``(Multi)Polygon``.
+    Accepts a ``GeoDataFrame``/``GeoSeries`` (all rows are dissolved into one
+    shape), a bare shapely ``(Multi)Polygon``, or a neighborhood-like object
+    exposing ``to_geodataframe()`` or a ``geometry``/``gdf`` GeoDataFrame.
 
     Returns:
         A ``(geometry, crs)`` tuple where ``geometry`` is the unioned ROI and
         ``crs`` is the source coordinate reference system (``None`` for a bare
         geometry).
     """
-    # NeighborhoodCollection (and anything else exposing a live ``gdf``).
-    gdf = getattr(source, "gdf", None)
-    if gdf is not None and isinstance(gdf, gpd.GeoDataFrame):
-        return gdf.geometry.unary_union, gdf.crs
+    if not isinstance(source, gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry):
+        to_geodataframe = getattr(source, "to_geodataframe", None)
+        if callable(to_geodataframe):
+            source = to_geodataframe()
+        else:
+            for attr in ("geometry", "gdf"):
+                candidate = getattr(source, attr, None)
+                if isinstance(candidate, gpd.GeoDataFrame):
+                    source = candidate
+                    break
 
     if isinstance(source, gpd.GeoDataFrame):
         return source.geometry.unary_union, source.crs
@@ -91,8 +94,8 @@ def _resolve_roi_geometry(source: Any, nbhd_col: str = "name") -> tuple[BaseGeom
         return source, None
 
     raise TypeError(
-        "source must be a GeoDataFrame, GeoSeries, NeighborhoodCollection, or "
-        f"shapely geometry, got {type(source).__name__}"
+        "source must be a GeoDataFrame, GeoSeries, shapely geometry, or an object "
+        f"exposing to_geodataframe(), got {type(source).__name__}"
     )
 
 
@@ -120,7 +123,7 @@ def _points_from_reference(clip_reference: Any) -> np.ndarray:
             "clip_reference AnnData needs obsm['spatial'] or x/y centroid columns in obs"
         )
 
-    if isinstance(clip_reference, (gpd.GeoDataFrame, gpd.GeoSeries)):
+    if isinstance(clip_reference, gpd.GeoDataFrame | gpd.GeoSeries):
         geom = (
             clip_reference.geometry
             if isinstance(clip_reference, gpd.GeoDataFrame)
@@ -143,7 +146,7 @@ def _resolve_clip_boundary(
     fly. Returns ``None`` when no clipping is requested.
     """
     if clip_boundary is not None:
-        if isinstance(clip_boundary, (gpd.GeoDataFrame, gpd.GeoSeries)):
+        if isinstance(clip_boundary, gpd.GeoDataFrame | gpd.GeoSeries):
             return (
                 clip_boundary.geometry.unary_union
                 if isinstance(clip_boundary, gpd.GeoDataFrame)
@@ -165,19 +168,19 @@ def _resolve_clip_boundary(
     return None
 
 
-def _ring_colors(cmap_name: str, n: int) -> list[str]:
-    """Sample ``n`` hex colors from a matplotlib colormap (dark -> light)."""
-    import matplotlib.colors as mcolors
-    import matplotlib.pyplot as plt
-
+def _ring_colors(hue: float, n: int) -> list[str]:
+    """Generate ``n`` hex colors along a fixed hue (dark -> light)."""
     if n == 0:
         return []
-    cmap = plt.get_cmap(cmap_name)
-    return [mcolors.to_hex(cmap(v)) for v in np.linspace(0.8, 0.3, n)]
+    colors = []
+    for value in np.linspace(0.4, 0.95, n):
+        r, g, b = colorsys.hsv_to_rgb(hue, 0.75, value)
+        colors.append(f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}")
+    return colors
 
 
-def _calc_gradient(
-    source: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry | NeighborhoodCollection,
+def calc_gradient(
+    source: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry | Any,
     direction: str = "both",
     bin_width: float = 10,
     max_dist: float = 50,
@@ -191,11 +194,7 @@ def _calc_gradient(
     add_colors: bool = True,
     nbhd_col: str = "name",
 ) -> gpd.GeoDataFrame:
-    """Engine behind :meth:`NeighborhoodCollection.calc_gradient`.
-
-    Generates concentric gradient rings outward from and/or inward into an ROI.
-    This is internal; use ``NeighborhoodCollection.calc_gradient(obs_name=...)``
-    as the public entry point.
+    """Generate gradient bands around a region of interest as a GeoDataFrame.
 
     Starting from the boundary of the merged ``source`` geometry, this builds
     fixed-width bands every ``bin_width`` microns out to ``max_dist``:
@@ -213,9 +212,8 @@ def _calc_gradient(
 
     Args:
         source: The ROI. May be a ``GeoDataFrame``/``GeoSeries`` (all rows are
-            dissolved into one shape), a
-            :class:`~celldega.nbhd.collection.NeighborhoodCollection` (its
-            ``gdf`` is used), or a bare shapely ``(Multi)Polygon``.
+            dissolved into one shape), a bare shapely ``(Multi)Polygon``, or a
+            neighborhood-like object exposing ``to_geodataframe()``.
         direction: ``"outward"``, ``"inward"``, or ``"both"`` (default).
         bin_width: Width of each ring in microns (default ``10``).
         max_dist: Maximum distance from the ROI boundary in microns (default
@@ -226,8 +224,7 @@ def _calc_gradient(
         scale_um_per_pixel: Microns per pixel. Required (directly or via
             ``technology``) when ``is_pixel_space=True``.
         is_pixel_space: ``True`` if ``source`` geometry is in pixel units;
-            ``False`` (default) if it is already in microns — the natural space
-            of a ``NeighborhoodCollection``. Controls how micron ring widths are
+            ``False`` (default) if it is already in microns. Controls how micron ring widths are
             converted to the geometry's units and how areas are reported.
         clip_boundary: Optional precomputed tissue boundary
             (``GeoDataFrame``/``GeoSeries``/geometry) to clip **outward** rings
@@ -243,7 +240,7 @@ def _calc_gradient(
         add_colors: If ``True`` (default), add a ``color`` column (Blues for
             outward bands, Reds for inward) for visualization.
         nbhd_col: Name of the band-identifier column in the output (default
-            ``"name"``), matching what ``NeighborhoodCollection`` expects.
+            ``"name"``), matching the neighborhood functions' default ``nbhd_col``.
 
     Returns:
         A ``GeoDataFrame`` with one row per ring, ordered inner-most to
@@ -261,12 +258,17 @@ def _calc_gradient(
             without a resolvable ``scale_um_per_pixel``.
 
     Examples:
-        Prefer the public method, which anchors on a named neighborhood and
-        returns a new gradient collection::
+        Build bands from an alpha-shape GeoDataFrame in micron coordinates::
 
-            >>> grad_nbhd = nbhd.calc_gradient(
-            ...     obs_name="9", direction="both", bin_width=50, max_dist=200
+            >>> rings = dega.nbhd.calc_gradient(
+            ...     footprints, direction="both", bin_width=25, max_dist=200,
+            ...     clip_reference=adata,
             ... )
+
+        ``adata.obsm["spatial"]`` supplies tissue coordinates for clipping.
+        Multiple footprints are unioned before buffering, so adjacent regions
+        do not produce overlapping band interiors. Shared band boundaries still
+        require a tie-breaking rule when assigning cells with ``gpd.sjoin``.
     """
     if direction not in _VALID_DIRECTIONS:
         raise ValueError(f"direction must be one of {_VALID_DIRECTIONS}, got {direction!r}")
@@ -351,8 +353,8 @@ def _calc_gradient(
         out_labels = gdf_rings.loc[gdf_rings["direction"] == "outward", "ring_range_um"].tolist()
         in_labels = gdf_rings.loc[gdf_rings["direction"] == "inward", "ring_range_um"].tolist()
         color_map = {
-            **dict(zip(out_labels, _ring_colors("Blues", len(out_labels)), strict=True)),
-            **dict(zip(in_labels, _ring_colors("Reds", len(in_labels)), strict=True)),
+            **dict(zip(out_labels, _ring_colors(0.6, len(out_labels)), strict=True)),  # blue
+            **dict(zip(in_labels, _ring_colors(0.0, len(in_labels)), strict=True)),  # red
         }
         gdf_rings["color"] = gdf_rings["ring_range_um"].map(color_map).fillna("#cccccc")
 

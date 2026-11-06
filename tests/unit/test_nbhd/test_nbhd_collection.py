@@ -5,7 +5,15 @@ import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
-from celldega.nbhd import NeighborhoodCollection
+from celldega.nbhd import (
+    NeighborhoodCollection,
+    calc_nbhd_bordering,
+    calc_nbhd_by_gene,
+    calc_nbhd_by_pop,
+    calc_nbhd_overlap,
+    calc_nbhd_transcript_assignment,
+    read_transcripts,
+)
 
 
 def _synthetic_nbhd_inputs():
@@ -52,107 +60,92 @@ def test_neighborhood_collection_builds_from_geometry():
     assert not hasattr(collection, "to_collection")
 
 
-def test_neighborhood_collection_calculates_population_modality_directly():
-    gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-
-    result = collection.calc_population(
-        adata,
-        modality_name="cell_type_population",
-        min_cells=1,
-        output="counts",
-    )
-    population = collection.mod["cell_type_population"]
-
-    assert result is None
-    assert collection.mod["cell_type_population"] is population
-    assert collection.nbhd_type == "manual"
-    assert not hasattr(collection, "adata")
-    assert list(population.obs_names) == ["A", "B"]
-    assert list(population.var["entity_type"]) == [
-        "cell_population",
-        "cell_population",
-    ]
-    np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 1]]))
-    assert not hasattr(collection, "construct_population_space")
-
-
-def test_neighborhood_collection_calculates_gene_modality_directly():
-    gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-
-    result = collection.calc_signature(
-        adata=adata,
-        modality_name="expression",
-        min_cells=1,
-    )
-    expression = collection.mod["expression"]
-
-    assert result is None
-    assert collection.mod["expression"] is expression
-    assert list(expression.obs_names) == ["A", "B"]
-    assert list(expression.var["entity_type"]) == ["gene", "gene"]
-    np.testing.assert_allclose(expression.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
-
-
-def test_neighborhood_collection_min_cells_filters_collection_axis():
-    gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-
-    result = collection.calc_population(adata, min_cells=2, output="counts")
-    population = collection.mod["population"]
-
-    assert result is None
-    assert list(collection.obs.index) == ["A"]
-    assert list(collection.gdf.index) == ["A"]
-    assert list(collection.geometry.index) == ["A"]
-    assert list(population.obs_names) == ["A"]
-    np.testing.assert_array_equal(population.X, np.array([[1, 1]]))
-
-
-def test_neighborhood_collection_keeps_axis_when_drop_missing_false():
-    gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-
-    result = collection.calc_population(
-        adata,
-        min_cells=2,
-        output="counts",
-        drop_missing=False,
-    )
-    population = collection.mod["population"]
-
-    assert result is None
-    assert list(collection.obs.index) == ["A", "B"]
-    assert list(collection.gdf.index) == ["A", "B"]
-    assert list(population.obs_names) == ["A", "B"]
-    np.testing.assert_array_equal(population.X, np.array([[1, 1], [0, 0]]))
-
-
-def test_neighborhood_collection_min_cells_subsets_existing_modalities():
-    gdf, adata = _synthetic_nbhd_inputs()
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-
-    collection.calc_signature(adata=adata, modality_name="gene", min_cells=1, drop_missing=False)
-    result = collection.calc_population(adata, min_cells=2, output="counts")
-
-    assert result is None
-    assert list(collection.obs.index) == ["A"]
-    assert list(collection.gdf.index) == ["A"]
-    assert list(collection.mod["gene"].obs_names) == ["A"]
-    assert list(collection.mod["population"].obs_names) == ["A"]
-    np.testing.assert_array_equal(collection.mod["population"].X, np.array([[1, 1]]))
-
-
-def test_neighborhood_collection_calculates_bordering_relation():
+def test_neighborhood_collection_is_storage_only():
     gdf, _adata = _synthetic_nbhd_inputs()
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
 
-    bordering = collection.calc_bordering(metric="binary")
+    methods = [name for name in dir(collection) if name.startswith("calc_")]
+    assert methods == []
 
-    assert collection.relations["bordering"] is bordering
+
+def test_population_function_result_is_stored_as_modality():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    population = calc_nbhd_by_pop(adata, collection, min_cells=1, output="counts")
+    stored = collection.add_mod("cell_type_population", population)
+
+    assert collection.mod["cell_type_population"] is stored
+    assert list(stored.obs_names) == ["A", "B"]
+    assert list(stored.var["entity_type"]) == ["cell_population", "cell_population"]
+    np.testing.assert_array_equal(stored.X, np.array([[1, 1], [0, 1]]))
+
+
+def test_gene_function_result_is_stored_as_modality():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    stored = collection.add_mod("expression", calc_nbhd_by_gene(collection, adata=adata))
+
+    assert list(stored.obs_names) == ["A", "B"]
+    assert list(stored.var["entity_type"]) == ["gene", "gene"]
+    np.testing.assert_allclose(stored.X, np.array([[0.5, 1.0], [3.0, 1.0]]))
+
+
+def test_add_mod_zero_fills_filtered_neighborhoods_and_keeps_layers():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    # B has only 1 cell (below min_cells=2), so the function drops it; storing
+    # without subsetting zero-fills B and must keep the variance layer.
+    expression = calc_nbhd_by_gene(collection, adata=adata, min_cells=2, include_variance=True)
+    stored = collection.add_mod("expression", expression)
+
+    assert list(stored.obs_names) == ["A", "B"]
+    assert "variance" in stored.layers
+    np.testing.assert_allclose(stored.layers["variance"][0], [0.25, 1.0])
+    np.testing.assert_allclose(stored.layers["variance"][1], [0.0, 0.0])
+
+
+def test_subset_drops_filtered_neighborhoods_everywhere():
+    gdf, adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+    collection.add_mod("gene", calc_nbhd_by_gene(collection, adata=adata))
+    collection.add_relation("bordering", calc_nbhd_bordering(collection, metric="binary"))
+
+    population = calc_nbhd_by_pop(adata, collection, min_cells=2, output="counts")
+    collection.subset(population.obs_names)
+    collection.add_mod("population", population)
+
+    assert list(collection.obs.index) == ["A"]
+    assert list(collection.gdf.index) == ["A"]
+    assert list(collection.geometry.index) == ["A"]
+    assert list(collection.mod["gene"].obs_names) == ["A"]
+    assert collection.relations["bordering"].shape == (1, 1)
+    np.testing.assert_array_equal(collection.mod["population"].X, np.array([[1, 1]]))
+
+    with pytest.raises(ValueError, match="missing"):
+        collection.subset(["Z"])
+
+
+def test_add_relation_aligns_square_results_and_checks_matrices():
+    gdf, _adata = _synthetic_nbhd_inputs()
+    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
+
+    bordering = collection.add_relation(
+        "bordering", calc_nbhd_bordering(collection, metric="binary")
+    )
+    assert collection.relations["bordering"] is not None
     assert bordering.shape == (2, 2)
     assert bordering[0, 1] == 1
+
+    overlap = calc_nbhd_overlap(collection)[["B", "A"], ["B", "A"]]  # reordered
+    stored = collection.add_relation("overlap", overlap)
+    np.testing.assert_allclose(stored.toarray(), np.eye(2))
+
+    collection.add_relation("identity", np.eye(2))
+    with pytest.raises(ValueError, match="shape"):
+        collection.add_relation("bad", np.eye(3))
 
 
 def test_neighborhood_collection_transforms_geometry_to_pixel_space():
@@ -170,7 +163,7 @@ def test_neighborhood_collection_transforms_geometry_to_pixel_space():
     assert (minx, miny, maxx, maxy) == (10.0, 20.0, 15.0, 25.0)
 
 
-def test_neighborhood_collection_transcript_assignment(tmp_path):
+def test_transcript_assignment_result_joins_onto_obs(tmp_path):
     gdf, _adata = _synthetic_nbhd_inputs()
     # A (x 0-10): 3 total, 1 unassigned -> 2/3; B (x 10-20): 2 total, 2 unassigned -> 0.0
     trx = pd.DataFrame(
@@ -184,36 +177,14 @@ def test_neighborhood_collection_transcript_assignment(tmp_path):
     trx.to_parquet(tmp_path / "transcripts.parquet")
 
     collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-    result = collection.calc_transcript_assignment(data_dir=str(tmp_path))
+    stats = calc_nbhd_transcript_assignment(collection, read_transcripts(str(tmp_path)))
+    collection.obs = collection.obs.join(stats)
 
-    assert result is None
     obs = collection.obs
     assert list(obs["total_transcripts"]) == [3, 2]
     assert list(obs["unassigned_transcripts"]) == [1, 2]
     assert np.isclose(obs["transcript_assignment_proportion"].loc["A"], 2 / 3)
     assert obs["transcript_assignment_proportion"].loc["B"] == 0.0
-
-
-def test_transcript_assignment_warns_when_no_unassigned_sentinel(tmp_path):
-    gdf, _adata = _synthetic_nbhd_inputs()
-    # cell_id present but no "UNASSIGNED" sentinel -> warns (may be fully assigned)
-    trx = pd.DataFrame(
-        {
-            "feature_name": ["g"] * 3,
-            "x_location": [1, 2, 3],
-            "y_location": [1, 2, 3],
-            "cell_id": ["c1", "c2", "c3"],
-        }
-    )
-    trx.to_parquet(tmp_path / "transcripts.parquet")
-
-    collection = NeighborhoodCollection(gdf=gdf, nbhd_type="manual")
-    with pytest.warns(UserWarning, match="UNASSIGNED"):
-        collection.calc_transcript_assignment(data_dir=str(tmp_path))
-
-    # still computes: A has 3 transcripts, all assigned -> proportion 1.0
-    assert collection.obs["transcript_assignment_proportion"].loc["A"] == 1.0
-    assert collection.obs["unassigned_transcripts"].loc["A"] == 0
 
 
 def test_transformation_matrix_round_trips_through_uns():

@@ -1,7 +1,13 @@
 import { Deck, OrbitController } from 'deck.gl';
 
+import { is_orbit_technology } from '../../global_variables/image_info';
+import { check_nbhd_cloud_camera_side } from '../layers/nbhd_cloud_shapes_layer';
 import { make_tooltip } from '../utils/tooltips';
 
+import {
+  pause_point_cloud_pickability,
+  setup_point_cloud_pickability_events,
+} from './interaction_pickability';
 import { on_view_state_change } from './on_view_state_change';
 
 const getCursor = ({ isDragging }) => {
@@ -11,24 +17,38 @@ const getCursor = ({ isDragging }) => {
   return 'pointer';
 };
 
-export const ini_deck = (root, width, height, technology = '') => {
-  const controller = { doubleClickZoom: false };
-  if (technology === 'point-cloud') {
-    controller.type = OrbitController;
-  }
-
-  const deck_ist = new Deck({
+export const ini_deck = (
+  root,
+  width,
+  height,
+  technology = '',
+  { per_view_controllers = false } = {}
+) => {
+  const deck_props = {
     parent: root,
-    controller,
     getCursor,
     width,
     height,
     // preserveDrawingBuffer lets us read the canvas back as a PNG (raster capture)
     // at any time via canvas.toDataURL(); see landscape captureRaster().
     deviceProps: { type: 'webgl', preserveDrawingBuffer: true },
-  });
+  };
 
-  return deck_ist;
+  // A multi-view deck (e.g. Landmark's two side-by-side panels) manages a
+  // controller per view via the `views` prop. A top-level `controller` here
+  // would additionally bind to the default view at the canvas origin — which
+  // the first/left view (also at 0,0) then inherits instead of its own
+  // per-view `dragPan:false`, so dragging a marker on the left panel also pans
+  // the camera. Omit the top-level controller in that case.
+  if (!per_view_controllers) {
+    const controller = { doubleClickZoom: false };
+    if (is_orbit_technology(technology)) {
+      controller.type = OrbitController;
+    }
+    deck_props.controller = controller;
+  }
+
+  return new Deck(deck_props);
 };
 
 export const set_views_prop = (deck_ist, views) => {
@@ -41,6 +61,7 @@ export const set_get_tooltip = (deck_ist, viz_state) => {
   deck_ist.setProps({
     getTooltip: (info) => make_tooltip(viz_state, info),
   });
+  setup_point_cloud_pickability_events(deck_ist, viz_state);
 };
 
 export const set_deck_on_view_state_change = (
@@ -53,6 +74,11 @@ export const set_deck_on_view_state_change = (
       // Track the latest view state (synchronously, before the debounced handler) so
       // raster capture can record the exact zoom/pan for reproducibility.
       viz_state.current_view_state = params.viewState;
+      pause_point_cloud_pickability(deck_ist, layers_obj, viz_state);
+      // Runs on every raw frame, not behind on_view_state_change's 200ms
+      // debounce -- see check_nbhd_cloud_camera_side's own comment for why
+      // that's safe.
+      check_nbhd_cloud_camera_side(params.viewState, layers_obj, viz_state);
       on_view_state_change(params, deck_ist, layers_obj, viz_state);
     },
   });
@@ -87,7 +113,7 @@ export const set_initial_view_state = (
     zoom: ini_zoom,
   };
 
-  if (viz_state.img.landscape_parameters.technology === 'point-cloud') {
+  if (is_orbit_technology(viz_state.img.landscape_parameters.technology)) {
     initial_view_state.rotationOrbit = rotation_orbit;
     initial_view_state.rotationX = rotation_x;
   }
@@ -95,6 +121,7 @@ export const set_initial_view_state = (
   deck_ist.setProps({
     initialViewState: initial_view_state,
   });
+  viz_state.initial_view_state = initial_view_state;
 
   // Seed the tracked view state so a capture before any pan/zoom still records it.
   viz_state.current_view_state = initial_view_state;

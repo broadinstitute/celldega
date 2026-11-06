@@ -1,179 +1,224 @@
 # Python API Overview
 
-The Celldega Python API provides modules for collection schemas,
-dataset-level feature spaces, pre-processing spatial transcriptomics data, hierarchical bi-clustering
-analysis, neighborhood computation, and interactive visualization.
+Use Celldega to prepare visualization data, summarize analysis results, and
+explore them in linked widgets. It fits downstream of single-cell and spatial
+workflows such as Scanpy and Squidpy: most analysis functions accept standard
+`AnnData`, `MuData`, and `GeoDataFrame` objects.
 
-## Installation
+You can start with these objects directly. Celldega's collection classes are
+useful when you want to keep several feature spaces, metadata, and relationships
+organized around the same datasets, neighborhoods, or cell sets.
 
-```bash
-pip install celldega
+## How the modules support the visualizations
+
+Celldega's [interactive visualizations](../visualizations/index.md) support
+human-in-the-loop analysis: you explore, select, and annotate in the browser.
+The Python modules perform the analysis behind those views. They prepare data,
+cluster it, define neighborhoods, organize higher-level biological entities,
+choose cells to review, and align serial sections in 3D. Each produces something
+a visualization displays:
+
+```text
+ Your analysis (AnnData, MuData, GeoDataFrame)
+   │
+   ├─ pre ─────────► DegaFiles ──────► Landscape, Yearbook, CellCloud
+   ├─ clust ───────► Matrix ─────────► Clustergram, Composition
+   ├─ nbhd ────────► neighborhoods ──► Landscape, NeighborhoodCloud, Clustergram
+   ├─ collections ─► summaries ──────► Clustergram, Composition
+   ├─ select ──────► selections ─────► Yearbook
+   └─ align ───────► 3D coordinates ─► CellCloud, NeighborhoodCloud
 ```
 
-## Core Modules
+- **`clust`** hierarchically bi-clusters genes and cell groups, and precomputes
+  views at several numbers of genes, for Clustergrams.
+- **`nbhd`** creates tissue neighborhoods (alpha shapes, hextiles, gradients)
+  and calculates their attributes, such as cell-type composition and expression.
+  Neighborhoods display in Landscape and NeighborhoodCloud; their summaries
+  cluster into Clustergrams.
+- **Collections** (`collection`, `dataset`, `set`) are data structures for
+  higher-level biological entities, such as neighborhoods, samples, and sets of
+  cells, that keep several feature spaces together.
+- **`select`** chooses and ranks cells for review in Yearbook.
+- **`align`** quickly aligns serial sections into 3D coordinates for CellCloud
+  and NeighborhoodCloud.
+- **`pre`** turns instrument output into DegaFiles that the browser loads a
+  piece at a time.
 
-### [Clust Module](clust/api.md)
+Results flow back too: selections, drawn neighborhoods, and annotations made in a
+widget are available to these modules for the next step of the analysis.
 
-The `clust` module provides the `Matrix` class for hierarchical bi-clustering as a
-precursor to interactive clustergram visualization. It supports:
+## Choose a module
 
-- Multiple normalization methods (zscore, quantile, total)
-- Hierarchical clustering with dendrograms
-- Integration with Clustergram widget
+| Module | What you use it for | Main inputs and results |
+| --- | --- | --- |
+| [pre](pre/api.md) | Prepare instrument output for browser visualization | Instrument files → DegaFiles; optional aligned H&E; point-cloud and neighborhood-cloud writers |
+| [viz](viz/api.md) | Display and link interactive views | Prepared spatial data, analysis objects, or saved matrices → notebook widgets |
+| [clust](clust/api.md) | Find patterns through hierarchical bi-clustering | Expression or other feature matrices → clustered `Matrix`, heatmaps, and dot plots |
+| [nbhd](nbhd/api.md) | Define spatial neighborhoods and summarize their contents | Cell coordinates and polygons → neighborhood geometry, expression, composition, and relationships |
+| [collection](collection/api.md) | Store multiple feature spaces on one observation axis | MuData-backed `CelldegaCollection`, the shared base for collection classes |
+| [dataset](dataset/api.md) | Compare samples or datasets | Cell-level data → `DatasetCollection` with sample metadata, population composition, and signatures |
+| [set](set/api.md) | Represent and compare groups defined by cell membership | Cell labels → `SetCollection`, signatures, composition, and overlap |
+| [select](select/api.md) | Choose, rank, and sample observations | Metadata/expression queries → an ordered `Selection` for inspection or visualization |
+| [align](align/api.md) | Register tissue slices in physical space | Landmarks and cell coordinates → reusable transforms and aligned coordinates |
+| [qc](qc/api.md) | Inspect segmentation and transcript-assignment quality | Instrument output and segmentation assignments → summary and gene-level QC metrics |
 
-```python
-import celldega as dega
+## Start with an example
 
-# Create and cluster a matrix
-mat = dega.clust.Matrix(adata, filter_genes=5000)
-mat.cluster()
+- **Single-cell expression:** [Chromium PBMC](../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)
+  combines Scanpy analysis with UMAP/XY Landscapes, marker dot plots, and Enrich
+  using `clust` and `viz`.
+- **Spatial analysis:** [Scanpy–Squidpy Xenium Pancreas](../examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas.ipynb)
+  connects cell clustering and spatial neighborhood enrichment to interactive views.
+- **Neighborhoods:** [Atera breast cancer neighborhoods](../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb)
+  uses `nbhd`, `clust`, and `viz` for hextile niches and cell-type composition.
+- **Preparing your own data:** [Atera preprocessing](../examples/brief_notebooks/Atera_Pre-process.ipynb)
+  turns an instrument output bundle into DegaFiles with `pre`, then opens a Landscape.
 
-# Export for visualization
-cgm = dega.viz.Clustergram(matrix=mat)
-```
+See [Installation](../getting-started/installation.md) for Python dependencies and
+optional extras, and [Usage](../getting-started/usage/index.md#prepare-degafiles-from-instrument-output)
+for the preparation and hosting workflow.
 
-### [Collection Module](collection/api.md)
+## pre: prepare data for visualization
 
-The `collection` module defines typed MuData profiles for aligned
-dataset-level and neighborhood-level data:
+`pre` writes the files that let the browser load large spatial datasets a piece
+at a time: image pyramids, cell metadata, tiled transcripts and boundaries,
+per-gene expression, and a visualization manifest. `pre.main` handles Xenium
+(including Atera) and MERSCOPE output bundles. Other technologies and custom data
+use the appropriate readers and lower-level writers described in the reference.
 
-- `dega.dataset.DatasetCollection` for dataset, sample, tissue section, or patient observations
-- `NeighborhoodCollection` for neighborhood or spatial-region observations
+Use `pre.add_aligned_he` to add an already aligned histology background, or
+`pre.write_point_cloud_dataset` and `pre.write_nbhd_cloud_dataset` for the 3D views.
+CellCloud also accepts AnnData Zarr written with `pre.write_point_cloud_zarr`;
+see the [two export formats](../visualizations/cell-cloud.md#prepare-either-format).
+Preparing DegaFiles is separate from clustering an AnnData for analysis.
 
-```python
-import celldega as dega
+**Examples:** [Atera preprocessing](../examples/brief_notebooks/Atera_Pre-process.ipynb),
+[custom segmentation](../examples/brief_notebooks/Custom_Segmentation.ipynb), and
+[adding aligned H&E](aligned_he.md).
+**Reference:** [pre API](pre/api.md) and [DegaFiles layout](../getting-started/file_formats.md#degafiles).
 
-dset = dega.dataset.DatasetCollection(adata, dataset_col="sample_id")
-nbhd = dega.nbhd.NeighborhoodCollection(obs=neighborhood_obs, geometry=neighborhood_gdf)
-```
+## viz: explore and connect results
 
-### [Dataset Module](dataset/api.md)
+`viz` creates the interactive notebook widgets. Landscape shows tissue data or
+low dimensional embedding landscapes (UMAP/XY); Yearbook compares cell portraits;
+CellCloud and NeighborhoodCloud show 3D spatial data. Clustergram compares
+expression and other measurements, Composition compares category proportions or
+counts, and Enrich interprets a gene set.
 
-The `dataset` module contains dataset-level modality constructors and helpers for
-building `DatasetCollection` objects:
+Link them with `viz.spatial_clustergram` or `viz.clustergram_enrich` so that a
+selection in one view updates the others.
 
-- Dataset-by-population modality
-- Dataset/sample metadata aggregation into `DatasetCollection.obs`
-- Dataset-by-signature modality
-- Attachment of aligned modalities to `DatasetCollection.mod`
-- H5MU writing through the underlying MuData object
+**Examples:** [Atera kidney](../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb)
+combines Landscape, Clustergram, Yearbook, and Composition;
+[Visium HD colorectal cancer](../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb)
+connects Landscape, Clustergram, and Enrich.
+**Reference:** [widget guides](../visualizations/index.md) and [viz API](viz/api.md).
 
-```python
-import celldega as dega
+## clust: hierarchically cluster high-dimensional data
 
-dset = dega.dataset.DatasetCollection(
-    adata,
-    dataset_col="sample_id",
-    obs_columns=["patient_id", "condition"],
-)
+`clust.Matrix` prepares a feature matrix for hierarchical bi-clustering: filter
+features, normalize values, cluster both axes, and precompute different views.
+For single-cell expression, `Matrix(adata, groupby="leiden")` summarizes clusters
+identified in an earlier analysis, using mean expression for color and the
+fraction of expressing cells for dot size.
 
-dset.calc_population(adata, category="cell_type")
-population = dset.mod["population"]
-dset.write("dataset.h5mu")
-```
+Display the result with `viz.Clustergram`. Save a complete clustered object with
+`Matrix.write_zarr` and restore it with `Matrix.read_zarr`, including its
+metadata, dendrograms, colors, marker rankings, and precomputed views.
 
-### [Nbhd Module](nbhd/api.md)
+**Examples:** [Chromium PBMC](../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)
+and [Atera breast cancer](../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb).
+**Reference:** [clust API](clust/api.md) and
+[advanced Clustergram usage](../visualizations/clustergram.md#advanced-usage).
 
-The `nbhd` module contains functions for computing and analyzing tissue neighborhoods:
+## nbhd: define and analyze neighborhoods
 
-- Hexagonal tiling for regular neighborhood grids
-- Alpha shape computation for cluster-based neighborhoods
-- Gradient neighborhoods derived from initial region/neighborhood
-- Collection-backed neighborhood-by-gene and neighborhood-by-population modalities
-- Neighborhood overlap and bordering calculations
-- Collection-backed methods for constructing gene, population, and relation data
+`nbhd` builds alpha shapes around cell groups, regular hextile grids, and
+inward/outward gradients around a region. Its functions summarize neighborhood
+expression and cell-type composition and calculate overlap or bordering
+relationships. Geometry is represented by a `GeoDataFrame`; summaries are
+`AnnData` or `MuData` objects that can be clustered and visualized.
 
-```python
-import celldega as dega
+Use `NeighborhoodCollection` when you want to store geometry, feature modalities,
+and neighborhood relationships together. Compute summaries with the `nbhd`
+functions and attach their results to the collection.
 
-# Compute alpha shapes for cell clusters
-gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(
-    adata,
-    cat="leiden",
-    alphas=[100, 150, 200]
-)
+**Examples:** [Atera breast cancer neighborhoods](../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb)
+and [pancreas islet gradients](../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb).
+**Reference:** [nbhd API](nbhd/api.md).
 
-# Generate hexagonal tiles
-gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
+## collection: keep related feature spaces together
 
-# Attach feature-space modalities to a NeighborhoodCollection
-nbhd = dega.nbhd.NeighborhoodCollection(gdf=gdf_alpha, nbhd_type="alpha_shape")
-nbhd.calc_signature(adata=adata, by="cell", modality_name="gene")
-nbhd.calc_population(adata, category="leiden", modality_name="population")
-```
+`CelldegaCollection` is the common MuData-backed storage model used by the
+collection classes. One observation axis can have several feature modalities,
+shared annotations, pairwise relationships, and provenance. For example, the
+same neighborhoods can have both gene-expression and cell-population summaries.
+The collection stores these results; analysis and visualization functions use them.
 
+**Example:** [Pancreas islet gradients](../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb)
+stores gradient geometry, population and expression summaries, and a bordering
+relationship in a `NeighborhoodCollection`.
+**Reference:** [collection model and API](collection/api.md).
 
-### [Pre Module](pre/api.md)
+## dataset: summarize samples and cohorts
 
-The `pre` module contains functions for pre-processing raw spatial
-transcriptomics data into DegaFiles format. This includes:
+`DatasetCollection` makes samples or datasets the observations. Build it from
+cell-level metadata, retain sample annotations such as patient and condition,
+and calculate population composition or expression signatures for comparison
+across samples. Store the feature spaces as modalities and persist the collection
+as MuData.
 
-- Creating image tile pyramids for efficient zooming
-- Generating cell metadata and boundary tiles
-- Processing transcript tiles
+**Examples and reference:** [DatasetCollection construction, population summaries,
+signatures, and persistence](dataset/api.md). For interactive comparisons of
+group composition, see the [Composition guide](../visualizations/composition.md).
 
-```python
-import celldega as dega
+## set: compare groups defined by membership
 
-# Pre-process Xenium data
-dega.pre.main(
-    technology="Xenium",
-    data_dir="/path/to/xenium_outs",
-    path_dega_files="/path/to/output",
-    tile_size=250
-)
-```
+`SetCollection` represents groups of cells without requiring spatial geometry.
+Its membership matrix records exactly which cells belong to each set. Use it to
+summarize cluster labels or algorithm-defined groups, compare their expression
+and composition, and quantify overlap between different groupings. `concat_sets`
+combines collections for cross-grouping comparisons.
 
-### [Select Module](select/api.md)
+**Examples and reference:** [SetCollection membership, signatures, overlap, and
+persistence](set/api.md). Display its feature modalities with
+[Matrix and Clustergram](clust/api.md).
 
-The `select` module provides a composable query and sampling layer over AnnData:
+## select: query and sample observations
 
-- Metadata attributes from `obs`
-- Gene expression attributes
-- Boolean query expressions
-- Random and quantile-bin samplers for representative entity inspection
+`select.Selector` combines metadata and gene-expression filters with reproducible
+sampling or ranking. It returns a `Selection`: ordered observation IDs plus
+information about the query and sampling method. Use it to choose representative
+cells, inspect high-expression cells, or drive a Yearbook without manually
+assembling ID lists.
 
-```python
-import celldega as dega
+**Examples and reference:** [Selector queries and samplers](select/api.md) and
+[choosing cells for Yearbook](../visualizations/yearbook.md#choosing-which-cells-to-show).
 
-selector = dega.select.Selector(adata)
+## align: register tissue coordinates
 
-q = (
-    (selector.attr("cluster") == "B cell")
-    & (selector.attr("sample_id").isin(["S1", "S2"]))
-)
+`align` provides a landmark-based serial-slice workflow: calculate landmarks,
+fit rigid or thin-plate-spline transforms, inspect the fit, and apply the
+transforms to cell positions or other points in the same coordinate system.
+Save a fitted transform for reuse, then write the aligned coordinates as
+point-cloud DegaFiles for CellCloud. These are transformations of physical
+coordinates; expression-space integration remains part of the upstream analysis.
 
-selection = selector.select(
-    query=q,
-    sampler=selector.samplers.quantile_bin(
-        attr=selector.gene("MS4A1"),
-        bin="high",
-        n=24,
-        seed=1,
-    ),
-)
-```
+**Reference:** [alignment API](align/api.md).
+**Notebook:** [Broad–Allen mouse-brain preprocessing and alignment](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb),
+followed by [CellCloud visualization](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb).
+**Visualization example:** [aligned developing mouse brain in 3D](../gallery/gallery_broad_allen_mouse_brain_3d.md).
+For importing an already aligned image, use the separate
+[aligned H&E workflow](aligned_he.md).
 
-### [Viz Module](viz/api.md)
+## qc: assess segmentation and transcript assignment
 
-The `viz` module provides Jupyter Widget classes for interactive visualization:
+`qc` computes metrics such as the fraction of assigned transcripts, cell counts,
+cell areas, and gene-level assignment statistics. Use these to inspect instrument
+segmentations or compare a custom segmentation before interpreting the resulting
+expression measurements. `qc_segmentation` writes summary and gene-level CSV files.
 
-| Widget | Description |
-|--------|-------------|
-| `Landscape` | Main spatial visualization for IST/SST data |
-| `Clustergram` | Hierarchical clustering heatmap |
-| `Yearbook` | Grid of cell "portraits" |
-| `Enrich` | Gene enrichment analysis |
-
-```python
-import celldega as dega
-
-# Create a Landscape widget
-landscape = dega.viz.Landscape(
-    base_url="https://your-landscape-files-url",
-    adata=adata,
-)
-
-# Display linked Landscape and Clustergram
-display = dega.viz.landscape_clustergram(landscape, cgm)
-```
+**Reference:** [segmentation QC API](qc/api.md).
+For the related preparation workflow, see the
+[custom segmentation example](../examples/brief_notebooks/Custom_Segmentation.ipynb);
+that notebook demonstrates importing a segmentation, rather than running QC.

@@ -150,6 +150,25 @@ cgm.latest_state                          # plain dict; never saved into the not
 In JavaScript (e.g. a web app embedding Celldega), the Clustergram instance returned by
 `matrix_viz` exposes the same snapshot synchronously as `matrix.get_state(options)`.
 
+## Letting Clerk change the views
+
+Clerk can change the linked Clustergram when it helps answer you, for example "show more
+marker genes" moves the DIM slider. It makes the change, looks at the updated view, and
+continues its answer; the change appears in the conversation as a line such as
+"↻ Changed the Clustergram: DIM -> 10 markers per cluster". Clerk makes at most
+`clerk.max_action_rounds` (default 2) changes per question.
+
+The same changes are available from Python:
+
+```python
+cgm.apply_state({"marker_level": 10})         # DIM slider; "all" for every row
+cgm.apply_state({"mode": "dotplot", "size": "unit"})
+cgm.apply_state({"focus_gene": "MUC2"})        # zoom to a gene, like the search box
+```
+
+More controls (order, dendrogram cut, crop, selection, zoom) will follow, so that every
+control in the widgets can be driven from code or by Clerk.
+
 For a simple side-by-side layout of one Landscape + Clerk:
 
 ```python

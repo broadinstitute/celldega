@@ -132,6 +132,22 @@ describe('Clerk panel', () => {
     expect(el.querySelectorAll('img')).toHaveLength(1);
   });
 
+  test('view changes Clerk made appear as their own line', async () => {
+    const { el } = await render({
+      messages: [
+        { role: 'user', content: 'More markers?' },
+        { role: 'assistant', content: 'Showing more.' },
+        {
+          role: 'action',
+          content: 'Changed the Clustergram: DIM -> 10 markers per cluster',
+        },
+      ],
+    });
+    expect(el.textContent).toContain(
+      '↻ Changed the Clustergram: DIM -> 10 markers per cluster'
+    );
+  });
+
   test('a full-width panel is capped for readability', async () => {
     const { el } = await render({ width: 0 });
     expect(el.firstChild.style.maxWidth).toBe('900px');

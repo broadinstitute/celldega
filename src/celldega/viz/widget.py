@@ -1550,16 +1550,48 @@ class Clerk(CelldegaWidget):
                 break
         self.messages = messages
 
+    # Rounds of view changes Clerk may make for one question; each is another model call.
+    max_action_rounds = 2
+
+    def _append(self, message: dict) -> None:
+        self.messages = [*self.messages, message]
+
+    def _apply_actions(self, actions: dict) -> list[str]:
+        """Apply a ``celldega-actions`` request to the linked widgets.
+
+        Returns:
+            list[str]: What changed, e.g. ``["the Clustergram: DIM -> 10 markers per
+            cluster"]``.
+
+        Raises:
+            ValueError: For a widget Clerk can't change, or an invalid setting.
+        """
+        unknown = sorted(set(actions) - {"clustergram"})
+        if unknown:
+            raise ValueError(f"Clerk can't change {unknown} yet; it can change the Clustergram")
+        cgm = self._linked_widgets.get("clustergram")
+        if cgm is None or not hasattr(cgm, "apply_state"):
+            raise ValueError("no Clustergram is linked")
+        return [f"the Clustergram: {change}" for change in cgm.apply_state(actions["clustergram"])]
+
+    def _use_views(self, call: dict, views: dict) -> None:
+        call["clustergram_state"] = views["clustergram_state"]
+        call["enrich_state"] = views["enrich_state"]
+        call["notes"] = list(views["notes"])
+        call["image_b64"] = self.image_b64 or None
+
     def _answer(self, question, call):
-        """Run one model call (in the worker thread) and record the outcome."""
+        """Answer one question (worker thread), applying any view changes Clerk asks for.
+
+        Clerk may end an answer with a ``celldega-actions`` block. The change is
+        applied, the views are captured again, and Clerk continues from the updated
+        view, up to :attr:`max_action_rounds` times per question.
+        """
         from .. import clerk
 
         try:
             views = self._refresh_views(question)
-            call["clustergram_state"] = views["clustergram_state"]
-            call["enrich_state"] = views["enrich_state"]
-            call["notes"] = views["notes"]
-            call["image_b64"] = self.image_b64 or None
+            self._use_views(call, views)
             summary = list(views["summary"])
             if call.get("gene_list"):
                 summary.append(f"{len(call['gene_list'])} selected genes")
@@ -1568,8 +1600,50 @@ class Clerk(CelldegaWidget):
             if call.get("info"):
                 summary.append("context")
             self._record_evidence(summary, views["image_fresh"])
+            cgm = self._linked_widgets.get("clustergram")
+            if cgm is not None and hasattr(cgm, "apply_state"):
+                call["actions_help"] = clerk.CLUSTERGRAM_ACTIONS_HELP
+            question_index = len(self.messages) - 1
+
             answer = clerk.ask(question, **call)
-            self.messages = [*self.messages, {"role": "assistant", "content": answer}]
+            rounds = 0
+            while True:
+                text, actions, problem = clerk.extract_actions(answer)
+                if text:
+                    self._append({"role": "assistant", "content": text})
+                if problem:
+                    self._append({"role": "error", "content": problem})
+                    break
+                if not actions:
+                    break
+                if rounds >= self.max_action_rounds:
+                    self._append(
+                        {
+                            "role": "error",
+                            "content": "Clerk asked for more view changes than one question "
+                            "allows; ask again to continue.",
+                        }
+                    )
+                    break
+                rounds += 1
+                try:
+                    changes = self._apply_actions(actions)
+                except ValueError as exc:
+                    self._append({"role": "error", "content": f"Couldn't change the view: {exc}"})
+                    break
+                self._append({"role": "action", "content": "Changed " + "; ".join(changes)})
+
+                # Look at the changed view and continue the same question.
+                self._use_views(call, self._refresh_views(question))
+                call["notes"].append(
+                    "You just changed the view (" + "; ".join(changes) + "). The evidence "
+                    "reflects the updated view. Continue answering the scientist's "
+                    "question without repeating what you already said."
+                )
+                call["history"] = [
+                    dict(m) for i, m in enumerate(self.messages) if i != question_index
+                ]
+                answer = clerk.ask(question, **call)
         except Exception as exc:  # surface every failure in the panel, not the log
             message = (
                 str(exc) if isinstance(exc, clerk.ClerkBackendError) else f"Unexpected error: {exc}"
@@ -2294,6 +2368,78 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
                 "include_values": bool(include_values),
             }
         )
+
+    #: Keys :meth:`apply_state` understands (the setter half of the Clustergram's API;
+    #: more controls -- order, dendrogram cut, crop, selection, zoom -- will follow).
+    APPLY_STATE_KEYS = ("marker_level", "mode", "size", "focus_gene")
+
+    def apply_state(self, changes: dict) -> list[str]:
+        """Change what the Clustergram shows, as its controls would.
+
+        All changes are validated before any is applied.
+
+        Args:
+            changes: Any of:
+
+                - ``marker_level``: marker genes per cluster (the DIM slider), snapped
+                  to the nearest precomputed level, or ``"all"`` for every row.
+                - ``mode``: ``"heatmap"`` or ``"dotplot"``.
+                - ``size``: ``"prop"`` (dot size by e.g. fraction expressing) or
+                  ``"unit"`` (full-size marks), like the PROP / UNIT buttons.
+                - ``focus_gene``: a row name to zoom to and bold, like the search
+                  box; ``""`` clears it.
+
+        Returns:
+            list[str]: A short description of each change, e.g. ``"DIM -> 10 markers
+            per cluster"``.
+
+        Raises:
+            ValueError: For an unknown key or an invalid value (nothing changes).
+        """
+        if not isinstance(changes, dict):
+            raise ValueError("changes must be a dict")
+        unknown = sorted(set(changes) - set(self.APPLY_STATE_KEYS))
+        if unknown:
+            raise ValueError(
+                f"Unknown Clustergram setting(s): {unknown}; supported: {list(self.APPLY_STATE_KEYS)}"
+            )
+
+        updates: list[tuple[str, Any, str]] = []
+        if "marker_level" in changes:
+            level = changes["marker_level"]
+            if level is None or str(level).lower() == "all":
+                updates.append(("rank_dim", 0, "DIM -> all rows"))
+            else:
+                try:
+                    n = int(level)
+                except (TypeError, ValueError):
+                    raise ValueError(
+                        f"marker_level must be a number or 'all', not {level!r}"
+                    ) from None
+                if n <= 0:
+                    raise ValueError("marker_level must be positive (or 'all')")
+                updates.append(("rank_dim", n, f"DIM -> {n} markers per cluster"))
+        if "mode" in changes:
+            mode = changes["mode"]
+            if mode not in ("heatmap", "dotplot"):
+                raise ValueError("mode must be 'heatmap' or 'dotplot'")
+            updates.append(("viz_mode", mode, f"mode -> {mode}"))
+        if "size" in changes:
+            size = str(changes["size"]).lower()
+            if size not in ("prop", "unit"):
+                raise ValueError("size must be 'prop' or 'unit'")
+            updates.append(("dot_size_encoded", size == "prop", f"dot size -> {size.upper()}"))
+        if "focus_gene" in changes:
+            gene = str(changes["focus_gene"] or "")
+            if gene and self.row_names and gene not in self.row_names:
+                raise ValueError(f"{gene!r} is not a row of this Clustergram")
+            updates.append(("focused_gene", gene, f"zoomed to {gene}" if gene else "cleared focus"))
+
+        for trait, value, _ in updates:
+            if trait == "focused_gene" and value and self.focused_gene == value:
+                self.focused_gene = ""  # re-focusing the same gene should zoom again
+            setattr(self, trait, value)
+        return [description for *_, description in updates]
 
     # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
     # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by

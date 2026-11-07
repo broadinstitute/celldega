@@ -362,6 +362,19 @@ export const get_clustergram_state = (viz_state, options = {}) => {
     rows: axis_state('row'),
     cols: axis_state('col'),
     marker_level: marker_level_for(viz_state),
+    display: {
+      mode: viz_state.mat?.viz_mode ?? null,
+      size:
+        viz_state.mat?.viz_mode === 'dotplot'
+          ? viz_state.mat?.dot_size_encoded === false
+            ? 'unit'
+            : 'prop'
+          : null,
+      focused_row:
+        viz_state.labels?.focused_row_index != null
+          ? name_at(viz_state, 'row', viz_state.labels.focused_row_index)
+          : null,
+    },
     selection: selection_for(viz_state),
     values: include_values
       ? values_for(viz_state, picks.row.indices, picks.col.indices)

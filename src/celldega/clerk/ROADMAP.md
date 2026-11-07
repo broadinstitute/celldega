@@ -164,11 +164,24 @@ default; runs only after the view settles; caches answers per view.
       Clerk requests it with the Landscape screenshot and adds a compact text summary to
       the prompt (`dega.clerk.format_clustergram_state`). Supersedes draft PR #296, whose
       slice API had already landed on main via #251.
-- [ ] Clustergram setters, same keys as the getter: order per axis, marker level, dendrogram
-      cut, select rows/cols, zoom to rows/cols, crop. Then Landscape getters/setters
-      (view state, viewport summary, genes shown, cell attribute). Naming: Python widgets
-      can't use `get_state` / `set_state` (ipywidgets already defines them), so Python uses
-      `request_state` / `latest_state` and, for setters, e.g. `apply_state`.
+- [x] Clustergram setters, first batch: `Clustergram.apply_state({...})` for the controls
+      the front end already takes from Python — `marker_level` (DIM, via `rank_dim`),
+      `mode` (heatmap/dotplot), `size` (PROP/UNIT), `focus_gene` (search-style zoom).
+      Validates everything before changing anything. The snapshot reports `display`
+      (mode, size, focused gene) so Clerk sees the result.
+- [x] Clerk actions (interim, before the Agent SDK): Clerk may end an answer with a
+      ```` ```celldega-actions ```` JSON block using the `apply_state` keys; the kernel
+      applies it, re-captures the views and asks Clerk to continue (≤
+      `max_action_rounds`, default 2). Changes show in the chat as "↻ Changed …". The
+      same setters become Agent SDK tools later.
+- [ ] Every control API-controllable. Clustergram setters still needing front-end
+      handlers: order per axis (CLUST/SUM/VAR/INI, sort by a gene or column, group by
+      category), dendrogram cut per axis, select a dendrogram branch / column / gene label
+      (which drives linked Landscape + Enrich), crop / undo, zoom to rows/cols, category
+      dropdown. Then Landscape getters/setters (view state, viewport summary, genes
+      shown, cell attribute) and Enrich (library, term count, select a term). Naming:
+      Python widgets can't use `get_state` / `set_state` (ipywidgets defines them), so
+      Python uses `request_state` / `latest_state` / `apply_state`.
 - [ ] Python mirror of the Viz API v0.
 - [ ] UniProt gene-info tool for Clerk: a Python mirror of Landscape's lookup (same EBI
       Proteins → UniProt REST endpoints, so names and descriptions match the UI), cached

@@ -201,6 +201,20 @@ describe('get_clustergram_state', () => {
     expect(state.rows.names).toEqual(['g1', 'g0', 'g2', 'g3']);
   });
 
+  test('reports the display mode, dot sizing and focused gene', () => {
+    const viz_state = make_viz_state();
+    viz_state.mat.viz_mode = 'dotplot';
+    viz_state.mat.dot_size_encoded = false;
+    viz_state.labels.focused_row_index = 2;
+    expect(get_clustergram_state(viz_state).display).toEqual({
+      mode: 'dotplot',
+      size: 'unit',
+      focused_row: 'g2',
+    });
+    viz_state.mat.viz_mode = 'heatmap';
+    expect(get_clustergram_state(viz_state).display.size).toBeNull();
+  });
+
   test('the snapshot is plain JSON', () => {
     const state = get_clustergram_state(make_viz_state());
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);

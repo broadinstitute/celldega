@@ -195,6 +195,17 @@ export const render_clerk = async ({ model, el }) => {
     }
 
     messages.forEach((m) => {
+      if (m.role === 'action') {
+        // A view change Clerk made (e.g. "Changed the Clustergram: DIM -> 10 ...").
+        const note = document.createElement('div');
+        note.style.margin = '-4px 0 10px';
+        note.style.fontSize = '12px';
+        note.style.fontStyle = 'italic';
+        note.style.color = '#2c7fb8';
+        note.textContent = `↻ ${m.content || ''}`;
+        messagesPane.appendChild(note);
+        return;
+      }
       const row = document.createElement('div');
       row.style.marginBottom = '10px';
       row.style.fontSize = '14px';

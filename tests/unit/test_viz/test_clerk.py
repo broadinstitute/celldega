@@ -758,3 +758,115 @@ def test_clerk_notes_views_that_do_not_reply(monkeypatch) -> None:
     alone.request = {"id": "1", "question": "q"}
     assert alone.wait(timeout=5)
     assert any("No Landscape, Clustergram or Enrich" in n for n in seen["notes"])
+
+
+# ---- setters and Clerk actions ---------------------------------------------
+def test_clustergram_apply_state_sets_controls() -> None:
+    cgm = _clustergram()
+    cgm.row_names = ["MUC2", "TFF3"]
+
+    done = cgm.apply_state({"marker_level": 10, "mode": "dotplot", "size": "unit"})
+    assert done == ["DIM -> 10 markers per cluster", "mode -> dotplot", "dot size -> UNIT"]
+    assert (cgm.rank_dim, cgm.viz_mode, cgm.dot_size_encoded) == (10, "dotplot", False)
+
+    assert cgm.apply_state({"marker_level": "all"}) == ["DIM -> all rows"]
+    assert cgm.rank_dim == 0
+
+    cgm.apply_state({"focus_gene": "MUC2"})
+    assert cgm.focused_gene == "MUC2"
+
+
+def test_clustergram_apply_state_validates_before_changing() -> None:
+    cgm = _clustergram()
+    cgm.row_names = ["MUC2"]
+    before = (cgm.rank_dim, cgm.viz_mode)
+    for bad in (
+        {"zoom": 2},
+        {"marker_level": "lots"},
+        {"marker_level": 5, "mode": "pie"},
+        {"focus_gene": "NOPE"},
+    ):
+        with pytest.raises(ValueError):
+            cgm.apply_state(bad)
+    assert (cgm.rank_dim, cgm.viz_mode) == before
+
+
+def test_extract_actions() -> None:
+    answer = (
+        "Let me show more markers.\n\n"
+        '```celldega-actions\n{"clustergram": {"marker_level": 10}}\n```'
+    )
+    text, actions, problem = clerk_llm.extract_actions(answer)
+    assert text == "Let me show more markers."
+    assert actions == {"clustergram": {"marker_level": 10}}
+    assert problem is None
+
+    assert clerk_llm.extract_actions("no block here") == ("no block here", None, None)
+    _, actions, problem = clerk_llm.extract_actions("x\n```celldega-actions\n{oops}\n```")
+    assert actions is None and "Could not read" in problem
+
+    prompt = clerk_llm.build_prompt("q", actions_help=clerk_llm.CLUSTERGRAM_ACTIONS_HELP)
+    assert "## Changing the views" in prompt and "celldega-actions" in prompt
+
+
+def _clerk_with_live_clustergram(monkeypatch):
+    """A Clerk linked to a Clustergram whose 'browser' answers snapshot requests."""
+    cgm = _clustergram()
+    w = Clerk(clustergram=cgm)
+    w.snapshot_timeout = 5
+
+    def fake_send(content):
+        if content.get("event") == "get_state":
+            state = {"kind": "clustergram", "marker_level": {"current": cgm.rank_dim}}
+            cgm._on_state_msg(cgm, {"event": "state", "id": content["id"], "state": state}, [])
+
+    monkeypatch.setattr(cgm, "send", fake_send)
+    return w, cgm
+
+
+def test_clerk_applies_actions_and_continues(monkeypatch) -> None:
+    w, cgm = _clerk_with_live_clustergram(monkeypatch)
+    calls = []
+    replies = [
+        'Showing more markers.\n```celldega-actions\n{"clustergram": {"marker_level": 10}}\n```',
+        "With 10 markers per cluster, cluster 4 adds SPINK4.",
+    ]
+
+    def fake_ask(question, **kwargs):
+        calls.append(kwargs)
+        return replies[len(calls) - 1]
+
+    monkeypatch.setattr(clerk_llm, "ask", fake_ask)
+
+    w.request = {"id": "1", "question": "Can you increase the number of markers?"}
+    assert w.wait(timeout=5)
+
+    assert cgm.rank_dim == 10
+    assert "celldega-actions" in calls[0]["actions_help"]
+    # The follow-up saw the updated view, the action, and was told what changed.
+    assert calls[1]["clustergram_state"]["marker_level"]["current"] == 10
+    assert any("You just changed the view" in n for n in calls[1]["notes"])
+    assert [m["role"] for m in calls[1]["history"]] == ["assistant", "action"]
+    assert [m["role"] for m in w.messages] == ["user", "assistant", "action", "assistant"]
+    assert w.messages[2]["content"] == "Changed the Clustergram: DIM -> 10 markers per cluster"
+    assert w.pending is False
+
+
+def test_clerk_action_rounds_are_capped_and_errors_reported(monkeypatch) -> None:
+    w, _cgm = _clerk_with_live_clustergram(monkeypatch)
+    w.max_action_rounds = 1
+    block = '```celldega-actions\n{"clustergram": {"marker_level": 5}}\n```'
+    monkeypatch.setattr(clerk_llm, "ask", lambda question, **kw: block)
+
+    w.request = {"id": "1", "question": "keep changing"}
+    assert w.wait(timeout=5)
+    assert [m["role"] for m in w.messages] == ["user", "action", "error"]
+    assert "more view changes" in w.messages[-1]["content"]
+
+    w2, _ = _clerk_with_live_clustergram(monkeypatch)
+    bad = '```celldega-actions\n{"landscape": {"zoom": 3}}\n```'
+    monkeypatch.setattr(clerk_llm, "ask", lambda question, **kw: bad)
+    w2.request = {"id": "1", "question": "zoom the landscape"}
+    assert w2.wait(timeout=5)
+    assert w2.messages[-1]["role"] == "error"
+    assert "Couldn't change the view" in w2.messages[-1]["content"]

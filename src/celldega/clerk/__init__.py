@@ -22,6 +22,7 @@ Example::
 
 from .casefile import CaseFile
 from .llm import (
+    CLUSTERGRAM_ACTIONS_HELP,
     DEFAULT_TIMEOUT,
     LOGIN_HELP,
     ClerkBackendError,
@@ -29,6 +30,7 @@ from .llm import (
     build_prompt,
     claude_auth_status,
     claude_available,
+    extract_actions,
     format_clustergram_state,
     format_enrich_state,
     run_claude,
@@ -36,6 +38,7 @@ from .llm import (
 
 
 __all__ = [
+    "CLUSTERGRAM_ACTIONS_HELP",
     "DEFAULT_TIMEOUT",
     "LOGIN_HELP",
     "CaseFile",
@@ -44,6 +47,7 @@ __all__ = [
     "build_prompt",
     "claude_auth_status",
     "claude_available",
+    "extract_actions",
     "format_clustergram_state",
     "format_enrich_state",
     "run_claude",

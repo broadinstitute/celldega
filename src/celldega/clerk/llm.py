@@ -28,6 +28,7 @@ Only the CLI's login is shared.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -74,6 +75,23 @@ SYSTEM_PROMPT = (
     "evidence, tell the scientist exactly what to do (e.g. zoom the Clustergram to "
     "certain genes, click a cluster, pan the Landscape). If an evidence note says a "
     "view is unavailable, say so plainly instead of guessing."
+)
+
+ACTIONS_FENCE = "celldega-actions"
+
+# Shown when a Clustergram is linked. The keys are Clustergram.apply_state's.
+CLUSTERGRAM_ACTIONS_HELP = (
+    "You can change the linked Clustergram yourself. To do so, end your answer with "
+    f"one fenced block tagged `{ACTIONS_FENCE}` containing JSON, for example:\n\n"
+    f"```{ACTIONS_FENCE}\n"
+    '{"clustergram": {"marker_level": 10}}\n'
+    "```\n\n"
+    "Settings: marker_level (the DIM slider: marker genes per cluster, snapped to the "
+    'listed levels, or "all"); mode ("heatmap" or "dotplot"); size ("prop" sizes dots '
+    'by e.g. fraction expressing, "unit" draws them full size); focus_gene (a gene to '
+    "zoom to, like the search box). The change is applied, and you then receive the "
+    "updated view to continue your answer. Only change views when it helps answer "
+    "the question, and say what you changed and why."
 )
 
 # Most recent conversation turns sent with each question (older turns are dropped).
@@ -148,6 +166,7 @@ def build_prompt(
     clustergram_state: dict | None = None,
     notes: list[str] | None = None,
     enrich_state: dict | None = None,
+    actions_help: str | None = None,
 ) -> str:
     """Assemble the prompt for one question from the gathered evidence.
 
@@ -166,6 +185,9 @@ def build_prompt(
         notes: Short notes about the evidence, e.g. that a linked view didn't reply.
         enrich_state: An Enrich snapshot (``Enrich.latest_state``) of the enrichment
             results on screen; see :func:`format_enrich_state`.
+
+        actions_help: How Clerk may change the linked views (e.g.
+            :data:`CLUSTERGRAM_ACTIONS_HELP`); omitted when nothing can be changed.
     """
     parts: list[str] = []
 
@@ -218,6 +240,9 @@ def build_prompt(
 
     if notes:
         parts += ["## Evidence notes", *(f"- {note}" for note in notes), ""]
+
+    if actions_help:
+        parts += ["## Changing the views", actions_help, ""]
 
     parts += ["## Question", question.strip() or "Interpret this cluster."]
     return "\n".join(parts)
@@ -299,6 +324,11 @@ def format_clustergram_state(
         unit = "markers per cluster" if level.get("unit") == "per_cluster" else "rows"
         shown = f"top {current} {unit}" if current is not None else "all rows"
         lines.append(f"Marker level (DIM slider): {shown}; levels: {level.get('levels')}")
+    display = state.get("display") or {}
+    if display.get("mode"):
+        mode = display["mode"] + (f", {display['size'].upper()}" if display.get("size") else "")
+        focus = f"; zoomed to {display['focused_row']}" if display.get("focused_row") else ""
+        lines.append(f"Display: {mode}{focus}")
 
     selection = state.get("selection") or {}
     click = selection.get("click")
@@ -400,9 +430,35 @@ def format_enrich_state(state: dict | None, *, max_genes: int = 12) -> str:
     return "\n".join(lines)
 
 
+_ACTIONS_BLOCK = re.compile(
+    rf"```{re.escape(ACTIONS_FENCE)}[ \t]*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE
+)
+
+
+def extract_actions(answer: str) -> tuple[str, dict | None, str | None]:
+    """Split an answer into its text and any ``celldega-actions`` block.
+
+    Returns:
+        tuple: ``(text, actions, error)``. ``text`` is the answer without the block;
+        ``actions`` maps a widget name (e.g. ``"clustergram"``) to its settings, or is
+        ``None``; ``error`` describes a malformed block.
+    """
+    match = _ACTIONS_BLOCK.search(answer or "")
+    if not match:
+        return (answer or "").strip(), None, None
+    text = (answer[: match.start()] + answer[match.end() :]).strip()
+    try:
+        actions = json.loads(match.group(1))
+    except json.JSONDecodeError as exc:
+        return text, None, f"Could not read the requested view change: {exc}"
+    if not isinstance(actions, dict) or not all(isinstance(v, dict) for v in actions.values()):
+        return text, None, "The requested view change must map widget names to settings."
+    return text, actions, None
+
+
 def _format_history(history: list[dict] | None) -> str:
     """Render recent user/assistant turns as text, newest last, within the caps."""
-    labels = {"user": "Scientist", "assistant": "Clerk"}
+    labels = {"user": "Scientist", "assistant": "Clerk", "action": "Clerk changed the view"}
     turns = [
         f"{labels[m['role']]}: {str(m.get('content', '')).strip()}"
         for m in (history or [])
@@ -542,6 +598,7 @@ def ask(
     clustergram_state: dict | None = None,
     notes: list[str] | None = None,
     enrich_state: dict | None = None,
+    actions_help: str | None = None,
 ) -> str:
     """Build the prompt from evidence (and earlier turns) and run the model in one call."""
     prompt = build_prompt(
@@ -554,5 +611,6 @@ def ask(
         clustergram_state=clustergram_state,
         notes=notes,
         enrich_state=enrich_state,
+        actions_help=actions_help,
     )
     return run_claude(prompt, image_b64=image_b64, model=model, timeout=timeout)

@@ -24,15 +24,9 @@ export const ini_deck = (
   technology = '',
   { per_view_controllers = false } = {}
 ) => {
-  const deck_props = {
-    parent: root,
-    getCursor,
-    width,
-    height,
-    // preserveDrawingBuffer lets us read the canvas back as a PNG (raster capture)
-    // at any time via canvas.toDataURL(); see landscape captureRaster().
-    deviceProps: { type: 'webgl', preserveDrawingBuffer: true },
-  };
+  // Raster capture does not need preserveDrawingBuffer: it forces a redraw and reads
+  // the canvas in the same task (see utils/canvas_capture.js).
+  const deck_props = { parent: root, getCursor, width, height };
 
   // A multi-view deck (e.g. Landmark's two side-by-side panels) manages a
   // controller per view via the `views` prop. A top-level `controller` here

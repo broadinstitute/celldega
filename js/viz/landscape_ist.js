@@ -113,6 +113,7 @@ import { make_ist_ui_container } from '../ui/ui_containers';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
 import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
+import { capture_deck } from '../utils/canvas_capture';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -1488,18 +1489,16 @@ export const landscape_ist = async (
     },
     update_layers: () => {},
     /**
-     * Capture the current deck.gl view as a base64 PNG plus the exact view state
-     * (zoom/pan/rotation) for reproducibility. Relies on preserveDrawingBuffer being
-     * enabled on the Deck (see deck_ist.js).
-     * @returns {{png: string, view_state: object|null}|null} capture, or null if no
-     *   canvas is found.
+     * Capture the current deck.gl view as a downscaled base64 PNG and thumbnail,
+     * plus the exact view state (zoom/pan/rotation) for reproducibility.
+     * @param {{max_size?: number, thumb_size?: number}} [capture_options]
+     * @returns {{png: string, thumb: string, width: number, height: number,
+     *   view_state: object|null}|null} capture, or null if there is no canvas.
      */
-    captureRaster: () => {
-      const canvas = root.querySelector('canvas');
-      if (!canvas) return null;
-      const dataUrl = canvas.toDataURL('image/png');
-      const png = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-      return { png, view_state: viz_state.current_view_state || null };
+    captureRaster: (capture_options = {}) => {
+      const capture = capture_deck(deck_ist, root, capture_options);
+      if (!capture) return null;
+      return { ...capture, view_state: viz_state.current_view_state || null };
     },
     finalize: () => {
       if (finalized) return;

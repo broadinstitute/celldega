@@ -79,6 +79,7 @@ import {
   apply_manual_definitions_to_axis,
   refresh_attribute_layers,
 } from '../matrix/attr_state';
+import { get_clustergram_state } from '../matrix/clustergram_state';
 import {
   refresh_row_label_visibility,
   set_composition_colors,
@@ -750,10 +751,37 @@ export const matrix_viz = async (
     };
 
     on_model('change:matrix_slice_request', flushMatrixSliceRequest);
+
+    // State snapshot for Python (e.g. Clerk): reply with a one-off message, so the
+    // snapshot is never saved into the notebook's widget state.
+    on_model('msg:custom', (msg) => {
+      if (msg?.event !== 'get_state') return;
+      let reply;
+      try {
+        reply = {
+          event: 'state',
+          id: msg.id,
+          state: get_clustergram_state(viz_state, msg.options || {}),
+        };
+      } catch (e) {
+        reply = {
+          event: 'state_error',
+          id: msg.id,
+          error: String(e?.message || e),
+        };
+      }
+      viz_state.model.send(reply);
+    });
   }
 
   const matrix = {
     obs_store: viz_state.obs_store,
+    /**
+     * What the Clustergram shows (rows/cols on screen or in ranked order, order,
+     * marker level, dendrogram groups, attributes, selection, values) as JSON.
+     * See matrix/clustergram_state.js for options.
+     */
+    get_state: (options = {}) => get_clustergram_state(viz_state, options),
     finalize: () => {
       if (finalized) return;
       finalized = true;

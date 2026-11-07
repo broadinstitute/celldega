@@ -133,25 +133,57 @@ default; runs only after the view settles; caches answers per view.
 - `dega.clerk`: `ask` / `build_prompt` / `run_claude` via the local `claude` CLI,
   single-shot, no tools; text and inline-image modes.
 - `dega.viz.Clerk` chat widget; constructor linking and `link_clerk` / `landscape_clerk`.
-- `Landscape.request_raster()` → `raster_png` + `raster_view_state`.
+- `Landscape.request_raster()` → `raster_png` / `raster_thumb` / `raster_view_state`
+  (Python-side only).
 - `CaseFile` and `_sketches.py` (to be removed; see below).
 
 ## To do — Milestone 1 (notebook, Look tier)
 
-- [ ] Safeguard: run the model call in a background thread so the kernel stays responsive
-      (this also lets Clerk wait for a fresh snapshot).
-- [ ] Safeguard: isolate the CLI call — explicit tool allowlist, Clerk's own system
-      prompt, `--strict-mcp-config`, `--no-session-persistence`, neutral working
-      directory; verify what user-level config still leaks in.
-- [ ] Safeguard: cheaper raster capture — no global `preserveDrawingBuffer` (read the
-      canvas right after a forced redraw), and downscale before syncing; stop storing the
-      image twice in notebook state.
+- [x] Safeguard: the model call runs in a background thread (`Clerk.wait()` joins it);
+      Clerk takes a fresh Landscape capture when a question is asked.
+- [x] Safeguard: isolated CLI call — Clerk's own system prompt, `--tools ""`,
+      `--strict-mcp-config`, `--no-session-persistence`, `--setting-sources ""`, and a
+      throwaway working directory. Verified live: no tools or MCP servers load and nothing
+      is left behind.
+- [x] Safeguard: cheaper capture — no `preserveDrawingBuffer` (forced redraw + same-task
+      read), downscaled to 1024 px + 192 px preview, sent as one-off messages so images
+      are never saved in notebook widget state.
+- [x] Recent conversation (12 turns / 12k characters) sent with each question.
+- [ ] Named widget links: Clerk links any number of widgets under names (defaulting to
+      the widget's `dataset_name` / name, else type + index), refers to them by name in
+      prompts, and snapshots the one the user last interacted with. The same names
+      become the Viz API / MCP addresses.
 - [ ] JS Viz API v0 for Landscape: `getState` / `snapshot`, including the viewport summary
       (top genes and cluster counts in view, from the totals the bar charts use).
-- [ ] JS Viz API v0 for Clustergram: selection and hierarchy (meta-clusters at the current
-      dendrogram cut, gene modules).
+- [x] Clustergram getter: `get_clustergram_state` (JS; `matrix.get_state(options)` on the
+      instance) → rows/cols on screen (computed from the deck viewport), in ranked order,
+      or by name; order per axis; marker level; dendrogram groups at the current cut;
+      row/col attributes; selection (click, genes, dendrogram group, Enrich term genes,
+      crop); values + dot sizes for the reported window. Python:
+      `Clustergram.request_state(...)` → `latest_state` (one-off messages, not synced).
+      Clerk requests it with the Landscape screenshot and adds a compact text summary to
+      the prompt (`dega.clerk.format_clustergram_state`). Supersedes draft PR #296, whose
+      slice API had already landed on main via #251.
+- [ ] Clustergram setters, same keys as the getter: order per axis, marker level, dendrogram
+      cut, select rows/cols, zoom to rows/cols, crop. Then Landscape getters/setters
+      (view state, viewport summary, genes shown, cell attribute). Naming: Python widgets
+      can't use `get_state` / `set_state` (ipywidgets already defines them), so Python uses
+      `request_state` / `latest_state` and, for setters, e.g. `apply_state`.
 - [ ] Python mirror of the Viz API v0.
-- [ ] UniProt gene-info tool for Clerk (same source as Landscape's gene click), cached.
+- [ ] UniProt gene-info tool for Clerk: a Python mirror of Landscape's lookup (same EBI
+      Proteins → UniProt REST endpoints, so names and descriptions match the UI), cached
+      in memory and on disk. Works without a browser (headless, celldega-app).
+- [ ] Narrated tool use: Clerk's steps stream into the chat as it works ("reading the top
+      genes in view… looking up MUC2, TFF3 in UniProt… showing MUC2, TFF3 on the
+      Landscape"), and it can display one or more genes on the Landscape (the
+      comma-separated gene input) as it explains them.
+- [x] Login check: `dega.clerk.claude_auth_status()` (runs `claude auth status --json`,
+      drops email/org); a logged-out question returns log-in instructions instead of the
+      CLI's raw error. Instructions are in the test notebook and on the docs page.
+- [ ] Show login status in the Clerk panel when it opens. Optionally a "Log in" button
+      that launches `claude auth login` on local kernels. Sign-in always completes in
+      Anthropic's own flow; Celldega never sees, relays or stores credentials (the CLI
+      keeps them in the OS keychain / its own credentials file).
 - [ ] Enrich exposes its current results (library + terms) as state; Clerk reads them
       instead of re-querying Enrichr.
 - [ ] Clerk reviews the user's Clustergram annotations (reads `manual_cat`; Look tier).
@@ -183,6 +215,26 @@ default; runs only after the view settles; caches answers per view.
       images match.
 - [ ] Headless snapshot path; MCP server (live + headless).
 - [ ] celldega-app integration (in its repo).
+
+## To do — Landscape features Clerk builds on
+
+- [ ] **Spatial Landscape + AnnData Zarr** (agreed; not the top priority — part of the
+      longer-term work to shrink notebooks): `Landscape(base_url=<DegaFiles>,
+      zarr_url=<AnnData Zarr>)` for Xenium / MERSCOPE / Visium HD etc. DegaFiles supply
+      tiles, segmentation and transcripts; the Zarr supplies cell annotations (`obs`) and
+      the UMAP (`obsm`), joined on cell id. Today `zarr_url` is Chromium-only and
+      exclusive with `base_url`. Bonus: notebooks reference hosted annotations instead of
+      embedding them in widget state.
+- [ ] **Cell attribute switcher** (revives draft PR #81, which only placed a hardcoded
+      `<select>`; design agreed: the ▾): a small ▾ next to the CELL toggle opens a menu of the available
+      categorical cell attributes (from `adata.obs` / the Zarr `obs` / DegaFiles
+      metadata); choosing one recolors cells, the bar chart and the legend. The bar
+      chart title shows the active attribute. Exposed in the Viz API
+      (`setState({cell_attr})`) so Clerk and other agents can switch it.
+- [ ] **Compare annotations:** once labels are synced (e.g. `cell_type` next to
+      `leiden` or a previous annotation), switch between them with the attribute
+      switcher, and give Clerk an overlap table (annotation A × annotation B, as a
+      Clustergram) to explain where and why they disagree.
 
 ## To do — make Celldega LLM-friendly
 

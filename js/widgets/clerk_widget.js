@@ -8,6 +8,14 @@ const FONT =
 const ENRICHR_LIB = 'CellMarker_2024';
 const ENRICHR_TERMS = 8;
 
+// Model picker: aliases the `claude` CLI understands; '' = the CLI's default model.
+const MODEL_OPTIONS = [
+  ['', 'Default model'],
+  ['opus', 'Opus'],
+  ['sonnet', 'Sonnet'],
+  ['haiku', 'Haiku'],
+];
+
 /**
  * Celldega Clerk chat UI. Mirrors the Enrich widget's plumbing, but instead of
  * rendering enrichment bars it collects a free-form question, pre-gathers evidence
@@ -71,7 +79,37 @@ export const render_clerk = async ({ model, el }) => {
   sendBtn.style.cursor = 'pointer';
   sendBtn.style.fontFamily = FONT;
 
+  // Takes effect on the next question; mirrors the Python `model` trait.
+  const modelSelect = document.createElement('select');
+  modelSelect.title =
+    'Claude model for the next question ("Default model" = your claude CLI default)';
+  modelSelect.style.marginLeft = '5px';
+  modelSelect.style.alignSelf = 'center';
+  modelSelect.style.fontFamily = FONT;
+  modelSelect.style.fontSize = '13px';
+
+  const syncModelSelect = () => {
+    const current = model.get('model') || '';
+    // Keep a custom model id set from Python selectable instead of dropping it.
+    const options = MODEL_OPTIONS.some(([value]) => value === current)
+      ? MODEL_OPTIONS
+      : [...MODEL_OPTIONS, [current, current]];
+    modelSelect.innerHTML = '';
+    options.forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      modelSelect.appendChild(option);
+    });
+    modelSelect.value = current;
+  };
+  modelSelect.addEventListener('change', () => {
+    model.set('model', modelSelect.value);
+    model.save_changes();
+  });
+
   inputRow.appendChild(textarea);
+  inputRow.appendChild(modelSelect);
   inputRow.appendChild(sendBtn);
 
   container.appendChild(evidence);
@@ -82,7 +120,9 @@ export const render_clerk = async ({ model, el }) => {
   // ---- rendering helpers -------------------------------------------------
   const renderEvidence = () => {
     const genes = model.get('gene_list') || [];
-    const image = model.get('image_b64') || '';
+    // Only a small preview is synced; the full image stays in Python.
+    const thumb = model.get('image_thumb_b64') || '';
+    const hasImage = !!model.get('has_image');
     evidence.innerHTML = '';
 
     const title = document.createElement('div');
@@ -100,15 +140,22 @@ export const render_clerk = async ({ model, el }) => {
       : 'No gene list provided.';
     evidence.appendChild(geneLine);
 
-    if (image) {
+    if (thumb) {
       const img = document.createElement('img');
-      img.src = `data:image/png;base64,${image}`;
+      img.src = `data:image/png;base64,${thumb}`;
       img.style.maxWidth = '100%';
       img.style.maxHeight = '90px';
       img.style.marginTop = '4px';
       img.style.border = '1px solid #d3d3d3';
-      img.title = 'Landscape raster attached to the prompt';
+      img.title =
+        'Latest Landscape view. A fresh capture is taken when you ask a question.';
       evidence.appendChild(img);
+    } else if (hasImage) {
+      const note = document.createElement('div');
+      note.style.fontSize = '12px';
+      note.style.marginTop = '3px';
+      note.textContent = 'Image attached (no preview).';
+      evidence.appendChild(note);
     }
   };
 
@@ -229,19 +276,27 @@ export const render_clerk = async ({ model, el }) => {
   });
 
   // ---- traitlet listeners ------------------------------------------------
-  model.on('change:gene_list', renderEvidence);
-  model.on('change:image_b64', renderEvidence);
-  model.on('change:messages', renderMessages);
-  model.on('change:pending', () => {
+  const onPending = () => {
     renderMessages();
     setBusy(!!model.get('pending'));
-  });
+  };
+  const listeners = [
+    ['change:gene_list', renderEvidence],
+    ['change:image_thumb_b64', renderEvidence],
+    ['change:has_image', renderEvidence],
+    ['change:messages', renderMessages],
+    ['change:pending', onPending],
+    ['change:model', syncModelSelect],
+  ];
+  listeners.forEach(([event, handler]) => model.on(event, handler));
 
+  syncModelSelect();
   renderEvidence();
   renderMessages();
 
   return {
     finalize: () => {
+      listeners.forEach(([event, handler]) => model.off?.(event, handler));
       el.innerHTML = '';
     },
   };

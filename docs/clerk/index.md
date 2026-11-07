@@ -9,19 +9,42 @@ decides) and a *bodega clerk* (fetches what you ask for).
 It works like the [`Enrich`](../python/viz/api.md) widget, but instead of the Enrichr API
 it talks to **Claude** via your local `claude` CLI.
 
-## Requirements
+## Requirements and logging in
 
-Clerk shells out to the `claude` CLI from the kernel — no API key, no browser calls.
+Clerk sends your questions to Claude through the `claude` command-line tool (Claude
+Code), running on the same machine as your kernel and using your own Claude account. You
+need:
 
-- Install and authenticate **Claude Code** once (run `claude` in a terminal and log in).
-  After that, Clerk works without any terminal session open.
-- Check availability from Python:
+- **Claude Code installed** on the machine running the kernel; see the
+  [setup guide](https://code.claude.com/docs/en/setup).
+- **A Claude plan that includes Claude Code** (Pro or higher), or an Anthropic Console
+  account billed per use. The free plan doesn't include Claude Code.
+
+Log in once:
+
+1. Open a terminal on the machine running the kernel (JupyterLab: *File → New →
+   Terminal*; VS Code: *Terminal → New Terminal*).
+2. Run `claude auth login` (add `--console` to use a Console account instead of a Claude
+   plan).
+3. Sign in on the page that opens. If no browser opens, open the link it prints, sign in,
+   and paste the code it shows back into the terminal.
+
+The CLI remembers the login (in the macOS keychain, or its own credentials file on
+Linux), so no terminal needs to stay open afterwards. Celldega never sees or stores it.
+If the kernel runs on a remote server (e.g. JupyterHub), log in from a terminal on that
+server.
+
+Check from Python, without calling the model:
 
 ```python
 import celldega as dega
 
-dega.clerk.claude_available()   # True if the `claude` CLI is on PATH
+dega.clerk.claude_auth_status()
+# {'logged_in': True, 'auth_method': 'claude.ai', 'subscription_type': 'pro'}
 ```
+
+If you ask a question while logged out, Clerk replies with these instructions instead of
+the CLI's raw error.
 
 ## Quickstart (standalone)
 
@@ -49,10 +72,20 @@ Clerk pre-gathers **Enrichr** enrichment terms for the gene list (reusing Cellde
 existing Enrichr integration) and folds them into the prompt as evidence — the model
 itself uses no tools, so results are fast and predictable.
 
-Pick a cheaper/faster model for routine annotation:
+Each question also carries the recent conversation (the last 12 turns, about 3k tokens at
+most), so follow-up questions keep their context. Questions run in the background: the
+notebook stays usable while Clerk thinks.
+
+Every call is isolated from your own Claude Code setup: Clerk uses its own system prompt,
+no tools or MCP servers, none of your settings or hooks, and a throwaway working
+directory, so no project `CLAUDE.md` or memory is picked up. Only the CLI login is
+shared.
+
+Pick a model by alias (`"opus"`, `"sonnet"`, `"haiku"`) or full id; a smaller model is
+cheaper and faster for routine questions:
 
 ```python
-clerk = dega.viz.Clerk(model="claude-haiku-4-5")   # "" (default) inherits the CLI default
+clerk = dega.viz.Clerk(model="haiku")   # "" (default) inherits the CLI default
 ```
 
 ## Linking to other widgets
@@ -80,8 +113,29 @@ Once linked:
 
 - selecting a cluster/gene set in the **Clustergram** flows the genes into
   `clerk.gene_list`;
-- the current **Landscape** view is captured as a raster and rides along as image
-  evidence — including the exact zoom/pan (see below).
+- each time you ask a question, the current **Landscape** view is captured and sent
+  as image evidence, including the exact zoom/pan (see below). Pan and zoom, then ask
+  "what's in this field of view?"
+
+With a linked **Clustergram**, each question also carries a snapshot of what the
+Clustergram shows: the clusters and genes on screen (with their attributes, such as
+`leiden`, `cell_type` or `leiden_marker`), each axis's order, the marker level (DIM
+slider), the dendrogram groups at the current cut, the selection, and a capped table of
+values and dot sizes for what's on screen. Choose what it describes with
+`clerk.clustergram_options`, e.g. `{"rows": "ranked", "max_rows": 25}` for the top of the
+current order instead of what's on screen.
+
+The same snapshot is available on its own:
+
+```python
+cgm.request_state()                       # rows/cols on screen
+cgm.request_state(rows="ranked", cols=["4", "5"], max_rows=25)
+# ...in a later cell, once the browser has replied:
+cgm.latest_state                          # plain dict; never saved into the notebook
+```
+
+In JavaScript (e.g. a web app embedding Celldega), the Clustergram instance returned by
+`matrix_viz` exposes the same snapshot synchronously as `matrix.get_state(options)`.
 
 For a simple side-by-side layout of one Landscape + Clerk:
 
@@ -92,13 +146,19 @@ dega.viz.landscape_clerk(landscape, clerk)
 ## Landscape raster capture (a reusable feature)
 
 Clerk needed a screenshot, so `Landscape` gained a general screenshot API. Request a
-capture; the base64 PNG (and the exact view state) are written back to traits:
+capture; when the browser replies, the image and the exact view state are set on the
+widget (in memory only — captures are never saved into the notebook):
 
 ```python
-landscape.request_raster()      # asks the browser to snapshot the deck.gl canvas
-landscape.raster_png            # base64 PNG (no data: prefix), kept in memory
+landscape.request_raster()      # asks the browser to snapshot the current view
+# ...in a later cell, once the browser has replied:
+landscape.raster_png            # base64 PNG (no data: prefix), longest side <= 1024 px
+landscape.raster_thumb          # small preview
 landscape.raster_view_state     # {"target": [...], "zoom": ..., ...} for reproducibility
 ```
+
+The reply arrives asynchronously, so read these in a later cell or `observe` them; a
+cell that requests a capture can't wait for it.
 
 ## CaseFile: durable, savable state
 

@@ -23,20 +23,26 @@ Example::
 from .casefile import CaseFile
 from .llm import (
     DEFAULT_TIMEOUT,
+    LOGIN_HELP,
     ClerkBackendError,
     ask,
     build_prompt,
+    claude_auth_status,
     claude_available,
+    format_clustergram_state,
     run_claude,
 )
 
 
 __all__ = [
     "DEFAULT_TIMEOUT",
+    "LOGIN_HELP",
     "CaseFile",
     "ClerkBackendError",
     "ask",
     "build_prompt",
+    "claude_auth_status",
     "claude_available",
+    "format_clustergram_state",
     "run_claude",
 ]

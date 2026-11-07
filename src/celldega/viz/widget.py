@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import threading
+import time
 from typing import Any, Literal
 import urllib.error
 from urllib.parse import quote, urlparse
@@ -31,6 +32,21 @@ _LOCAL_ESM = (Path(__file__).parent / "../static" / "celldega.js").resolve()
 _ESM_CDN = "https://cdn.jsdelivr.net/npm/celldega@{version}/src/celldega/static/celldega.js"
 
 
+def _serve_local_esm() -> str:
+    """Serve the local bundle over HTTP once and return a shim that imports it.
+
+    Uses Celldega's CORS-enabled local server on ``src/celldega/static``. The URL carries
+    the bundle's modification time, so a rebuilt bundle is not served from the browser
+    cache after a kernel restart.
+    """
+    from .local_server import get_local_server
+
+    port = get_local_server(_LOCAL_ESM.parent)
+    stamp = int(_LOCAL_ESM.stat().st_mtime)
+    url = f"http://localhost:{port}/{_LOCAL_ESM.name}?v={stamp}"
+    return f"export {{ default }} from '{url}';"
+
+
 def _resolve_widget_esm() -> "Path | str":
     """Front-end module for the celldega anywidgets.
 
@@ -42,13 +58,26 @@ def _resolve_widget_esm() -> "Path | str":
     reused across every widget and notebook.
 
     Resolution order:
-      1. ``CELLDEGA_LOCAL_ESM`` or ``ANYWIDGET_HMR`` set -> local file (dev / HMR).
-      2. ``CELLDEGA_ESM_VERSION`` env var               -> CDN at that version.
-      3. installed version, if a clean ``X.Y.Z`` release -> CDN at that version.
-      4. otherwise (dev / unpublished, e.g. ``0.16.0a1``) -> local file (safe,
+      1. ``CELLDEGA_LOCAL_ESM=serve``                    -> local file served once over
+         HTTP, imported by a tiny shim (dev; small widget state, see below).
+      2. ``CELLDEGA_LOCAL_ESM`` (any other value) or ``ANYWIDGET_HMR`` set -> local file
+         inlined into each widget (dev / HMR).
+      3. ``CELLDEGA_ESM_VERSION`` env var               -> CDN at that version.
+      4. installed version, if a clean ``X.Y.Z`` release -> CDN at that version.
+      5. otherwise (dev / unpublished, e.g. ``0.16.0a1``) -> local file (safe,
          self-contained, since that version may not be on the CDN).
+
+    Inlining puts the whole ~12 MB bundle into every widget's state. A row of linked
+    widgets then sends tens of MB at once, and some front ends (notably VS Code) try to
+    draw the row before every child widget has arrived ("Error displaying widget: model
+    not found"). ``serve`` avoids that while developing against a local build; it needs
+    the browser to reach ``localhost`` on the kernel's machine, so it suits a local
+    kernel, not a remote JupyterHub.
     """
-    if os.environ.get("CELLDEGA_LOCAL_ESM") or os.environ.get("ANYWIDGET_HMR"):
+    local = os.environ.get("CELLDEGA_LOCAL_ESM", "")
+    if local.strip().lower() == "serve":
+        return _serve_local_esm()
+    if local or os.environ.get("ANYWIDGET_HMR"):
         return _LOCAL_ESM
     version = os.environ.get("CELLDEGA_ESM_VERSION", "")
     if not version:
@@ -1216,6 +1245,15 @@ class Clerk(CelldegaWidget):
         self._last_request_id = None
         self._linked_widgets = {}
         self._worker: threading.Thread | None = None
+        # Which Clustergram rows/columns to describe with each question: on screen by
+        # default ("viewport"), or "ranked" / a list of names; see
+        # Clustergram.request_state for the options.
+        self.clustergram_options = {
+            "rows": "viewport",
+            "cols": "viewport",
+            "max_rows": 40,
+            "max_cols": 30,
+        }
         self.has_image = bool(self.image_b64)
         self.observe(self._on_request, names="request")
         self.observe(self._on_image, names="image_b64")
@@ -1248,6 +1286,8 @@ class Clerk(CelldegaWidget):
 
         question = req.get("question", "")
         call = {
+            # Earlier turns, so follow-up questions keep their context.
+            "history": [dict(m) for m in self.messages],
             "gene_list": req.get("gene_list") or list(self.gene_list),
             "enrichr_terms": req.get("enrichr_terms") or [],
             "info": self.context_info,
@@ -1268,48 +1308,77 @@ class Clerk(CelldegaWidget):
     # Seconds to wait for a fresh Landscape snapshot before asking anyway.
     snapshot_timeout = 5.0
 
-    def _refresh_snapshot(self) -> None:
-        """Capture the linked Landscape's current view and wait for it (worker thread).
+    def _request_and_wait(self, requests) -> list[bool]:
+        """Send requests to the browser and wait for their replies (worker thread).
 
-        The kernel's main thread is free while this waits, so it can receive the
-        browser's reply; the ``link_clerk`` observers then copy the new image into
-        ``image_b64`` before the question is sent. Without a linked, displayed
-        Landscape this times out and the question goes ahead with whatever image Clerk
-        already has.
+        ``requests`` is a list of ``(widget, id_trait, send)``: ``send()`` issues the
+        request and returns its id, and the widget sets ``id_trait`` to that id once
+        the browser has answered. All replies share one ``snapshot_timeout``. The
+        kernel's main thread is free while this waits, so it can receive the replies.
+
+        Returns:
+            list[bool]: Whether each request was answered in time.
         """
-        landscape = self._linked_widgets.get("landscape")
-        if landscape is None or not hasattr(landscape, "request_raster"):
-            return
-        done = threading.Event()
-        target = {"id": None}
+        pending = []
+        for widget, id_trait, send in requests:
+            done = threading.Event()
+            target = {"id": None}
 
-        def _on_capture(change):
-            if target["id"] is not None and (change["new"] or 0) >= target["id"]:
-                done.set()
+            def _on_reply(change, done=done, target=target):
+                if target["id"] is not None and (change["new"] or 0) >= target["id"]:
+                    done.set()
 
-        landscape.observe(_on_capture, names="raster_capture_id")
+            widget.observe(_on_reply, names=id_trait)
+            pending.append((widget, id_trait, send, _on_reply, done, target))
         try:
-            target["id"] = landscape.request_raster()
-            if landscape.raster_capture_id >= target["id"]:
-                done.set()
-            done.wait(self.snapshot_timeout)
+            for widget, id_trait, send, _cb, done, target in pending:
+                target["id"] = send()
+                if getattr(widget, id_trait) >= target["id"]:
+                    done.set()
+            deadline = time.monotonic() + self.snapshot_timeout
+            for *_, done, _target in pending:
+                done.wait(max(0.0, deadline - time.monotonic()))
+            return [done.is_set() for *_, done, _target in pending]
         finally:
-            landscape.unobserve(_on_capture, names="raster_capture_id")
+            for widget, id_trait, _send, callback, _done, _target in pending:
+                widget.unobserve(callback, names=id_trait)
+
+    def _refresh_views(self) -> dict | None:
+        """Capture the linked views as they are now, before a question is sent.
+
+        The Landscape screenshot lands in ``image_b64`` (via the ``link_clerk``
+        observers); the Clustergram snapshot is returned if it arrived in time. Widgets
+        that aren't linked or displayed simply time out, and the question goes ahead
+        with whatever Clerk already has.
+        """
+        requests = []
+        landscape = self._linked_widgets.get("landscape")
+        if landscape is not None and hasattr(landscape, "request_raster"):
+            requests.append((landscape, "raster_capture_id", landscape.request_raster))
+        cgm = self._linked_widgets.get("clustergram")
+        has_cgm = cgm is not None and hasattr(cgm, "request_state")
+        if has_cgm:
+            options = dict(self.clustergram_options)
+            requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
+        if not requests:
+            return None
+        answered = self._request_and_wait(requests)
+        if has_cgm and answered[-1] and not cgm.state_error:
+            return dict(cgm.latest_state)
+        return None
 
     def _answer(self, question, call):
         """Run one model call (in the worker thread) and record the outcome."""
         from .. import clerk
 
         try:
-            self._refresh_snapshot()
+            call["clustergram_state"] = self._refresh_views()
             call["image_b64"] = self.image_b64 or None
             answer = clerk.ask(question, **call)
             self.messages = [*self.messages, {"role": "assistant", "content": answer}]
         except Exception as exc:  # surface every failure in the panel, not the log
             message = (
-                str(exc)
-                if isinstance(exc, clerk.ClerkBackendError)
-                else f"Unexpected error: {exc}"
+                str(exc) if isinstance(exc, clerk.ClerkBackendError) else f"Unexpected error: {exc}"
             )
             self.error = message
             self.messages = [*self.messages, {"role": "error", "content": message}]
@@ -1339,12 +1408,14 @@ class Clerk(CelldegaWidget):
 
         self.wait()
         genes = kwargs.pop("gene_list", None) or list(self.gene_list)
+        history = [dict(m) for m in self.messages]
         self.messages = [*self.messages, {"role": "user", "content": question}]
         self.pending = True
         self.error = ""
         try:
             answer = clerk.ask(
                 question,
+                history=history,
                 gene_list=genes,
                 enrichr_terms=kwargs.pop("enrichr_terms", None) or [],
                 info=kwargs.pop("info", None) or self.context_info,
@@ -1967,6 +2038,86 @@ class Clustergram(CelldegaWidget):
     #: Populated by the Matrix front-end in response to :attr:`matrix_slice_request`.
     matrix_slice_result = traitlets.Dict(default_value={}).tag(sync=True)
 
+    # State snapshot (see :meth:`request_state`), kept Python-side only: never synced,
+    # so snapshots are not saved into the notebook's widget state.
+    latest_state = traitlets.Dict(default_value={})
+    state_error = traitlets.Unicode("")
+    # Id of the latest request the browser answered (successfully or not). Set last,
+    # so observers of this trait see the finished snapshot.
+    state_capture_id = traitlets.Int(0)
+
+    def request_state(
+        self,
+        rows: str | Sequence[str] = "viewport",
+        cols: str | Sequence[str] = "viewport",
+        *,
+        max_rows: int = 50,
+        max_cols: int = 50,
+        include_values: bool = True,
+    ) -> int:
+        """Ask the browser for a snapshot of what this Clustergram shows.
+
+        The snapshot reports, by name and in display order: the chosen rows and
+        columns, each axis's order, the marker level (DIM slider), the dendrogram
+        groups at the current cut, row/column attributes for the chosen items, the
+        selection (clicked label, selected genes, dendrogram group, Enrich term
+        genes, crop), and the values (and dot sizes) for the chosen rows x columns.
+
+        Capture is asynchronous: the reply sets :attr:`latest_state`, or
+        :attr:`state_error` on failure. ``observe`` :attr:`latest_state` or read it
+        in a later cell; a cell that requests a snapshot can't wait for it.
+
+        Args:
+            rows: ``"viewport"`` (rows on screen), ``"ranked"`` (the top of the
+                current order, after any crop or marker-level filter), or a list of
+                row names.
+            cols: Same for columns.
+            max_rows: Cap on reported rows.
+            max_cols: Cap on reported columns.
+            include_values: Include the value and dot-size block.
+
+        Returns:
+            int: The id of this request.
+        """
+
+        def _axis(spec):
+            if isinstance(spec, str):
+                if spec not in ("viewport", "ranked"):
+                    raise ValueError("rows/cols must be 'viewport', 'ranked', or a list of names")
+                return spec
+            return [str(name) for name in spec]
+
+        self._state_request_id += 1
+        self.send(
+            {
+                "event": "get_state",
+                "id": self._state_request_id,
+                "options": {
+                    "rows": _axis(rows),
+                    "cols": _axis(cols),
+                    "max_rows": int(max_rows),
+                    "max_cols": int(max_cols),
+                    "include_values": bool(include_values),
+                },
+            }
+        )
+        return self._state_request_id
+
+    def _on_custom_msg(self, _widget, content, _buffers) -> None:
+        """Handle one-off messages from the browser (currently state snapshots)."""
+        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
+            return
+        reply_id = content.get("id")
+        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
+        if reply_id < self.state_capture_id:
+            return  # stale reply (e.g. a second view answering an older request)
+        if content["event"] == "state_error":
+            self.state_error = str(content.get("error") or "State snapshot failed")
+        else:
+            self.state_error = ""
+            self.latest_state = dict(content.get("state") or {})
+        self.state_capture_id = reply_id
+
     # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
     # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
     # `to_cluster` to turn the interactive slider position into flat labels.
@@ -2188,6 +2339,9 @@ class Clustergram(CelldegaWidget):
             kwargs["viz_mode"] = "dotplot"
 
         super().__init__(name=name, **kwargs)
+
+        self._state_request_id = 0
+        self.on_msg(self._on_custom_msg)
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user

@@ -211,26 +211,40 @@ const render_landscape = async ({ model, el }) => {
     landscape = await render_landscape_h_e({ model, el });
   }
 
-  // Raster capture: when Python increments raster_request, snapshot the deck.gl
-  // canvas to a base64 PNG and write it back to raster_png (kept in memory).
+  // Raster capture: Python sends {event: 'capture_raster'}; reply with a one-off
+  // message rather than synced traits, so captured images are never saved into the
+  // notebook's widget state.
   if (landscape && typeof landscape.captureRaster === 'function') {
-    model.on('change:raster_request', () => {
+    const on_capture_request = (msg) => {
+      if (msg?.event !== 'capture_raster') return;
       try {
-        const capture = landscape.captureRaster();
-        if (capture && capture.png != null) {
-          model.set('raster_png', capture.png);
-          // Record the exact zoom/pan so a capture is reproducible.
-          if (capture.view_state) {
-            model.set('raster_view_state', capture.view_state);
-          }
-          model.save_changes();
+        const capture = landscape.captureRaster({
+          max_size: msg.max_size,
+          thumb_size: msg.thumb_size,
+        });
+        if (capture) {
+          model.send({ event: 'raster', id: msg.id, ...capture });
+        } else {
+          model.send({
+            event: 'raster_error',
+            id: msg.id,
+            error: 'No canvas to capture',
+          });
         }
       } catch (e) {
+        model.send({ event: 'raster_error', id: msg.id, error: e.message });
         handleValidationWarning('Raster capture failed', {
           data: { error: e.message },
         });
       }
-    });
+    };
+    model.on('msg:custom', on_capture_request);
+
+    const finalize_landscape = landscape.finalize;
+    landscape.finalize = () => {
+      model.off?.('msg:custom', on_capture_request);
+      finalize_landscape?.();
+    };
   }
 
   return landscape;

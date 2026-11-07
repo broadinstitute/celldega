@@ -47,22 +47,80 @@ ISOLATION_FLAGS = (
 )
 
 SYSTEM_PROMPT = (
-    "You are Celldega Clerk, an assistant embedded in a spatial-transcriptomics "
-    "visualization tool. You help a scientist interpret evidence about a cluster or "
-    "region of cells -- proposing cell-type annotations, explaining marker genes, and "
-    "answering questions. Reason only from the evidence provided below. Be concise and "
-    "concrete; when you propose a cell-type label, give a short rationale grounded in "
-    "the markers and any image. If the evidence is insufficient, say so plainly."
+    "You are Celldega Clerk, an assistant embedded in Celldega, a spatial and "
+    "single-cell visualization tool. A scientist explores their data and asks you about "
+    "what they are viewing. Ground your answers in the evidence sent with each message "
+    "(an image of the current view, genes, enrichment terms, context) and in "
+    "established biological knowledge, and make clear which claims rest on which. When "
+    "interpreting a pattern, consider competing explanations, including technical ones "
+    "such as segmentation errors, transcript contamination, or the angle of the tissue "
+    "section; say which the evidence favors and what would distinguish them. When you "
+    "propose a cell-type label, name the supporting markers. The scientist makes the "
+    "final call. Be concise and concrete. If the evidence is insufficient, say so and "
+    "suggest what to look at next. Earlier turns of the conversation are included for "
+    "context; the evidence always reflects the current view."
 )
+
+# Most recent conversation turns sent with each question (older turns are dropped).
+# 12k characters is roughly 3k tokens.
+MAX_HISTORY_TURNS = 12
+MAX_HISTORY_CHARS = 12_000
 
 
 class ClerkBackendError(RuntimeError):
     """Raised when the ``claude`` CLI is unavailable or returns an error."""
 
 
+LOGIN_HELP = (
+    "Clerk needs you to log in to Claude once on this machine: open a terminal where "
+    "the kernel runs and run `claude auth login`, then sign in through the page it "
+    "opens (or the link it prints). The CLI remembers the login; Celldega never sees "
+    "or stores it. Check with `dega.clerk.claude_auth_status()`."
+)
+
+
 def claude_available() -> bool:
     """Return True if the ``claude`` CLI is on PATH."""
     return shutil.which("claude") is not None
+
+
+def claude_auth_status(timeout: float = 15) -> dict:
+    """Report whether the local ``claude`` CLI is logged in, without a model call.
+
+    Runs ``claude auth status --json``. Account details such as the email address and
+    organization are deliberately dropped so they don't end up in notebook output.
+
+    Args:
+        timeout: Seconds before the check gives up.
+
+    Returns:
+        dict: ``logged_in`` (bool), plus ``auth_method`` and ``subscription_type`` when
+        the CLI reports them, or ``error`` when the check itself failed.
+    """
+    if not claude_available():
+        return {
+            "logged_in": False,
+            "error": "The 'claude' CLI was not found on PATH. Install Claude Code first.",
+        }
+    try:
+        proc = subprocess.run(
+            ["claude", "auth", "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return {"logged_in": False, "error": f"Could not check the login status: {exc}"}
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        return {"logged_in": False, "error": detail or "Unrecognized 'claude auth status' output."}
+    return {
+        "logged_in": bool(data.get("loggedIn")),
+        "auth_method": data.get("authMethod") or "",
+        "subscription_type": data.get("subscriptionType") or "",
+    }
 
 
 def build_prompt(
@@ -71,8 +129,10 @@ def build_prompt(
     enrichr_terms: list[dict] | None = None,
     info: str = "",
     has_image: bool = False,
+    history: list[dict] | None = None,
+    clustergram_state: dict | None = None,
 ) -> str:
-    """Assemble the single-shot prompt from the gathered evidence.
+    """Assemble the prompt for one question from the gathered evidence.
 
     Args:
         question: The user's free-form question.
@@ -81,8 +141,17 @@ def build_prompt(
             ``name`` and (optionally) ``score`` / ``genes`` keys.
         info: Any extra free-text context (dataset, cluster id, notes).
         has_image: Whether a Landscape raster is attached to the message.
+        history: Earlier turns, ``[{"role": "user" | "assistant", "content": ...}]``.
+            Error entries are skipped; only the most recent turns are kept (see
+            :data:`MAX_HISTORY_TURNS` / :data:`MAX_HISTORY_CHARS`).
+        clustergram_state: A Clustergram snapshot (``Clustergram.latest_state``) of
+            what the scientist is looking at; see :func:`format_clustergram_state`.
     """
     parts: list[str] = []
+
+    transcript = _format_history(history)
+    if transcript:
+        parts += ["## Conversation so far", transcript, ""]
 
     if info:
         parts += ["## Context", info.strip(), ""]
@@ -112,15 +181,143 @@ def build_prompt(
         if lines:
             parts += ["## Enrichr enrichment (top terms)", *lines, ""]
 
+    clustergram_text = format_clustergram_state(clustergram_state)
+    if clustergram_text:
+        parts += ["## Clustergram (what the scientist sees)", clustergram_text, ""]
+
     if has_image:
         parts += [
             "## Image",
-            "A raster screenshot of the Landscape view for this selection is attached.",
+            "A screenshot of the current Landscape view is attached.",
             "",
         ]
 
     parts += ["## Question", question.strip() or "Interpret this cluster."]
     return "\n".join(parts)
+
+
+_SELECTION_MODES = {
+    "viewport": "on screen",
+    "ranked": "top of the current order",
+    "names": "requested",
+}
+
+
+def _annotated(names: list[str], attributes: list[dict]) -> list[str]:
+    """``name [attr=value, ...]`` for each item, skipping empty or redundant values."""
+    out = []
+    for i, name in enumerate(names):
+        notes = []
+        for attr in attributes:
+            values = attr.get("values") or []
+            value = values[i] if i < len(values) else None
+            if value in (None, "", "NA", "nan") or str(value) == str(name):
+                continue
+            notes.append(f"{attr.get('name')}={value}")
+        out.append(f"{name} [{', '.join(notes)}]" if notes else str(name))
+    return out
+
+
+def format_clustergram_state(
+    state: dict | None, *, max_value_rows: int = 25, max_value_cols: int = 20
+) -> str:
+    """Render a Clustergram snapshot (``Clustergram.latest_state``) as compact text.
+
+    Lists the visible rows and columns with their attributes, the order, marker level,
+    dendrogram groups and selection, plus a capped table of values (and dot sizes).
+    Returns ``""`` for an empty snapshot.
+    """
+    if not state:
+        return ""
+    lines: list[str] = []
+
+    for axis_key, label in (("cols", "Columns"), ("rows", "Rows")):
+        axis = state.get(axis_key) or {}
+        names = [str(n) for n in axis.get("names") or []]
+        if not names:
+            continue
+        mode = _SELECTION_MODES.get(axis.get("selection_mode"), "selected")
+        order = (axis.get("order") or {}).get("label") or "unknown"
+        count = f"{axis.get('total', len(names))} {mode}"
+        if axis.get("displayed") is not None and axis.get("count") is not None:
+            count += f" of {axis['displayed']} shown ({axis['count']} total)"
+        more = f", +{axis['total'] - len(names)} more not listed" if axis.get("truncated") else ""
+        lines.append(f"{label} ({count}; order: {order}{more}):")
+        lines.append("  " + "; ".join(_annotated(names, axis.get("attributes") or [])))
+
+        groups = axis.get("groups") or {}
+        if groups.get("groups"):
+            cut = groups.get("cut_percent")
+            rendered = [
+                f"{g['name']} ({g.get('size', len(g.get('members', [])))}): "
+                + ", ".join(g.get("members") or [])
+                for g in groups["groups"]
+            ]
+            head = f"{label} dendrogram groups" + (f" at {cut}% cut" if cut is not None else "")
+            lines.append(f"{head}: " + " | ".join(rendered))
+
+    level = state.get("marker_level")
+    if level:
+        current = level.get("current")
+        unit = "markers per cluster" if level.get("unit") == "per_cluster" else "rows"
+        shown = f"top {current} {unit}" if current is not None else "all rows"
+        lines.append(f"Marker level (DIM slider): {shown}; levels: {level.get('levels')}")
+
+    selection = state.get("selection") or {}
+    click = selection.get("click")
+    if click and click.get("type"):
+        lines.append(f"Last click: {click['type']} {click.get('value')}")
+    for key, label in (
+        ("selected_genes", "Selected genes"),
+        ("enrich_term_genes", "Genes in the selected Enrich term"),
+    ):
+        if selection.get(key):
+            lines.append(f"{label}: " + ", ".join(selection[key]))
+    group = selection.get("dendro_group")
+    if group and group.get("members"):
+        lines.append(
+            f"Selected dendrogram group ({group.get('axis')} {group.get('name')}): "
+            + ", ".join(group["members"])
+        )
+
+    block = state.get("values") or {}
+    values = block.get("values") or []
+    row_names = [str(n) for n in (state.get("rows") or {}).get("names") or []][:max_value_rows]
+    col_names = [str(n) for n in (state.get("cols") or {}).get("names") or []][:max_value_cols]
+    if values and row_names and col_names:
+        sizes = block.get("sizes")
+
+        def cell(i, j):
+            value = values[i][j] if i < len(values) and j < len(values[i]) else None
+            text = "." if value is None else f"{value:.2f}"
+            if sizes:
+                size = sizes[i][j] if i < len(sizes) and j < len(sizes[i]) else None
+                text += "" if size is None else f"/{size:.2f}"
+            return text
+
+        caption = "Values as displayed (often row z-scores)"
+        if sizes:
+            caption += " / dot size (often fraction of cells expressing)"
+        lines.append(f"{caption}, rows x columns:")
+        lines.append("\t".join(["", *col_names]))
+        for i, row in enumerate(row_names):
+            lines.append("\t".join([row, *(cell(i, j) for j in range(len(col_names)))]))
+
+    return "\n".join(lines)
+
+
+def _format_history(history: list[dict] | None) -> str:
+    """Render recent user/assistant turns as text, newest last, within the caps."""
+    labels = {"user": "Scientist", "assistant": "Clerk"}
+    turns = [
+        f"{labels[m['role']]}: {str(m.get('content', '')).strip()}"
+        for m in (history or [])
+        if isinstance(m, dict) and m.get("role") in labels
+    ][-MAX_HISTORY_TURNS:]
+    # Drop the oldest turns until the transcript fits the character budget.
+    while turns and sum(len(t) for t in turns) > MAX_HISTORY_CHARS:
+        turns.pop(0)
+    return "\n\n".join(turns)
 
 
 def _extract_result_text(stdout: str, streaming: bool) -> str:
@@ -229,6 +426,10 @@ def run_claude(
         raise ClerkBackendError(f"Failed to launch claude: {exc}") from exc
 
     if proc.returncode != 0:
+        # The most common first-run failure: explain how to log in rather than echoing
+        # the CLI's raw error.
+        if not claude_auth_status().get("logged_in"):
+            raise ClerkBackendError(LOGIN_HELP)
         detail = (proc.stderr or proc.stdout or "").strip()
         raise ClerkBackendError(f"claude exited with code {proc.returncode}: {detail}")
 
@@ -243,13 +444,17 @@ def ask(
     image_b64: str | None = None,
     model: str = "",
     timeout: int = DEFAULT_TIMEOUT,
+    history: list[dict] | None = None,
+    clustergram_state: dict | None = None,
 ) -> str:
-    """Convenience: build the prompt from evidence and run the model in one call."""
+    """Build the prompt from evidence (and earlier turns) and run the model in one call."""
     prompt = build_prompt(
         question,
         gene_list=gene_list,
         enrichr_terms=enrichr_terms,
         info=info,
         has_image=bool(image_b64),
+        history=history,
+        clustergram_state=clustergram_state,
     )
     return run_claude(prompt, image_b64=image_b64, model=model, timeout=timeout)

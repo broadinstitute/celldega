@@ -75,6 +75,8 @@ const make_viz_state = ({ visible_height = 40 } = {}) => ({
     current: 3,
     level_unit: 'per_cluster',
     view_type: 'rank_genes_groups',
+    // c0's markers: g3 then g1; c2's: g2.
+    markers: { c0: [3, 1], c2: [2] },
   },
   obs_store: {
     selected_genes: { get: () => ['g1'] },
@@ -213,6 +215,32 @@ describe('get_clustergram_state', () => {
     });
     viz_state.mat.viz_mode = 'heatmap';
     expect(get_clustergram_state(viz_state).display.size).toBeNull();
+  });
+
+  test('ranked markers per cluster, read without changing the view', () => {
+    const viz_state = make_viz_state();
+    const state = get_clustergram_state(viz_state, {
+      markers: { clusters: ['c0', 'nope'], n: 5 },
+    });
+    expect(state.marker_ranking).toBe(true);
+    expect(state.cluster_markers).toEqual([
+      {
+        cluster: 'c0',
+        found: true,
+        genes: [
+          { name: 'g3', rank: 1, value: 10, size: null },
+          { name: 'g1', rank: 2, value: 4, size: 0.5 },
+        ],
+      },
+      { cluster: 'nope', found: false, genes: [] },
+    ]);
+    // All clusters by default, capped at n; not requested -> null.
+    const all = get_clustergram_state(viz_state, { markers: { n: 1 } });
+    expect(all.cluster_markers.map((c) => c.genes.map((g) => g.name))).toEqual([
+      ['g3'],
+      ['g2'],
+    ]);
+    expect(get_clustergram_state(viz_state).cluster_markers).toBeNull();
   });
 
   test('the snapshot is plain JSON', () => {

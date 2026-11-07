@@ -1436,7 +1436,7 @@ class Clerk(CelldegaWidget):
                     found.append(name)
         return found[:limit]
 
-    def _refresh_views(self, question: str = "") -> dict:
+    def _refresh_views(self, question: str = "", extra_rows: Sequence[str] = ()) -> dict:
         """Capture the linked views as they are now, before a question is sent.
 
         The Landscape screenshot lands in ``image_b64`` (via the ``link_clerk``
@@ -1474,7 +1474,11 @@ class Clerk(CelldegaWidget):
                 "",
             )
             options = dict(self.clustergram_options)
-            options.setdefault("extra_rows", self._mentioned_rows([question, last_answer]))
+            mentioned = self._mentioned_rows([question, last_answer])
+            options.setdefault(
+                "extra_rows",
+                list(dict.fromkeys([*(str(g) for g in extra_rows), *mentioned])),
+            )
             requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
             labels.append("clustergram")
         enrich = self._linked_widgets.get("enrich")
@@ -1556,12 +1560,16 @@ class Clerk(CelldegaWidget):
     def _append(self, message: dict) -> None:
         self.messages = [*self.messages, message]
 
-    def _apply_actions(self, actions: dict) -> list[str]:
+    def _apply_actions(self, actions: dict) -> tuple[list[str], list[str]]:
         """Apply a ``celldega-actions`` request to the linked widgets.
 
+        ``lookup_genes`` is read-only: those rows are added to the next Clustergram
+        snapshot without changing what the scientist sees. Everything else goes to
+        ``Clustergram.apply_state``.
+
         Returns:
-            list[str]: What changed, e.g. ``["the Clustergram: DIM -> 10 markers per
-            cluster"]``.
+            tuple: ``(changes, lookups)`` -- what changed, e.g. ``["the Clustergram: DIM
+            -> 10 markers per cluster"]``, and the genes to look up.
 
         Raises:
             ValueError: For a widget Clerk can't change, or an invalid setting.
@@ -1572,7 +1580,12 @@ class Clerk(CelldegaWidget):
         cgm = self._linked_widgets.get("clustergram")
         if cgm is None or not hasattr(cgm, "apply_state"):
             raise ValueError("no Clustergram is linked")
-        return [f"the Clustergram: {change}" for change in cgm.apply_state(actions["clustergram"])]
+        settings = dict(actions["clustergram"])
+        lookups = settings.pop("lookup_genes", None) or []
+        if isinstance(lookups, str) or not isinstance(lookups, list | tuple):
+            raise ValueError("lookup_genes must be a list of gene names")
+        changes = cgm.apply_state(settings) if settings else []
+        return [f"the Clustergram: {change}" for change in changes], [str(g) for g in lookups]
 
     def _use_views(self, call: dict, views: dict) -> None:
         call["clustergram_state"] = views["clustergram_state"]
@@ -1627,18 +1640,25 @@ class Clerk(CelldegaWidget):
                     break
                 rounds += 1
                 try:
-                    changes = self._apply_actions(actions)
+                    changes, lookups = self._apply_actions(actions)
                 except ValueError as exc:
                     self._append({"role": "error", "content": f"Couldn't change the view: {exc}"})
                     break
-                self._append({"role": "action", "content": "Changed " + "; ".join(changes)})
+                did = []
+                if changes:
+                    did.append("Changed " + "; ".join(changes))
+                if lookups:
+                    did.append(
+                        "Looked up " + ", ".join(lookups) + " in the Clustergram (view unchanged)"
+                    )
+                self._append({"role": "action", "content": ". ".join(did)})
 
-                # Look at the changed view and continue the same question.
-                self._use_views(call, self._refresh_views(question))
+                # Look at the (possibly changed) view and continue the same question.
+                self._use_views(call, self._refresh_views(question, extra_rows=lookups))
                 call["notes"].append(
-                    "You just changed the view (" + "; ".join(changes) + "). The evidence "
-                    "reflects the updated view. Continue answering the scientist's "
-                    "question without repeating what you already said."
+                    "You just " + "; ".join(d[0].lower() + d[1:] for d in did) + ". The "
+                    "evidence reflects the current view. Continue answering the "
+                    "scientist's question without repeating what you already said."
                 )
                 call["history"] = [
                     dict(m) for i, m in enumerate(self.messages) if i != question_index
@@ -2321,6 +2341,7 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
         extra_rows: Sequence[str] = (),
         extra_cols: Sequence[str] = (),
         include_values: bool = True,
+        markers: dict | None = None,
     ) -> int:
         """Ask the browser for a snapshot of what this Clustergram shows.
 
@@ -2345,6 +2366,10 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
                 about that aren't on screen); listed in ``rows["added"]``.
             extra_cols: Same for columns.
             include_values: Include the value and dot-size block.
+            markers: Also report ranked markers (``rank_genes_groups``) per cluster,
+                read from the front end without changing the view:
+                ``{"clusters": ["4", "5"], "n": 25}`` (``clusters`` defaults to all).
+                Lands in ``latest_state["cluster_markers"]``.
 
         Returns:
             int: The id of this request.
@@ -2357,6 +2382,17 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
                 return spec
             return [str(name) for name in spec]
 
+        def _markers(spec):
+            if not spec:
+                return None
+            if not isinstance(spec, dict):
+                raise ValueError("markers must be a dict like {'clusters': ['4'], 'n': 25}")
+            clusters = spec.get("clusters")
+            return {
+                "clusters": None if clusters is None else [str(c) for c in clusters],
+                "n": int(spec.get("n", 10)),
+            }
+
         return self._send_state_request(
             {
                 "rows": _axis(rows),
@@ -2366,6 +2402,7 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
                 "extra_rows": [str(name) for name in extra_rows],
                 "extra_cols": [str(name) for name in extra_cols],
                 "include_values": bool(include_values),
+                "markers": _markers(markers),
             }
         )
 

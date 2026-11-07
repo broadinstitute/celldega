@@ -275,6 +275,63 @@ const selection_for = (viz_state) => {
   };
 };
 
+const DEFAULT_MARKERS_PER_CLUSTER = 10;
+const MAX_MARKERS_PER_CLUSTER = 100;
+
+/**
+ * Each requested cluster's ranked markers (rank_genes_groups), read from the
+ * front end, with the gene's value and dot size in that cluster's column.
+ * @param {{clusters?: string[], n?: number}} spec - Clusters (default: all) and
+ *   markers per cluster.
+ */
+const markers_for = (viz_state, spec) => {
+  const markers = viz_state.rank_view?.markers || {};
+  const groups = Object.keys(markers);
+  if (!spec || !groups.length) return null;
+  const n = Math.min(
+    MAX_MARKERS_PER_CLUSTER,
+    Math.max(1, Number(spec.n) || DEFAULT_MARKERS_PER_CLUSTER)
+  );
+  const wanted =
+    Array.isArray(spec.clusters) && spec.clusters.length
+      ? spec.clusters.map(String)
+      : groups;
+  const col_by_name = new Map(
+    nodes(viz_state, 'col').map((node, index) => [String(node?.name), index])
+  );
+  const net = viz_state.mat?.net_mat;
+
+  // Dot sizes only live on the per-cell render data; collect the needed cells.
+  const sizes = new Map();
+  wanted.forEach((group) => {
+    const col = col_by_name.get(group);
+    if (col === undefined) return;
+    (markers[group] || [])
+      .slice(0, n)
+      .forEach((row) => sizes.set(`${row},${col}`, null));
+  });
+  if (sizes.size && Array.isArray(viz_state.mat?.mat_data)) {
+    for (const point of viz_state.mat.mat_data) {
+      const key = `${point.row},${point.col}`;
+      if (sizes.has(key)) sizes.set(key, round(point.size_value));
+    }
+  }
+
+  return wanted.map((group) => {
+    const col = col_by_name.get(group);
+    return {
+      cluster: group,
+      found: group in markers,
+      genes: (markers[group] || []).slice(0, n).map((row, i) => ({
+        name: name_at(viz_state, 'row', row),
+        rank: i + 1,
+        value: col === undefined ? null : round(net?.[row]?.[col]),
+        size: col === undefined ? null : (sizes.get(`${row},${col}`) ?? null),
+      })),
+    };
+  });
+};
+
 const values_for = (viz_state, row_indices, col_indices) => {
   const net = viz_state.mat?.net_mat;
   if (!Array.isArray(net)) return null;
@@ -317,6 +374,9 @@ const values_for = (viz_state, row_indices, col_indices) => {
  * @param {string[]} [options.extra_rows] - Row names to add after the main
  *   selection (e.g. genes asked about that are not on screen).
  * @param {string[]} [options.extra_cols] - Same for columns.
+ * @param {{clusters?: string[], n?: number}} [options.markers] - Also report these
+ *   clusters' top-n ranked markers (rank_genes_groups), whether or not they are
+ *   shown at the current marker level.
  * @param {boolean} [options.include_values=true] - Include the value (and dot
  *   size) block for the reported rows x columns.
  * @returns {object} JSON-safe snapshot.
@@ -330,6 +390,7 @@ export const get_clustergram_state = (viz_state, options = {}) => {
     extra_rows = [],
     extra_cols = [],
     include_values = true,
+    markers = null,
   } = options;
   const bounds = visible_world_bounds(viz_state);
   const picks = {
@@ -362,6 +423,9 @@ export const get_clustergram_state = (viz_state, options = {}) => {
     rows: axis_state('row'),
     cols: axis_state('col'),
     marker_level: marker_level_for(viz_state),
+    // Whether per-cluster marker rankings can be requested (options.markers).
+    marker_ranking: Object.keys(viz_state.rank_view?.markers || {}).length > 0,
+    cluster_markers: markers ? markers_for(viz_state, markers) : null,
     display: {
       mode: viz_state.mat?.viz_mode ?? null,
       size:

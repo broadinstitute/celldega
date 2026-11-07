@@ -79,19 +79,24 @@ SYSTEM_PROMPT = (
 
 ACTIONS_FENCE = "celldega-actions"
 
-# Shown when a Clustergram is linked. The keys are Clustergram.apply_state's.
+# Shown when a Clustergram is linked. Besides lookup_genes (read-only), the keys are
+# Clustergram.apply_state's.
 CLUSTERGRAM_ACTIONS_HELP = (
-    "You can change the linked Clustergram yourself. To do so, end your answer with "
-    f"one fenced block tagged `{ACTIONS_FENCE}` containing JSON, for example:\n\n"
+    "You can look up data in the linked Clustergram, or change it, yourself. To do "
+    f"so, end your answer with one fenced block tagged `{ACTIONS_FENCE}` containing "
+    "JSON, for example:\n\n"
     f"```{ACTIONS_FENCE}\n"
-    '{"clustergram": {"marker_level": 10}}\n'
+    '{"clustergram": {"lookup_genes": ["EPCAM", "PTPRC"]}}\n'
     "```\n\n"
-    "Settings: marker_level (the DIM slider: marker genes per cluster, snapped to the "
-    'listed levels, or "all"); mode ("heatmap" or "dotplot"); size ("prop" sizes dots '
-    'by e.g. fraction expressing, "unit" draws them full size); focus_gene (a gene to '
-    "zoom to, like the search box). The change is applied, and you then receive the "
-    "updated view to continue your answer. Only change views when it helps answer "
-    "the question, and say what you changed and why."
+    "lookup_genes reads those genes' values and dot sizes across the clusters "
+    "without changing what the scientist sees; prefer it whenever you only need "
+    "data, even for genes hidden by the DIM slider or off screen. To change the "
+    "view, use: marker_level (the DIM slider: marker genes per cluster, snapped to "
+    'the listed levels, or "all"); mode ("heatmap" or "dotplot"); size ("prop" sizes '
+    'dots by e.g. fraction expressing, "unit" draws them full size); focus_gene (a '
+    "gene to zoom to, like the search box). After the block is applied you receive "
+    "the updated evidence and continue your answer. Change the view only when the "
+    "scientist asks or when seeing it helps them, and say what you changed and why."
 )
 
 # Most recent conversation turns sent with each question (older turns are dropped).

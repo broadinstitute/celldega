@@ -845,7 +845,7 @@ def test_clerk_applies_actions_and_continues(monkeypatch) -> None:
     assert "celldega-actions" in calls[0]["actions_help"]
     # The follow-up saw the updated view, the action, and was told what changed.
     assert calls[1]["clustergram_state"]["marker_level"]["current"] == 10
-    assert any("You just changed the view" in n for n in calls[1]["notes"])
+    assert any("You just changed the Clustergram: DIM -> 10" in n for n in calls[1]["notes"])
     assert [m["role"] for m in calls[1]["history"]] == ["assistant", "action"]
     assert [m["role"] for m in w.messages] == ["user", "assistant", "action", "assistant"]
     assert w.messages[2]["content"] == "Changed the Clustergram: DIM -> 10 markers per cluster"
@@ -870,3 +870,42 @@ def test_clerk_action_rounds_are_capped_and_errors_reported(monkeypatch) -> None
     assert w2.wait(timeout=5)
     assert w2.messages[-1]["role"] == "error"
     assert "Couldn't change the view" in w2.messages[-1]["content"]
+
+
+def test_clerk_lookup_reads_genes_without_changing_the_view(monkeypatch) -> None:
+    cgm = _clustergram()
+    cgm.rank_dim = 3
+    w = Clerk(clustergram=cgm)
+    w.snapshot_timeout = 5
+    requested = []
+
+    def fake_send(content):
+        if content.get("event") == "get_state":
+            requested.append(content["options"]["extra_rows"])
+            state = {"kind": "clustergram"}
+            cgm._on_state_msg(cgm, {"event": "state", "id": content["id"], "state": state}, [])
+
+    monkeypatch.setattr(cgm, "send", fake_send)
+    calls = []
+    replies = [
+        'Let me check.\n```celldega-actions\n{"clustergram": {"lookup_genes": ["EPCAM", "PTPRC"]}}\n```',
+        "EPCAM is high in clusters 0 and 2; PTPRC only in 13.",
+    ]
+
+    def fake_ask(question, **kwargs):
+        calls.append(kwargs)
+        return replies[len(calls) - 1]
+
+    monkeypatch.setattr(clerk_llm, "ask", fake_ask)
+
+    w.request = {"id": "1", "question": "Is this region epithelial or immune?"}
+    assert w.wait(timeout=5)
+
+    assert cgm.rank_dim == 3  # nothing on screen changed
+    assert requested[-1][:2] == ["EPCAM", "PTPRC"]  # ...but the genes were read
+    assert w.messages[2] == {
+        "role": "action",
+        "content": "Looked up EPCAM, PTPRC in the Clustergram (view unchanged)",
+    }
+    assert any("You just looked up EPCAM, PTPRC" in n for n in calls[1]["notes"])
+    assert w.messages[-1]["content"].startswith("EPCAM is high")

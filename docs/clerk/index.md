@@ -152,8 +152,14 @@ In JavaScript (e.g. a web app embedding Celldega), the Clustergram instance retu
 
 ## Letting Clerk change the views
 
-Clerk can change the linked Clustergram when it helps answer you, for example "show more
-marker genes" moves the DIM slider. It makes the change, looks at the updated view, and
+Reading and changing are separate. Clerk can look up any gene in the Clustergram (values
+and dot sizes across clusters) without changing what you see, even genes hidden by the
+DIM slider or off screen; the browser holds the whole matrix, and DIM, crop and zoom only
+filter what's displayed. Such lookups appear as "↻ Looked up EPCAM, PTPRC in the
+Clustergram (view unchanged)".
+
+Clerk can also change the linked Clustergram when you ask or when seeing it helps, for
+example "show more marker genes" moves the DIM slider. It makes the change, looks at the updated view, and
 continues its answer; the change appears in the conversation as a line such as
 "↻ Changed the Clustergram: DIM -> 10 markers per cluster". Clerk makes at most
 `clerk.max_action_rounds` (default 2) changes per question.

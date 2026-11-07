@@ -113,6 +113,7 @@ import { make_ist_ui_container } from '../ui/ui_containers';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
 import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
+import { capture_deck } from '../utils/canvas_capture';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -126,6 +127,8 @@ import {
   sync_focused_gene_to_landscape,
   update_ist_landscape_from_cgm,
 } from '../widget_interactions/update_ist_landscape_from_cgm';
+
+import { apply_landscape_state, get_landscape_state } from './landscape_state';
 
 // Row group reading support
 
@@ -1487,6 +1490,44 @@ export const landscape_ist = async (
       viz_state.layers_obj = layers_obj;
     },
     update_layers: () => {},
+    /**
+     * Capture the current deck.gl view as a downscaled base64 PNG and thumbnail,
+     * plus the exact view state (zoom/pan/rotation) for reproducibility.
+     * @param {{max_size?: number, thumb_size?: number}} [capture_options]
+     * @returns {{png: string, thumb: string, width: number, height: number,
+     *   view_state: object|null}|null} capture, or null if there is no canvas.
+     */
+    capture_raster: (capture_options = {}) => {
+      const capture = capture_deck(deck_ist, root, capture_options);
+      if (!capture) return null;
+      return { ...capture, view_state: viz_state.current_view_state || null };
+    },
+    /**
+     * What the Landscape shows: space, camera, coloring, selection and the
+     * cluster / gene counts in the current field of view (see landscape_state.js).
+     */
+    get_state: (state_options = {}) =>
+      get_landscape_state(viz_state, state_options),
+    /**
+     * Change what the Landscape shows, as its controls would: select clusters,
+     * color by genes, move or reset the camera, zoom to clusters or cells.
+     * @returns {Promise<string[]>} What changed.
+     */
+    apply_state: (changes = {}) => {
+      const canvas = deck_ist.getCanvas?.();
+      return apply_landscape_state(
+        viz_state,
+        {
+          layers_obj,
+          update_view_state: landscape.update_view_state,
+          size: {
+            width: canvas?.clientWidth || width || 800,
+            height: canvas?.clientHeight || height || 600,
+          },
+        },
+        changes
+      );
+    },
     finalize: () => {
       if (finalized) return;
       finalized = true;

@@ -77,9 +77,12 @@ nav:
       - Enrich: visualizations/enrich.md
       - Landscape–Clustergram–Enrich: visualizations/landscape-clustergram-enrich.md
       - CellCloud–Clustergram: visualizations/cell-cloud-clustergram.md
+  - Clerk:
+      - clerk/index.md
   - Python API:
       - python/index.md
       - align: python/align/api.md
+      - clerk: python/clerk/api.md
       - clust: python/clust/api.md
       - collection: python/collection/api.md
       - dataset: python/dataset/api.md

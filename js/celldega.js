@@ -21,6 +21,7 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
 import { yearbook } from './viz/yearbook';
+import { render_clerk } from './widgets/clerk_widget';
 import { render_enrich } from './widgets/enrich_widget';
 
 // Remove export keywords from render functions
@@ -200,14 +201,75 @@ const render_landscape_h_e = async ({ model, el }) => {
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
+  let landscape;
   if (
     ['MERSCOPE', 'Xenium', 'Chromium', 'Visium-HD'].includes(technology) ||
     is_orbit_technology(technology)
   ) {
-    return render_landscape_ist({ model, el });
+    landscape = await render_landscape_ist({ model, el });
   } else if (['h&e'].includes(technology)) {
-    return render_landscape_h_e({ model, el });
+    landscape = await render_landscape_h_e({ model, el });
   }
+
+  // Raster capture: Python sends {event: 'capture_raster'}; reply with a one-off
+  // message rather than synced traits, so captured images are never saved into the
+  // notebook's widget state.
+  if (landscape && typeof landscape.capture_raster === 'function') {
+    const on_capture_request = (msg) => {
+      if (msg?.event !== 'capture_raster') return;
+      try {
+        const capture = landscape.capture_raster({
+          max_size: msg.max_size,
+          thumb_size: msg.thumb_size,
+        });
+        if (capture) {
+          model.send({ event: 'raster', id: msg.id, ...capture });
+        } else {
+          model.send({
+            event: 'raster_error',
+            id: msg.id,
+            error: 'No canvas to capture',
+          });
+        }
+      } catch (e) {
+        model.send({ event: 'raster_error', id: msg.id, error: e.message });
+        handleValidationWarning('Raster capture failed', {
+          data: { error: e.message },
+        });
+      }
+    };
+    model.on('msg:custom', on_capture_request);
+
+    // Viz API for Python (e.g. Clerk): state snapshots and setters, answered with
+    // one-off messages so nothing is saved into the notebook's widget state.
+    const on_state_message = async (msg) => {
+      if (msg?.event === 'get_state' && landscape.get_state) {
+        try {
+          const state = landscape.get_state(msg.options || {});
+          model.send({ event: 'state', id: msg.id, state });
+        } catch (e) {
+          model.send({ event: 'state_error', id: msg.id, error: e.message });
+        }
+      } else if (msg?.event === 'apply_state' && landscape.apply_state) {
+        try {
+          const done = await landscape.apply_state(msg.changes || {});
+          model.send({ event: 'applied', id: msg.id, done });
+        } catch (e) {
+          model.send({ event: 'apply_error', id: msg.id, error: e.message });
+        }
+      }
+    };
+    model.on('msg:custom', on_state_message);
+
+    const finalize_landscape = landscape.finalize;
+    landscape.finalize = () => {
+      model.off?.('msg:custom', on_capture_request);
+      model.off?.('msg:custom', on_state_message);
+      finalize_landscape?.();
+    };
+  }
+
+  return landscape;
 };
 
 const render_yearbook = async ({ model, el }) => {
@@ -350,6 +412,9 @@ async function render({ model, el }) {
         break;
       case 'Enrich':
         cleanup = await render_enrich({ model, el });
+        break;
+      case 'Clerk':
+        cleanup = await render_clerk({ model, el });
         break;
       case 'Landmark':
         cleanup = await render_landmark({ model, el });
@@ -572,6 +637,7 @@ export default {
   render_yearbook,
   render_matrix_new,
   render_enrich,
+  render_clerk,
   buildRowAxisSlice,
   buildColAxisSlice,
   buildCellSlice,

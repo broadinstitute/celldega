@@ -24,6 +24,8 @@ export const ini_deck = (
   technology = '',
   { per_view_controllers = false } = {}
 ) => {
+  // Raster capture does not need preserveDrawingBuffer: it forces a redraw and reads
+  // the canvas in the same task (see utils/canvas_capture.js).
   const deck_props = { parent: root, getCursor, width, height };
 
   // A multi-view deck (e.g. Landmark's two side-by-side panels) manages a
@@ -63,6 +65,9 @@ export const set_deck_on_view_state_change = (
 ) => {
   deck_ist.setProps({
     onViewStateChange: (params) => {
+      // Track the latest view state (synchronously, before the debounced handler) so
+      // raster capture can record the exact zoom/pan for reproducibility.
+      viz_state.current_view_state = params.viewState;
       pause_point_cloud_pickability(deck_ist, layers_obj, viz_state);
       // Runs on every raw frame, not behind on_view_state_change's 200ms
       // debounce -- see check_nbhd_cloud_camera_side's own comment for why
@@ -111,6 +116,9 @@ export const set_initial_view_state = (
     initialViewState: initial_view_state,
   });
   viz_state.initial_view_state = initial_view_state;
+
+  // Seed the tracked view state so a capture before any pan/zoom still records it.
+  viz_state.current_view_state = initial_view_state;
 
   if (viz_state.scale_bar) {
     viz_state.obs_store.scale_bar_view_state.set(initial_view_state);

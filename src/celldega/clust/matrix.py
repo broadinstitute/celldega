@@ -22,6 +22,7 @@ from .constants import (
     DEFAULT_VIEW_LEVELS,
     DEFAULT_VIZ,
     ERRORS,
+    MAX_MARKERS_PER_CLUSTER,
     MIN_VIEW_ROWS,
     Axis,
     AxisEntity,
@@ -1136,7 +1137,25 @@ class Matrix:
         # both the widget and DegaFiles readers spread that straight onto the
         # front-end network object — so views need no dedicated transport.
         self.viz["views"] = self.views
+        self.viz["markers"] = self._marker_payload()
         return self
+
+    def _marker_payload(
+        self, max_per_cluster: int = MAX_MARKERS_PER_CLUSTER
+    ) -> dict[str, list[int]]:
+        """Each cluster's top markers (``rank_genes_groups``), best first, as row indices.
+
+        Sent to the front end with the views, so the Clustergram -- and agents reading
+        it, such as Clerk -- can list a cluster's ranked markers without Python.
+        Empty when the Matrix has no marker ranks.
+        """
+        if self._marker_ranks is None or self._marker_ranks.empty or self.data is None:
+            return {}
+        position = {name: index for index, name in enumerate(self.data.index.astype(str))}
+        return {
+            group: [position[name] for name in genes[:max_per_cluster] if name in position]
+            for group, genes in self._marker_groups().items()
+        }
 
     def _cluster_axis_cached(self, axis: AxisType, dist_type: str, linkage_type: str) -> None:
         """Cached clustering computation."""
@@ -2069,6 +2088,7 @@ class Matrix:
         viz["row_attr"], viz["col_attr"] = mat.row_attr, mat.col_attr
         viz["views"] = mat.views = views
         mat.viz = viz
+        viz["markers"] = mat._marker_payload()
 
         # Building `dat` rewrites viz[*_attr_maxabs], so build it first and
         # restore the saved values after.

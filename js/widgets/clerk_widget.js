@@ -1,5 +1,6 @@
 import { postGeneList, fetchEnrichment } from '../external_apis/enrichr_api';
 import { handleAsyncError } from '../temp_utils/errorHandler';
+import { render_markdown } from '../ui/markdown';
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -7,6 +8,28 @@ const FONT =
 // Library used to pre-gather Enrichr evidence that rides along in the prompt.
 const ENRICHR_LIB = 'CellMarker_2024';
 const ENRICHR_TERMS = 8;
+
+// A full-width panel is capped here so chat text stays readable.
+const MAX_PANEL_WIDTH = 900;
+
+// Styles for rendered Markdown, scoped to the panel's class so they can't leak into
+// the rest of the notebook.
+const PANEL_CLASS = 'celldega-clerk';
+const MARKDOWN_CSS = `
+.${PANEL_CLASS} .clerk-md p { margin: 4px 0; }
+.${PANEL_CLASS} .clerk-md h1, .${PANEL_CLASS} .clerk-md h2 { font-size: 15px; margin: 10px 0 4px; }
+.${PANEL_CLASS} .clerk-md h3, .${PANEL_CLASS} .clerk-md h4,
+.${PANEL_CLASS} .clerk-md h5, .${PANEL_CLASS} .clerk-md h6 { font-size: 14px; margin: 8px 0 3px; }
+.${PANEL_CLASS} .clerk-md ul, .${PANEL_CLASS} .clerk-md ol { margin: 3px 0; padding-left: 22px; }
+.${PANEL_CLASS} .clerk-md li { margin: 1px 0; }
+.${PANEL_CLASS} .clerk-md code { background: #f1f3f5; border-radius: 3px; padding: 0 3px; font-size: 12.5px; }
+.${PANEL_CLASS} .clerk-md pre { background: #f6f8fa; padding: 6px 8px; overflow-x: auto; }
+.${PANEL_CLASS} .clerk-md pre code { background: none; padding: 0; }
+.${PANEL_CLASS} .clerk-md table { border-collapse: collapse; margin: 4px 0; font-size: 13px; }
+.${PANEL_CLASS} .clerk-md th, .${PANEL_CLASS} .clerk-md td { border: 1px solid #d3d3d3; padding: 2px 6px; }
+.${PANEL_CLASS} .clerk-md blockquote { border-left: 3px solid #d3d3d3; margin: 4px 0; padding-left: 8px; color: #555; }
+.${PANEL_CLASS} .clerk-md hr { border: none; border-top: 1px solid #d3d3d3; margin: 8px 0; }
+`;
 
 // Model picker: aliases the `claude` CLI understands; '' = the CLI's default model.
 const MODEL_OPTIONS = [
@@ -33,7 +56,12 @@ export const render_clerk = async ({ model, el }) => {
 
   // ---- layout ------------------------------------------------------------
   const container = document.createElement('div');
+  container.className = PANEL_CLASS;
   container.style.width = fullWidth ? '100%' : `${width}px`;
+  if (fullWidth) container.style.maxWidth = `${MAX_PANEL_WIDTH}px`;
+  const style = document.createElement('style');
+  style.textContent = MARKDOWN_CSS;
+  container.appendChild(style);
   container.style.height = `${height}px`;
   container.style.marginLeft = '5px';
   container.style.display = 'flex';
@@ -46,7 +74,7 @@ export const render_clerk = async ({ model, el }) => {
   evidence.style.padding = '6px';
   evidence.style.boxSizing = 'border-box';
   evidence.style.border = '1px solid #d3d3d3';
-  evidence.style.maxHeight = '150px';
+  evidence.style.maxHeight = '60px';
   evidence.style.overflowY = 'auto';
 
   const messagesPane = document.createElement('div');
@@ -64,7 +92,7 @@ export const render_clerk = async ({ model, el }) => {
 
   const textarea = document.createElement('textarea');
   textarea.placeholder =
-    'Ask Clerk about this cluster (e.g. "What cell type is this?")';
+    'Ask about what you see (e.g. "What\'s in this field of view?")';
   textarea.rows = 2;
   textarea.style.flex = '1 1 auto';
   textarea.style.fontFamily = FONT;
@@ -118,44 +146,37 @@ export const render_clerk = async ({ model, el }) => {
   el.appendChild(container);
 
   // ---- rendering helpers -------------------------------------------------
+  // Screenshots appear in the conversation, under the question they were sent
+  // with; the strip only shows the selected genes.
   const renderEvidence = () => {
     const genes = model.get('gene_list') || [];
-    // Only a small preview is synced; the full image stays in Python.
-    const thumb = model.get('image_thumb_b64') || '';
-    const hasImage = !!model.get('has_image');
     evidence.innerHTML = '';
+    evidence.style.fontSize = '13px';
+    evidence.textContent = genes.length
+      ? `Selected genes (${genes.length}): ${genes.join(', ')}`
+      : 'No genes selected. Each question also sends the linked views as they are.';
+  };
 
-    const title = document.createElement('div');
-    title.textContent = 'Evidence';
-    title.style.fontWeight = 'bold';
-    title.style.fontSize = '12px';
-    title.style.color = '#47515b';
-    evidence.appendChild(title);
-
-    const geneLine = document.createElement('div');
-    geneLine.style.fontSize = '13px';
-    geneLine.style.marginTop = '3px';
-    geneLine.textContent = genes.length
-      ? `Genes (${genes.length}): ${genes.join(', ')}`
-      : 'No gene list provided.';
-    evidence.appendChild(geneLine);
-
-    if (thumb) {
+  /** Screenshot + "Sent with: ..." line recorded on a question by Python. */
+  const renderSentWith = (message, row) => {
+    if (message.image) {
       const img = document.createElement('img');
-      img.src = `data:image/png;base64,${thumb}`;
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '90px';
+      img.src = `data:image/png;base64,${message.image}`;
+      img.style.display = 'block';
+      img.style.maxWidth = '240px';
+      img.style.maxHeight = '160px';
       img.style.marginTop = '4px';
       img.style.border = '1px solid #d3d3d3';
-      img.title =
-        'Latest Landscape view. A fresh capture is taken when you ask a question.';
-      evidence.appendChild(img);
-    } else if (hasImage) {
-      const note = document.createElement('div');
-      note.style.fontSize = '12px';
-      note.style.marginTop = '3px';
-      note.textContent = 'Image attached (no preview).';
-      evidence.appendChild(note);
+      img.title = 'Landscape view sent with this question';
+      row.appendChild(img);
+    }
+    if (Array.isArray(message.evidence) && message.evidence.length) {
+      const sent = document.createElement('div');
+      sent.style.fontSize = '11.5px';
+      sent.style.color = '#8a929b';
+      sent.style.marginTop = '2px';
+      sent.textContent = `Sent with: ${message.evidence.join(' · ')}`;
+      row.appendChild(sent);
     }
   };
 
@@ -177,7 +198,6 @@ export const render_clerk = async ({ model, el }) => {
       const row = document.createElement('div');
       row.style.marginBottom = '10px';
       row.style.fontSize = '14px';
-      row.style.whiteSpace = 'pre-wrap';
       row.style.lineHeight = '1.35';
 
       const who = document.createElement('div');
@@ -199,10 +219,19 @@ export const render_clerk = async ({ model, el }) => {
       }
 
       const body = document.createElement('div');
-      body.textContent = m.content || '';
+      if (m.role === 'assistant') {
+        // Answers are Markdown; render_markdown escapes all text before adding its
+        // own markup, so model output can't inject HTML.
+        body.className = 'clerk-md';
+        body.innerHTML = render_markdown(m.content || '');
+      } else {
+        body.style.whiteSpace = 'pre-wrap';
+        body.textContent = m.content || '';
+      }
 
       row.appendChild(who);
       row.appendChild(body);
+      if (m.role === 'user') renderSentWith(m, row);
       messagesPane.appendChild(row);
     });
 
@@ -253,7 +282,11 @@ export const render_clerk = async ({ model, el }) => {
     textarea.value = '';
 
     const genes = model.get('gene_list') || [];
-    const enrichr_terms = await fetchEnrichrTerms(genes);
+    // With an Enrich panel linked, Clerk reads that panel's results instead.
+    const enrichr_terms =
+      model.get('fetch_enrichr') === false
+        ? []
+        : await fetchEnrichrTerms(genes);
 
     requestCounter += 1;
     const id = `${Date.now()}-${requestCounter}`;
@@ -282,8 +315,6 @@ export const render_clerk = async ({ model, el }) => {
   };
   const listeners = [
     ['change:gene_list', renderEvidence],
-    ['change:image_thumb_b64', renderEvidence],
-    ['change:has_image', renderEvidence],
     ['change:messages', renderMessages],
     ['change:pending', onPending],
     ['change:model', syncModelSelect],

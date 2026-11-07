@@ -36,13 +36,21 @@ describe('Clerk panel', () => {
       .readFileSync(path.join(__dirname, '../widgets/clerk_widget.js'), 'utf8')
       .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
       .replace(/^export const /gm, 'const ');
+    // The real Markdown renderer, loaded the same way.
+    const markdown_source = fs
+      .readFileSync(path.join(__dirname, '../ui/markdown.js'), 'utf8')
+      .replace(/^export const /gm, 'const ');
+    const render_markdown = new Function(
+      `${markdown_source}\nreturn render_markdown;`
+    )();
     const factory = new Function(
       'postGeneList',
       'fetchEnrichment',
       'handleAsyncError',
+      'render_markdown',
       `${source}\nreturn render_clerk;`
     );
-    render_clerk = factory(jest.fn(), jest.fn(), jest.fn());
+    render_clerk = factory(jest.fn(), jest.fn(), jest.fn(), render_markdown);
   });
 
   const render = async (initial = {}) => {
@@ -53,8 +61,6 @@ describe('Clerk panel', () => {
       messages: [],
       pending: false,
       model: '',
-      image_thumb_b64: '',
-      has_image: false,
       ...initial,
     });
     const el = document.createElement('div');
@@ -88,16 +94,49 @@ describe('Clerk panel', () => {
     expect(select.options).toHaveLength(5);
   });
 
-  test('shows the synced preview, or a note when only the full image exists', async () => {
-    const withThumb = await render({
-      image_thumb_b64: 'VEhN',
-      has_image: true,
+  test('answers render as Markdown; questions and errors stay plain text', async () => {
+    const { el } = await render({
+      messages: [
+        { role: 'user', content: '**not bold** <b>raw</b>' },
+        { role: 'assistant', content: '## Findings\n- **MUC2** high' },
+        { role: 'error', content: '<i>oops</i>' },
+      ],
     });
-    expect(withThumb.el.querySelector('img').src).toContain('VEhN');
+    const answer = el.querySelector('.clerk-md');
+    expect(answer.querySelector('h2').textContent).toBe('Findings');
+    expect(answer.querySelector('li strong').textContent).toBe('MUC2');
+    // User text and errors are shown literally, never as HTML.
+    expect(el.querySelector('b')).toBeNull();
+    expect(el.querySelector('i')).toBeNull();
+    expect(el.textContent).toContain('**not bold** <b>raw</b>');
+  });
 
-    const noThumb = await render({ has_image: true });
-    expect(noThumb.el.querySelector('img')).toBeNull();
-    expect(noThumb.el.textContent).toContain('Image attached (no preview).');
+  test('a question shows the screenshot and evidence it was sent with', async () => {
+    const { el } = await render({
+      messages: [
+        {
+          role: 'user',
+          content: "What's in view?",
+          image: 'VEhN',
+          evidence: ['Landscape view', 'Clustergram: 25 rows x 15 columns'],
+        },
+        { role: 'assistant', content: 'Goblet cells.' },
+      ],
+    });
+    const img = el.querySelector('img');
+    expect(img.src).toContain('VEhN');
+    expect(el.textContent).toContain(
+      'Sent with: Landscape view · Clustergram: 25 rows x 15 columns'
+    );
+    // Only the one screenshot; the evidence strip has none.
+    expect(el.querySelectorAll('img')).toHaveLength(1);
+  });
+
+  test('a full-width panel is capped for readability', async () => {
+    const { el } = await render({ width: 0 });
+    expect(el.firstChild.style.maxWidth).toBe('900px');
+    const fixed = await render({ width: 600 });
+    expect(fixed.el.firstChild.style.maxWidth).toBe('');
   });
 
   test('finalize removes every model listener', async () => {

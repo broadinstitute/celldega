@@ -102,27 +102,35 @@ export const viewport_indices = (
   );
 };
 
+/** Raw indices for names (in the given order), plus the names not found. */
+const indices_for_names = (viz_state, axis, names) => {
+  const index_by_name = new Map(
+    nodes(viz_state, axis).map((node, index) => [String(node?.name), index])
+  );
+  const indices = [];
+  const missing = [];
+  names.forEach((name) => {
+    const index = index_by_name.get(String(name));
+    if (index === undefined) missing.push(String(name));
+    else indices.push(index);
+  });
+  return { indices, missing: missing.slice(0, MAX_LISTED) };
+};
+
 /**
  * Pick the raw indices to report for one axis.
  * @param {'viewport'|'ranked'|string[]} spec - On screen, the top of the current
  *   display order, or explicit names (in the given order).
+ * @param {string[]} [extra] - Names to add after the main selection (e.g. genes the
+ *   user asked about that are not on screen); they don't count toward max_items.
  */
-const pick_axis = (viz_state, axis, spec, max_items, bounds) => {
+const pick_axis = (viz_state, axis, spec, max_items, bounds, extra = []) => {
   let indices;
   let mode;
   let missing = [];
   if (Array.isArray(spec)) {
     mode = 'names';
-    const index_by_name = new Map(
-      nodes(viz_state, axis).map((node, index) => [String(node?.name), index])
-    );
-    indices = [];
-    spec.forEach((name) => {
-      const index = index_by_name.get(String(name));
-      if (index === undefined) missing.push(String(name));
-      else indices.push(index);
-    });
-    missing = missing.slice(0, MAX_LISTED);
+    ({ indices, missing } = indices_for_names(viz_state, axis, spec));
   } else if (spec === 'ranked') {
     mode = 'ranked';
     indices = displayed_indices(viz_state, axis);
@@ -133,9 +141,30 @@ const pick_axis = (viz_state, axis, spec, max_items, bounds) => {
   const limit = Number.isFinite(Number(max_items))
     ? Math.max(0, Number(max_items))
     : DEFAULT_MAX_ITEMS;
+  const picked = indices.slice(0, limit);
+
+  const added = [];
+  if (Array.isArray(extra) && extra.length) {
+    const already = new Set(picked);
+    const found = indices_for_names(
+      viz_state,
+      axis,
+      extra.slice(0, MAX_LISTED)
+    );
+    found.indices.forEach((index) => {
+      if (!already.has(index)) {
+        already.add(index);
+        picked.push(index);
+        added.push(index);
+      }
+    });
+    missing = [...missing, ...found.missing].slice(0, MAX_LISTED);
+  }
+
   return {
     mode,
-    indices: indices.slice(0, limit),
+    indices: picked,
+    added,
     total: indices.length,
     truncated: indices.length > limit,
     missing,
@@ -285,6 +314,9 @@ const values_for = (viz_state, row_indices, col_indices) => {
  * @param {'viewport'|'ranked'|string[]} [options.cols='viewport'] - Same for columns.
  * @param {number} [options.max_rows=50] - Cap on reported rows.
  * @param {number} [options.max_cols=50] - Cap on reported columns.
+ * @param {string[]} [options.extra_rows] - Row names to add after the main
+ *   selection (e.g. genes asked about that are not on screen).
+ * @param {string[]} [options.extra_cols] - Same for columns.
  * @param {boolean} [options.include_values=true] - Include the value (and dot
  *   size) block for the reported rows x columns.
  * @returns {object} JSON-safe snapshot.
@@ -295,12 +327,14 @@ export const get_clustergram_state = (viz_state, options = {}) => {
     cols = 'viewport',
     max_rows = DEFAULT_MAX_ITEMS,
     max_cols = DEFAULT_MAX_ITEMS,
+    extra_rows = [],
+    extra_cols = [],
     include_values = true,
   } = options;
   const bounds = visible_world_bounds(viz_state);
   const picks = {
-    row: pick_axis(viz_state, 'row', rows, max_rows, bounds),
-    col: pick_axis(viz_state, 'col', cols, max_cols, bounds),
+    row: pick_axis(viz_state, 'row', rows, max_rows, bounds, extra_rows),
+    col: pick_axis(viz_state, 'col', cols, max_cols, bounds, extra_cols),
   };
 
   const axis_state = (axis) => {
@@ -308,6 +342,8 @@ export const get_clustergram_state = (viz_state, options = {}) => {
     return {
       selection_mode: pick.mode,
       names: pick.indices.map((index) => name_at(viz_state, axis, index)),
+      // Names appended because they were asked about (not part of the selection).
+      added: pick.added.map((index) => name_at(viz_state, axis, index)),
       total: pick.total,
       truncated: pick.truncated,
       missing: pick.missing,

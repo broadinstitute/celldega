@@ -184,8 +184,13 @@ default; runs only after the view settles; caches answers per view.
       that launches `claude auth login` on local kernels. Sign-in always completes in
       Anthropic's own flow; Celldega never sees, relays or stores credentials (the CLI
       keeps them in the OS keychain / its own credentials file).
-- [ ] Enrich exposes its current results (library + terms) as state; Clerk reads them
-      instead of re-querying Enrichr.
+- [x] Enrich getter: `Enrich.request_state()` → library, input genes + source, top terms
+      (score, adj. p, odds ratio, genes), selected term, Enrichr link. Clerk reads it and
+      skips its own Enrichr query when an Enrich panel is linked.
+- [x] Clerk panel: answers render as Markdown (`js/ui/markdown.js`, escapes all text
+      first), full-width panel capped at 900 px, each question shows its screenshot and
+      a "Sent with" line; Clerk is told when a linked view didn't reply; genes named in
+      the question or the previous answer are added to the Clustergram snapshot.
 - [ ] Clerk reviews the user's Clustergram annotations (reads `manual_cat`; Look tier).
 - [ ] Celldega API (useful without Clerk): copy Clustergram annotations to the signature
       AnnData (cluster-level obs) and the single-cell AnnData (cell-level obs), using the

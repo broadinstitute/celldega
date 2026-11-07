@@ -459,17 +459,18 @@ def link_clerk(
 ) -> Clerk:
     """Link a standalone `Clerk` to whichever widgets you pass -- the integration point.
 
-    Clerk stands alone; you pass it the other widgets to draw evidence from. Widgets are
-    modular and swappable: pass any subset. The usual case is ``Landscape`` +
-    ``Clustergram`` (optionally ``Enrich``). Clerk gets state from the linked widgets to
-    build its "case":
+    Clerk stands alone and only sees the widgets you pass it. Widgets are modular and
+    swappable: pass any subset. The usual case is ``Landscape`` + ``Clustergram`` +
+    ``Enrich``. Each question from the chat box captures the linked views as they are
+    at that moment:
 
-    - ``clustergram`` -> selected genes flow into ``clerk.gene_list``.
-    - ``landscape`` -> the captured raster (+ zoom/pan view state) flows into
+    - ``landscape`` -> a screenshot of the current view (+ zoom/pan view state) in
       ``clerk.image_b64`` / ``clerk.image_view_state``.
-    - ``enrich`` -> accepted and remembered on ``clerk`` for now; reusing Enrich's
-      already-computed terms as evidence is on the roadmap (see
-      ``celldega/clerk/_sketches.py``).
+    - ``clustergram`` -> a snapshot of what's on screen (``Clustergram.request_state``),
+      plus any genes named in the question; its selected genes also flow into
+      ``clerk.gene_list``.
+    - ``enrich`` -> the enrichment results on screen (``Enrich.request_state``). Clerk
+      then stops fetching its own Enrichr terms.
 
     Yearbook is intentionally *not* linked into Clerk -- it's a sidecar you lay out
     separately. This only wires state; lay the widgets out however you like. Returns
@@ -478,8 +479,8 @@ def link_clerk(
     Args:
         clerk (Clerk): The Clerk widget to link.
         landscape (Landscape | None): Source of raster / view-state evidence.
-        clustergram (Clustergram | None): Source of gene-list evidence.
-        enrich (Enrich | None): Reserved for enrichment-term evidence sharing.
+        clustergram (Clustergram | None): Source of matrix and gene-list evidence.
+        enrich (Enrich | None): Source of enrichment-result evidence.
         capture_on_select (bool): Re-capture the Landscape raster on each selection.
     """
     # Remember linked widgets so later features (set-state, evidence sharing) can find
@@ -493,6 +494,7 @@ def link_clerk(
         linked["landscape"] = landscape
     if enrich is not None:
         linked["enrich"] = enrich
+        clerk.fetch_enrichr = False  # read the Enrich panel's results instead
     clerk._linked_widgets = linked
     return clerk
 

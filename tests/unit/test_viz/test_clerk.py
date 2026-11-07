@@ -246,7 +246,12 @@ def test_clerk_request_triggers_ask(monkeypatch) -> None:
     assert w.wait(timeout=5)
 
     assert w.pending is False
-    assert w.messages[0] == {"role": "user", "content": "annotate"}
+    # The question records what was sent with it.
+    assert w.messages[0] == {
+        "role": "user",
+        "content": "annotate",
+        "evidence": ["1 selected genes"],
+    }
     assert w.messages[-1] == {"role": "assistant", "content": "T cell"}
 
 
@@ -500,6 +505,8 @@ def test_clustergram_request_state_sends_message(monkeypatch) -> None:
             "cols": ["s1", "s2"],
             "max_rows": 5,
             "max_cols": 50,
+            "extra_rows": [],
+            "extra_cols": [],
             "include_values": True,
         },
     }
@@ -512,14 +519,14 @@ def test_clustergram_state_reply_sets_traits_and_ignores_stale() -> None:
     for name in ("latest_state", "state_error", "state_capture_id"):
         assert cgm.trait_metadata(name, "sync") is None
 
-    cgm._on_custom_msg(cgm, {"event": "state", "id": 2, "state": {"kind": "clustergram"}}, [])
+    cgm._on_state_msg(cgm, {"event": "state", "id": 2, "state": {"kind": "clustergram"}}, [])
     assert cgm.latest_state == {"kind": "clustergram"}
     assert cgm.state_capture_id == 2
 
-    cgm._on_custom_msg(cgm, {"event": "state", "id": 1, "state": {"kind": "old"}}, [])
+    cgm._on_state_msg(cgm, {"event": "state", "id": 1, "state": {"kind": "old"}}, [])
     assert cgm.latest_state == {"kind": "clustergram"}
 
-    cgm._on_custom_msg(cgm, {"event": "state_error", "id": 3, "error": "no data"}, [])
+    cgm._on_state_msg(cgm, {"event": "state_error", "id": 3, "error": "no data"}, [])
     assert cgm.state_error == "no data"
     assert cgm.state_capture_id == 3
 
@@ -532,7 +539,7 @@ def test_clerk_sends_clustergram_state_with_question(monkeypatch) -> None:
     def fake_send(content):
         if content.get("event") == "get_state":
             state = {"kind": "clustergram", "options": content["options"]}
-            cgm._on_custom_msg(cgm, {"event": "state", "id": content["id"], "state": state}, [])
+            cgm._on_state_msg(cgm, {"event": "state", "id": content["id"], "state": state}, [])
 
     monkeypatch.setattr(cgm, "send", fake_send)
     seen = {}
@@ -604,3 +611,150 @@ def test_clerk_captures_fresh_view_before_asking(monkeypatch) -> None:
     assert seen["image"] == f"IMG{ls.raster_capture_id}"
     assert w.image_thumb_b64 == f"TH{ls.raster_capture_id}"
     assert w.image_view_state == {"zoom": ls.raster_capture_id}
+    # ...and the conversation shows that screenshot under the question.
+    assert w.messages[0]["image"] == f"TH{ls.raster_capture_id}"
+    assert w.messages[0]["evidence"] == ["Landscape view"]
+
+
+# ---- Enrich, gene mentions, evidence notes ---------------------------------
+_ENRICH_STATE = {
+    "kind": "enrich",
+    "library": "CellMarker_2024",
+    "gene_list": ["MUC2", "TFF3", "SPINK4"],
+    "n_genes": 3,
+    "source_label": "Clustergram row crop",
+    "loading": False,
+    "terms": [
+        {
+            "name": "Goblet Cell Colon Human",
+            "score": 812.4,
+            "adjusted_p": 1.2e-6,
+            "odds_ratio": 95.1,
+            "genes": ["MUC2", "TFF3"],
+        }
+    ],
+    "selected_term": "Goblet Cell Colon Human",
+    "term_genes": ["MUC2", "TFF3"],
+    "link": "https://maayanlab.cloud/Enrichr/enrich?dataset=abc",
+}
+
+
+def test_format_enrich_state() -> None:
+    text = clerk_llm.format_enrich_state(_ENRICH_STATE)
+    assert "Library: CellMarker_2024" in text
+    assert "Input genes (3, from Clustergram row crop): MUC2, TFF3, SPINK4" in text
+    assert "1. Goblet Cell Colon Human (combined score 812; adj. p 1.2e-06" in text
+    assert "Selected term: Goblet Cell Colon Human; its genes: MUC2, TFF3" in text
+    assert clerk_llm.format_enrich_state({"gene_list": [], "terms": []}) == ""
+
+    prompt = clerk_llm.build_prompt("q", enrich_state=_ENRICH_STATE, notes=["view missing"])
+    assert "## Enrich: enrichment results on screen" in prompt
+    assert "## Evidence notes\n- view missing" in prompt
+
+
+def test_enrich_request_state_round_trip(monkeypatch) -> None:
+    from celldega.viz import Enrich
+
+    en = Enrich()
+    sent = []
+    monkeypatch.setattr(en, "send", sent.append)
+    assert en.request_state(max_terms=5) == 1
+    assert sent[-1] == {"event": "get_state", "id": 1, "options": {"max_terms": 5}}
+
+    en._on_state_msg(en, {"event": "state", "id": 1, "state": _ENRICH_STATE}, [])
+    assert en.latest_state["library"] == "CellMarker_2024"
+    assert en.trait_metadata("latest_state", "sync") is None
+
+
+def test_clerk_reads_linked_enrich_instead_of_fetching(monkeypatch) -> None:
+    from celldega.viz import Enrich
+
+    en = Enrich()
+    w = Clerk(enrich=en)
+    assert w.fetch_enrichr is False
+    w.snapshot_timeout = 5
+
+    def fake_send(content):
+        if content.get("event") == "get_state":
+            en._on_state_msg(
+                en, {"event": "state", "id": content["id"], "state": _ENRICH_STATE}, []
+            )
+
+    monkeypatch.setattr(en, "send", fake_send)
+    seen = {}
+
+    def fake_ask(question, **kwargs):
+        seen.update(kwargs)
+        return "ok"
+
+    monkeypatch.setattr(clerk_llm, "ask", fake_ask)
+
+    w.request = {"id": "1", "question": "what do these terms say?"}
+    assert w.wait(timeout=5)
+    assert seen["enrich_state"]["terms"][0]["name"] == "Goblet Cell Colon Human"
+    assert w.messages[0]["evidence"] == ["Enrich: 1 CellMarker_2024 terms"]
+
+
+def test_mentioned_rows_matching() -> None:
+    cgm = _clustergram()
+    cgm.row_names = ["MUC2", "TFF3", "SET", "Fezf2"]
+    w = Clerk(clustergram=cgm)
+
+    found = w._mentioned_rows(["Check MUC2 and tff3, then muc2 again.", "Fezf2 and set"])
+    # Exact matches, and case-insensitive ones for words with a digit (tff3, muc2)
+    # or in capitals. Plain English ("set") is skipped even though SET is a gene.
+    assert found == ["MUC2", "TFF3", "Fezf2"]
+    # Trailing punctuation is not part of the symbol.
+    assert w._mentioned_rows(["Look at SET."]) == ["SET"]
+    assert w._mentioned_rows(["nothing relevant here"]) == []
+
+
+def test_clerk_adds_genes_from_question_and_last_answer(monkeypatch) -> None:
+    cgm = _clustergram()
+    cgm.row_names = ["MUC2", "TFF3", "EPCAM", "PTPRC"]
+    w = Clerk(clustergram=cgm)
+    w.snapshot_timeout = 5
+    w.messages = [
+        {"role": "user", "content": "what is this?"},
+        {"role": "assistant", "content": "Check EPCAM and PTPRC."},
+    ]
+    requested = {}
+
+    def fake_send(content):
+        if content.get("event") == "get_state":
+            requested.update(content["options"])
+            cgm._on_state_msg(
+                cgm, {"event": "state", "id": content["id"], "state": {"kind": "x"}}, []
+            )
+
+    monkeypatch.setattr(cgm, "send", fake_send)
+    monkeypatch.setattr(clerk_llm, "ask", lambda question, **kwargs: "ok")
+
+    w.request = {"id": "1", "question": "Can you check MUC2 and those markers?"}
+    assert w.wait(timeout=5)
+    assert requested["extra_rows"] == ["MUC2", "EPCAM", "PTPRC"]
+
+
+def test_clerk_notes_views_that_do_not_reply(monkeypatch) -> None:
+    cgm = _clustergram()
+    w = Clerk(clustergram=cgm)
+    w.snapshot_timeout = 0.05
+    monkeypatch.setattr(cgm, "send", lambda content: None)  # not displayed
+    seen = {}
+
+    def fake_ask(question, **kwargs):
+        seen.update(kwargs)
+        return "ok"
+
+    monkeypatch.setattr(clerk_llm, "ask", fake_ask)
+
+    w.request = {"id": "1", "question": "q"}
+    assert w.wait(timeout=5)
+    assert any("Clustergram is linked but did not return" in n for n in seen["notes"])
+    assert w.messages[0]["evidence"] == ["Clustergram: no snapshot"]
+
+    alone = Clerk(name="alone")
+    monkeypatch.setattr(clerk_llm, "ask", fake_ask)
+    alone.request = {"id": "1", "question": "q"}
+    assert alone.wait(timeout=5)
+    assert any("No Landscape, Clustergram or Enrich" in n for n in seen["notes"])

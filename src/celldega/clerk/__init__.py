@@ -30,6 +30,7 @@ from .llm import (
     claude_auth_status,
     claude_available,
     format_clustergram_state,
+    format_enrich_state,
     run_claude,
 )
 
@@ -44,5 +45,6 @@ __all__ = [
     "claude_auth_status",
     "claude_available",
     "format_clustergram_state",
+    "format_enrich_state",
     "run_claude",
 ]

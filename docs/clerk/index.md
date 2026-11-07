@@ -117,11 +117,24 @@ Once linked:
   as image evidence, including the exact zoom/pan (see below). Pan and zoom, then ask
   "what's in this field of view?"
 
+Clerk only sees the widgets you link. In the conversation, each question shows the
+Landscape screenshot it was sent with and a "Sent with" line listing the rest, so you can
+see exactly what Clerk received. If a linked widget doesn't reply (for example, it isn't
+displayed), Clerk is told so and says it rather than guessing.
+
+With a linked **Enrich** panel, each question carries the enrichment results on screen:
+the library, input genes and their source, the top terms with combined score, adjusted
+p-value, odds ratio and overlapping genes, the selected term, and the Enrichr link.
+Clerk then stops running its own Enrichr query.
+
 With a linked **Clustergram**, each question also carries a snapshot of what the
 Clustergram shows: the clusters and genes on screen (with their attributes, such as
 `leiden`, `cell_type` or `leiden_marker`), each axis's order, the marker level (DIM
 slider), the dendrogram groups at the current cut, the selection, and a capped table of
-values and dot sizes for what's on screen. Choose what it describes with
+values and dot sizes for what's on screen. Genes you name in a question, or that Clerk
+named in its previous answer, are added to that table when the Clustergram has them, so
+"check MUC2 and TFF3 across clusters" works even if they're off screen. Choose what it
+describes with
 `clerk.clustergram_options`, e.g. `{"rows": "ranked", "max_rows": 25}` for the top of the
 current order instead of what's on screen.
 

@@ -1090,6 +1090,47 @@ class Landscape(CelldegaWidget):
         self.nbhd = self.nbhd_polygons
 
 
+class _StateSnapshots(traitlets.HasTraits):
+    """Mixin: ask the browser for a snapshot of what a widget shows.
+
+    The widget's front end answers a ``{"event": "get_state", "id", "options"}``
+    message with ``{"event": "state", "id", "state"}`` (or ``"state_error"``). The
+    snapshot is kept Python-side only -- these traits are never synced, so snapshots
+    are not saved into the notebook's widget state. Subclasses call
+    :meth:`_listen_for_state` from ``__init__`` and expose a ``request_state`` method
+    that builds the options.
+    """
+
+    latest_state = traitlets.Dict(default_value={})
+    state_error = traitlets.Unicode("")
+    # Id of the latest request the browser answered (successfully or not). Set last,
+    # so observers of this trait see the finished snapshot.
+    state_capture_id = traitlets.Int(0)
+
+    def _listen_for_state(self) -> None:
+        self._state_request_id = 0
+        self.on_msg(self._on_state_msg)
+
+    def _send_state_request(self, options: dict) -> int:
+        self._state_request_id += 1
+        self.send({"event": "get_state", "id": self._state_request_id, "options": options})
+        return self._state_request_id
+
+    def _on_state_msg(self, _widget, content, _buffers) -> None:
+        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
+            return
+        reply_id = content.get("id")
+        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
+        if reply_id < self.state_capture_id:
+            return  # stale reply (e.g. a second view answering an older request)
+        if content["event"] == "state_error":
+            self.state_error = str(content.get("error") or "State snapshot failed")
+        else:
+            self.state_error = ""
+            self.latest_state = dict(content.get("state") or {})
+        self.state_capture_id = reply_id
+
+
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
 
@@ -1107,7 +1148,7 @@ class ManualAttributeTrait(traitlets.Unicode):
         return super().validate(obj, str(value).strip())
 
 
-class Enrich(CelldegaWidget):
+class Enrich(_StateSnapshots, CelldegaWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
 
@@ -1161,6 +1202,24 @@ class Enrich(CelldegaWidget):
         if name is None and registry_key is None:
             registry_key = "default"
         super().__init__(name=name, registry_key=registry_key, **kwargs)
+        self._listen_for_state()
+
+    def request_state(self, max_terms: int = 15) -> int:
+        """Ask the browser for a snapshot of the enrichment results on screen.
+
+        The snapshot holds the library, the input gene list and its source, the top
+        terms with their statistics (combined score, p-value, adjusted p-value, odds
+        ratio) and overlapping genes, the selected term and its genes, and a link to
+        the full results on Enrichr. Asynchronous, like
+        :meth:`Clustergram.request_state`: the reply sets :attr:`latest_state`.
+
+        Args:
+            max_terms: Cap on reported terms.
+
+        Returns:
+            int: The id of this request.
+        """
+        return self._send_state_request({"max_terms": int(max_terms)})
 
 
 class Clerk(CelldegaWidget):
@@ -1227,6 +1286,10 @@ class Clerk(CelldegaWidget):
 
     # JS sets this dict (with a unique ``id``) to trigger a single-shot call.
     request = traitlets.Dict(default_value={}).tag(sync=True)
+
+    # Whether the panel fetches its own Enrichr terms for the gene list. Turned off
+    # when an Enrich widget is linked: Clerk then reads that panel's results instead.
+    fetch_enrichr = traitlets.Bool(True).tag(sync=True)
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", None)
@@ -1343,37 +1406,168 @@ class Clerk(CelldegaWidget):
             for widget, id_trait, _send, callback, _done, _target in pending:
                 widget.unobserve(callback, names=id_trait)
 
-    def _refresh_views(self) -> dict | None:
+    _GENE_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9._-]+")
+
+    def _mentioned_rows(self, texts, limit: int = 40) -> list[str]:
+        """Clustergram row names (e.g. genes) mentioned in ``texts``, in order.
+
+        Matches exactly, or case-insensitively when the word is written in capitals
+        or contains a digit (``muc2`` won't match, ``MUC2`` / ``Muc2`` will), so plain
+        English words that happen to be gene symbols aren't picked up.
+        """
+        cgm = self._linked_widgets.get("clustergram")
+        names = [str(n) for n in (getattr(cgm, "row_names", None) or [])]
+        if not names:
+            return []
+        exact = set(names)
+        by_upper = {}
+        for name in names:
+            by_upper.setdefault(name.upper(), name)
+        found: list[str] = []
+        for text in texts:
+            for raw in self._GENE_TOKEN.findall(text or ""):
+                # Dots and dashes occur inside symbols (HLA-DRA) but not at the end of
+                # one: "...and PTPRC." -> PTPRC.
+                token = raw.rstrip("._-")
+                name = token if token in exact else None
+                if name is None and (token.isupper() or any(c.isdigit() for c in token)):
+                    name = by_upper.get(token.upper())
+                if name and name not in found:
+                    found.append(name)
+        return found[:limit]
+
+    def _refresh_views(self, question: str = "") -> dict:
         """Capture the linked views as they are now, before a question is sent.
 
         The Landscape screenshot lands in ``image_b64`` (via the ``link_clerk``
-        observers); the Clustergram snapshot is returned if it arrived in time. Widgets
-        that aren't linked or displayed simply time out, and the question goes ahead
-        with whatever Clerk already has.
+        observers). The Clustergram snapshot covers what's on screen plus any of its
+        rows named in the question or in Clerk's previous answer. Views that aren't
+        linked or displayed time out; the question still goes ahead, with a note.
+
+        Returns:
+            dict: ``clustergram_state`` (or ``None``), ``image_fresh`` (bool),
+            ``notes`` for the prompt, and ``summary`` lines for the panel.
         """
+        result = {
+            "clustergram_state": None,
+            "enrich_state": None,
+            "image_fresh": False,
+            "notes": [],
+            "summary": [],
+        }
         requests = []
+        labels = []
         landscape = self._linked_widgets.get("landscape")
-        if landscape is not None and hasattr(landscape, "request_raster"):
+        has_landscape = landscape is not None and hasattr(landscape, "request_raster")
+        if has_landscape:
             requests.append((landscape, "raster_capture_id", landscape.request_raster))
+            labels.append("landscape")
         cgm = self._linked_widgets.get("clustergram")
         has_cgm = cgm is not None and hasattr(cgm, "request_state")
         if has_cgm:
+            last_answer = next(
+                (
+                    m.get("content", "")
+                    for m in reversed(self.messages)
+                    if m.get("role") == "assistant"
+                ),
+                "",
+            )
             options = dict(self.clustergram_options)
+            options.setdefault("extra_rows", self._mentioned_rows([question, last_answer]))
             requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
+            labels.append("clustergram")
+        enrich = self._linked_widgets.get("enrich")
+        has_enrich = enrich is not None and hasattr(enrich, "request_state")
+        if has_enrich:
+            requests.append((enrich, "state_capture_id", enrich.request_state))
+            labels.append("enrich")
         if not requests:
-            return None
-        answered = self._request_and_wait(requests)
-        if has_cgm and answered[-1] and not cgm.state_error:
-            return dict(cgm.latest_state)
-        return None
+            result["notes"].append(
+                "No Landscape, Clustergram or Enrich panel is linked to Clerk; only the "
+                "text evidence below is available."
+            )
+            return result
+
+        answered = dict(zip(labels, self._request_and_wait(requests), strict=True))
+        if has_landscape:
+            if answered.get("landscape") and not landscape.raster_error:
+                result["image_fresh"] = True
+                result["summary"].append("Landscape view")
+            else:
+                result["notes"].append(
+                    "The linked Landscape did not return a screenshot this time (it may "
+                    "not be displayed); any image attached is from an earlier view."
+                )
+                result["summary"].append("Landscape: no new screenshot")
+        if has_cgm:
+            if answered.get("clustergram") and not cgm.state_error and cgm.latest_state:
+                state = dict(cgm.latest_state)
+                result["clustergram_state"] = state
+                rows = state.get("rows") or {}
+                cols = state.get("cols") or {}
+                line = (
+                    f"Clustergram: {len(rows.get('names') or [])} rows x "
+                    f"{len(cols.get('names') or [])} columns"
+                )
+                if rows.get("added"):
+                    line += f" (incl. {len(rows['added'])} asked about)"
+                result["summary"].append(line)
+            else:
+                result["notes"].append(
+                    "A Clustergram is linked but did not return a snapshot this time (it "
+                    "may not be displayed, or the page needs reloading after an update)."
+                )
+                result["summary"].append("Clustergram: no snapshot")
+        if has_enrich:
+            if answered.get("enrich") and not enrich.state_error and enrich.latest_state:
+                state = dict(enrich.latest_state)
+                result["enrich_state"] = state
+                if state.get("terms"):
+                    result["summary"].append(
+                        f"Enrich: {len(state['terms'])} {state.get('library') or ''} terms".replace(
+                            "  ", " "
+                        )
+                    )
+            else:
+                result["notes"].append(
+                    "An Enrich panel is linked but did not return its results this time "
+                    "(it may not be displayed)."
+                )
+                result["summary"].append("Enrich: no snapshot")
+        return result
+
+    def _record_evidence(self, summary: list[str], image_fresh: bool) -> None:
+        """Attach what was sent (screenshot preview + summary) to the latest question."""
+        if not summary and not (image_fresh and self.image_thumb_b64):
+            return
+        messages = [dict(m) for m in self.messages]
+        for message in reversed(messages):
+            if message.get("role") == "user":
+                if image_fresh and self.image_thumb_b64:
+                    message["image"] = self.image_thumb_b64
+                message["evidence"] = list(summary)
+                break
+        self.messages = messages
 
     def _answer(self, question, call):
         """Run one model call (in the worker thread) and record the outcome."""
         from .. import clerk
 
         try:
-            call["clustergram_state"] = self._refresh_views()
+            views = self._refresh_views(question)
+            call["clustergram_state"] = views["clustergram_state"]
+            call["enrich_state"] = views["enrich_state"]
+            call["notes"] = views["notes"]
             call["image_b64"] = self.image_b64 or None
+            summary = list(views["summary"])
+            if call.get("gene_list"):
+                summary.append(f"{len(call['gene_list'])} selected genes")
+            if call.get("enrichr_terms"):
+                summary.append(f"{len(call['enrichr_terms'])} Enrichr terms")
+            if call.get("info"):
+                summary.append("context")
+            self._record_evidence(summary, views["image_fresh"])
             answer = clerk.ask(question, **call)
             self.messages = [*self.messages, {"role": "assistant", "content": answer}]
         except Exception as exc:  # surface every failure in the panel, not the log
@@ -1402,13 +1596,17 @@ class Clerk(CelldegaWidget):
     def ask(self, question, **kwargs):
         """Ask a question from Python (bypasses the chat UI). Returns the answer text.
 
-        Unlike the chat box, this blocks until the answer arrives.
+        Unlike the chat box, this blocks until the answer arrives. A cell can't wait
+        for the browser, so this uses the views' latest snapshots (e.g. the last
+        Landscape capture and ``Clustergram.latest_state``) rather than fresh ones.
         """
         from .. import clerk
 
         self.wait()
         genes = kwargs.pop("gene_list", None) or list(self.gene_list)
         history = [dict(m) for m in self.messages]
+        cgm = self._linked_widgets.get("clustergram")
+        latest = dict(getattr(cgm, "latest_state", None) or {}) or None
         self.messages = [*self.messages, {"role": "user", "content": question}]
         self.pending = True
         self.error = ""
@@ -1416,6 +1614,7 @@ class Clerk(CelldegaWidget):
             answer = clerk.ask(
                 question,
                 history=history,
+                clustergram_state=kwargs.pop("clustergram_state", None) or latest,
                 gene_list=genes,
                 enrichr_terms=kwargs.pop("enrichr_terms", None) or [],
                 info=kwargs.pop("info", None) or self.context_info,
@@ -1980,7 +2179,7 @@ class Yearbook(CelldegaWidget):
         self.current_page = max(0, min(page, self.total_pages - 1))
 
 
-class Clustergram(CelldegaWidget):
+class Clustergram(_StateSnapshots, CelldegaWidget):
     """
     Minimal version of the Clustergram widget.
 
@@ -2038,14 +2237,6 @@ class Clustergram(CelldegaWidget):
     #: Populated by the Matrix front-end in response to :attr:`matrix_slice_request`.
     matrix_slice_result = traitlets.Dict(default_value={}).tag(sync=True)
 
-    # State snapshot (see :meth:`request_state`), kept Python-side only: never synced,
-    # so snapshots are not saved into the notebook's widget state.
-    latest_state = traitlets.Dict(default_value={})
-    state_error = traitlets.Unicode("")
-    # Id of the latest request the browser answered (successfully or not). Set last,
-    # so observers of this trait see the finished snapshot.
-    state_capture_id = traitlets.Int(0)
-
     def request_state(
         self,
         rows: str | Sequence[str] = "viewport",
@@ -2053,6 +2244,8 @@ class Clustergram(CelldegaWidget):
         *,
         max_rows: int = 50,
         max_cols: int = 50,
+        extra_rows: Sequence[str] = (),
+        extra_cols: Sequence[str] = (),
         include_values: bool = True,
     ) -> int:
         """Ask the browser for a snapshot of what this Clustergram shows.
@@ -2074,6 +2267,9 @@ class Clustergram(CelldegaWidget):
             cols: Same for columns.
             max_rows: Cap on reported rows.
             max_cols: Cap on reported columns.
+            extra_rows: Row names to add after the main selection (e.g. genes asked
+                about that aren't on screen); listed in ``rows["added"]``.
+            extra_cols: Same for columns.
             include_values: Include the value and dot-size block.
 
         Returns:
@@ -2087,36 +2283,17 @@ class Clustergram(CelldegaWidget):
                 return spec
             return [str(name) for name in spec]
 
-        self._state_request_id += 1
-        self.send(
+        return self._send_state_request(
             {
-                "event": "get_state",
-                "id": self._state_request_id,
-                "options": {
-                    "rows": _axis(rows),
-                    "cols": _axis(cols),
-                    "max_rows": int(max_rows),
-                    "max_cols": int(max_cols),
-                    "include_values": bool(include_values),
-                },
+                "rows": _axis(rows),
+                "cols": _axis(cols),
+                "max_rows": int(max_rows),
+                "max_cols": int(max_cols),
+                "extra_rows": [str(name) for name in extra_rows],
+                "extra_cols": [str(name) for name in extra_cols],
+                "include_values": bool(include_values),
             }
         )
-        return self._state_request_id
-
-    def _on_custom_msg(self, _widget, content, _buffers) -> None:
-        """Handle one-off messages from the browser (currently state snapshots)."""
-        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
-            return
-        reply_id = content.get("id")
-        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
-        if reply_id < self.state_capture_id:
-            return  # stale reply (e.g. a second view answering an older request)
-        if content["event"] == "state_error":
-            self.state_error = str(content.get("error") or "State snapshot failed")
-        else:
-            self.state_error = ""
-            self.latest_state = dict(content.get("state") or {})
-        self.state_capture_id = reply_id
 
     # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
     # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
@@ -2340,8 +2517,7 @@ class Clustergram(CelldegaWidget):
 
         super().__init__(name=name, **kwargs)
 
-        self._state_request_id = 0
-        self.on_msg(self._on_custom_msg)
+        self._listen_for_state()
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user

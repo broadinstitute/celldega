@@ -110,6 +110,7 @@ describe('Enrich widget lifecycle', () => {
         );
       }),
       save_changes: jest.fn(),
+      send: jest.fn(),
       on: jest.fn((event, listener) => {
         listeners.set(event, [...(listeners.get(event) || []), listener]);
       }),
@@ -138,7 +139,8 @@ describe('Enrich widget lifecycle', () => {
     cleanup();
 
     expect(tooltip.destroy).toHaveBeenCalledTimes(1);
-    expect(model.off).toHaveBeenCalledTimes(9);
+    // 9 trait listeners + the state-snapshot message listener.
+    expect(model.off).toHaveBeenCalledTimes(10);
     expect([...listeners.values()].every((items) => items.length === 0)).toBe(
       true
     );
@@ -174,5 +176,40 @@ describe('Enrich widget lifecycle', () => {
     await Promise.resolve();
 
     expect(fetchEnrichment).not.toHaveBeenCalled();
+  });
+  test('answers a state snapshot request with what it shows', async () => {
+    postGeneList.mockReturnValue(new Promise(() => {})); // enrichment still loading
+    const { model, listeners } = makeModel({
+      gene_list: ['MUC2', 'TFF3'],
+      source_label: 'Clustergram row crop',
+      term_genes: [],
+      selected_term: 'Select Term',
+    });
+    const cleanup = await render_enrich({
+      model,
+      el: document.createElement('div'),
+    });
+
+    (listeners.get('msg:custom') || []).forEach((listener) =>
+      listener({ event: 'get_state', id: 7, options: { max_terms: 5 } })
+    );
+
+    expect(model.send).toHaveBeenCalledWith({
+      event: 'state',
+      id: 7,
+      state: {
+        kind: 'enrich',
+        library: 'CellMarker_2024',
+        gene_list: ['MUC2', 'TFF3'],
+        n_genes: 2,
+        source_label: 'Clustergram row crop',
+        loading: true,
+        terms: [],
+        selected_term: 'Select Term',
+        term_genes: [],
+        link: null,
+      },
+    });
+    cleanup();
   });
 });

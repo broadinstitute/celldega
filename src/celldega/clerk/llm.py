@@ -58,7 +58,22 @@ SYSTEM_PROMPT = (
     "propose a cell-type label, name the supporting markers. The scientist makes the "
     "final call. Be concise and concrete. If the evidence is insufficient, say so and "
     "suggest what to look at next. Earlier turns of the conversation are included for "
-    "context; the evidence always reflects the current view."
+    "context; the evidence always reflects the current view.\n\n"
+    "What you receive with each question (whichever views the scientist has linked): "
+    "an image of the current Landscape view (the tissue, e.g. H&E, with cells colored "
+    "by cluster); a text snapshot of the linked Clustergram, the clusters-by-genes "
+    "heatmap as currently shown (the clusters and genes on screen with their "
+    "attributes, the order, marker level, dendrogram groups, the selection, and a "
+    "table of values with dot sizes); the linked Enrich panel's enrichment results "
+    "(library, input genes, top terms with statistics and overlapping genes, the "
+    "selected term); genes the scientist selected; and free-text context. Genes named in the question or in your previous answer "
+    "are added to the Clustergram table when the Clustergram contains them, so you "
+    "can check marker expression across clusters directly. Read cluster identities "
+    "from the Clustergram's attributes and values rather than from Landscape colors. "
+    "You cannot run tools or change the views yourself yet; if you need other "
+    "evidence, tell the scientist exactly what to do (e.g. zoom the Clustergram to "
+    "certain genes, click a cluster, pan the Landscape). If an evidence note says a "
+    "view is unavailable, say so plainly instead of guessing."
 )
 
 # Most recent conversation turns sent with each question (older turns are dropped).
@@ -131,6 +146,8 @@ def build_prompt(
     has_image: bool = False,
     history: list[dict] | None = None,
     clustergram_state: dict | None = None,
+    notes: list[str] | None = None,
+    enrich_state: dict | None = None,
 ) -> str:
     """Assemble the prompt for one question from the gathered evidence.
 
@@ -146,6 +163,9 @@ def build_prompt(
             :data:`MAX_HISTORY_TURNS` / :data:`MAX_HISTORY_CHARS`).
         clustergram_state: A Clustergram snapshot (``Clustergram.latest_state``) of
             what the scientist is looking at; see :func:`format_clustergram_state`.
+        notes: Short notes about the evidence, e.g. that a linked view didn't reply.
+        enrich_state: An Enrich snapshot (``Enrich.latest_state``) of the enrichment
+            results on screen; see :func:`format_enrich_state`.
     """
     parts: list[str] = []
 
@@ -185,12 +205,19 @@ def build_prompt(
     if clustergram_text:
         parts += ["## Clustergram (what the scientist sees)", clustergram_text, ""]
 
+    enrich_text = format_enrich_state(enrich_state)
+    if enrich_text:
+        parts += ["## Enrich: enrichment results on screen", enrich_text, ""]
+
     if has_image:
         parts += [
             "## Image",
             "A screenshot of the current Landscape view is attached.",
             "",
         ]
+
+    if notes:
+        parts += ["## Evidence notes", *(f"- {note}" for note in notes), ""]
 
     parts += ["## Question", question.strip() or "Interpret this cluster."]
     return "\n".join(parts)
@@ -244,6 +271,16 @@ def format_clustergram_state(
         more = f", +{axis['total'] - len(names)} more not listed" if axis.get("truncated") else ""
         lines.append(f"{label} ({count}; order: {order}{more}):")
         lines.append("  " + "; ".join(_annotated(names, axis.get("attributes") or [])))
+        if axis.get("added"):
+            lines.append(
+                f"{label} added because they were asked about (may be off screen): "
+                + ", ".join(str(n) for n in axis["added"])
+            )
+        if axis.get("missing"):
+            lines.append(
+                f"Asked about but not in the Clustergram {label.lower()}: "
+                + ", ".join(str(n) for n in axis["missing"])
+            )
 
         groups = axis.get("groups") or {}
         if groups.get("groups"):
@@ -282,9 +319,15 @@ def format_clustergram_state(
 
     block = state.get("values") or {}
     values = block.get("values") or []
-    row_names = [str(n) for n in (state.get("rows") or {}).get("names") or []][:max_value_rows]
+    rows_state = state.get("rows") or {}
+    all_rows = [str(n) for n in rows_state.get("names") or []]
     col_names = [str(n) for n in (state.get("cols") or {}).get("names") or []][:max_value_cols]
-    if values and row_names and col_names:
+    # Rows asked about always make the table; fill the rest from the selection.
+    added = {str(n) for n in rows_state.get("added") or []}
+    added_idx = [i for i, n in enumerate(all_rows) if n in added][:max_value_rows]
+    other_idx = [i for i, n in enumerate(all_rows) if n not in added]
+    row_idx = sorted(other_idx[: max(0, max_value_rows - len(added_idx))] + added_idx)
+    if values and row_idx and col_names:
         sizes = block.get("sizes")
 
         def cell(i, j):
@@ -300,9 +343,60 @@ def format_clustergram_state(
             caption += " / dot size (often fraction of cells expressing)"
         lines.append(f"{caption}, rows x columns:")
         lines.append("\t".join(["", *col_names]))
-        for i, row in enumerate(row_names):
-            lines.append("\t".join([row, *(cell(i, j) for j in range(len(col_names)))]))
+        lines.extend(
+            "\t".join([all_rows[i], *(cell(i, j) for j in range(len(col_names)))]) for i in row_idx
+        )
 
+    return "\n".join(lines)
+
+
+def format_enrich_state(state: dict | None, *, max_genes: int = 12) -> str:
+    """Render an Enrich snapshot (``Enrich.latest_state``) as compact text.
+
+    Returns ``""`` when there is nothing to report (no gene list).
+    """
+    if not state or not (state.get("gene_list") or state.get("terms")):
+        return ""
+    lines: list[str] = []
+    genes = [str(g) for g in state.get("gene_list") or []]
+    n_genes = state.get("n_genes") or len(genes)
+    source = f", from {state['source_label']}" if state.get("source_label") else ""
+    shown = ", ".join(genes[:40]) + (f", +{n_genes - 40} more" if n_genes > 40 else "")
+    lines.append(f"Library: {state.get('library') or 'unknown'}")
+    lines.append(f"Input genes ({n_genes}{source}): {shown}")
+    if state.get("loading"):
+        lines.append(
+            "(Enrichment was still loading; the terms below may be for the previous list.)"
+        )
+
+    def stat(value, label):
+        return f"{label} {value:.3g}" if isinstance(value, int | float) else None
+
+    for rank, term in enumerate(state.get("terms") or [], start=1):
+        stats = [
+            s
+            for s in (
+                stat(term.get("score"), "combined score"),
+                stat(term.get("adjusted_p"), "adj. p"),
+                stat(term.get("odds_ratio"), "odds ratio"),
+            )
+            if s
+        ]
+        overlap = [str(g) for g in term.get("genes") or []]
+        more = f", +{len(overlap) - max_genes}" if len(overlap) > max_genes else ""
+        lines.append(
+            f"{rank}. {term.get('name')} ({'; '.join(stats)}): "
+            + ", ".join(overlap[:max_genes])
+            + more
+        )
+    selected = state.get("selected_term")
+    if selected and selected != "Select Term":
+        lines.append(
+            f"Selected term: {selected}; its genes: "
+            + ", ".join(str(g) for g in state.get("term_genes") or [])
+        )
+    if state.get("link"):
+        lines.append(f"Full results: {state['link']}")
     return "\n".join(lines)
 
 
@@ -446,6 +540,8 @@ def ask(
     timeout: int = DEFAULT_TIMEOUT,
     history: list[dict] | None = None,
     clustergram_state: dict | None = None,
+    notes: list[str] | None = None,
+    enrich_state: dict | None = None,
 ) -> str:
     """Build the prompt from evidence (and earlier turns) and run the model in one call."""
     prompt = build_prompt(
@@ -456,5 +552,7 @@ def ask(
         has_image=bool(image_b64),
         history=history,
         clustergram_state=clustergram_state,
+        notes=notes,
+        enrich_state=enrich_state,
     )
     return run_claude(prompt, image_b64=image_b64, model=model, timeout=timeout)

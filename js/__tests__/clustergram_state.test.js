@@ -205,4 +205,18 @@ describe('get_clustergram_state', () => {
     const state = get_clustergram_state(make_viz_state());
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
   });
+
+  test('extra rows asked about are appended, with their values', () => {
+    // On screen: g1, g0. Asked about: g3 (off screen), g1 (already shown), nope.
+    const state = get_clustergram_state(
+      make_viz_state({ visible_height: 20 }),
+      { extra_rows: ['g3', 'g1', 'nope'] }
+    );
+    expect(state.rows.names).toEqual(['g1', 'g0', 'g3']);
+    expect(state.rows.added).toEqual(['g3']);
+    expect(state.rows.missing).toEqual(['nope']);
+    // The selection count is unchanged; the value block covers the added row.
+    expect(state.rows.total).toBe(2);
+    expect(state.values.values[2]).toEqual([12, 10, 11]);
+  });
 });

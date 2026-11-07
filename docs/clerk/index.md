@@ -88,6 +88,15 @@ cheaper and faster for routine questions:
 clerk = dega.viz.Clerk(model="haiku")   # "" (default) inherits the CLI default
 ```
 
+Reasoning effort is a separate setting (`"low"`, `"medium"`, `"high"`, `"xhigh"`,
+`"max"`): higher effort is slower and uses more tokens. Both have pickers next to the
+**Ask** button, or set them from Python:
+
+```python
+clerk.model = "opus"
+clerk.effort = "high"
+```
+
 ## Linking to other widgets
 
 Clerk is **standalone and wide by default**, and you link it to whatever widgets you
@@ -150,7 +159,61 @@ cgm.latest_state                          # plain dict; never saved into the not
 In JavaScript (e.g. a web app embedding Celldega), the Clustergram instance returned by
 `matrix_viz` exposes the same snapshot synchronously as `matrix.get_state(options)`.
 
+## How Clerk answers
+
+Clerk is instructed to be brief (the answer first, then a few bullets of deciding
+evidence) and conservative: before naming a cell type it checks each relevant cluster's
+top ~25 ranked markers, canonical markers for the candidate type and its alternatives,
+and enrichment in more than one library, and it states a confidence. It starts from
+morphology and anatomy, treats the sample's diagnosis (e.g. "colorectal cancer") as a
+description of the whole sample rather than of the region in view, and does not call a
+region abnormal without evidence specific to that. The instructions are in
+`celldega/clerk/prompts.py` (`dega.clerk.SYSTEM_PROMPT`).
+
+## Lookups
+
+While answering, Clerk can look things up without changing anything you see; each lookup
+appears in the conversation as a "↻" line:
+
+- **Ranked markers**: a cluster's top-N up-regulated genes (`rank_genes_groups`) with
+  their value and dot size, whatever the DIM slider shows. The Matrix sends each
+  cluster's ranked markers to the Clustergram front end for this.
+- **Genes**: specific genes' values and dot sizes across all clusters.
+- **Enrichr**: a cluster's top markers, or any gene list, against Enrichr libraries
+  (`CellMarker_2024` and `PanglaoDB_Augmented_2021` by default). This calls the Enrichr
+  web service directly; the Enrich panel is not changed.
+- **PubMed**: literature searches through NCBI's public E-utilities (titles and abstract
+  excerpts); Clerk cites PMIDs as links.
+
+From Python, `cgm.request_state(markers={"clusters": ["4"], "n": 25})` reads the same
+ranked markers, and `dega.clerk.lookups.enrichr(...)` / `dega.clerk.lookups.pubmed(...)`
+run the web lookups.
+
+## Recording cell types
+
+When Clerk proposes cell types, it records them ("↻ Recorded tentative cell types: 4 →
+Goblet cells (high), …"). Get them as a table or write them to an AnnData (cell-level, or
+the cluster-level signature AnnData behind a Clustergram):
+
+```python
+clerk.findings_df()          # cluster, label, confidence, markers, notes, question, time
+clerk.write_cell_types(adata, groupby="leiden", key="clerk_cell_type")
+```
+
+`write_cell_types` only adds a column (pass `overwrite=True` to replace one), fills
+clusters without a proposal with `Unassigned`, and records the labels used in
+`adata.uns["clerk_cell_types"]`.
+
 ## Letting Clerk change the views
+
+Clerk can show you its evidence: highlight the clusters it is discussing in the
+Landscape, color it by genes, zoom to a cluster, or move the Clustergram's DIM slider.
+It uses the same setters you can call yourself (`landscape.apply_state`,
+`cgm.apply_state`; see the [Landscape](../visualizations/landscape/index.md) and
+[Clustergram](../visualizations/clustergram.md) pages), and each change appears in the
+conversation as a "↻ Changed …" line. Cell types Clerk records are also written to the
+Clustergram's manual column category (`clerk.label_clustergram = False` turns this
+off); labels you set yourself are never overwritten.
 
 Reading and changing are separate. Clerk can look up any gene in the Clustergram (values
 and dot sizes across clusters) without changing what you see, even genes hidden by the

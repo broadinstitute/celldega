@@ -39,6 +39,48 @@ const MODEL_OPTIONS = [
   ['haiku', 'Haiku'],
 ];
 
+// Reasoning effort the `claude` CLI accepts (--effort); '' = the CLI's default.
+const EFFORT_OPTIONS = [
+  ['', 'Default effort'],
+  ['low', 'Low effort'],
+  ['medium', 'Medium effort'],
+  ['high', 'High effort'],
+  ['xhigh', 'Extra-high effort'],
+  ['max', 'Max effort'],
+];
+
+/**
+ * A <select> bound to a string model trait. A value set from Python that isn't one
+ * of the choices (e.g. a full model id) is added rather than dropped.
+ */
+const make_trait_select = (model, trait, choices, title) => {
+  const select = document.createElement('select');
+  select.title = title;
+  select.style.marginLeft = '5px';
+  select.style.alignSelf = 'center';
+  select.style.fontFamily = FONT;
+  select.style.fontSize = '13px';
+  const sync = () => {
+    const current = model.get(trait) || '';
+    const options = choices.some(([value]) => value === current)
+      ? choices
+      : [...choices, [current, current]];
+    select.innerHTML = '';
+    options.forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    });
+    select.value = current;
+  };
+  select.addEventListener('change', () => {
+    model.set(trait, select.value);
+    model.save_changes();
+  });
+  return { select, sync };
+};
+
 /**
  * Celldega Clerk chat UI. Mirrors the Enrich widget's plumbing, but instead of
  * rendering enrichment bars it collects a free-form question, pre-gathers evidence
@@ -107,37 +149,23 @@ export const render_clerk = async ({ model, el }) => {
   sendBtn.style.cursor = 'pointer';
   sendBtn.style.fontFamily = FONT;
 
-  // Takes effect on the next question; mirrors the Python `model` trait.
-  const modelSelect = document.createElement('select');
-  modelSelect.title =
-    'Claude model for the next question ("Default model" = your claude CLI default)';
-  modelSelect.style.marginLeft = '5px';
-  modelSelect.style.alignSelf = 'center';
-  modelSelect.style.fontFamily = FONT;
-  modelSelect.style.fontSize = '13px';
-
-  const syncModelSelect = () => {
-    const current = model.get('model') || '';
-    // Keep a custom model id set from Python selectable instead of dropping it.
-    const options = MODEL_OPTIONS.some(([value]) => value === current)
-      ? MODEL_OPTIONS
-      : [...MODEL_OPTIONS, [current, current]];
-    modelSelect.innerHTML = '';
-    options.forEach(([value, label]) => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = label;
-      modelSelect.appendChild(option);
-    });
-    modelSelect.value = current;
-  };
-  modelSelect.addEventListener('change', () => {
-    model.set('model', modelSelect.value);
-    model.save_changes();
-  });
+  // Both take effect on the next question and mirror the Python traits.
+  const modelPicker = make_trait_select(
+    model,
+    'model',
+    MODEL_OPTIONS,
+    'Claude model for the next question ("Default model" = your claude CLI default)'
+  );
+  const effortPicker = make_trait_select(
+    model,
+    'effort',
+    EFFORT_OPTIONS,
+    'Reasoning effort for the next question; higher is slower and uses more tokens'
+  );
 
   inputRow.appendChild(textarea);
-  inputRow.appendChild(modelSelect);
+  inputRow.appendChild(modelPicker.select);
+  inputRow.appendChild(effortPicker.select);
   inputRow.appendChild(sendBtn);
 
   container.appendChild(evidence);
@@ -328,11 +356,13 @@ export const render_clerk = async ({ model, el }) => {
     ['change:gene_list', renderEvidence],
     ['change:messages', renderMessages],
     ['change:pending', onPending],
-    ['change:model', syncModelSelect],
+    ['change:model', modelPicker.sync],
+    ['change:effort', effortPicker.sync],
   ];
   listeners.forEach(([event, handler]) => model.on(event, handler));
 
-  syncModelSelect();
+  modelPicker.sync();
+  effortPicker.sync();
   renderEvidence();
   renderMessages();
 

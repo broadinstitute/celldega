@@ -20,10 +20,12 @@ Example::
     )
 """
 
+from . import lookups
 from .casefile import CaseFile
 from .llm import (
     CLUSTERGRAM_ACTIONS_HELP,
     DEFAULT_TIMEOUT,
+    EFFORT_LEVELS,
     LOGIN_HELP,
     ClerkBackendError,
     ask,
@@ -31,24 +33,33 @@ from .llm import (
     claude_auth_status,
     claude_available,
     extract_actions,
+    extract_findings,
     format_clustergram_state,
     format_enrich_state,
+    format_landscape_state,
     run_claude,
 )
+from .prompts import SYSTEM_PROMPT, actions_help
 
 
 __all__ = [
     "CLUSTERGRAM_ACTIONS_HELP",
     "DEFAULT_TIMEOUT",
+    "EFFORT_LEVELS",
     "LOGIN_HELP",
+    "SYSTEM_PROMPT",
     "CaseFile",
     "ClerkBackendError",
+    "actions_help",
     "ask",
     "build_prompt",
     "claude_auth_status",
     "claude_available",
     "extract_actions",
+    "extract_findings",
     "format_clustergram_state",
     "format_enrich_state",
+    "format_landscape_state",
+    "lookups",
     "run_claude",
 ]

@@ -214,11 +214,11 @@ const render_landscape = async ({ model, el }) => {
   // Raster capture: Python sends {event: 'capture_raster'}; reply with a one-off
   // message rather than synced traits, so captured images are never saved into the
   // notebook's widget state.
-  if (landscape && typeof landscape.captureRaster === 'function') {
+  if (landscape && typeof landscape.capture_raster === 'function') {
     const on_capture_request = (msg) => {
       if (msg?.event !== 'capture_raster') return;
       try {
-        const capture = landscape.captureRaster({
+        const capture = landscape.capture_raster({
           max_size: msg.max_size,
           thumb_size: msg.thumb_size,
         });
@@ -240,9 +240,31 @@ const render_landscape = async ({ model, el }) => {
     };
     model.on('msg:custom', on_capture_request);
 
+    // Viz API for Python (e.g. Clerk): state snapshots and setters, answered with
+    // one-off messages so nothing is saved into the notebook's widget state.
+    const on_state_message = async (msg) => {
+      if (msg?.event === 'get_state' && landscape.get_state) {
+        try {
+          const state = landscape.get_state(msg.options || {});
+          model.send({ event: 'state', id: msg.id, state });
+        } catch (e) {
+          model.send({ event: 'state_error', id: msg.id, error: e.message });
+        }
+      } else if (msg?.event === 'apply_state' && landscape.apply_state) {
+        try {
+          const done = await landscape.apply_state(msg.changes || {});
+          model.send({ event: 'applied', id: msg.id, done });
+        } catch (e) {
+          model.send({ event: 'apply_error', id: msg.id, error: e.message });
+        }
+      }
+    };
+    model.on('msg:custom', on_state_message);
+
     const finalize_landscape = landscape.finalize;
     landscape.finalize = () => {
       model.off?.('msg:custom', on_capture_request);
+      model.off?.('msg:custom', on_state_message);
       finalize_landscape?.();
     };
   }

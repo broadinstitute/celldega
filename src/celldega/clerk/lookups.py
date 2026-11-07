@@ -29,13 +29,13 @@ class ClerkLookupError(RuntimeError):
 
 def _get_json(url: str, timeout: float = _TIMEOUT):
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 (fixed https hosts)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
 def _get_text(url: str, timeout: float = _TIMEOUT) -> str:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 (fixed https hosts)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read().decode("utf-8")
 
 
@@ -57,7 +57,7 @@ def _post_gene_list(genes: list[str], timeout: float = _TIMEOUT) -> int:
         },
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 (fixed https host)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if "userListId" not in payload:
         raise ClerkLookupError(f"Enrichr did not accept the gene list: {payload}")
@@ -118,16 +118,25 @@ def pubmed(query: str, n: int = 5, abstract_chars: int = 600) -> list[dict]:
     if key in _pubmed_cache:
         return _pubmed_cache[key]
     search = urllib.parse.urlencode(
-        {"db": "pubmed", "term": query, "retmax": n, "retmode": "json", "sort": "relevance", "tool": USER_AGENT}
+        {
+            "db": "pubmed",
+            "term": query,
+            "retmax": n,
+            "retmode": "json",
+            "sort": "relevance",
+            "tool": USER_AGENT,
+        }
     )
-    ids = _get_json(f"{EUTILS_URL}/esearch.fcgi?{search}").get("esearchresult", {}).get("idlist", [])
+    ids = (
+        _get_json(f"{EUTILS_URL}/esearch.fcgi?{search}").get("esearchresult", {}).get("idlist", [])
+    )
     if not ids:
         _pubmed_cache[key] = []
         return []
     fetch = urllib.parse.urlencode(
         {"db": "pubmed", "id": ",".join(ids), "retmode": "xml", "tool": USER_AGENT}
     )
-    root = ET.fromstring(_get_text(f"{EUTILS_URL}/efetch.fcgi?{fetch}"))  # noqa: S314 (NCBI XML)
+    root = ET.fromstring(_get_text(f"{EUTILS_URL}/efetch.fcgi?{fetch}"))
     articles = []
     for article in root.iter("PubmedArticle"):
         abstract = " ".join("".join(node.itertext()) for node in article.iter("AbstractText"))
@@ -159,7 +168,9 @@ def format_enrichr(gene_label: str, results: dict[str, list[dict]], max_genes: i
             lines.append("  (no terms)")
         for rank, term in enumerate(terms, start=1):
             genes = term.get("genes") or []
-            shown = ", ".join(genes[:max_genes]) + (f", +{len(genes) - max_genes}" if len(genes) > max_genes else "")
+            shown = ", ".join(genes[:max_genes]) + (
+                f", +{len(genes) - max_genes}" if len(genes) > max_genes else ""
+            )
             lines.append(
                 f"  {rank}. {term['name']} (combined score {term['score']:.3g}; "
                 f"adj. p {term['adjusted_p']:.2g}): {shown}"
@@ -172,9 +183,8 @@ def format_pubmed(query: str, articles: list[dict]) -> str:
     if not articles:
         return f"PubMed search {query!r}: no results."
     lines = [f"PubMed search {query!r}:"]
-    for article in articles:
-        lines.append(
-            f"- PMID {article['pmid']} ({article['journal']} {article['year']}): "
-            f"{article['title']} {article['abstract']}".rstrip()
-        )
+    lines.extend(
+        f"- PMID {a['pmid']} ({a['journal']} {a['year']}): {a['title']} {a['abstract']}".rstrip()
+        for a in articles
+    )
     return "\n".join(lines)

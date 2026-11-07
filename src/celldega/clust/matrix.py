@@ -1140,7 +1140,9 @@ class Matrix:
         self.viz["markers"] = self._marker_payload()
         return self
 
-    def _marker_payload(self, max_per_cluster: int = MAX_MARKERS_PER_CLUSTER) -> dict[str, list[int]]:
+    def _marker_payload(
+        self, max_per_cluster: int = MAX_MARKERS_PER_CLUSTER
+    ) -> dict[str, list[int]]:
         """Each cluster's top markers (``rank_genes_groups``), best first, as row indices.
 
         Sent to the front end with the views, so the Clustergram -- and agents reading

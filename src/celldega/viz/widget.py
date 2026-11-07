@@ -326,7 +326,48 @@ def _coerce_nbhd_for_landscape(
     return gdf, meta_nbhd
 
 
-class Landscape(CelldegaWidget):
+class _StateSnapshots(traitlets.HasTraits):
+    """Mixin: ask the browser for a snapshot of what a widget shows.
+
+    The widget's front end answers a ``{"event": "get_state", "id", "options"}``
+    message with ``{"event": "state", "id", "state"}`` (or ``"state_error"``). The
+    snapshot is kept Python-side only -- these traits are never synced, so snapshots
+    are not saved into the notebook's widget state. Subclasses call
+    :meth:`_listen_for_state` from ``__init__`` and expose a ``request_state`` method
+    that builds the options.
+    """
+
+    latest_state = traitlets.Dict(default_value={})
+    state_error = traitlets.Unicode("")
+    # Id of the latest request the browser answered (successfully or not). Set last,
+    # so observers of this trait see the finished snapshot.
+    state_capture_id = traitlets.Int(0)
+
+    def _listen_for_state(self) -> None:
+        self._state_request_id = 0
+        self.on_msg(self._on_state_msg)
+
+    def _send_state_request(self, options: dict) -> int:
+        self._state_request_id += 1
+        self.send({"event": "get_state", "id": self._state_request_id, "options": options})
+        return self._state_request_id
+
+    def _on_state_msg(self, _widget, content, _buffers) -> None:
+        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
+            return
+        reply_id = content.get("id")
+        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
+        if reply_id < self.state_capture_id:
+            return  # stale reply (e.g. a second view answering an older request)
+        if content["event"] == "state_error":
+            self.state_error = str(content.get("error") or "State snapshot failed")
+        else:
+            self.state_error = ""
+            self.latest_state = dict(content.get("state") or {})
+        self.state_capture_id = reply_id
+
+
+class Landscape(_StateSnapshots, CelldegaWidget):
     """
     Interactive spatial tissue and low dimensional embedding landscapes.
 
@@ -590,6 +631,172 @@ class Landscape(CelldegaWidget):
             self.raster_thumb = content.get("thumb") or ""
             self.raster_png = content.get("png") or ""
         self.raster_capture_id = reply_id
+
+    # Setters (see apply_state): reply bookkeeping, Python-side only.
+    apply_error = traitlets.Unicode("")
+    # Id of the latest apply_state request the browser finished (or failed).
+    apply_capture_id = traitlets.Int(0)
+
+    #: Keys :meth:`apply_state` understands.
+    APPLY_STATE_KEYS = ("clusters", "genes", "view", "zoom_to", "reset_view", "space")
+
+    def request_state(self, max_bars: int = 25) -> int:
+        """Ask the browser for a snapshot of what this Landscape shows.
+
+        The snapshot holds the space (spatial / UMAP), the camera (target, zoom), how
+        cells are colored (``"cluster"`` or genes), the selected clusters and genes,
+        and the cluster and gene counts in the current field of view (as in the bar
+        charts). Asynchronous: the reply sets :attr:`latest_state`. Drawn
+        neighborhoods are already in Python: see :meth:`neighborhood_summary`.
+
+        Args:
+            max_bars: Cap on the clusters and genes listed for the field of view.
+
+        Returns:
+            int: The id of this request.
+        """
+        return self._send_state_request({"max_bars": int(max_bars)})
+
+    def apply_state(self, changes: dict) -> list[str]:
+        """Change what the Landscape shows, as its controls would.
+
+        All changes are validated before any is applied.
+
+        Args:
+            changes: Any of:
+
+                - ``clusters``: cluster names to select / highlight (exactly; ``[]``
+                  clears the selection), like clicking cluster bars.
+                - ``genes``: genes to color cells by (up to 20; ``[]`` returns to
+                  cluster colors), like the comma-separated gene search.
+                - ``view``: ``{"target": [x, y], "zoom": z}`` camera position.
+                - ``zoom_to``: ``{"clusters": [...]}`` or ``{"cells": [...]}`` to frame
+                  those cells (spatial view).
+                - ``reset_view``: ``True`` to return to the starting view.
+                - ``space``: ``"spatial"``, ``"umap"`` or ``"xy"``.
+
+        Returns:
+            list[str]: A short description of each change.
+
+        Raises:
+            ValueError: For an unknown key or an invalid value (nothing changes).
+        """
+        if not isinstance(changes, dict):
+            raise ValueError("changes must be a dict")
+        unknown = sorted(set(changes) - set(self.APPLY_STATE_KEYS))
+        if unknown:
+            raise ValueError(
+                f"Unknown Landscape setting(s): {unknown}; supported: {list(self.APPLY_STATE_KEYS)}"
+            )
+
+        def _names(key):
+            value = changes[key]
+            if isinstance(value, str) or not isinstance(value, list | tuple):
+                raise ValueError(f"{key} must be a list of names")
+            return [str(v) for v in value]
+
+        browser: dict[str, Any] = {}
+        described: list[str] = []
+        if "clusters" in changes:
+            browser["clusters"] = _names("clusters")
+            described.append(
+                f"highlighted clusters {', '.join(browser['clusters'])}"
+                if browser["clusters"]
+                else "cleared the cluster selection"
+            )
+        if "genes" in changes:
+            browser["genes"] = _names("genes")[:20]
+            described.append(
+                f"colored cells by {', '.join(browser['genes'])}"
+                if browser["genes"]
+                else "returned to cluster colors"
+            )
+        if changes.get("reset_view"):
+            browser["reset_view"] = True
+            described.append("reset the view")
+        elif "zoom_to" in changes:
+            target = changes["zoom_to"]
+            if not isinstance(target, dict) or not (target.get("clusters") or target.get("cells")):
+                raise ValueError("zoom_to must be {'clusters': [...]} or {'cells': [...]}")
+            key = "clusters" if target.get("clusters") else "cells"
+            names = target[key]
+            if isinstance(names, str) or not isinstance(names, list | tuple):
+                raise ValueError(f"zoom_to.{key} must be a list of names")
+            browser["zoom_to"] = {key: [str(n) for n in names]}
+            described.append(f"zoomed to {key} {', '.join(map(str, names[:10]))}")
+        elif "view" in changes:
+            view = changes["view"]
+            if not isinstance(view, dict) or not ("target" in view or "zoom" in view):
+                raise ValueError("view must be {'target': [x, y], 'zoom': z}")
+            browser["view"] = {
+                k: ([float(v) for v in view[k]] if k == "target" else float(view[k]))
+                for k in ("target", "zoom")
+                if k in view
+            }
+            described.append("moved the view")
+        space = changes.get("space")
+        if space is not None and space not in ("spatial", "umap", "xy"):
+            raise ValueError("space must be 'spatial', 'umap' or 'xy'")
+
+        if space is not None:
+            self.landscape_state = space
+            described.append(f"switched to the {space} view")
+        if browser:
+            self._apply_request_id += 1
+            self.send({"event": "apply_state", "id": self._apply_request_id, "changes": browser})
+        return described
+
+    def _on_apply_msg(self, _widget, content, _buffers) -> None:
+        if not isinstance(content, dict) or content.get("event") not in ("applied", "apply_error"):
+            return
+        reply_id = content.get("id")
+        reply_id = reply_id if isinstance(reply_id, int) else self.apply_capture_id
+        if reply_id < self.apply_capture_id:
+            return
+        self.apply_error = (
+            str(content.get("error") or "apply_state failed")
+            if content["event"] == "apply_error"
+            else ""
+        )
+        self.apply_capture_id = reply_id
+
+    def neighborhood_summary(self, max_clusters: int = 8) -> list[dict]:
+        """Drawn neighborhoods, with each one's cell count and cluster mix.
+
+        Reads :attr:`nbhd_polygons` (regions drawn in the Landscape, in any space) and
+        this Landscape's per-cell clusters (``meta_cell[cluster_attr]``).
+
+        Returns:
+            list[dict]: ``{"name", "space", "n_cells", "clusters": [{"name", "count",
+            "fraction"}, ...]}`` per neighborhood, largest clusters first.
+        """
+        frame = self.nbhd_polygons
+        if frame.empty:
+            return []
+        clusters = None
+        meta = self.meta_cell
+        if isinstance(meta, pd.DataFrame) and self.cluster_attr in meta:
+            clusters = meta[self.cluster_attr].astype(str)
+            clusters.index = clusters.index.astype(str)
+        summary = []
+        for _, row in frame.iterrows():
+            ids = row.get("cell_ids")
+            ids = [str(i) for i in ids] if isinstance(ids, list | tuple | np.ndarray) else []
+            entry: dict[str, Any] = {
+                "name": str(row.get("name") or ""),
+                "space": row.get("space"),
+                "n_cells": len(ids),
+                "clusters": [],
+            }
+            if clusters is not None and ids:
+                counts = clusters.reindex(ids).dropna().value_counts()
+                total = int(counts.sum())
+                entry["clusters"] = [
+                    {"name": str(name), "count": int(count), "fraction": round(count / total, 3)}
+                    for name, count in counts.head(max_clusters).items()
+                ]
+            summary.append(entry)
+        return summary
 
     def __init__(self, **kwargs):
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
@@ -885,6 +1092,9 @@ class Landscape(CelldegaWidget):
 
         self._raster_request_id = 0
         self.on_msg(self._on_custom_msg)
+        self._apply_request_id = 0
+        self.on_msg(self._on_apply_msg)
+        self._listen_for_state()
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr
@@ -1090,47 +1300,6 @@ class Landscape(CelldegaWidget):
         self.nbhd = self.nbhd_polygons
 
 
-class _StateSnapshots(traitlets.HasTraits):
-    """Mixin: ask the browser for a snapshot of what a widget shows.
-
-    The widget's front end answers a ``{"event": "get_state", "id", "options"}``
-    message with ``{"event": "state", "id", "state"}`` (or ``"state_error"``). The
-    snapshot is kept Python-side only -- these traits are never synced, so snapshots
-    are not saved into the notebook's widget state. Subclasses call
-    :meth:`_listen_for_state` from ``__init__`` and expose a ``request_state`` method
-    that builds the options.
-    """
-
-    latest_state = traitlets.Dict(default_value={})
-    state_error = traitlets.Unicode("")
-    # Id of the latest request the browser answered (successfully or not). Set last,
-    # so observers of this trait see the finished snapshot.
-    state_capture_id = traitlets.Int(0)
-
-    def _listen_for_state(self) -> None:
-        self._state_request_id = 0
-        self.on_msg(self._on_state_msg)
-
-    def _send_state_request(self, options: dict) -> int:
-        self._state_request_id += 1
-        self.send({"event": "get_state", "id": self._state_request_id, "options": options})
-        return self._state_request_id
-
-    def _on_state_msg(self, _widget, content, _buffers) -> None:
-        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
-            return
-        reply_id = content.get("id")
-        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
-        if reply_id < self.state_capture_id:
-            return  # stale reply (e.g. a second view answering an older request)
-        if content["event"] == "state_error":
-            self.state_error = str(content.get("error") or "State snapshot failed")
-        else:
-            self.state_error = ""
-            self.latest_state = dict(content.get("state") or {})
-        self.state_capture_id = reply_id
-
-
 class ManualAttributeTrait(traitlets.Unicode):
     """Traitlet for configuring manual attribute names via bools or strings."""
 
@@ -1251,6 +1420,8 @@ class Clerk(CelldegaWidget):
         model (str): Optional Claude model alias or id (e.g. ``"opus"``, ``"sonnet"``,
             ``"haiku"``). Empty inherits the CLI default. A smaller model is
             cheaper/faster for routine annotation.
+        effort (str): Reasoning effort, ``"low"`` to ``"max"`` (``"xhigh"`` in between);
+            empty inherits the CLI default. Higher effort is slower and uses more tokens.
         width (int): Widget width in px; 0 (default) means full container width.
         name (str): Registry key; creating a new Clerk with the same name closes the old.
     """
@@ -1277,6 +1448,8 @@ class Clerk(CelldegaWidget):
 
     # Model config
     model = traitlets.Unicode("").tag(sync=True)
+    # Reasoning effort ("low", "medium", "high", "xhigh", "max"); "" = CLI default.
+    effort = traitlets.Unicode("").tag(sync=True)
     timeout = traitlets.Int(180).tag(sync=True)
 
     # Chat state (kept in memory only)
@@ -1308,6 +1481,8 @@ class Clerk(CelldegaWidget):
         self._last_request_id = None
         self._linked_widgets = {}
         self._worker: threading.Thread | None = None
+        # Cell types Clerk has proposed (see findings_df / write_cell_types).
+        self.findings: list[dict] = []
         # Which Clustergram rows/columns to describe with each question: on screen by
         # default ("viewport"), or "ranked" / a list of names; see
         # Clustergram.request_state for the options.
@@ -1356,6 +1531,7 @@ class Clerk(CelldegaWidget):
             "info": self.context_info,
             "image_b64": self.image_b64 or None,
             "model": self.model,
+            "effort": self.effort,
             "timeout": self.timeout,
         }
 
@@ -1436,7 +1612,12 @@ class Clerk(CelldegaWidget):
                     found.append(name)
         return found[:limit]
 
-    def _refresh_views(self, question: str = "", extra_rows: Sequence[str] = ()) -> dict:
+    def _refresh_views(
+        self,
+        question: str = "",
+        extra_rows: Sequence[str] = (),
+        markers: dict | None = None,
+    ) -> dict:
         """Capture the linked views as they are now, before a question is sent.
 
         The Landscape screenshot lands in ``image_b64`` (via the ``link_clerk``
@@ -1451,6 +1632,8 @@ class Clerk(CelldegaWidget):
         result = {
             "clustergram_state": None,
             "enrich_state": None,
+            "landscape_state": None,
+            "neighborhoods": None,
             "image_fresh": False,
             "notes": [],
             "summary": [],
@@ -1462,6 +1645,9 @@ class Clerk(CelldegaWidget):
         if has_landscape:
             requests.append((landscape, "raster_capture_id", landscape.request_raster))
             labels.append("landscape")
+            if hasattr(landscape, "request_state"):
+                requests.append((landscape, "state_capture_id", landscape.request_state))
+                labels.append("landscape_state")
         cgm = self._linked_widgets.get("clustergram")
         has_cgm = cgm is not None and hasattr(cgm, "request_state")
         if has_cgm:
@@ -1479,6 +1665,8 @@ class Clerk(CelldegaWidget):
                 "extra_rows",
                 list(dict.fromkeys([*(str(g) for g in extra_rows), *mentioned])),
             )
+            if markers:
+                options["markers"] = markers
             requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
             labels.append("clustergram")
         enrich = self._linked_widgets.get("enrich")
@@ -1504,6 +1692,16 @@ class Clerk(CelldegaWidget):
                     "not be displayed); any image attached is from an earlier view."
                 )
                 result["summary"].append("Landscape: no new screenshot")
+            if answered.get("landscape_state") and landscape.latest_state:
+                result["landscape_state"] = dict(landscape.latest_state)
+            if hasattr(landscape, "neighborhood_summary"):
+                try:
+                    neighborhoods = landscape.neighborhood_summary()
+                except Exception:  # drawn regions are optional evidence
+                    neighborhoods = []
+                if neighborhoods:
+                    result["neighborhoods"] = neighborhoods
+                    result["summary"].append(f"{len(neighborhoods)} drawn neighborhoods")
         if has_cgm:
             if answered.get("clustergram") and not cgm.state_error and cgm.latest_state:
                 state = dict(cgm.latest_state)
@@ -1554,42 +1752,334 @@ class Clerk(CelldegaWidget):
                 break
         self.messages = messages
 
-    # Rounds of view changes Clerk may make for one question; each is another model call.
-    max_action_rounds = 2
+    # Rounds of lookups / view changes Clerk may make for one question; each is another
+    # model call. Checking carefully can take a few (markers -> Enrichr -> PubMed).
+    max_action_rounds = 3
+
+    @staticmethod
+    def _markers_needed(reads: dict) -> dict | None:
+        """One Clustergram markers request covering ``lookup.markers`` and any
+        ``enrichr`` specs that name a cluster."""
+        spec = reads.get("markers")
+        clusters: list[str] = []
+        n = 0
+        every = False
+        if spec:
+            n = spec["n"]
+            if spec["clusters"] is None:
+                every = True
+            else:
+                clusters.extend(spec["clusters"])
+        for entry in reads.get("enrichr") or []:
+            if entry["cluster"]:
+                clusters.append(entry["cluster"])
+                n = max(n, entry["n"])
+        if not every and not clusters:
+            return None
+        return {"clusters": None if every else list(dict.fromkeys(clusters)), "n": n or 25}
+
+    def _record_findings(self, findings: dict, question: str) -> None:
+        """Keep proposed cell types (``celldega-findings``) and note them in the chat."""
+        recorded = []
+        for item in findings.get("cell_types") or []:
+            if not isinstance(item, dict) or item.get("cluster") is None or not item.get("label"):
+                continue
+            entry = {
+                "cluster": str(item["cluster"]),
+                "label": str(item["label"]),
+                "confidence": str(item.get("confidence") or ""),
+                "markers": [str(g) for g in item.get("markers") or []],
+                "notes": str(item.get("notes") or ""),
+                "question": question,
+                "recorded": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            self.findings.append(entry)
+            confidence = f" ({entry['confidence']})" if entry["confidence"] else ""
+            recorded.append(f"{entry['cluster']} → {entry['label']}{confidence}")
+        if recorded:
+            self._append(
+                {
+                    "role": "action",
+                    "content": "Recorded tentative cell types: " + ", ".join(recorded),
+                }
+            )
+            if self.label_clustergram:
+                self._label_clustergram(
+                    {e["cluster"]: e["label"] for e in self.findings[-len(recorded) :]}
+                )
+
+    # Write recorded cell types into the linked Clustergram's manual column category.
+    label_clustergram = True
+    # Attribute used when the Clustergram has no manual column category set up.
+    clustergram_label_attribute = "clerk_cell_type"
+
+    def _label_clustergram(self, labels: dict[str, str]) -> None:
+        """Label Clustergram columns with Clerk's proposals, keeping the scientist's own.
+
+        A column already labeled by the scientist (with something other than Clerk's
+        previous proposal) is left alone.
+        """
+        cgm = self._linked_widgets.get("clustergram")
+        if cgm is None or not hasattr(cgm, "set_categories"):
+            return
+        try:
+            _axis, attribute = cgm._category_target("col", None)
+        except ValueError:
+            attribute = self.clustergram_label_attribute
+        current = ((cgm.manual_cat_dict or {}).get("col") or {}).get(attribute, {}).get(
+            "values"
+        ) or {}
+        mine = getattr(self, "_clerk_labels", {})
+        apply, kept = {}, []
+        for cluster, label in labels.items():
+            existing = current.get(cluster)
+            if existing and existing != mine.get(cluster):
+                kept.append(f"{cluster} ({existing})")
+                continue
+            if existing != label:
+                apply[cluster] = label
+        if apply:
+            try:
+                cgm.set_categories(apply, axis="col", attribute=attribute)
+            except ValueError as exc:
+                self._append({"role": "error", "content": f"Couldn't label the Clustergram: {exc}"})
+                return
+            self._clerk_labels = {**mine, **apply}
+        note = []
+        if apply:
+            pairs = ", ".join(f"{k} → {v}" for k, v in apply.items())
+            note.append(f"Labeled Clustergram columns ({attribute}): {pairs}")
+        if kept:
+            note.append("kept your labels for " + ", ".join(kept))
+        if note:
+            self._append({"role": "action", "content": "; ".join(note)})
+
+    def findings_df(self) -> pd.DataFrame:
+        """Cell types Clerk has proposed, one row per proposal (latest last).
+
+        Columns: ``cluster``, ``label``, ``confidence``, ``markers`` (supporting genes),
+        ``notes``, ``question`` (what was asked) and ``recorded`` (time).
+        """
+        columns = ["cluster", "label", "confidence", "markers", "notes", "question", "recorded"]
+        return pd.DataFrame(
+            [{**f, "markers": ", ".join(f["markers"])} for f in self.findings], columns=columns
+        )
+
+    def write_cell_types(
+        self,
+        adata,
+        groupby: str,
+        key: str = "clerk_cell_type",
+        *,
+        overwrite: bool = False,
+        unassigned: str = "Unassigned",
+    ) -> pd.Series:
+        """Write Clerk's latest proposed cell type per cluster into ``adata.obs[key]``.
+
+        Works for a cell-level AnnData (``obs[groupby]`` holds each cell's cluster) and
+        for a cluster-level one such as the signature AnnData behind a Clustergram.
+        Clusters without a proposal get ``unassigned``. Adds a column only: an existing
+        ``key`` is left alone unless ``overwrite=True``. The labels used, and where they
+        came from, are recorded in ``adata.uns["clerk_cell_types"][key]``.
+
+        Returns:
+            pd.Series: The new column.
+        """
+        if groupby not in adata.obs:
+            raise KeyError(f"{groupby!r} is not a column of adata.obs")
+        if key in adata.obs and not overwrite:
+            raise ValueError(f"adata.obs already has {key!r}; pass overwrite=True to replace it")
+        labels: dict[str, str] = {}
+        for finding in self.findings:  # later proposals win
+            labels[finding["cluster"]] = finding["label"]
+        values = adata.obs[groupby].astype(str).map(labels).fillna(unassigned)
+        adata.obs[key] = pd.Categorical(values)
+        adata.uns.setdefault("clerk_cell_types", {})[key] = {
+            "groupby": groupby,
+            "labels": labels,
+            "written": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        return adata.obs[key]
 
     def _append(self, message: dict) -> None:
         self.messages = [*self.messages, message]
 
-    def _apply_actions(self, actions: dict) -> tuple[list[str], list[str]]:
-        """Apply a ``celldega-actions`` request to the linked widgets.
+    # Caps on what one lookup request can ask for.
+    _MAX_LOOKUP_GENES = 200
+    _MAX_ENRICHR_REQUESTS = 4
+    _MAX_PUBMED_QUERIES = 3
 
-        ``lookup_genes`` is read-only: those rows are added to the next Clustergram
-        snapshot without changing what the scientist sees. Everything else goes to
-        ``Clustergram.apply_state``.
+    def _apply_actions(self, actions: dict) -> tuple[list[str], dict]:
+        """Validate a ``celldega-actions`` request and apply its view changes.
+
+        ``lookup`` is read-only and nothing in it changes what the scientist sees:
+        ``genes`` (rows added to the next Clustergram snapshot), ``markers`` (ranked
+        markers per cluster, ``{"clusters": [...], "n": 25}``), ``enrichr`` (a spec or
+        list of specs, each ``{"genes": [...]}`` or ``{"cluster": "4", "n": 25}``,
+        plus optional ``libraries``) and ``pubmed`` (a query or list of queries).
+        ``clustergram`` settings go to ``Clustergram.apply_state`` (its legacy
+        ``lookup_genes`` key is read as ``lookup.genes``).
 
         Returns:
-            tuple: ``(changes, lookups)`` -- what changed, e.g. ``["the Clustergram: DIM
-            -> 10 markers per cluster"]``, and the genes to look up.
+            tuple: ``(changes, reads)``; ``changes`` describes view changes made,
+            ``reads`` holds the validated lookups (run after the views are re-read).
 
         Raises:
-            ValueError: For a widget Clerk can't change, or an invalid setting.
+            ValueError: For something Clerk can't do, or an invalid request.
         """
-        unknown = sorted(set(actions) - {"clustergram"})
+        unknown = sorted(set(actions) - {"clustergram", "landscape", "lookup"})
         if unknown:
-            raise ValueError(f"Clerk can't change {unknown} yet; it can change the Clustergram")
+            raise ValueError(
+                f"unknown action(s) {unknown}; use 'lookup', 'clustergram' and/or 'landscape'"
+            )
+        landscape_settings = actions.get("landscape")
+        landscape = self._linked_widgets.get("landscape")
+        if landscape_settings is not None and (
+            landscape is None or not hasattr(landscape, "apply_state")
+        ):
+            raise ValueError("no Landscape is linked")
+        lookup = actions.get("lookup") or {}
+        settings = dict(actions.get("clustergram") or {})
+        if not isinstance(lookup, dict):
+            raise ValueError("'lookup' must be an object")
+
+        def _names(value, what):
+            if value is None:
+                return []
+            if isinstance(value, str) or not isinstance(value, list | tuple):
+                raise ValueError(f"{what} must be a list of names")
+            return [str(v) for v in value][: self._MAX_LOOKUP_GENES]
+
+        reads: dict[str, Any] = {
+            "genes": _names(settings.pop("lookup_genes", None), "lookup_genes")
+            + _names(lookup.get("genes"), "lookup.genes"),
+            "markers": None,
+            "enrichr": [],
+            "pubmed": [],
+        }
+        markers = lookup.get("markers")
+        if markers is not None:
+            if not isinstance(markers, dict):
+                raise ValueError("lookup.markers must be like {'clusters': ['4'], 'n': 25}")
+            reads["markers"] = {
+                "clusters": None
+                if markers.get("clusters") is None
+                else _names(markers["clusters"], "markers.clusters"),
+                "n": int(markers.get("n", 25)),
+            }
+        enrichr = lookup.get("enrichr")
+        for spec in ([enrichr] if isinstance(enrichr, dict) else enrichr or [])[
+            : self._MAX_ENRICHR_REQUESTS
+        ]:
+            if not isinstance(spec, dict) or not (spec.get("genes") or spec.get("cluster")):
+                raise ValueError("each lookup.enrichr needs 'genes' or 'cluster'")
+            reads["enrichr"].append(
+                {
+                    "genes": _names(spec.get("genes"), "enrichr.genes"),
+                    "cluster": None if spec.get("cluster") is None else str(spec["cluster"]),
+                    "n": int(spec.get("n", 25)),
+                    "libraries": _names(spec.get("libraries"), "enrichr.libraries") or None,
+                }
+            )
+        pubmed = lookup.get("pubmed")
+        queries = [pubmed] if isinstance(pubmed, str) else list(pubmed or [])
+        reads["pubmed"] = [str(q) for q in queries if str(q).strip()][: self._MAX_PUBMED_QUERIES]
+
         cgm = self._linked_widgets.get("clustergram")
-        if cgm is None or not hasattr(cgm, "apply_state"):
+        needs_cgm = (
+            settings
+            or reads["genes"]
+            or reads["markers"]
+            or any(spec["cluster"] for spec in reads["enrichr"])
+        )
+        if needs_cgm and (cgm is None or not hasattr(cgm, "apply_state")):
             raise ValueError("no Clustergram is linked")
-        settings = dict(actions["clustergram"])
-        lookups = settings.pop("lookup_genes", None) or []
-        if isinstance(lookups, str) or not isinstance(lookups, list | tuple):
-            raise ValueError("lookup_genes must be a list of gene names")
-        changes = cgm.apply_state(settings) if settings else []
-        return [f"the Clustergram: {change}" for change in changes], [str(g) for g in lookups]
+        # Validate both widgets' changes before applying either.
+        if landscape_settings:
+            unknown_keys = sorted(set(landscape_settings) - set(landscape.APPLY_STATE_KEYS))
+            if unknown_keys:
+                raise ValueError(f"unknown Landscape setting(s): {unknown_keys}")
+        changes = [f"the Clustergram: {c}" for c in (cgm.apply_state(settings) if settings else [])]
+        self._pending_landscape_apply = None
+        if landscape_settings:
+            before = getattr(landscape, "_apply_request_id", 0)
+            changes += [f"the Landscape: {c}" for c in landscape.apply_state(landscape_settings)]
+            if getattr(landscape, "_apply_request_id", 0) != before:
+                self._pending_landscape_apply = landscape._apply_request_id
+        return changes, reads
+
+    def _wait_for_landscape_apply(self) -> None:
+        """Let the browser finish a Landscape change (e.g. loading gene expression)
+        before the next screenshot is taken."""
+        pending = getattr(self, "_pending_landscape_apply", None)
+        landscape = self._linked_widgets.get("landscape")
+        if pending is None or landscape is None:
+            return
+        self._request_and_wait([(landscape, "apply_capture_id", lambda: pending)])
+        self._pending_landscape_apply = None
+
+    @staticmethod
+    def _describe_reads(reads: dict) -> list[str]:
+        """Short descriptions of the lookups, for the conversation."""
+        out = []
+        genes = reads.get("genes") or []
+        if genes:
+            shown = ", ".join(genes) if len(genes) <= 8 else f"{len(genes)} genes"
+            out.append(f"Looked up {shown} in the Clustergram (view unchanged)")
+        markers = reads.get("markers")
+        if markers:
+            which = (
+                "clusters " + ", ".join(markers["clusters"])
+                if markers.get("clusters")
+                else "all clusters"
+            )
+            out.append(f"Read the top {markers['n']} ranked markers of {which}")
+        for spec in reads.get("enrichr") or []:
+            source = (
+                f"cluster {spec['cluster']}'s top {spec['n']} markers"
+                if spec["cluster"]
+                else f"{len(spec['genes'])} genes"
+            )
+            libraries = ", ".join(spec["libraries"] or ["default libraries"])
+            out.append(f"Ran Enrichr ({libraries}) on {source}")
+        out.extend(f"Searched PubMed: {query!r}" for query in reads.get("pubmed") or [])
+        return out
+
+    def _run_lookups(self, reads: dict, clustergram_state: dict | None) -> list[str]:
+        """Run the Enrichr / PubMed lookups (worker thread); returns text for the prompt."""
+        from ..clerk import lookups
+
+        results = []
+        by_cluster = {
+            str(entry.get("cluster")): [g["name"] for g in entry.get("genes") or []]
+            for entry in (clustergram_state or {}).get("cluster_markers") or []
+        }
+        for spec in reads.get("enrichr") or []:
+            if spec["cluster"]:
+                genes = by_cluster.get(spec["cluster"], [])[: spec["n"]]
+                label = f"cluster {spec['cluster']}'s top {len(genes)} markers"
+            else:
+                genes, label = spec["genes"], f"{len(spec['genes'])} genes"
+            if not genes:
+                results.append(f"Enrichr for {label}: no genes to test.")
+                continue
+            try:
+                found = lookups.enrichr(genes, spec["libraries"] or lookups.DEFAULT_LIBRARIES)
+                results.append(lookups.format_enrichr(label, found))
+            except Exception as exc:  # network or service problems become a note
+                results.append(f"Enrichr for {label} failed: {exc}")
+        for query in reads.get("pubmed") or []:
+            try:
+                results.append(lookups.format_pubmed(query, lookups.pubmed(query)))
+            except Exception as exc:
+                results.append(f"PubMed search {query!r} failed: {exc}")
+        return results
 
     def _use_views(self, call: dict, views: dict) -> None:
         call["clustergram_state"] = views["clustergram_state"]
         call["enrich_state"] = views["enrich_state"]
+        call["landscape_state"] = views.get("landscape_state")
+        call["neighborhoods"] = views.get("neighborhoods")
         call["notes"] = list(views["notes"])
         call["image_b64"] = self.image_b64 or None
 
@@ -1614,50 +2104,60 @@ class Clerk(CelldegaWidget):
                 summary.append("context")
             self._record_evidence(summary, views["image_fresh"])
             cgm = self._linked_widgets.get("clustergram")
-            if cgm is not None and hasattr(cgm, "apply_state"):
-                call["actions_help"] = clerk.CLUSTERGRAM_ACTIONS_HELP
+            # Lookups (Enrichr, PubMed) work without widgets; Clustergram lookups and
+            # changes only when one is linked.
+            landscape = self._linked_widgets.get("landscape")
+            call["actions_help"] = clerk.actions_help(
+                clustergram=cgm is not None and hasattr(cgm, "apply_state"),
+                landscape=landscape is not None and hasattr(landscape, "apply_state"),
+            )
             question_index = len(self.messages) - 1
 
             answer = clerk.ask(question, **call)
             rounds = 0
             while True:
                 text, actions, problem = clerk.extract_actions(answer)
+                text, findings, findings_problem = clerk.extract_findings(text)
                 if text:
                     self._append({"role": "assistant", "content": text})
-                if problem:
-                    self._append({"role": "error", "content": problem})
-                    break
-                if not actions:
+                if findings:
+                    self._record_findings(findings, question)
+                for issue in (problem, findings_problem):
+                    if issue:
+                        self._append({"role": "error", "content": issue})
+                if problem or not actions:
                     break
                 if rounds >= self.max_action_rounds:
                     self._append(
                         {
                             "role": "error",
-                            "content": "Clerk asked for more view changes than one question "
-                            "allows; ask again to continue.",
+                            "content": "Clerk asked for more lookups or view changes than one "
+                            "question allows; ask again to continue.",
                         }
                     )
                     break
                 rounds += 1
                 try:
-                    changes, lookups = self._apply_actions(actions)
+                    changes, reads = self._apply_actions(actions)
                 except ValueError as exc:
-                    self._append({"role": "error", "content": f"Couldn't change the view: {exc}"})
+                    self._append({"role": "error", "content": f"Couldn't do that: {exc}"})
                     break
-                did = []
-                if changes:
-                    did.append("Changed " + "; ".join(changes))
-                if lookups:
-                    did.append(
-                        "Looked up " + ", ".join(lookups) + " in the Clustergram (view unchanged)"
-                    )
+                did = (["Changed " + "; ".join(changes)] if changes else []) + self._describe_reads(
+                    reads
+                )
                 self._append({"role": "action", "content": ". ".join(did)})
 
-                # Look at the (possibly changed) view and continue the same question.
-                self._use_views(call, self._refresh_views(question, extra_rows=lookups))
+                # Re-read the (possibly changed) views, run the lookups, and continue
+                # the same question.
+                self._wait_for_landscape_apply()
+                views = self._refresh_views(
+                    question, extra_rows=reads["genes"], markers=self._markers_needed(reads)
+                )
+                self._use_views(call, views)
+                call["lookups"] = self._run_lookups(reads, views["clustergram_state"])
                 call["notes"].append(
                     "You just " + "; ".join(d[0].lower() + d[1:] for d in did) + ". The "
-                    "evidence reflects the current view. Continue answering the "
+                    "evidence and lookup results reflect this. Continue answering the "
                     "scientist's question without repeating what you already said."
                 )
                 call["history"] = [
@@ -1714,6 +2214,7 @@ class Clerk(CelldegaWidget):
                 info=kwargs.pop("info", None) or self.context_info,
                 image_b64=kwargs.pop("image_b64", None) or self.image_b64 or None,
                 model=kwargs.pop("model", None) or self.model,
+                effort=kwargs.pop("effort", None) or self.effort,
                 timeout=kwargs.pop("timeout", None) or self.timeout,
             )
             self.messages = [*self.messages, {"role": "assistant", "content": answer}]
@@ -2408,7 +2909,7 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
 
     #: Keys :meth:`apply_state` understands (the setter half of the Clustergram's API;
     #: more controls -- order, dendrogram cut, crop, selection, zoom -- will follow).
-    APPLY_STATE_KEYS = ("marker_level", "mode", "size", "focus_gene")
+    APPLY_STATE_KEYS = ("marker_level", "mode", "size", "focus_gene", "categories")
 
     def apply_state(self, changes: dict) -> list[str]:
         """Change what the Clustergram shows, as its controls would.
@@ -2425,6 +2926,9 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
                   ``"unit"`` (full-size marks), like the PROP / UNIT buttons.
                 - ``focus_gene``: a row name to zoom to and bold, like the search
                   box; ``""`` clears it.
+                - ``categories``: manual categories, as for :meth:`set_categories`:
+                  ``{"values": {"4": "Goblet cells"}, "axis": "col", "attribute":
+                  "cell_type", "colors": {...}, "replace": False}``.
 
         Returns:
             list[str]: A short description of each change, e.g. ``"DIM -> 10 markers
@@ -2472,11 +2976,116 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
                 raise ValueError(f"{gene!r} is not a row of this Clustergram")
             updates.append(("focused_gene", gene, f"zoomed to {gene}" if gene else "cleared focus"))
 
+        categories = changes.get("categories")
+        if categories is not None:
+            if not isinstance(categories, dict) or not isinstance(categories.get("values"), dict):
+                raise ValueError(
+                    "categories must be like {'values': {'4': 'Goblet cells'}, 'axis': 'col'}"
+                )
+            category_kwargs = {
+                key: categories[key]
+                for key in ("axis", "attribute", "colors", "replace")
+                if key in categories
+            }
+            category_axis, category_attribute = self._category_target(
+                category_kwargs.get("axis", "col"), category_kwargs.get("attribute")
+            )
+            self._check_category_names(category_axis, categories["values"])
+
         for trait, value, _ in updates:
             if trait == "focused_gene" and value and self.focused_gene == value:
                 self.focused_gene = ""  # re-focusing the same gene should zoom again
             setattr(self, trait, value)
-        return [description for *_, description in updates]
+        described = [description for *_, description in updates]
+        if categories is not None:
+            self.set_categories(categories["values"], **category_kwargs)
+            pairs = ", ".join(f"{k} → {v}" for k, v in list(categories["values"].items())[:10])
+            noun = "columns" if category_axis == "col" else "rows"
+            described.append(f"labeled {noun} ({category_attribute}): {pairs}")
+        return described
+
+    # Manual-category setter replies (see set_categories), Python-side only.
+    categories_error = traitlets.Unicode("")
+
+    def _category_target(self, axis: str, attribute: str | None) -> tuple[str, str]:
+        """The axis and manual attribute a category assignment goes to."""
+        if axis not in ("row", "col"):
+            raise ValueError("axis must be 'row' or 'col'")
+        if attribute:
+            return axis, str(attribute)
+        try:
+            config = json.loads(self.manual_cat_config or "{}")
+        except json.JSONDecodeError:
+            config = {}
+        configured = (config.get(axis) or {}).get("attribute")
+        if configured and configured not in ("True", "False"):
+            return axis, str(configured)
+        flag = self.manual_col_cat if axis == "col" else self.manual_row_cat
+        if flag and flag not in ("True", "False"):
+            return axis, str(flag)
+        raise ValueError(
+            f"no manual {axis} category is set up; pass attribute=... (e.g. 'cell_type')"
+        )
+
+    def _check_category_names(self, axis: str, values: dict) -> None:
+        known = self.col_names if axis == "col" else self.row_names
+        unknown = [str(name) for name in values if known and str(name) not in known]
+        if unknown:
+            raise ValueError(f"not {axis} names of this Clustergram: {unknown[:10]}")
+
+    def set_categories(
+        self,
+        values: dict,
+        *,
+        axis: str = "col",
+        attribute: str | None = None,
+        colors: dict | None = None,
+        replace: bool = False,
+    ) -> int:
+        """Assign manual categories, as the category editor would.
+
+        For example ``cgm.set_categories({"4": "Goblet cells", "5": "Plasma cells"})``
+        labels clusters 4 and 5 in the Clustergram's manual column category. The
+        browser updates the category strips, bars and labels, and syncs the result back
+        to :attr:`manual_cat` (and so to ``col_manual_df`` / ``row_manual_df``).
+
+        Args:
+            values: ``{row or column name: category}``; an empty category removes the
+                assignment.
+            axis: ``"col"`` (default) or ``"row"``.
+            attribute: The manual attribute, e.g. ``"cell_type"``. Defaults to the one
+                set up with ``manual_col_cat`` / ``manual_row_cat``; passing one turns
+                manual categories on for that axis.
+            colors: Optional ``{category: hex}``. New categories otherwise get the
+                editor's next distinct color.
+            replace: Clear the axis's other assignments first.
+
+        Returns:
+            int: The id of this request.
+        """
+        axis, attribute = self._category_target(axis, attribute)
+        self._check_category_names(axis, values)
+        self._category_request_id = getattr(self, "_category_request_id", 0) + 1
+        self.send(
+            {
+                "event": "set_categories",
+                "id": self._category_request_id,
+                "axis": axis,
+                "attribute": attribute,
+                "values": {str(k): (None if v is None else str(v)) for k, v in values.items()},
+                "colors": {str(k): str(v) for k, v in (colors or {}).items()},
+                "replace": bool(replace),
+            }
+        )
+        return self._category_request_id
+
+    def _on_categories_msg(self, _widget, content, _buffers) -> None:
+        if not isinstance(content, dict):
+            return
+        if content.get("event") == "categories_error":
+            self.categories_error = str(content.get("error") or "set_categories failed")
+        elif content.get("event") == "categories_set":
+            self.categories_error = ""
 
     # Dendrogram-cut state driven by the front-end slider, keyed by axis, e.g.
     # {"row": {"n_clusters": 5}} or {"col": {"threshold": 0.42}}. Read by
@@ -2701,6 +3310,7 @@ class Clustergram(_StateSnapshots, CelldegaWidget):
         super().__init__(name=name, **kwargs)
 
         self._listen_for_state()
+        self.on_msg(self._on_categories_msg)
 
         # ------------------------------------------------------------------
         # Initialize a simple manual_cat_config from the flags, if the user

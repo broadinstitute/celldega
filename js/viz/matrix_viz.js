@@ -95,6 +95,7 @@ import {
   set_col_label_data,
   update_label_display_names,
 } from '../matrix/label_data';
+import { apply_manual_categories } from '../matrix/manual_categories';
 import {
   set_mat_data,
   apply_mat_encoding,
@@ -113,7 +114,10 @@ import {
   sync_rank_view_model,
 } from '../matrix/rank_views';
 import { set_mat_constants } from '../matrix/set_constants';
-import { initialize_attribute_editor } from '../ui/attribute_editor';
+import {
+  allocate_color,
+  initialize_attribute_editor,
+} from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
 import { initialize_dendro_tree_overlay } from '../ui/dendro_tree_overlay';
 import {
@@ -752,25 +756,42 @@ export const matrix_viz = async (
 
     on_model('change:matrix_slice_request', flushMatrixSliceRequest);
 
-    // State snapshot for Python (e.g. Clerk): reply with a one-off message, so the
-    // snapshot is never saved into the notebook's widget state.
+    // Viz API messages from Python (e.g. Clerk), answered with one-off replies so
+    // nothing is saved into the notebook's widget state:
+    //   get_state      -> a snapshot of what the Clustergram shows
+    //   set_categories -> manual categories, applied like the category editor
     on_model('msg:custom', (msg) => {
-      if (msg?.event !== 'get_state') return;
-      let reply;
-      try {
-        reply = {
-          event: 'state',
-          id: msg.id,
-          state: get_clustergram_state(viz_state, msg.options || {}),
-        };
-      } catch (e) {
-        reply = {
-          event: 'state_error',
-          id: msg.id,
-          error: String(e?.message || e),
-        };
+      if (msg?.event === 'get_state') {
+        try {
+          const state = get_clustergram_state(viz_state, msg.options || {});
+          viz_state.model.send({ event: 'state', id: msg.id, state });
+        } catch (e) {
+          viz_state.model.send({
+            event: 'state_error',
+            id: msg.id,
+            error: String(e?.message || e),
+          });
+        }
+      } else if (msg?.event === 'set_categories') {
+        try {
+          const applied = apply_manual_categories(
+            viz_state,
+            msg,
+            allocate_color
+          );
+          viz_state.model.send({
+            event: 'categories_set',
+            id: msg.id,
+            applied,
+          });
+        } catch (e) {
+          viz_state.model.send({
+            event: 'categories_error',
+            id: msg.id,
+            error: String(e?.message || e),
+          });
+        }
       }
-      viz_state.model.send(reply);
     });
   }
 

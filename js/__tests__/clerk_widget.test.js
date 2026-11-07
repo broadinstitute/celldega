@@ -88,6 +88,23 @@ describe('Clerk panel', () => {
     expect(select.value).toBe('opus');
   });
 
+  test('the effort picker sets the effort trait', async () => {
+    const { model, el } = await render({ model: '', effort: 'high' });
+    const effort = el.querySelectorAll('select')[1];
+    expect(effort.value).toBe('high');
+    expect([...effort.options].map((o) => o.value)).toEqual([
+      '',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ]);
+    effort.value = 'max';
+    effort.dispatchEvent(new Event('change'));
+    expect(model.get('effort')).toBe('max');
+  });
+
   test('a custom model id set from Python stays selectable', async () => {
     const { select } = await render({ model: 'claude-sonnet-5-5' });
     expect(select.value).toBe('claude-sonnet-5-5');

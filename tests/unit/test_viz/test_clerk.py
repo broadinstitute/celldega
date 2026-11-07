@@ -508,6 +508,7 @@ def test_clustergram_request_state_sends_message(monkeypatch) -> None:
             "extra_rows": [],
             "extra_cols": [],
             "include_values": True,
+            "markers": None,
         },
     }
     with pytest.raises(ValueError):
@@ -594,6 +595,9 @@ def test_clerk_captures_fresh_view_before_asking(monkeypatch) -> None:
                 },
                 [],
             )
+        elif content.get("event") == "get_state":
+            state = {"kind": "landscape", "space": "spatial"}
+            ls._on_state_msg(ls, {"event": "state", "id": content["id"], "state": state}, [])
 
     monkeypatch.setattr(ls, "send", fake_send)
     seen = {}
@@ -806,7 +810,8 @@ def test_extract_actions() -> None:
     assert actions is None and "Could not read" in problem
 
     prompt = clerk_llm.build_prompt("q", actions_help=clerk_llm.CLUSTERGRAM_ACTIONS_HELP)
-    assert "## Changing the views" in prompt and "celldega-actions" in prompt
+    assert "## Looking things up and changing views" in prompt
+    assert "celldega-actions" in prompt
 
 
 def _clerk_with_live_clustergram(monkeypatch):
@@ -861,7 +866,7 @@ def test_clerk_action_rounds_are_capped_and_errors_reported(monkeypatch) -> None
     w.request = {"id": "1", "question": "keep changing"}
     assert w.wait(timeout=5)
     assert [m["role"] for m in w.messages] == ["user", "action", "error"]
-    assert "more view changes" in w.messages[-1]["content"]
+    assert "more lookups or view changes" in w.messages[-1]["content"]
 
     w2, _ = _clerk_with_live_clustergram(monkeypatch)
     bad = '```celldega-actions\n{"landscape": {"zoom": 3}}\n```'
@@ -869,7 +874,7 @@ def test_clerk_action_rounds_are_capped_and_errors_reported(monkeypatch) -> None
     w2.request = {"id": "1", "question": "zoom the landscape"}
     assert w2.wait(timeout=5)
     assert w2.messages[-1]["role"] == "error"
-    assert "Couldn't change the view" in w2.messages[-1]["content"]
+    assert "Couldn't do that" in w2.messages[-1]["content"]
 
 
 def test_clerk_lookup_reads_genes_without_changing_the_view(monkeypatch) -> None:
@@ -909,3 +914,30 @@ def test_clerk_lookup_reads_genes_without_changing_the_view(monkeypatch) -> None
     }
     assert any("You just looked up EPCAM, PTPRC" in n for n in calls[1]["notes"])
     assert w.messages[-1]["content"].startswith("EPCAM is high")
+
+
+def test_run_claude_passes_effort(monkeypatch) -> None:
+    captured = {}
+
+    def fake_run(cmd, input=None, **kwargs):
+        captured["cmd"] = cmd
+        return _FakeCompleted(json.dumps({"result": "ok", "is_error": False}))
+
+    monkeypatch.setattr(clerk_impl.shutil, "which", lambda _n: "/usr/bin/claude")
+    monkeypatch.setattr(clerk_impl.subprocess, "run", fake_run)
+
+    clerk_llm.run_claude("hi", effort="high")
+    assert captured["cmd"][captured["cmd"].index("--effort") + 1] == "high"
+    clerk_llm.run_claude("hi")
+    assert "--effort" not in captured["cmd"]
+    with pytest.raises(clerk_llm.ClerkBackendError):
+        clerk_llm.run_claude("hi", effort="extreme")
+
+
+def test_clerk_sends_its_effort(monkeypatch) -> None:
+    w = Clerk(effort="low")
+    seen = {}
+    monkeypatch.setattr(clerk_llm, "ask", lambda question, **kw: seen.update(kw) or "ok")
+    w.request = {"id": "1", "question": "q"}
+    assert w.wait(timeout=5)
+    assert seen["effort"] == "low"

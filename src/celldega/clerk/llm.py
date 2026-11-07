@@ -33,8 +33,13 @@ import shutil
 import subprocess
 import tempfile
 
+from .prompts import ACTIONS_FENCE, FINDINGS_FENCE, SYSTEM_PROMPT, actions_help
+
 
 DEFAULT_TIMEOUT = 180
+
+# Reasoning effort levels the `claude` CLI accepts (``--effort``).
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 
 # Flags that keep each call independent of the user's Claude Code configuration. Clerk's
 # system prompt is passed separately via ``--system-prompt``.
@@ -47,57 +52,8 @@ ISOLATION_FLAGS = (
     "",  # skip user/project/local settings, including hooks
 )
 
-SYSTEM_PROMPT = (
-    "You are Celldega Clerk, an assistant embedded in Celldega, a spatial and "
-    "single-cell visualization tool. A scientist explores their data and asks you about "
-    "what they are viewing. Ground your answers in the evidence sent with each message "
-    "(an image of the current view, genes, enrichment terms, context) and in "
-    "established biological knowledge, and make clear which claims rest on which. When "
-    "interpreting a pattern, consider competing explanations, including technical ones "
-    "such as segmentation errors, transcript contamination, or the angle of the tissue "
-    "section; say which the evidence favors and what would distinguish them. When you "
-    "propose a cell-type label, name the supporting markers. The scientist makes the "
-    "final call. Be concise and concrete. If the evidence is insufficient, say so and "
-    "suggest what to look at next. Earlier turns of the conversation are included for "
-    "context; the evidence always reflects the current view.\n\n"
-    "What you receive with each question (whichever views the scientist has linked): "
-    "an image of the current Landscape view (the tissue, e.g. H&E, with cells colored "
-    "by cluster); a text snapshot of the linked Clustergram, the clusters-by-genes "
-    "heatmap as currently shown (the clusters and genes on screen with their "
-    "attributes, the order, marker level, dendrogram groups, the selection, and a "
-    "table of values with dot sizes); the linked Enrich panel's enrichment results "
-    "(library, input genes, top terms with statistics and overlapping genes, the "
-    "selected term); genes the scientist selected; and free-text context. Genes named in the question or in your previous answer "
-    "are added to the Clustergram table when the Clustergram contains them, so you "
-    "can check marker expression across clusters directly. Read cluster identities "
-    "from the Clustergram's attributes and values rather than from Landscape colors. "
-    "You cannot run tools or change the views yourself yet; if you need other "
-    "evidence, tell the scientist exactly what to do (e.g. zoom the Clustergram to "
-    "certain genes, click a cluster, pan the Landscape). If an evidence note says a "
-    "view is unavailable, say so plainly instead of guessing."
-)
-
-ACTIONS_FENCE = "celldega-actions"
-
-# Shown when a Clustergram is linked. Besides lookup_genes (read-only), the keys are
-# Clustergram.apply_state's.
-CLUSTERGRAM_ACTIONS_HELP = (
-    "You can look up data in the linked Clustergram, or change it, yourself. To do "
-    f"so, end your answer with one fenced block tagged `{ACTIONS_FENCE}` containing "
-    "JSON, for example:\n\n"
-    f"```{ACTIONS_FENCE}\n"
-    '{"clustergram": {"lookup_genes": ["EPCAM", "PTPRC"]}}\n'
-    "```\n\n"
-    "lookup_genes reads those genes' values and dot sizes across the clusters "
-    "without changing what the scientist sees; prefer it whenever you only need "
-    "data, even for genes hidden by the DIM slider or off screen. To change the "
-    "view, use: marker_level (the DIM slider: marker genes per cluster, snapped to "
-    'the listed levels, or "all"); mode ("heatmap" or "dotplot"); size ("prop" sizes '
-    'dots by e.g. fraction expressing, "unit" draws them full size); focus_gene (a '
-    "gene to zoom to, like the search box). After the block is applied you receive "
-    "the updated evidence and continue your answer. Change the view only when the "
-    "scientist asks or when seeing it helps them, and say what you changed and why."
-)
+# The instructions live in prompts.py; re-exported here for convenience.
+CLUSTERGRAM_ACTIONS_HELP = actions_help(clustergram=True)
 
 # Most recent conversation turns sent with each question (older turns are dropped).
 # 12k characters is roughly 3k tokens.
@@ -172,6 +128,9 @@ def build_prompt(
     notes: list[str] | None = None,
     enrich_state: dict | None = None,
     actions_help: str | None = None,
+    lookups: list[str] | None = None,
+    landscape_state: dict | None = None,
+    neighborhoods: list[dict] | None = None,
 ) -> str:
     """Assemble the prompt for one question from the gathered evidence.
 
@@ -193,6 +152,9 @@ def build_prompt(
 
         actions_help: How Clerk may change the linked views (e.g.
             :data:`CLUSTERGRAM_ACTIONS_HELP`); omitted when nothing can be changed.
+        lookups: Results of lookups Clerk asked for (markers, Enrichr, PubMed).
+        landscape_state: A Landscape snapshot (``Landscape.latest_state``).
+        neighborhoods: Drawn neighborhoods (``Landscape.neighborhood_summary()``).
     """
     parts: list[str] = []
 
@@ -228,6 +190,10 @@ def build_prompt(
         if lines:
             parts += ["## Enrichr enrichment (top terms)", *lines, ""]
 
+    landscape_text = format_landscape_state(landscape_state, neighborhoods)
+    if landscape_text:
+        parts += ["## Landscape (what the scientist sees)", landscape_text, ""]
+
     clustergram_text = format_clustergram_state(clustergram_state)
     if clustergram_text:
         parts += ["## Clustergram (what the scientist sees)", clustergram_text, ""]
@@ -246,8 +212,11 @@ def build_prompt(
     if notes:
         parts += ["## Evidence notes", *(f"- {note}" for note in notes), ""]
 
+    if lookups:
+        parts += ["## Lookup results", *lookups, ""]
+
     if actions_help:
-        parts += ["## Changing the views", actions_help, ""]
+        parts += ["## Looking things up and changing views", actions_help, ""]
 
     parts += ["## Question", question.strip() or "Interpret this cluster."]
     return "\n".join(parts)
@@ -329,6 +298,26 @@ def format_clustergram_state(
         unit = "markers per cluster" if level.get("unit") == "per_cluster" else "rows"
         shown = f"top {current} {unit}" if current is not None else "all rows"
         lines.append(f"Marker level (DIM slider): {shown}; levels: {level.get('levels')}")
+    cluster_markers = state.get("cluster_markers")
+    if cluster_markers:
+        lines.append(
+            "Ranked markers by cluster (rank_genes_groups, best first; value/dot size in "
+            "that cluster):"
+        )
+        for entry in cluster_markers:
+            if not entry.get("found"):
+                lines.append(f"  {entry.get('cluster')}: no ranked markers")
+                continue
+            genes = []
+            for gene in entry.get("genes") or []:
+                value = gene.get("value")
+                text = f"{gene['name']} {value:.2f}" if value is not None else str(gene["name"])
+                if gene.get("size") is not None:
+                    text += f"/{gene['size']:.2f}"
+                genes.append(text)
+            lines.append(f"  {entry.get('cluster')}: " + ", ".join(genes))
+    elif state.get("marker_ranking"):
+        lines.append("Ranked markers per cluster are available (lookup.markers).")
     display = state.get("display") or {}
     if display.get("mode"):
         mode = display["mode"] + (f", {display['size'].upper()}" if display.get("size") else "")
@@ -385,6 +374,48 @@ def format_clustergram_state(
     return "\n".join(lines)
 
 
+def format_landscape_state(state: dict | None, neighborhoods: list[dict] | None = None) -> str:
+    """Render a Landscape snapshot (``Landscape.latest_state``) and drawn neighborhoods
+    (``Landscape.neighborhood_summary()``) as compact text."""
+    lines: list[str] = []
+    if state:
+        view = state.get("view_state") or {}
+        target = view.get("target")
+        camera = (
+            f"; camera at ({target[0]}, {target[1]}), zoom {view.get('zoom')}"
+            if target and len(target) >= 2
+            else ""
+        )
+        lines.append(f"Space: {state.get('space') or 'unknown'}{camera}")
+        color_by = state.get("color_by")
+        if color_by and color_by != "cluster":
+            lines.append(f"Cells colored by gene expression: {color_by}")
+        elif state.get("selected_clusters"):
+            lines.append("Highlighted clusters: " + ", ".join(state["selected_clusters"]))
+        else:
+            lines.append("Cells colored by cluster; nothing selected")
+        viewport = state.get("viewport") or {}
+        if viewport.get("clusters"):
+            lines.append(
+                "Cells in view by cluster: "
+                + ", ".join(f"{c['name']} ({c['value']:g})" for c in viewport["clusters"])
+            )
+        if viewport.get("genes"):
+            lines.append(
+                "Top genes in view: "
+                + ", ".join(f"{g['name']} ({g['value']:g})" for g in viewport["genes"])
+            )
+    for nbhd in neighborhoods or []:
+        mix = ", ".join(
+            f"{c['name']} {round(100 * c['fraction'])}%" for c in nbhd.get("clusters") or []
+        )
+        lines.append(
+            f"Drawn neighborhood {nbhd.get('name') or '(unnamed)'} ({nbhd.get('space')}): "
+            f"{nbhd.get('n_cells', 0)} cells" + (f"; clusters {mix}" if mix else "")
+        )
+    return "\n".join(lines)
+
+
 def format_enrich_state(state: dict | None, *, max_genes: int = 12) -> str:
     """Render an Enrich snapshot (``Enrich.latest_state``) as compact text.
 
@@ -438,6 +469,29 @@ def format_enrich_state(state: dict | None, *, max_genes: int = 12) -> str:
 _ACTIONS_BLOCK = re.compile(
     rf"```{re.escape(ACTIONS_FENCE)}[ \t]*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE
 )
+_FINDINGS_BLOCK = re.compile(
+    rf"```{re.escape(FINDINGS_FENCE)}[ \t]*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE
+)
+
+
+def extract_findings(answer: str) -> tuple[str, dict | None, str | None]:
+    """Split an answer into its text and any ``celldega-findings`` block.
+
+    Returns:
+        tuple: ``(text, findings, error)``; ``findings`` is the parsed JSON object
+        (e.g. ``{"cell_types": [...]}``) or ``None``.
+    """
+    match = _FINDINGS_BLOCK.search(answer or "")
+    if not match:
+        return (answer or "").strip(), None, None
+    text = (answer[: match.start()] + answer[match.end() :]).strip()
+    try:
+        findings = json.loads(match.group(1))
+    except json.JSONDecodeError as exc:
+        return text, None, f"Could not read the recorded findings: {exc}"
+    if not isinstance(findings, dict):
+        return text, None, "Recorded findings must be a JSON object."
+    return text, findings, None
 
 
 def extract_actions(answer: str) -> tuple[str, dict | None, str | None]:
@@ -508,6 +562,7 @@ def run_claude(
     image_b64: str | None = None,
     model: str = "",
     timeout: int = DEFAULT_TIMEOUT,
+    effort: str = "",
 ) -> str:
     """Call the ``claude`` CLI single-shot (no tools) and return the answer text.
 
@@ -515,9 +570,12 @@ def run_claude(
         prompt: The fully-assembled prompt (see :func:`build_prompt`).
         image_b64: Optional base64 PNG payload (no ``data:`` prefix) to attach as an
             image content block. When provided, the streaming stdin path is used.
-        model: Optional model id/alias (e.g. ``"sonnet"``, ``"claude-haiku-4-5"``).
+        model: Optional model alias or id (e.g. ``"opus"``, ``"sonnet"``, ``"haiku"``).
             Empty string inherits the CLI's configured default.
         timeout: Seconds before the subprocess is killed.
+        effort: Reasoning effort (``"low"``, ``"medium"``, ``"high"``, ``"xhigh"``,
+            ``"max"``); empty inherits the CLI default. Higher effort is slower and
+            uses more tokens.
     """
     if not claude_available():
         raise ClerkBackendError(
@@ -529,6 +587,10 @@ def run_claude(
     cmd = ["claude", "-p", "--system-prompt", SYSTEM_PROMPT, *ISOLATION_FLAGS]
     if model:
         cmd += ["--model", model]
+    if effort:
+        if effort not in EFFORT_LEVELS:
+            raise ClerkBackendError(f"effort must be one of {list(EFFORT_LEVELS)}, not {effort!r}")
+        cmd += ["--effort", effort]
 
     stdin_data: str | None = None
     if image_b64:
@@ -599,11 +661,15 @@ def ask(
     image_b64: str | None = None,
     model: str = "",
     timeout: int = DEFAULT_TIMEOUT,
+    effort: str = "",
     history: list[dict] | None = None,
     clustergram_state: dict | None = None,
     notes: list[str] | None = None,
     enrich_state: dict | None = None,
     actions_help: str | None = None,
+    lookups: list[str] | None = None,
+    landscape_state: dict | None = None,
+    neighborhoods: list[dict] | None = None,
 ) -> str:
     """Build the prompt from evidence (and earlier turns) and run the model in one call."""
     prompt = build_prompt(
@@ -617,5 +683,8 @@ def ask(
         notes=notes,
         enrich_state=enrich_state,
         actions_help=actions_help,
+        lookups=lookups,
+        landscape_state=landscape_state,
+        neighborhoods=neighborhoods,
     )
-    return run_claude(prompt, image_b64=image_b64, model=model, timeout=timeout)
+    return run_claude(prompt, image_b64=image_b64, model=model, timeout=timeout, effort=effort)

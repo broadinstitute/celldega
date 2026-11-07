@@ -174,6 +174,32 @@ default; runs only after the view settles; caches answers per view.
       applies it, re-captures the views and asks Clerk to continue (≤
       `max_action_rounds`, default 2). Changes show in the chat as "↻ Changed …". The
       same setters become Agent SDK tools later.
+- [x] Instructions rewrite (`clerk/prompts.py`): brief answers; conservative (check a
+      cluster's top ~25 markers, canonical + alternative markers, >1 enrichment library
+      before a confident call); morphology/anatomy first; the sample's diagnosis isn't
+      the region's; no abnormality claims without specific evidence.
+- [x] Read-only lookups for Clerk: ranked markers per cluster (Matrix sends
+      `viz["markers"]` to the front end; snapshot option `markers`), genes, Enrichr
+      (Python client, `dega.clerk.lookups.enrichr`), PubMed (NCBI E-utilities,
+      `dega.clerk.lookups.pubmed`). Up to 3 lookup/change rounds per question.
+- [x] Findings: Clerk records proposed cell types (`celldega-findings` block) →
+      `clerk.findings_df()`, `clerk.write_cell_types(adata, groupby, key)` (add-only,
+      provenance in `uns`).
+- [x] Manual categories settable from Python: `Clustergram.set_categories(...)` /
+      `apply_state({"categories": ...})` (front end applies them like the editor,
+      `js/matrix/manual_categories.js`). Clerk writes recorded cell types to the
+      manual column category, never overwriting the scientist's labels.
+- [x] Landscape getters/setters: `Landscape.apply_state` (clusters, genes, view,
+      zoom_to, reset_view, space), `request_state` (space, camera, coloring, selection,
+      field-of-view cluster/gene counts), `neighborhood_summary()` (drawn regions' cell
+      count + cluster mix). Clerk can drive the Landscape and waits for changes (e.g.
+      gene loading) before its next screenshot.
+- [x] Model effort setting (`clerk.effort`, panel picker; CLI `--effort`).
+- [ ] Landscape layer toggles and sliders (IMG/CELL/TRX, channel opacity, cell size):
+      their state lives in DOM buttons and module-level variables shared across
+      Landscapes, so they need refactoring before they can be set reliably.
+- [ ] Sync labels through the Clustergram to the signature and single-cell AnnData
+      (Clerk's `write_cell_types` covers its own findings).
 - [ ] Every control API-controllable. Clustergram setters still needing front-end
       handlers: order per axis (CLUST/SUM/VAR/INI, sort by a gene or column, group by
       category), dendrogram cut per axis, select a dendrogram branch / column / gene label

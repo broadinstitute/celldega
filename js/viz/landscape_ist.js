@@ -128,6 +128,8 @@ import {
   update_ist_landscape_from_cgm,
 } from '../widget_interactions/update_ist_landscape_from_cgm';
 
+import { apply_landscape_state, get_landscape_state } from './landscape_state';
+
 // Row group reading support
 
 // Log parquet-wasm version on module load
@@ -1495,10 +1497,36 @@ export const landscape_ist = async (
      * @returns {{png: string, thumb: string, width: number, height: number,
      *   view_state: object|null}|null} capture, or null if there is no canvas.
      */
-    captureRaster: (capture_options = {}) => {
+    capture_raster: (capture_options = {}) => {
       const capture = capture_deck(deck_ist, root, capture_options);
       if (!capture) return null;
       return { ...capture, view_state: viz_state.current_view_state || null };
+    },
+    /**
+     * What the Landscape shows: space, camera, coloring, selection and the
+     * cluster / gene counts in the current field of view (see landscape_state.js).
+     */
+    get_state: (state_options = {}) =>
+      get_landscape_state(viz_state, state_options),
+    /**
+     * Change what the Landscape shows, as its controls would: select clusters,
+     * color by genes, move or reset the camera, zoom to clusters or cells.
+     * @returns {Promise<string[]>} What changed.
+     */
+    apply_state: (changes = {}) => {
+      const canvas = deck_ist.getCanvas?.();
+      return apply_landscape_state(
+        viz_state,
+        {
+          layers_obj,
+          update_view_state: landscape.update_view_state,
+          size: {
+            width: canvas?.clientWidth || width || 800,
+            height: canvas?.clientHeight || height || 600,
+          },
+        },
+        changes
+      );
     },
     finalize: () => {
       if (finalized) return;

@@ -598,6 +598,13 @@ export const make_yearbook_ui_container = (
     viz_state
   );
 
+  make_image_source_control(
+    viz_state,
+    layers_obj,
+    spatial_toggle_container,
+    img_layers_container
+  );
+
   viz_state.containers.image.appendChild(spatial_toggle_container);
 
   // Image layer sliders
@@ -674,12 +681,6 @@ export const make_yearbook_ui_container = (
   });
 
   viz_state.containers.image.appendChild(img_layers_container);
-  make_image_source_control(
-    viz_state,
-    layers_obj,
-    viz_state.containers.image,
-    img_layers_container
-  );
 
   // Cell button
   make_button(

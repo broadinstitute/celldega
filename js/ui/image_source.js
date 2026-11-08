@@ -3,6 +3,7 @@ import { get_aligned_he } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
 
 // Both views retain the same spatial layers and only swap the image background.
+// The selector is appended to `container`, the view-mode row (SPATIAL, IMG, XY).
 export const make_image_source_control = (
   viz_state,
   layers_obj,
@@ -11,8 +12,8 @@ export const make_image_source_control = (
 ) => {
   const select = document.createElement('select');
   select.setAttribute('aria-label', 'Image source');
-  select.title = 'Image source';
-  // Match Clustergram's text-only attribute/order selectors.
+  select.title = 'Image source: fluorescence (FLR) or H&E';
+  // A text-only select styled like the view-mode buttons beside it.
   Object.assign(select.style, {
     appearance: 'none',
     webkitAppearance: 'none',
@@ -20,19 +21,17 @@ export const make_image_source_control = (
     border: 'none',
     background: 'transparent',
     padding: '0',
-    margin: '0 0 0 5px',
-    alignSelf: 'flex-start',
-    maxWidth: '115px',
+    margin: '5px 0 0 5px',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize: '9px',
+    fontSize: '12px',
     fontWeight: 'bold',
     color: 'blue',
     cursor: 'pointer',
     userSelect: 'none',
   });
   for (const [value, text] of [
-    ['primary', 'FLUORESCENCE'],
+    ['primary', 'FLR'],
     ['he', 'H&E'],
   ]) {
     const option = document.createElement('option');
@@ -57,7 +56,8 @@ export const make_image_source_control = (
     );
     refresh_layer(viz_state, layers_obj, 'image_layers');
   });
-  container.insertBefore(select, channel_controls);
+  container.appendChild(select);
+  viz_state.containers.image_source = select;
   viz_state.update_image_source_control = update;
   update();
   return select;

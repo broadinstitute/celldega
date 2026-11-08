@@ -732,6 +732,13 @@ export const make_ist_ui_container = (
       );
     }
 
+    make_image_source_control(
+      viz_state,
+      layers_obj,
+      spatial_toggle_container,
+      img_layers_container
+    );
+
     viz_state.containers.view_modes = spatial_toggle_container;
     viz_state.containers.image.appendChild(spatial_toggle_container);
 
@@ -829,17 +836,11 @@ export const make_ist_ui_container = (
       refresh_layer(viz_state, layers_obj, 'nbhd_layer');
     });
 
-    // Swap this whole slot (including the image source selector) for XY axes.
+    // Swap this whole slot (and the image source selector) for XY axes.
     const image_controls = document.createElement('div');
     viz_state.containers.image_controls = image_controls;
     image_controls.appendChild(img_layers_container);
     viz_state.containers.image.appendChild(image_controls);
-    make_image_source_control(
-      viz_state,
-      layers_obj,
-      image_controls,
-      img_layers_container
-    );
   }
 
   // neighborhood-cloud repurposes this slot: "NBHD" (shapes show/hide)

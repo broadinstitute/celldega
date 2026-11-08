@@ -77,8 +77,8 @@ limits.
 
 **IMG** shows or hides the image. Each channel, such as DAPI or a membrane
 stain, has a button to show or hide it and a slider for its brightness. When an
-aligned H&E image has been added to the DegaFiles, a selector switches between
-the fluorescence channels and H&E; see
+aligned H&E image has been added to the DegaFiles, an **FLR / H&E** selector
+next to **IMG** switches between the fluorescence channels and H&E; see
 [Add aligned H&E to DegaFiles](../../python/aligned_he.md).
 
 [![Turning image channels off and on and changing the DAPI brightness](../../assets/img/visualizations/landscape/image_channels.webp){ width="880" loading=lazy }](../../assets/img/visualizations/landscape/image_channels.webp)

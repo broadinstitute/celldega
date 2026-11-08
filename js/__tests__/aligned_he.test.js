@@ -69,14 +69,15 @@ const state = (he = true) => ({
   dimensions: { width: 3000, height: 2000, tileSize: 512 },
   global_base_url: '/data',
   obs_store: { viz_image_layers: { get: () => true } },
+  containers: {},
 });
 const control = (api, viz, layers) => {
-  const container = document.createElement('div');
+  const view_modes = document.createElement('div');
   const channels = document.createElement('div');
-  container.appendChild(channels);
   return {
+    view_modes,
     channels,
-    select: api.make_image_source_control(viz, layers, container, channels),
+    select: api.make_image_source_control(viz, layers, view_modes, channels),
   };
 };
 const change = (select, value) => {
@@ -103,7 +104,11 @@ test('Landscape switches only backgrounds; RGB, format, IMG visibility and overl
     cell_layer: cells,
     trx_layer: transcripts,
   };
-  const { select, channels } = control(api, viz, layers);
+  const { select, channels, view_modes } = control(api, viz, layers);
+  // The selector sits in the view-mode row, not in the channel panel.
+  expect(select.parentElement).toBe(view_modes);
+  expect(viz.containers.image_source).toBe(select);
+  expect([...select.options].map((o) => o.textContent)).toEqual(['FLR', 'H&E']);
   expect(layers.image_layers.map((l) => l.props.visible)).toEqual([
     true,
     false,

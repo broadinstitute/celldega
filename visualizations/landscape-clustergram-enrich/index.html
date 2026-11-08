@@ -2477,6 +2477,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2532,6 +2538,90 @@
     
   
     Atera kidney: default clusters and glomerular gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Brain Hippocampus H&E Landscape-Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Breast Cancer FF H&E Landscape-Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Colorectal Cancer H&E Landscape-Matrix
   
 
     
@@ -2678,10 +2768,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_9" >
         
           
-          <label class="md-nav__link" for="__nav_7_2_6" id="__nav_7_2_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_2_9" id="__nav_7_2_9_label" tabindex="0">
             
   
   
@@ -2699,8 +2789,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2_6">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2926,6 +3016,8 @@
       
         
       
+        
+      
     
     
     
@@ -3037,6 +3129,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Pre-process with H&E
   
 
     
@@ -3444,10 +3564,25 @@ walks through this example from the instrument output.</p>
 read directly in the browser, with no DegaFiles. The linked Clustergram adds a
 higher-dimensional view: which genes distinguish the clusters you see in the
 UMAP.</p>
-<p><a href="../../assets/img/visualizations/landscape-clustergram-enrich/single_cell.webp"><img alt="Clicking a cluster and genes in a PBMC marker Clustergram linked to its UMAP" loading="lazy" src="../../assets/img/visualizations/landscape-clustergram-enrich/single_cell.webp" /></a></p>
-<p><em>PBMC 3k: clicking cluster 1 shows its cells in the UMAP; clicking the B-cell
-gene CD79A colors those cells; clicking the monocyte gene LYZ colors the
-monocytes.</em></p>
+<p><a href="../../assets/img/visualizations/landscape-clustergram-enrich/single_cell_tabula.webp"><img alt="Exploring the Tabula Sapiens atlas with a linked Landscape, Clustergram, and Enrich" loading="lazy" src="../../assets/img/visualizations/landscape-clustergram-enrich/single_cell_tabula.webp" /></a></p>
+<p><em>Tabula Sapiens, 1.1 million cells and 180 cell types:</em></p>
+<ol>
+<li><em>Zooming toward the spermatids updates the CELL and gene bars to the cells in
+   view, and PRM1 colors the spermatid swirl; zoomed out, PRM1 stays confined to
+   it.</em></li>
+<li><em>Dragging the column dendrogram slider previews the cell-type tree and its
+   cut, then selecting column dendrogram branches highlights meta-clusters of
+   cell types in the UMAP.</em></li>
+<li><em>Double-clicking the spermatid column ranks the genes by spermatid expression,
+   selects the spermatids, and sends their top markers to Enrich, which ranks
+   Germ Cell Testis first. Zooming into the top rows and clicking PRM1 colors its
+   cells.</em></li>
+<li><em>Clicking the plasma cell column selects plasma cells across tissues, and
+   Enrich ranks plasma cell gene sets first.</em></li>
+</ol>
+<p>Follow along in the
+<a href="../../examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich/">Tabula Sapiens tutorial</a>,
+or explore the atlas in the <a href="../../gallery/gallery_tabula_sapiens_clustergram/">Gallery</a>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">"counts_csc"</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">"counts"</span><span class="p">]</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
 <span class="n">adata</span><span class="o">.</span><span class="n">write_zarr</span><span class="p">(</span><span class="s2">"cells.zarr"</span><span class="p">)</span>
 
@@ -3493,8 +3628,8 @@ gene does not replace the multi-gene enrichment query.</p>
 <h2 id="screenshot-sources">Screenshot sources</h2>
 <p>The animations show the Xenium pancreas DegaFiles with the
 <a href="https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/blob/main/Xenium_V1_human_Pancreas_FFPE_outs.h5ad">hosted Scanpy AnnData</a>,
-and the PBMC 3k AnnData Zarr and marker Matrix from the
-<a href="../../examples/tutorial_notebooks/Scanpy_Chromium/">Chromium PBMC tutorial</a>,
+and the <a href="../../examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich/">Tabula Sapiens tutorial</a>
+(Tabula Sapiens Consortium, via CZ CELLxGENE Discover, CC BY 4.0),
 captured with Celldega 0.28.0 using
 <a href="https://github.com/broadinstitute/celldega/tree/main/scripts/docs_screenshots"><code>scripts/docs_screenshots/capture.py</code></a>.</p>
 

@@ -2533,6 +2533,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2588,6 +2594,90 @@
     
   
     Atera kidney: default clusters and glomerular gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Brain Hippocampus H&E Landscape-Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Breast Cancer FF H&E Landscape-Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Colorectal Cancer H&E Landscape-Matrix
   
 
     
@@ -2734,10 +2824,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_9" >
         
           
-          <label class="md-nav__link" for="__nav_7_2_6" id="__nav_7_2_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_2_9" id="__nav_7_2_9_label" tabindex="0">
             
   
   
@@ -2755,8 +2845,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2_6">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2982,6 +3072,8 @@
       
         
       
+        
+      
     
     
     
@@ -3093,6 +3185,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Pre-process with H&E
   
 
     
@@ -3581,9 +3701,10 @@ local filesystem path is not a <code>base_url</code>; use the corresponding HTTP
 endpoint. Cross-origin hosts must allow requests from the notebook or web page,
 and access permissions must work for browser requests as well as Python downloads.</p>
 <p><strong>Packed row-group DegaFiles require HTTP byte-range support</strong>, including
-<code>206 Partial Content</code> responses. Celldega's simple local file-server helper adds
-CORS headers but does not implement byte ranges; use the individual-tile layout
-with that helper, or a range-capable host for packed files. See
+<code>206 Partial Content</code> responses. Celldega's local file server
+(<code>viz.get_local_server</code>) supports byte ranges from version 0.28.1; with earlier
+versions, use the individual-tile layout locally, or a range-capable host for
+packed files. See
 <a href="../file_formats/#row-group-storage-mode-optional">row-group hosting requirements</a>
 and the <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Range_requests">HTTP range-request guide</a>.</p>
 <p>For reproducible examples, link a fixed data revision and include the source

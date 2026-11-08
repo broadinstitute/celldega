@@ -2578,6 +2578,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -2633,6 +2639,90 @@
     
   
     Atera kidney: default clusters and glomerular gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Brain Hippocampus H&E Landscape-Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Breast Cancer FF H&E Landscape-Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Colorectal Cancer H&E Landscape-Matrix
   
 
     
@@ -2779,10 +2869,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_9" >
         
           
-          <label class="md-nav__link" for="__nav_7_2_6" id="__nav_7_2_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_2_9" id="__nav_7_2_9_label" tabindex="0">
             
   
   
@@ -2800,8 +2890,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_2_6">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3027,6 +3117,8 @@
       
         
       
+        
+      
     
     
     
@@ -3138,6 +3230,34 @@
     
   
     Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Pre-process with H&E
   
 
     
@@ -3790,7 +3910,8 @@ chunk metadata maps the logical index to a file and local row group. Parquet
 footer metadata supplies the byte ranges for that group's data.</p>
 <p>The browser uses HTTP Range requests to read the required groups. Hosting must
 support byte ranges and, for cross-origin access, CORS. The readers require
-range-capable hosting; there is no general whole-file fallback. Larger chunks
+range-capable hosting; there is no general whole-file fallback. Celldega's local
+file server, <code>viz.get_local_server</code>, supports byte ranges from version 0.28.1. Larger chunks
 reduce file counts but increase footer and memory costs. Individual-tile
 DegaFiles remain supported, with <code>use_row_groups=False</code>.</p>
 <p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/run_pre_processing.py">preprocessing options</a>,
@@ -3808,7 +3929,7 @@ entry to existing DegaFiles:</p>
 </code></pre></div>
 <p>The supplied 3×3 affine maps H&amp;E pixels into reference-image pixels. If the
 image already shares the reference grid, omit <code>alignment</code>. Landscape and
-Yearbook then expose a Fluorescence/H&amp;E selector using the same cell and
+Yearbook then expose an FLR/H&amp;E (fluorescence/H&amp;E) selector using the same cell and
 transcript overlays. See <a href="../../python/aligned_he/">Add aligned H&amp;E to DegaFiles</a>
 for requirements and the example workflow.</p>
 <p>Source: <a href="https://github.com/broadinstitute/celldega/blob/main/src/celldega/pre/aligned_he.py">H&amp;E importer</a>

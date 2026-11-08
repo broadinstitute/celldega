@@ -73,6 +73,13 @@ export const initialize_expression_scatter = (
       viz_state.genes.gene_names.length
   );
   viz_state.expression_scatter_enabled = has_xy;
+  // XY axes take the place of the image channels and the image source selector.
+  const show_image_controls = (visible) => {
+    const { image_controls, image_source } = viz_state.containers;
+    [image_controls, image_source].forEach((element) => {
+      if (element) element.style.display = visible ? '' : 'none';
+    });
+  };
   const disposers = [];
   let disposed = false;
   let request = 0;
@@ -432,10 +439,7 @@ export const initialize_expression_scatter = (
     const view = obs.landscape_view.get();
     update_scale_controls();
     inputs.style.display = view === 'xy' ? '' : 'none';
-    if (viz_state.containers.image_controls) {
-      viz_state.containers.image_controls.style.display =
-        view === 'xy' ? 'none' : '';
-    }
+    show_image_controls(view !== 'xy');
     publish('landscape_state', view);
     if (view === 'xy') update_xy();
     else {
@@ -493,8 +497,6 @@ export const initialize_expression_scatter = (
       delete viz_state.buttons.buttons.xy;
     }
     inputs.remove();
-    if (viz_state.containers.image_controls) {
-      viz_state.containers.image_controls.style.display = '';
-    }
+    show_image_controls(true);
   };
 };

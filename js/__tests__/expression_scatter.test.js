@@ -144,6 +144,7 @@ const setup = ({
       view_modes: document.createElement('div'),
       image: document.createElement('div'),
       image_controls: document.createElement('div'),
+      image_source: document.createElement('select'),
     },
     buttons: { buttons: {} },
   };
@@ -487,6 +488,7 @@ describe('expression scatter and coordinate-aware gates', () => {
       genes: ['A', 'B'],
     });
     expect(state.containers.image_controls.style.display).toBe('none');
+    expect(state.containers.image_source.style.display).toBe('none');
     expect(Array.from(state.spatial.cell_xy_scatter_positions)).toEqual([
       0, 100, 100, 0, 0, 100,
     ]);
@@ -494,6 +496,7 @@ describe('expression scatter and coordinate-aware gates', () => {
     expect(state.obs_store.landscape_view.get()).toBe('xy');
     model.set('landscape_state', 'spatial');
     expect(state.containers.image_controls.style.display).toBe('');
+    expect(state.containers.image_source.style.display).toBe('');
     expect(model.get('view_space').kind).toBe('spatial');
     dispose();
   });

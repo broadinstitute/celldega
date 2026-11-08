@@ -40,8 +40,8 @@ cell coordinates, transcript coordinates, segmentations and other manifest
 fields are preserved. An existing H&E image is not overwritten.
 
 Reload Landscape or Yearbook after adding the image. DegaFiles with an
-`aligned_he` entry in `landscape_parameters.json` show a **Fluorescence / H&E**
-selector. Both backgrounds use the same cell and transcript overlays. The IMG
+`aligned_he` entry in `landscape_parameters.json` show an **FLR / H&E**
+(fluorescence / H&E) selector next to **IMG**. Both backgrounds use the same cell and transcript overlays. The IMG
 control still controls image visibility; fluorescence channel controls are
 hidden while H&E is selected. Yearbook retains the selection when paging.
 DegaFiles without the optional entry behave as before.

@@ -7,6 +7,9 @@ These example notebooks demonstrate how to use Celldega to analyze and visualize
 Comprehensive tutorials that walk through complete workflows:
 
 - [Atera Kidney Landscape-Clustergram](tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb) - Direct Scanpy and AnnData steps for default clusters, linked dotplot Clustergrams, and cell-type composition across podocyte-defined glomerular gradients
+- [Atera Brain Hippocampus H&E Landscape-Matrix](tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix.ipynb) - Non-diseased fresh-frozen hippocampus with an aligned post-run H&E image: switch the Landscape and Yearbook between fluorescence and H&E, and link the default clusters to a pre-clustered Matrix, Clustergram and Enrich
+- [Atera Breast Cancer FF H&E Landscape-Matrix](tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix.ipynb) - Fresh-frozen breast cancer with an aligned post-run H&E image, a cell Yearbook, and default clusters linked to a pre-clustered Matrix, Clustergram and Enrich
+- [Atera Colorectal Cancer H&E Landscape-Matrix](tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb) - Fresh-frozen colorectal cancer with an aligned post-run H&E image, a cell Yearbook, and default clusters linked to a pre-clustered Matrix, Clustergram and Enrich
 - [Atera Breast Cancer Landscape-Clustergram](tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb) - Loads a precomputed Scanpy clustering (or optionally recomputes it) and creates linked Landscape, Clustergram, and Enrich widgets
 - [Atera Breast Cancer Neighborhood Exploration](tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb) - Continues the Atera tutorial with hextile niches linked to cell-type composition and alpha-shape overlap linked to a separate Landscape
 - [Visium HD Human CRC Landscape-Clustergram-Enrich](tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb) - Uses Scanpy and plain AnnData to summarize a clustered Visium HD colorectal cancer sample (signatures, fraction expressing, marker genes) and explores it in linked Landscape, Clustergram, and Enrich widgets, ready for interactive annotation
@@ -53,6 +56,7 @@ Focused examples demonstrating specific features:
 - [Landscape View Xenium](brief_notebooks/Landscape_View_Xenium.ipynb) - Basic Landscape visualization of Xenium data
 - [Landscape from a Local Server](brief_notebooks/Landscape_Local_Server.ipynb) - Viewing locally stored DegaFiles in a Landscape with `dega.viz.get_local_server()`
 - [Atera Pre-process](brief_notebooks/Atera_Pre-process.ipynb) - Making DegaFiles from a 10x Atera output bundle with `dega.pre.main` and viewing them in a Landscape
+- [Atera Pre-process with H&E](brief_notebooks/Atera_Pre-process_with_HE.ipynb) - Downloading a 10x Atera bundle with its post-run H&E image, making DegaFiles (one file per tile for GitHub, or row groups for Hugging Face), and adding the aligned H&E with `dega.pre.add_aligned_he`
 - [Atera Kidney Yearbook Review](brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb) - Find large endothelial cells with podocyte (NPHS2) transcripts using `dega.select`, review their portraits, and get the selected IDs
 - [CellCloud Thick MERFISH](brief_notebooks/Landscape-3D_thick_MERFISH.ipynb) - 3D orbit-camera CellCloud view of thick-tissue MERFISH data
 - [Landscape-Heatmap Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization

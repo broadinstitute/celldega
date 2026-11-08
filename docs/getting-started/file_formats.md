@@ -195,7 +195,7 @@ dega.pre.add_aligned_he(
 
 The supplied 3×3 affine maps H&E pixels into reference-image pixels. If the
 image already shares the reference grid, omit `alignment`. Landscape and
-Yearbook then expose a Fluorescence/H&E selector using the same cell and
+Yearbook then expose an FLR/H&E (fluorescence/H&E) selector using the same cell and
 transcript overlays. See [Add aligned H&E to DegaFiles](../python/aligned_he.md)
 for requirements and the example workflow.
 

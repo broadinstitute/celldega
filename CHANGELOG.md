@@ -4,6 +4,14 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.28.2] - 2026-11-08
+
+### Changed
+
+- The Landscape and Yearbook image source selector now sits in the view-mode
+  row beside **SPATIAL**, **IMG** and **XY**, as a text dropdown labelled
+  **FLR** / **H&E**. It is hidden in the XY view, like the image channels.
+
 ## [0.28.1] - 2026-11-05
 
 ### Fixed

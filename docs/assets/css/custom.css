@@ -230,3 +230,26 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
     z-index: 1;
     margin: 0;
 }
+
+/* Linked Landscape–Clustergram galleries (docs/assets/js/gallery_atera_linked.js):
+   side by side on wide screens, stacked on smaller ones. */
+.linked-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.linked-landscape-panel {
+    flex: 1 1 550px;
+    min-width: 0;
+}
+.linked-clustergram-panel {
+    /* 550px matrix plus its 100px canvas margin for labels/dendrogram. */
+    flex: 0 0 650px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+.linked-gallery [data-atera-landscape],
+.linked-gallery [data-atera-clustergram] {
+    min-height: 650px;
+}

@@ -16,6 +16,17 @@ a [Landscape](../visualizations/landscape/index.md).
 
 </div>
 
+Fresh-frozen Atera sections with a linked Landscape and Clustergram of their default
+clusters:
+
+<div class="grid cards" markdown>
+
+- [Atera Brain Hippocampus non-diseased FF](gallery_atera_hippocampus.md)
+- [Atera Colorectal Cancer FF](gallery_atera_colorectal_cancer.md)
+- [Atera Breast Cancer FF](gallery_atera_breast_cancer.md)
+
+</div>
+
 ### Xenium
 
 <div class="grid cards" markdown>

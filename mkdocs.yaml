@@ -101,6 +101,9 @@ nav:
           - Atera:
               - Atera Kidney non-diseased FFPE: gallery/gallery_atera_kidney.md
               - Atera Xenium Breast Cancer: gallery/gallery_atera.md
+              - Atera Brain Hippocampus FF + Clustergram: gallery/gallery_atera_hippocampus.md
+              - Atera Colorectal Cancer FF + Clustergram: gallery/gallery_atera_colorectal_cancer.md
+              - Atera Breast Cancer FF + Clustergram: gallery/gallery_atera_breast_cancer.md
           - Xenium:
               - Xenium Prime Mouse Brain: gallery/gallery_xenium_mouse_brain.md
               - Xenium Prime Human Skin: gallery/gallery_xenium_skin_cancer.md
@@ -215,6 +218,8 @@ extra_javascript:
   - path: assets/js/gallery_atera.js
     type: module
   - path: assets/js/gallery_atera_kidney.js
+    type: module
+  - path: assets/js/gallery_atera_linked.js
     type: module
   - path: assets/js/gallery_broad_allen_mouse_brain_3d.js
     type: module

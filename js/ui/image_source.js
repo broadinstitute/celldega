@@ -19,6 +19,9 @@ export const make_image_source_control = (
     webkitAppearance: 'none',
     MozAppearance: 'none',
     border: 'none',
+    // No focus ring or shadow after a click, so it reads as plain text.
+    outline: 'none',
+    boxShadow: 'none',
     background: 'transparent',
     padding: '0',
     margin: '5px 0 0 5px',

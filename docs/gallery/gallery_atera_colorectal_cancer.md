@@ -21,6 +21,6 @@ which includes aligned H&E, a cell Yearbook, and a linked Landscape, Clustergram
 </div>
 
 The tissue view streams images, cell boundaries, transcripts, and gene expression from
-DegaFiles; the Clustergram reads the default clusters' signatures and ranked marker
-genes from a clustered Matrix. Both are hosted on Hugging Face:
-[DegaFiles and Clustergram on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/Atera/Atera_v1_WTA_S4B_Colorectal_Cancer_FF).
+[DegaFiles on GitHub](https://github.com/broadinstitute/celldega_atera-wta-ff-human-crc).
+The Clustergram reads the default clusters' signatures and ranked marker genes from a
+[clustered Matrix AnnData-Zarr on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/Atera/Atera_v1_WTA_S4B_Colorectal_Cancer_FF/cgm/default_clusters.zarr).

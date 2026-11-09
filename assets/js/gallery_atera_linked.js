@@ -1,14 +1,16 @@
 import celldega from './celldega.js';
 
 // Atera v1 WTA fresh frozen sections: DegaFiles for the Landscape and a clustered
-// Matrix of the default Leiden clusters for the Clustergram, both on Hugging Face.
-const DATA =
+// Matrix of the default Leiden clusters for the Clustergram. Landscape tiles come
+// from GitHub; the Clustergram AnnData-Zarr stores remain on Hugging Face.
+const MATRIX_DATA =
   'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/resolve/main/Atera';
 
 // The view opens on the whole section (image centre, zoomed to fit).
 const SAMPLES = {
   hippocampus: {
     name: 'Atera_v1_WTA_S4A_Brain_Hippocampus_ND_FF',
+    repository: 'celldega_atera-wta-ff-human-nd-brain',
     dataset_name: 'Atera brain hippocampus (non-diseased, FF)',
     ini_x: 30684,
     ini_y: 21274,
@@ -16,6 +18,7 @@ const SAMPLES = {
   },
   colorectal: {
     name: 'Atera_v1_WTA_S4B_Colorectal_Cancer_FF',
+    repository: 'celldega_atera-wta-ff-human-crc',
     dataset_name: 'Atera colorectal cancer (FF)',
     ini_x: 30676,
     ini_y: 18918,
@@ -23,6 +26,7 @@ const SAMPLES = {
   },
   breast: {
     name: 'Atera_v1_WTA_S4C_Breast_Cancer_FF',
+    repository: 'celldega_atera-wta-ff-human-breast-cancer',
     dataset_name: 'Atera breast cancer (FF)',
     ini_x: 35367,
     ini_y: 18965,
@@ -36,7 +40,8 @@ async function initializeAteraGallery() {
   const sample = SAMPLES[root.dataset.ateraGallery];
   if (!sample) return;
   root.dataset.initialized = 'true';
-  const base_url = `${DATA}/${sample.name}`;
+  const base_url = `https://raw.githubusercontent.com/broadinstitute/${sample.repository}/main`;
+  const matrix_url = `${MATRIX_DATA}/${sample.name}/cgm/default_clusters.zarr`;
 
   // Keep either component usable if the other fails to load.
   const load = async (name, render) => {
@@ -65,7 +70,7 @@ async function initializeAteraGallery() {
     ),
     load('clustergram', () =>
       celldega.clustergram(root.querySelector('[data-atera-clustergram]'), {
-        url: `${base_url}/cgm/default_clusters.zarr`,
+        url: matrix_url,
         width: 550,
         height: 550,
         viz_mode: 'dotplot',

@@ -83,6 +83,7 @@ import {
 import {
   apply_clustergram_state,
   get_clustergram_state,
+  get_clustergram_replay_state,
 } from '../matrix/clustergram_state';
 import {
   refresh_row_label_visibility,
@@ -160,6 +161,24 @@ export const matrix_viz = async (
 
   const row_entity = model.get('row_entity');
   const col_entity = model.get('col_entity');
+
+  // Dendrogram cuts and manual category edits decorate the renderer's node
+  // objects. Identity binds the source metadata, not those mutable view fields.
+  const source_metadata = JSON.parse(
+    JSON.stringify({
+      rows: network.row_nodes,
+      cols: network.col_nodes,
+      linkage: network.linkage,
+      views: network.views,
+      markers: network.markers,
+      row_attr: network.row_attr,
+      col_attr: network.col_attr,
+      cat_colors: network.cat_colors,
+      matrix_colors: network.matrix_colors,
+      row_entity,
+      col_entity,
+    })
+  );
 
   const viz_state = set_mat_constants(
     model,
@@ -878,6 +897,7 @@ export const matrix_viz = async (
      * Same keys as Python's `Clustergram.apply_state`; validated first.
      * @returns {string[]} What changed.
      */
+    get_replay_state: () => get_clustergram_replay_state(viz_state),
     apply_state: (changes = {}) =>
       apply_clustergram_state(model, viz_state, changes, (request) =>
         apply_manual_categories(viz_state, request, allocate_color)
@@ -948,26 +968,21 @@ export const matrix_viz = async (
       get_state: matrix.get_state,
       capture_raster: matrix.capture_raster,
       apply_state: matrix.apply_state,
+      get_replay_state: matrix.get_replay_state,
       viewport: () => ({
         width: deck_mat.getCanvas().width,
         height: deck_mat.getCanvas().height,
       }),
       identity: () => ({
+        source: {
+          url: model.get('url') || model.get('zarr_url') || '',
+          name: network.name || '',
+        },
         coverage: 'matrix-content',
         data: {
-          rows: network.row_nodes,
-          cols: network.col_nodes,
+          ...source_metadata,
           values: network.mat,
           sizes: network.size_mat,
-          linkage: network.linkage,
-          views: network.views,
-          markers: network.markers,
-          row_attr: network.row_attr,
-          col_attr: network.col_attr,
-          cat_colors: network.cat_colors,
-          matrix_colors: network.matrix_colors,
-          row_entity,
-          col_entity,
         },
       }),
     })

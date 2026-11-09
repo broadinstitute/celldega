@@ -158,7 +158,9 @@ as an image. The same keys work in Python (`widget.request_state()`,
 
 ## Screenshots with provenance {#screenshots}
 
-A screenshot is only useful later if you know what it shows and how to make it again.
+The goal is to **preserve an interactive observation as reproducible visual evidence**.
+A screenshot is the image export; its saved-view record preserves the scientific
+context and supported replay settings.
 Celldega saves each screenshot as three files side by side:
 
 - `<name>.png`: the image, with the record below embedded in the file;
@@ -180,7 +182,9 @@ but do not yet restore every control or load the data into a fresh widget. See
 
 Save one from a widget's control panel with **PIC**: it captures the view, then asks
 for a title and a description of what you're looking at and why it's interesting. Or
-from Python, on a Landscape, Clustergram, CellCloud or NeighborhoodCloud:
+from Python, on a Landscape, Clustergram, CellCloud or NeighborhoodCloud. In a web
+page without a notebook kernel, PIC downloads a saved-view JSON containing the PNG,
+replay state and description:
 
 ```python
 landscape.screenshot(
@@ -193,7 +197,7 @@ dega.viz.screenshot(linked, description="...", path="figures/fig2.png")
 
 The image arrives from the browser after the cell finishes, so the call's output shows
 "Capturing…" and then a preview with the saved path. Without a path, screenshots go to
-`clerk_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
+`celldega_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
 kept out of version control or shared as a collection of evidence.
 
 Record what Python can't see, such as the AnnData file a widget was made from, once per

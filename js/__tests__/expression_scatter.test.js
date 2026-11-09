@@ -664,3 +664,14 @@ describe('expression scatter and coordinate-aware gates', () => {
     dispose();
   });
 });
+
+test('expression readiness exposes fetch failures instead of acknowledging a stale view', async () => {
+  load.mockRejectedValueOnce(new Error('gene request failed'));
+  const { state, model, dispose } = setup();
+  model.set('xy_genes', ['A']);
+  state.obs_store.landscape_view.set('xy');
+  await expect(state.expression_ready).resolves.toEqual({
+    error: 'gene request failed',
+  });
+  dispose();
+});

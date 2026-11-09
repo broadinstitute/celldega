@@ -84,6 +84,8 @@ export const initialize_expression_scatter = (
   let disposed = false;
   let request = 0;
   let animation = null;
+  let finish_animation = null;
+  viz_state.expression_ready = Promise.resolve();
   let position_version = 0;
   // Web pages (e.g. the docs gallery) pass a plain object with no get().
   let genes = [...(model?.get?.('xy_genes') ?? [])];
@@ -299,45 +301,53 @@ export const initialize_expression_scatter = (
   // and dendrogram updates, which can replace the deck.gl layer mid-transition.
   const animate = (target) => {
     cancelAnimationFrame(animation);
-    const from = displayed.slice();
-    layers_obj.cell_layer = layers_obj.cell_layer.clone({
-      id: `cell-layer-expression-${++position_version}`,
-      transitions: false,
-    });
-    const started = performance.now();
-    const was_visible = obs.viz_edit_layer.get();
-    const frame = (now) => {
-      if (disposed) return;
-      const t = Math.min(1, (now - started) / 800);
-      const eased = t * t * (3 - 2 * t);
-      // deck.gl detects external binary-buffer updates by array identity.
-      // A fresh buffer makes each animation frame reach the GPU.
-      const output = new Float32Array(target.length);
-      spatial.embedding_animation_positions = interpolate_positions(
-        from,
-        target,
-        eased,
-        output
-      );
-      displayed = output;
+    finish_animation?.({ error: 'Expression transition was superseded' });
+    return new Promise((resolve) => {
+      finish_animation = resolve;
+      const from = displayed.slice();
       layers_obj.cell_layer = layers_obj.cell_layer.clone({
-        data: get_scatterplot_cell_data(viz_state),
+        id: `cell-layer-expression-${++position_version}`,
         transitions: false,
-        ...scatterplot_view_props(viz_state),
       });
-      if (layers_obj.edit_layer) {
-        layers_obj.edit_layer = layers_obj.edit_layer.clone({
-          visible: t === 1 && was_visible,
+      const started = performance.now();
+      const was_visible = obs.viz_edit_layer.get();
+      const frame = (now) => {
+        if (disposed) return;
+        const t = Math.min(1, (now - started) / 800);
+        const eased = t * t * (3 - 2 * t);
+        // deck.gl detects external binary-buffer updates by array identity.
+        // A fresh buffer makes each animation frame reach the GPU.
+        const output = new Float32Array(target.length);
+        spatial.embedding_animation_positions = interpolate_positions(
+          from,
+          target,
+          eased,
+          output
+        );
+        displayed = output;
+        layers_obj.cell_layer = layers_obj.cell_layer.clone({
+          data: get_scatterplot_cell_data(viz_state),
+          transitions: false,
+          ...scatterplot_view_props(viz_state),
         });
-      }
-      refresh();
-      if (t < 1) animation = requestAnimationFrame(frame);
-      else {
-        spatial.embedding_animation_positions = null;
-        viz_state.refresh_viewport?.();
-      }
-    };
-    animation = requestAnimationFrame(frame);
+        if (layers_obj.edit_layer) {
+          layers_obj.edit_layer = layers_obj.edit_layer.clone({
+            visible: t === 1 && was_visible,
+          });
+        }
+        refresh();
+        if (t < 1) animation = requestAnimationFrame(frame);
+        else {
+          spatial.embedding_animation_positions = null;
+          Promise.resolve(viz_state.refresh_viewport?.()).then(
+            () => resolve(),
+            (error) => resolve({ error: error.message })
+          );
+          finish_animation = null;
+        }
+      };
+      animation = requestAnimationFrame(frame);
+    });
   };
 
   const raw_expression = async (gene) => {
@@ -362,7 +372,7 @@ export const initialize_expression_scatter = (
     return values;
   };
 
-  const update_xy = async () => {
+  const run_xy = async () => {
     const token = ++request;
     const pair = [...genes];
     const axis_scale = scale;
@@ -373,7 +383,7 @@ export const initialize_expression_scatter = (
         raw_expression(pair[1]),
       ]);
       if (disposed || token !== request || obs.landscape_view.get() !== 'xy')
-        return;
+        return { error: 'Expression request was superseded or disposed' };
       const x = expression_axis(raw[0], axis_scale, x0, x1);
       const y = expression_axis(raw[1], axis_scale, y0, y1, true);
       const positions = new Float32Array(raw[0].length * 2);
@@ -395,11 +405,16 @@ export const initialize_expression_scatter = (
         units: 'raw counts',
       });
       caption.textContent = `${pair.length ? `X → ${pair[0]} · Y ↑ ${pair[1] || '—'}` : 'Choose X and Y genes'} · ${axis_scale === 'linear' ? 'counts' : 'log(1 + counts)'}`;
-      animate(positions);
+      return await animate(positions);
     } catch (error) {
       if (token === request)
         caption.textContent = `Expression unavailable: ${error.message}`;
+      return { error: error.message };
     }
+  };
+  const update_xy = () => {
+    viz_state.expression_ready = run_xy();
+    return viz_state.expression_ready;
   };
 
   function change_scale(next) {
@@ -445,9 +460,12 @@ export const initialize_expression_scatter = (
     else {
       request += 1;
       show_gates(view === 'umap' ? umap_space : physical_space);
-      if (view === 'umap' && umap) animate(umap);
+      if (view === 'umap' && umap) viz_state.expression_ready = animate(umap);
       else {
         cancelAnimationFrame(animation);
+        finish_animation?.({ error: 'Expression transition was superseded' });
+        finish_animation = null;
+        viz_state.expression_ready = Promise.resolve();
         spatial.embedding_animation_positions = null;
         displayed = new Float32Array(
           spatial.cell_scatter_data.attributes.getPosition.value
@@ -488,6 +506,8 @@ export const initialize_expression_scatter = (
     disposed = true;
     request += 1;
     cancelAnimationFrame(animation);
+    finish_animation?.({ error: 'Visualization was disposed' });
+    finish_animation = null;
     spatial.embedding_animation_positions = null;
     disposers.forEach((dispose) => dispose?.());
     xy_button.remove();

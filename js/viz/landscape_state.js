@@ -32,6 +32,8 @@ export const LANDSCAPE_APPLY_KEYS = [
   'channels',
   'sliders',
   'image_source',
+  'selected_cells',
+  'xy',
 ];
 // Margin around a zoom_to target, and the share of cells kept per axis (drops
 // stray outliers so one far-off cell doesn't zoom the view all the way out).
@@ -76,6 +78,11 @@ export const get_landscape_state = (
         ? view.target.map((v) => (Number.isFinite(v) ? v : null))
         : null,
       zoom: Number.isFinite(view.zoom) ? view.zoom : null,
+      ...Object.fromEntries(
+        ['rotationOrbit', 'rotationX']
+          .filter((key) => Number.isFinite(view[key]))
+          .map((key) => [key, view[key]])
+      ),
     },
     // 'cluster', a gene name, or 'g1 + g2' when colored by several genes.
     color_by,
@@ -85,6 +92,17 @@ export const get_landscape_state = (
         : [],
     selected_genes: (viz_state.genes?.selected_genes || []).map(String),
     selected_cells: viz_state.obs_store?.selected_cells?.get?.()?.length || 0,
+    xy: {
+      genes: [...(viz_state.model?.get?.('xy_genes') || [])],
+      scale: viz_state.model?.get?.('xy_scale') || 'log1p',
+    },
+    selection: {
+      cells: (viz_state.obs_store?.selected_cells?.get?.() || [])
+        .slice(0, 100)
+        .map(String),
+      truncated:
+        (viz_state.obs_store?.selected_cells?.get?.() || []).length > 100,
+    },
     // Counts in the current field of view, as in the bar charts: cells per
     // cluster, and transcripts (or mean expression) per gene.
     viewport: {
@@ -95,6 +113,35 @@ export const get_landscape_state = (
         : {}),
     },
   };
+};
+
+/** Replay settings are complete for supported controls, regardless of observation caps. */
+export const get_landscape_replay_state = (viz_state) => {
+  const observed = get_landscape_state(viz_state, { max_bars: 0 });
+  return {
+    space: observed.space,
+    view: observed.view_state,
+    ...(observed.selected_genes.length
+      ? { genes: observed.selected_genes }
+      : { clusters: observed.selected_clusters }),
+    ...get_landscape_layers(viz_state),
+    selected_cells: [
+      ...(viz_state.obs_store?.selected_cells?.get?.() || []),
+    ].map(String),
+    ...(viz_state.expression_scatter_enabled ? { xy: observed.xy } : {}),
+  };
+};
+
+export const wait_for_expression = async (state) => {
+  let pending;
+  do {
+    pending = state.expression_ready;
+    // Follow the newest request if axis edits superseded the one being awaited.
+    // eslint-disable-next-line no-await-in-loop
+    const result = await pending;
+    if (pending === state.expression_ready && result?.error)
+      throw new Error(result.error);
+  } while (pending !== state.expression_ready);
 };
 
 const quantile = (sorted, q) =>
@@ -184,11 +231,42 @@ export const apply_landscape_state = async (
 
   validate_landscape_layers(viz_state, changes);
   // Resolve invalid requests before selections, gene loads or the camera change.
-  for (const key of ['clusters', 'genes']) {
+  for (const key of ['clusters', 'genes', 'selected_cells']) {
     if (key in changes && !Array.isArray(changes[key])) {
       throw new Error(`${key} must be a list of names`);
     }
   }
+  if (changes.selected_cells) {
+    const known = viz_state.cats?.cell_name_to_index_map;
+    if (changes.selected_cells.some((name) => !known?.has(String(name))))
+      throw new Error('unknown selected cell names');
+  }
+  if ('xy' in changes) {
+    const { xy } = changes;
+    if (
+      !xy ||
+      typeof xy !== 'object' ||
+      Array.isArray(xy) ||
+      Object.keys(xy).some((key) => !['genes', 'scale'].includes(key)) ||
+      !Array.isArray(xy.genes) ||
+      xy.genes.length > 2 ||
+      xy.genes.some(
+        (gene) =>
+          typeof gene !== 'string' || !viz_state.genes.gene_names.includes(gene)
+      ) ||
+      !['linear', 'log1p'].includes(xy.scale)
+    )
+      throw new Error(
+        'xy requires up to two known genes and a linear or log1p scale'
+      );
+    if (!viz_state.expression_scatter_enabled)
+      throw new Error('XY controls are unavailable');
+  }
+  if (
+    changes.space !== undefined &&
+    !['spatial', 'umap', 'xy'].includes(changes.space)
+  )
+    throw new Error("space must be 'spatial', 'umap' or 'xy'");
   if (changes.genes) {
     if (changes.genes.length > 20)
       throw new Error('genes supports at most 20 names');
@@ -218,7 +296,9 @@ export const apply_landscape_state = async (
       typeof view !== 'object' ||
       Array.isArray(view) ||
       !Object.keys(view).length ||
-      Object.keys(view).some((key) => !['target', 'zoom'].includes(key))
+      Object.keys(view).some(
+        (key) => !['target', 'zoom', 'rotationOrbit', 'rotationX'].includes(key)
+      )
     ) {
       throw new Error('view must contain target and/or zoom');
     }
@@ -237,6 +317,17 @@ export const apply_landscape_state = async (
       (typeof view.zoom !== 'number' || !Number.isFinite(view.zoom))
     ) {
       throw new Error('view.zoom must be a finite number');
+    }
+  }
+  for (const key of ['rotationOrbit', 'rotationX']) {
+    if (key in (changes.view || {})) {
+      if (
+        typeof changes.view[key] !== 'number' ||
+        !Number.isFinite(changes.view[key])
+      )
+        throw new Error(`view.${key} must be finite`);
+      if (!(key in (viz_state.initial_view_state || {})))
+        throw new Error('Camera rotation requires an orbit view');
     }
   }
   let framed = null;
@@ -260,6 +351,12 @@ export const apply_landscape_state = async (
     if (!framed) throw new Error('no matching cells to zoom to');
   }
 
+  if (changes.xy) {
+    viz_state.model.set('xy_scale', changes.xy.scale);
+    viz_state.model.set('xy_genes', [...changes.xy.genes]);
+    viz_state.model.save_changes?.();
+    done.push('updated XY axes');
+  }
   // Space first, so a zoom_to in the same change sees the new space. Python sets
   // this as the landscape_state trait; web pages pass it here.
   if (changes.space !== undefined) {
@@ -276,6 +373,8 @@ export const apply_landscape_state = async (
       done.push(`switched to the ${space} view`);
     }
   }
+
+  await wait_for_expression(viz_state);
 
   if (Array.isArray(changes.clusters)) {
     const clusters = changes.clusters.map(String);
@@ -303,6 +402,12 @@ export const apply_landscape_state = async (
     const genes = changes.genes.map(String);
     // Like the comma-separated gene search.
     await select_genes(viz_state, genes);
+    if (
+      JSON.stringify(viz_state.genes.selected_genes) !==
+        JSON.stringify(genes) ||
+      viz_state.cats.cat !== (genes.join(' + ') || 'cluster')
+    )
+      throw new Error('Gene selection was superseded');
     refresh_layer(viz_state, layers_obj, 'cell_layer');
     refresh_layer(viz_state, layers_obj, 'trx_layer');
     done.push(
@@ -310,6 +415,14 @@ export const apply_landscape_state = async (
         ? `colored cells by ${genes.join(', ')}`
         : 'returned to cluster colors'
     );
+  }
+
+  if ('selected_cells' in changes) {
+    const cells = changes.selected_cells.map(String);
+    viz_state.obs_store.selected_cells.set(cells);
+    viz_state.model?.set?.('selected_cells', cells);
+    viz_state.model?.save_changes?.();
+    done.push('updated selected cells');
   }
 
   let new_view = null;
@@ -328,6 +441,11 @@ export const apply_landscape_state = async (
       viz_state.current_view_state || viz_state.initial_view_state || {};
     new_view = {
       ...base,
+      ...Object.fromEntries(
+        ['rotationOrbit', 'rotationX']
+          .filter((key) => key in changes.view)
+          .map((key) => [key, changes.view[key]])
+      ),
       ...(Array.isArray(target)
         ? {
             target: [
@@ -346,6 +464,9 @@ export const apply_landscape_state = async (
     viz_state.current_view_state = new_view;
   }
 
+  // A UI space transition schedules an image reset; explicit replay owns visibility.
+  if ('layers' in changes || 'image_source' in changes)
+    clearTimeout(viz_state.spatial_restore_timeout);
   done.push(...(await apply_landscape_layers(viz_state, context, changes)));
   return done;
 };

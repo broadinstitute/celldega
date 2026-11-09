@@ -26,6 +26,7 @@ from ._widget_lifecycle import CelldegaWidget
 from .screenshots import Screenshots
 from .widget import (
     _WIDGET_ESM,
+    Landscape,
     _hsv_to_hex,
     _local_dir_for_url,
     _RasterCapture,
@@ -68,6 +69,10 @@ class _SpatialWidget(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidge
 
     Not instantiated directly — use ``CellCloud`` or ``NeighborhoodCloud``.
     """
+
+    APPLY_STATE_KEYS = Landscape.APPLY_STATE_KEYS
+    apply_state = Landscape.apply_state
+    request_state = Landscape.request_state
 
     _esm = _WIDGET_ESM
 

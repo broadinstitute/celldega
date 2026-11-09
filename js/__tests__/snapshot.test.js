@@ -6,13 +6,14 @@ const source = fs
   .readFileSync(path.join(__dirname, '../viz/snapshot.js'), 'utf8')
   .replace(/^import .*;$/gm, 'const CELLDEGA_VERSION = "test";')
   .replace(/^export const /gm, 'const ');
-const { create_snapshot_api, handle_snapshot_message } = new Function(
-  'globalThis',
-  'TextEncoder',
-  `${source}; return { create_snapshot_api, handle_snapshot_message };`
-)({ crypto: require('crypto').webcrypto }, require('util').TextEncoder);
+const { create_snapshot_api, handle_snapshot_message, wait_for_operation } =
+  new Function(
+    'globalThis',
+    'TextEncoder',
+    `${source}; return { create_snapshot_api, handle_snapshot_message, wait_for_operation };`
+  )({ crypto: require('crypto').webcrypto }, require('util').TextEncoder);
 
-const fixture = () => {
+const fixture = (overrides = {}) => {
   const data = { cells: ['a', 'b'], values: [1, 2] };
   let position = 1;
   const dimensions = { width: 500, height: 400 };
@@ -35,6 +36,7 @@ const fixture = () => {
     apply_state: apply,
     identity: () => ({ data, coverage: 'matrix-content', unverified }),
     viewport: () => dimensions,
+    ...overrides,
   });
   return {
     api,
@@ -62,6 +64,75 @@ test('image, observations and identity are frozen before asynchronous hashing', 
   expect(fresh.apply).toHaveBeenCalledWith(snapshot.state);
   await expect(f.api.restore_snapshot(snapshot)).rejects.toThrow('fingerprint');
   expect(f.apply).not.toHaveBeenCalled();
+});
+
+test('bounded observations do not truncate replay state or lose provenance', async () => {
+  const selected_cells = Array.from({ length: 150 }, (_, i) => `cell-${i}`);
+  const f = fixture({
+    get_state: () => ({
+      selection: { cells: selected_cells.slice(0, 10), truncated: true },
+    }),
+    get_replay_state: () => ({ selected_cells }),
+    identity: () => ({
+      data: {},
+      source: { url: 'data/sample', name: 'sample' },
+    }),
+  });
+  const saved = await f.api.snapshot({
+    description: 'Boundary population',
+    author: 'scientist',
+  });
+  selected_cells.pop();
+  expect(saved.state.selected_cells).toHaveLength(150);
+  expect(saved.observed_state.selection.cells).toHaveLength(10);
+  expect(saved).toMatchObject({
+    description: 'Boundary population',
+    author: 'scientist',
+    source: { name: 'sample' },
+    renderer: { version: 'test' },
+  });
+});
+
+test('restore freezes the submitted state while awaiting validation', async () => {
+  const f = fixture();
+  const saved = await f.api.snapshot();
+  const pending = f.api.restore_snapshot(saved);
+  saved.state.view.target[0] = 99;
+  await pending;
+  expect(f.apply.mock.calls[0][0].view.target[0]).toBe(1);
+});
+
+test('a timed-out setter returns one error acknowledgement even if it completes later', async () => {
+  jest.useFakeTimers();
+  try {
+    let finish;
+    const operation = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    const model = { send: jest.fn() };
+    const pending = handle_snapshot_message(
+      model,
+      {
+        restore_snapshot: () => wait_for_operation(operation, 20),
+      },
+      { event: 'restore_snapshot', id: 12 }
+    );
+    await Promise.resolve();
+    expect(model.send).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(20);
+    await pending;
+    expect(model.send).toHaveBeenCalledWith({
+      event: 'apply_error',
+      id: 12,
+      error: 'Visualization operation timed out',
+    });
+    finish(['changed']);
+    await Promise.resolve();
+    expect(model.send).toHaveBeenCalledTimes(1);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test('same names and dimensions with changed values are rejected before applying', async () => {

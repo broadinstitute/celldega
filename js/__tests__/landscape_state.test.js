@@ -17,7 +17,7 @@ const load_landscape_state = (shims) => {
      const validate_landscape_layers = () => {};
      const apply_landscape_layers = async () => [];
      ${source}
-     return { get_landscape_state, apply_landscape_state, view_for_cells };`
+     return { get_landscape_state, get_landscape_replay_state, apply_landscape_state, view_for_cells };`
   )(shims);
 };
 
@@ -115,6 +115,8 @@ describe('landscape state', () => {
       selected_clusters: ['4'],
       selected_genes: [],
       selected_cells: 1,
+      selection: { cells: ['c9'], truncated: false },
+      xy: { genes: [], scale: 'log1p' },
       viewport: {
         clusters: [
           { name: '4', value: 1203 },
@@ -272,4 +274,78 @@ test('invalid zoom targets and genes leave the existing selection intact', async
     expect(state.obs_store.selected_cells.get()).toEqual(['c9']);
   }
   expect(shims.refresh_layer).not.toHaveBeenCalled();
+});
+
+test('complete Landscape replay restores selection IDs, XY axes and orbit camera', async () => {
+  const api = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  const cells = Array.from({ length: 150 }, (_, i) => `c${i}`);
+  state.cats.cell_name_to_index_map = new Map(
+    cells.map((name, i) => [name, i])
+  );
+  state.genes.gene_names = ['A', 'B'];
+  state.expression_scatter_enabled = true;
+  const model = { xy_genes: ['A', 'B'], xy_scale: 'linear' };
+  state.model = {
+    get: (key) => model[key],
+    set: (key, value) => {
+      model[key] = value;
+      if (key === 'landscape_state') state.obs_store.landscape_view.set(value);
+    },
+    save_changes() {},
+  };
+  state.obs_store.selected_cells.set(cells);
+  state.initial_view_state = {
+    target: [0, 0, 0],
+    zoom: 0,
+    rotationX: 0,
+    rotationOrbit: 0,
+  };
+  state.current_view_state = {
+    target: [10.25, 50.75, 6],
+    zoom: 2.125,
+    rotationX: 35,
+    rotationOrbit: 120,
+  };
+  const context = {
+    layers_obj: {},
+    update_view_state: jest.fn(async (view) => {
+      state.current_view_state = view;
+    }),
+  };
+  const saved = JSON.parse(
+    JSON.stringify(api.get_landscape_replay_state(state))
+  );
+  expect(saved.selected_cells).toHaveLength(150);
+  expect(api.get_landscape_state(state).selection.cells).toHaveLength(100);
+  await api.apply_landscape_state(state, context, {
+    selected_cells: [],
+    xy: { genes: ['B'], scale: 'log1p' },
+    view: { target: [0, 0], zoom: 0, rotationX: 0, rotationOrbit: 0 },
+  });
+  expect(api.get_landscape_replay_state(state)).not.toEqual(saved);
+  await api.apply_landscape_state(state, context, saved);
+  expect(api.get_landscape_replay_state(state)).toEqual(saved);
+});
+
+test('XY loading must finish successfully before the setter acknowledges', async () => {
+  const { apply_landscape_state } = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  let finish;
+  state.expression_ready = new Promise((resolve) => {
+    finish = resolve;
+  });
+  const context = { layers_obj: {}, update_view_state: jest.fn() };
+  let complete = false;
+  const pending = apply_landscape_state(state, context, {
+    view: { zoom: 2 },
+  }).then(() => {
+    complete = true;
+  });
+  await Promise.resolve();
+  expect(complete).toBe(false);
+  expect(context.update_view_state).not.toHaveBeenCalled();
+  finish({ error: 'expression unavailable' });
+  await expect(pending).rejects.toThrow('expression unavailable');
+  expect(complete).toBe(false);
 });

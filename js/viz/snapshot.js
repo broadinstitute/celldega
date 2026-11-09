@@ -24,6 +24,22 @@ export const wait_for_canvas = (deck, disposed) =>
     check();
   });
 
+/** A timeout is an error acknowledgement; it does not promise rollback/cancellation. */
+export const wait_for_operation = (operation, timeout_ms = 30000) => {
+  if (!Number.isFinite(timeout_ms) || timeout_ms <= 0)
+    return Promise.reject(new Error('timeout_ms must be positive and finite'));
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(operation),
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error('Visualization operation timed out')),
+        timeout_ms
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+};
+
 const canonical = (value) => {
   if (ArrayBuffer.isView(value)) return Array.from(value, canonical);
   if (Array.isArray(value)) return value.map(canonical);
@@ -78,6 +94,7 @@ export const replay_settings = (state) => {
 export const create_snapshot_api = ({
   kind,
   get_state,
+  get_replay_state,
   capture_raster,
   apply_state,
   identity,
@@ -85,6 +102,10 @@ export const create_snapshot_api = ({
   ready,
 }) => ({
   snapshot: async (options = {}) => {
+    for (const key of ['description', 'author']) {
+      if (key in options && typeof options[key] !== 'string')
+        throw new Error(`${key} must be a string`);
+    }
     if (ready) await ready();
     const image = capture_raster(options);
     if (!image?.png) throw new Error('No canvas to capture');
@@ -96,8 +117,13 @@ export const create_snapshot_api = ({
       version: SNAPSHOT_VERSION,
       renderer: { name: 'celldega', version: CELLDEGA_VERSION },
       kind,
+      source: copy(descriptor.source || {}),
       captured_at: new Date().toISOString(),
-      state: replay_settings(observed_state),
+      description: options.description || '',
+      author: options.author || '',
+      state: copy(
+        get_replay_state ? get_replay_state() : replay_settings(observed_state)
+      ),
       observed_state,
       image: copy(image),
       viewport: copy(viewport()),
@@ -138,6 +164,7 @@ export const create_snapshot_api = ({
       Array.isArray(snapshot.state)
     )
       throw new Error('Saved view has no replay settings');
+    snapshot = copy(snapshot);
     if (ready) await ready();
     const descriptor = identity();
     if (
@@ -199,6 +226,11 @@ export const landscape_identity = (state) => {
   if (revision && !/^sha256:[0-9a-f]{64}$/.test(revision))
     throw new Error('data_revision must be a sha256: content digest');
   return {
+    source: {
+      base_url: state.global_base_url,
+      zarr_url: state.model?.get?.('zarr_url'),
+      data_revision: revision,
+    },
     coverage: revision ? 'loaded-data-and-declared-revision' : 'loaded-data',
     unverified: revision ? [] : ['remote-images-transcripts-and-expression'],
     data: {

@@ -119,6 +119,51 @@ describe('add_pic_button', () => {
     expect(dialog()).toBeNull();
   });
 
+  test('standalone PIC downloads a complete saved view without a kernel', async () => {
+    jest.useFakeTimers();
+    const click = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+    URL.createObjectURL = jest.fn(() => 'blob:saved-view');
+    URL.revokeObjectURL = jest.fn();
+    try {
+      const { ui } = panel();
+      const saved = {
+        schema: 'celldega.view',
+        version: 1,
+        image: { png: 'PNG' },
+        state: { focus_gene: 'MUC2' },
+      };
+      const pic = add_pic_button(ui, {
+        model: {},
+        capture: () => ({ snapshot: saved }),
+      });
+      pic.button.click();
+      dialog().querySelector('textarea').value = 'Boundary observation';
+      action('SAVE').click();
+      const blob = URL.createObjectURL.mock.calls[0][0];
+      const text = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsText(blob);
+      });
+      expect(JSON.parse(text)).toMatchObject({
+        ...saved,
+        description: 'Boundary observation',
+        author: 'you',
+      });
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(dialog().textContent).toContain('Downloaded saved view');
+      jest.advanceTimersByTime(1000);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:saved-view');
+    } finally {
+      click.mockRestore();
+      delete URL.createObjectURL;
+      delete URL.revokeObjectURL;
+      jest.useRealTimers();
+    }
+  });
+
   test('without a search row it goes next to the logo; dispose removes it', () => {
     const ui = document.createElement('div');
     const logo = document.createElement('div');

@@ -10,12 +10,11 @@ files next to each other:
   (dataset name, URLs, AnnData shape, Matrix source);
 - ``<name>.md``: the description, the image, and code to replay supported settings.
 
-These are partial view records, not complete reproducible scenes. Annotations,
-some selections and specialized camera controls are not restored; the same data
-must already be loaded. See the Viz API documentation for coverage.
-
-The same record serves people (figures that explain themselves) and Clerk (a folder of
-screenshots is a briefing: ``clerk.load_briefing("clerk_files/screenshots")``).
+A saved view is the versioned image, replay state, observations and provenance.
+A screenshot is its user-facing image export. It becomes an evidence artifact when
+used to support or contradict a claim; reports collect artifacts and reasoning
+outside the Viz API. Source data must already be loaded before restoration. See the
+Viz API documentation for supported controls and remaining limitations.
 
 Capture is asynchronous: the browser sends the image after the cell has finished, so
 ``screenshot()`` returns a :class:`Screenshot` whose output updates when the files are
@@ -40,9 +39,8 @@ from .snapshots import restore_spec
 
 
 SCHEMA_VERSION = 2
-# Shared with Clerk (Clerk.output_dir), so one folder holds everything to ignore or
-# load back as a briefing.
-DEFAULT_DIR = "clerk_files/screenshots"
+# Manual exports have an application-neutral default.
+DEFAULT_DIR = "celldega_files/screenshots"
 # PNG text chunk holding the record.
 PNG_KEY = "celldega"
 # Seconds to wait for the browser before saving what arrived.
@@ -212,8 +210,9 @@ def _markdown(record: dict, image_name: str) -> str:
             "## Replay supported settings",
             "",
             "With the same data loaded in these widgets:",
-            "This is a partial restore: annotations, some selections and specialized "
-            "camera controls are not restored. The image records what was shown.",
+            "This is a partial restore: gates, edited neighborhood geometry, custom "
+            "non-manual palettes and cross-widget links are not restored. The image "
+            "records what was shown. See the Viz API control coverage for supported settings.",
             "New snapshot records verify data identity and canvas dimensions before replay. "
             "Streamed Landscape assets need an immutable data_revision; allow_unverified=True "
             "explicitly checks loaded data only and never bypasses a fingerprint mismatch.",
@@ -283,6 +282,13 @@ def write_screenshot(
         ],
         "metadata": dict(metadata or {}),
     }
+    for widget in record["widgets"]:
+        if widget.get("snapshot"):
+            widget["snapshot"] = {
+                **widget["snapshot"],
+                "description": description,
+                "author": author,
+            }
     text = json.dumps(record, indent=2, default=str)
     info = PngInfo()
     info.add_itxt(PNG_KEY, text, zip=True)
@@ -319,7 +325,7 @@ def load_screenshots(folder: str | Path) -> list[dict]:
 
 
 def summarize(records: Iterable[dict]) -> str:
-    """Markdown summary of screenshots, for a Clerk briefing."""
+    """Markdown summary of saved screenshot records for reports or briefings."""
     lines = ["### Screenshots shared by the scientist", ""]
     for record in records:
         name = Path(record.get("_path") or record.get("image") or "screenshot").name
@@ -448,7 +454,9 @@ class _Capture:
             self._request(
                 widget,
                 "snapshot_capture_id",
-                lambda w=widget, k=kwargs: w.request_snapshot(max_size=max_size, **k),
+                lambda w=widget, k=kwargs: w.request_snapshot(
+                    max_size=max_size, description=result.description, author=author, **k
+                ),
             )
         self.ready = True
         self.timer.start()
@@ -530,7 +538,7 @@ def screenshot(
     Args:
         description: What you're looking at and why it's interesting.
         path: A ``.png`` file, or a folder for an auto-named file (default
-            ``clerk_files/screenshots``).
+            ``celldega_files/screenshots``).
         title: Optional short title (also used in the file name).
         metadata: Anything else to record, e.g. ``{"adata": "data/kidney.h5ad"}``.
             Set ``widget.screenshot_metadata`` to record it with every screenshot
@@ -602,7 +610,7 @@ class Screenshots:
         Args:
             description: What you're looking at and why it's interesting.
             path: A ``.png`` file, or a folder for an auto-named file (default
-                :attr:`screenshot_dir`, else ``clerk_files/screenshots``).
+                :attr:`screenshot_dir`, else ``celldega_files/screenshots``).
             title: Optional short title (also used in the file name).
             metadata: Anything else to record, e.g. the AnnData's path.
             max_size: Longest side of the image, in pixels.

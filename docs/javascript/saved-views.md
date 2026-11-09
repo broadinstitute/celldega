@@ -1,12 +1,31 @@
 # Portable saved views
 
 Landscape and Clustergram expose `snapshot()` and `restore_snapshot()` independently
-of agent interfaces and notebook widgets. A snapshot keeps the rendered image, scientific
-observations, supported replay settings and data identity together.
+of agent interfaces and notebook widgets. The goal is to **preserve an interactive observation as reproducible visual evidence**.
+A snapshot keeps the rendered image, semantic visualization state, bounded scientific
+observations, complete supported replay settings, and provenance together.
+
+## Terms and scope
+
+| Term | Meaning |
+| --- | --- |
+| Raster / image | Pixels only, returned by `capture_raster`. |
+| Screenshot | A user-facing saved image; Celldega's exports attach saved-view metadata. |
+| Snapshot / saved view | The versioned image + semantic state + provenance + replay contract. These are synonyms here. |
+| Evidence artifact | A saved view used to support or contradict a scientific claim. The description explains why it matters. |
+| Case / report | A higher-level collection of evidence and reasoning, outside the Viz API. |
+
+A scientist can use this API for exploration, figures, tutorials, reports, web or
+desktop applications without constructing an agent. Agents consume this same contract.
 
 ```javascript
 await viz.apply_state({ /* supported changes */ });
-const saved = await viz.snapshot({ max_size: 1600, state: { max_rows: 25 } });
+const saved = await viz.snapshot({
+  max_size: 1600,
+  state: { max_rows: 25 }, // Observation cap only; replay settings are uncapped.
+  description: 'The marker-enriched population occupies the tissue boundary.',
+  author: 'scientist',
+});
 const json = JSON.stringify(saved);
 
 // A separately constructed visualization with the same data and canvas dimensions:
@@ -28,7 +47,9 @@ The JSON envelope uses `schema: "celldega.view"` and `version: 1`:
 | `kind` | `landscape` or `clustergram` |
 | `renderer` | Celldega package version used to capture the view |
 | `captured_at` | UTC timestamp for the coordinated capture |
-| `state` | Inputs understood by `apply_state`; independent of observation caps |
+| `state` | Semantic replay inputs from `get_replay_state()`, independent of observation caps |
+| `description`, `author` | Why the observation matters, and who recorded it |
+| `source` | Available dataset URLs/name or declared revision; embedded data need not have a URL |
 | `observed_state` | The scientific observations returned by the getter |
 | `image` | Base64 PNG, thumbnail and dimensions |
 | `identity` | SHA-256 fingerprint, coverage and assets not verified |
@@ -49,6 +70,8 @@ installed Celldega version. The original PNG remains the visual evidence.
 Clustergram hashes the loaded matrix values, dot-size matrix, axis metadata,
 linkages, marker rankings, rank views and entity definitions. Identical names and
 dimensions with changed values do not pass. It does not depend on a widget instance ID.
+Source metadata is separated from mutable renderer decorations: cuts and manual
+annotation edits are replay state, not changes to source dataset identity.
 
 Landscape hashes loaded cell identities, categories, positions, embedding, gene
 metadata and source configuration. Images, transcripts and expression assets may
@@ -80,7 +103,7 @@ request_id = cgm.request_snapshot(max_rows=25)
 # In a later cell, after the browser replies:
 saved = cgm.latest_snapshot
 restore_id = fresh_cgm.restore_snapshot(saved)
-# Observe apply_capture_id / apply_error for completion.
+await fresh_cgm.wait_for_apply(restore_id) # raises on failure or timeout
 ```
 
 `latest_snapshot`, `snapshot_error` and `snapshot_capture_id` are Python-side traits,
@@ -97,6 +120,12 @@ record = dega.viz.load_screenshot("figure.png")
 fresh_cgm.restore_snapshot(record["widgets"][0]["snapshot"])
 ```
 
+Manual exports default to `celldega_files/screenshots/`; set `screenshot_dir` or
+pass `path` to choose a location. The notebook PIC button writes PNG/JSON/Markdown.
+Without a kernel, PIC downloads one saved-view JSON with the image embedded, and its
+description can be supplied in the dialog. An application may persist the same JSON
+in its own storage; no Clerk or notebook objects are required.
+
 Earlier screenshot records remain readable, but their plain `state` has no verified
 data binding. `apply_state` remains available for intentional edits; use
 `restore_snapshot` for compatibility-checked replay.
@@ -105,7 +134,9 @@ data binding. `apply_state` remains available for intentional edits; use
 
 The repository's `examples/viz-api/index.html` uses a small synthetic matrix and the
 built JS bundle. It supports JSON download/upload, restoration into a new instance,
-and an executable check for matching state/pixels, changed data and future schemas.
+and executable checks for capture → significant change → restore, fresh-instance
+state/pixel equality, changed-data rejection and future-schema rejection. The exercise
+includes dendrogram cuts, selections/highlights, annotations, crop, order and camera.
 
 From the repository root:
 

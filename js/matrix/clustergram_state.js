@@ -11,6 +11,11 @@ import {
   get_axis_display_state,
   get_axis_indices_in_range,
 } from './crop_filter';
+import {
+  get_replay_controls,
+  validate_replay_controls,
+  restore_annotations,
+} from './replay_controls';
 
 export const CLUSTERGRAM_STATE_VERSION = 1;
 
@@ -485,6 +490,23 @@ export const get_clustergram_state = (viz_state, options = {}) => {
   };
 };
 
+/** Full replay inputs: no observation caps or displayed-row sampling. */
+export const get_clustergram_replay_state = (state) => ({
+  ...get_clustergram_controls(state),
+  ...(marker_level_for(state)
+    ? { marker_level: state.rank_view.current ?? 'all' }
+    : {}),
+  mode: state.mat.viz_mode,
+  ...(state.mat.viz_mode === 'dotplot'
+    ? { size: state.mat.dot_size_encoded === false ? 'unit' : 'prop' }
+    : {}),
+  focus_gene:
+    state.labels?.focused_row_index != null
+      ? name_at(state, 'row', state.labels.focused_row_index)
+      : '',
+  ...get_replay_controls(state),
+});
+
 /** Settings `apply_clustergram_state` understands (the Python apply_state keys). */
 export const CLUSTERGRAM_APPLY_KEYS = [
   'marker_level',
@@ -492,6 +514,9 @@ export const CLUSTERGRAM_APPLY_KEYS = [
   'size',
   'focus_gene',
   'categories',
+  'annotations',
+  'dendrogram',
+  'selection',
   'view',
   'order',
   'crop',
@@ -612,6 +637,9 @@ export const apply_clustergram_state = (
     );
   }
 
+  validate_replay_controls(viz_state, changes);
+  if ('categories' in changes && 'annotations' in changes)
+    throw new Error('Use categories or annotations, not both');
   const updates = [];
   const controls = prepare_controls(viz_state, changes);
   if ('marker_level' in changes) {
@@ -673,6 +701,7 @@ export const apply_clustergram_state = (
   // The category editor also validates its configured attribute. Let that fail
   // before changing mode, marker level or focus.
   const applied = categories ? apply_categories(categories) : null;
+  if (changes.annotations) restore_annotations(viz_state, changes.annotations);
   updates.forEach(([key, value]) => {
     // Re-focusing the same gene should zoom to it again.
     if (key === 'focused_gene' && value && model.get(key) === value) {
@@ -686,8 +715,14 @@ export const apply_clustergram_state = (
     const axis = categories.axis === 'row' ? 'rows' : 'columns';
     done.push(`labeled ${applied} ${axis}`);
   }
-  // Rank-level and focus changes can reset the camera/crop. Replay navigation last.
-  for (const key of ['order', 'crop', 'view']) {
+  if (changes.annotations) done.push('restored annotations');
+  if (changes.dendrogram) {
+    viz_state.state_controls.dendrogram(changes.dendrogram);
+    done.push('updated dendrogram');
+  }
+  // Apply selection after crop (which clears it), and camera after any focus change.
+  if (changes.selection) controls.selection = changes.selection;
+  for (const key of ['order', 'crop', 'selection', 'view']) {
     if (controls[key]) {
       viz_state.state_controls[key](controls[key]);
       done.push(`updated ${key}`);

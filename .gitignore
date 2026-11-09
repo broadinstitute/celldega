@@ -141,4 +141,4 @@ uv.lock
 *.chat
 
 # Generated screenshot exports; see docs/visualizations.
-clerk_files/
+celldega_files/

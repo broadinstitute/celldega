@@ -54,6 +54,26 @@ async function check() {
   source.finalize();
   source = await render('source');
   source.apply_state({
+    dendrogram: { row: 35, col: 65 },
+    annotations: {
+      row: {
+        attribute: 'review',
+        values: { [network.row_nodes[3].name]: 'marker' },
+        colors: { marker: '#dd3344' },
+      },
+      col: {
+        attribute: 'cell_type',
+        values: { C3: 'population' },
+        colors: { population: '#3377cc' },
+      },
+    },
+    selection: {
+      rows: [network.row_nodes[3].name],
+      cols: ['C3'],
+      genes: [network.row_nodes[3].name],
+      highlighted_genes: [network.row_nodes[3].name.toLowerCase()],
+      dendrogram: null,
+    },
     order: {
       row: network.row_nodes.map((node) => node.name).reverse(),
       col: 'rank',
@@ -64,13 +84,38 @@ async function check() {
     },
     view: { target: [230, 220], zoom: [0.25, 0.5] },
   });
+  const group = source.get_state().cols.groups.groups[0];
+  source.apply_state({
+    selection: { dendrogram: { axis: 'col', members: group.members } },
+  });
   await document.fonts.ready;
   await settled();
   // JSON encode/decode is also the export/reopen boundary used by an application.
   saved = JSON.parse(JSON.stringify(await source.snapshot()));
+  source.apply_state({
+    dendrogram: { row: 80, col: 20 },
+    annotations: { row: null, col: null },
+    selection: {
+      rows: [],
+      cols: [],
+      genes: [],
+      highlighted_genes: [],
+      dendrogram: null,
+    },
+    crop: { row: null, col: null },
+    order: { row: 'clust', col: 'clust' },
+    view: { target: [0, 0], zoom: [1, 1] },
+  });
+  await settled();
+  await source.restore_snapshot(saved);
+  await settled();
+  const restoredSource = await source.snapshot();
   await restore();
   const again = await restored.snapshot();
   const result = {
+    changed_view_state:
+      JSON.stringify(saved.state) === JSON.stringify(restoredSource.state),
+    changed_view_pixels: saved.image.png === restoredSource.image.png,
     fresh_instance_state:
       JSON.stringify(saved.state) === JSON.stringify(again.state),
     fresh_instance_pixels: saved.image.png === again.image.png,

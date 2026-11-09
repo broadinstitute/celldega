@@ -1155,3 +1155,28 @@ export const clear_dendro_hover = (deck_mat, layers_mat, viz_state) => {
     }
   });
 };
+
+/** Restore a selected group by its scientific members, not an unstable node id. */
+export const restore_dendro_selection = (deck, layers, state, selection) => {
+  state.obs_store.dendro_selection.set(null);
+  state.obs_store.category_breakdown.set({ row: {}, col: {} });
+  clear_dendro_selection(deck, layers, state);
+  if (!selection) return;
+  const wanted = new Set(selection.members);
+  const polygon = state.dendro.polygons?.[selection.axis]?.find(
+    ({ properties }) =>
+      properties.all_names?.length === wanted.size &&
+      properties.all_names.every((name) => wanted.has(String(name)))
+  );
+  if (!polygon)
+    throw new Error(
+      'Selected dendrogram group is unavailable at this cut/crop'
+    );
+  apply_single_click_selection(
+    deck,
+    layers,
+    state,
+    selection.axis,
+    polygon.properties
+  );
+};

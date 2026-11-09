@@ -122,6 +122,8 @@ def test_landscape_screenshot_saves_when_the_browser_replies(tmp_path) -> None:
     assert shot.wait(timeout=5) and not shot.error
     record = load_screenshot(shot.path)
     widget = record["widgets"][0]
+    assert widget["snapshot"]["description"] == "Cluster A rings the structure."
+    assert widget["snapshot"]["author"] == "you"
     assert widget["state"] == {
         "space": "spatial",
         "view": {"target": [10.0, 20.0, 0], "zoom": -2.0},
@@ -188,13 +190,13 @@ def test_pic_button_save_from_the_browser(tmp_path) -> None:
     assert sent[-1]["event"] == "pic_error"
 
 
-def test_widget_screenshots_default_to_clerk_files(tmp_path, monkeypatch) -> None:
+def test_widget_screenshots_default_to_celldega_files(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     ls = _landscape()
     _browser(ls, _png(20, 20), LANDSCAPE_STATE)
     shot = ls.screenshot("x")
     assert shot.wait(timeout=5) and not shot.error
-    assert shot.path.parent == Path("clerk_files/screenshots")
+    assert shot.path.parent == Path("celldega_files/screenshots")
 
 
 def test_screenshot_keeps_observations_and_layer_replay_settings(tmp_path):

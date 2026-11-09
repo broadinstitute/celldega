@@ -129,9 +129,15 @@ import {
   update_ist_landscape_from_cgm,
 } from '../widget_interactions/update_ist_landscape_from_cgm';
 
-import { apply_landscape_state, get_landscape_state } from './landscape_state';
+import {
+  apply_landscape_state,
+  get_landscape_state,
+  get_landscape_replay_state,
+  wait_for_expression,
+} from './landscape_state';
 import {
   wait_for_canvas,
+  wait_for_operation,
   create_snapshot_api,
   landscape_identity,
 } from './snapshot';
@@ -1332,7 +1338,7 @@ export const landscape_ist = async (
           trx_layer: true,
         });
 
-        schedule_timeout(() => {
+        viz_state.spatial_restore_timeout = schedule_timeout(() => {
           if (viz_state.obs_store.landscape_view.get() !== 'spatial') return;
           viz_state.obs_store.viz_background_layer.set(true);
           viz_state.obs_store.viz_image_layers.set(true);
@@ -1541,20 +1547,25 @@ export const landscape_ist = async (
      * color by genes, move or reset the camera, zoom to clusters or cells.
      * @returns {Promise<string[]>} What changed.
      */
-    apply_state: (changes = {}) => {
+    get_replay_state: () => get_landscape_replay_state(viz_state),
+    apply_state: (changes = {}, { timeout_ms = 30000 } = {}) => {
       const canvas = deck_ist.getCanvas?.();
-      return apply_landscape_state(
-        viz_state,
-        {
-          deck: deck_ist,
-          layers_obj,
-          update_view_state: landscape.update_view_state,
-          size: {
-            width: canvas?.clientWidth || width || 800,
-            height: canvas?.clientHeight || height || 600,
-          },
-        },
-        changes
+      return wait_for_operation(
+        () =>
+          apply_landscape_state(
+            viz_state,
+            {
+              deck: deck_ist,
+              layers_obj,
+              update_view_state: landscape.update_view_state,
+              size: {
+                width: canvas?.clientWidth || width || 800,
+                height: canvas?.clientHeight || height || 600,
+              },
+            },
+            changes
+          ),
+        timeout_ms
       );
     },
     finalize: () => {
@@ -1598,11 +1609,15 @@ export const landscape_ist = async (
   Object.assign(
     landscape,
     create_snapshot_api({
-      ready: () => wait_for_canvas(deck_ist, () => finalized),
+      ready: async () => {
+        await wait_for_canvas(deck_ist, () => finalized);
+        await wait_for_operation(() => wait_for_expression(viz_state));
+      },
       kind: 'landscape',
       get_state: landscape.get_state,
       capture_raster: landscape.capture_raster,
       apply_state: landscape.apply_state,
+      get_replay_state: landscape.get_replay_state,
       identity: () => landscape_identity(viz_state),
       viewport: () => ({
         width: deck_ist.getCanvas().width,

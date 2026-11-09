@@ -13,6 +13,9 @@ const load_clustergram_state = (display) => {
     )
     .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];$/gm, '')
     .replace(/^export const /gm, 'const ');
+  const replay = fs
+    .readFileSync(path.join(__dirname, '../matrix/replay_controls.js'), 'utf8')
+    .replace(/^export const /gm, 'const ');
   const shims = `
     const get_axis_display_state = (viz_state, axis) => ({
       visible_indices: display[axis].slice(),
@@ -27,7 +30,7 @@ const load_clustergram_state = (display) => {
   new Function(
     'module',
     'display',
-    `${shims}\n${source}\nmodule.exports = { get_clustergram_state, visible_world_bounds, apply_clustergram_state };`
+    `${shims}\n${replay}\n${source}\nmodule.exports = { get_clustergram_state, get_clustergram_replay_state, visible_world_bounds, apply_clustergram_state };`
   )(module, display);
   return module.exports;
 };

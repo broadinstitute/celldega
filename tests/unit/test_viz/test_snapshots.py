@@ -90,3 +90,30 @@ def test_dataset_fingerprint_covers_content_names_and_is_portable(tmp_path):
     (second / "values.bin").write_bytes(b"abc")
     (second / "values.bin").rename(second / "renamed.bin")
     assert fingerprint_dataset(first) != fingerprint_dataset(second)
+
+
+def test_setter_acknowledgements_are_exact_and_timeouts_are_errors():
+    import asyncio
+
+    async def check():
+        w = widget()
+        w.send = lambda _msg: None
+        pending = asyncio.create_task(w.apply_state_async({"space": "xy"}, timeout=0.05))
+        await asyncio.sleep(0)
+        rid = w.apply_request_id
+        assert w.get_apply_result(rid) is None
+        w._on_apply_msg(w, {"event": "applied", "id": rid + 1, "done": ["unrelated"]}, [])
+        with pytest.raises(TimeoutError):
+            await pending
+        assert w.get_apply_result(rid) is None
+        w._on_apply_msg(
+            w, {"event": "apply_error", "id": rid, "error": "expression unavailable"}, []
+        )
+        with pytest.raises(ValueError, match="expression unavailable"):
+            await w.wait_for_apply(rid)
+        w.send = lambda msg: w._on_apply_msg(
+            w, {"event": "applied", "id": msg["id"], "done": ["restored"]}, []
+        )
+        assert await w.apply_state_async({"selected_cells": ["c1"]}) == ["restored"]
+
+    asyncio.run(check())

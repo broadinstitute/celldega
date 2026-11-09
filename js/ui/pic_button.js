@@ -5,6 +5,7 @@
  * the view right away (image + the widget's state), then opens a small dialog for a
  * title and a description. SAVE sends both to Python, which writes the PNG (with the
  * record embedded), a .json sidecar and a .md explanation, and replies with the path.
+ * Without a notebook transport, SAVE downloads the complete saved-view JSON.
  */
 
 const FONT =
@@ -52,6 +53,10 @@ export const add_pic_button = (ui_container, { model, capture }) => {
   let dialog = null;
   let shot = null;
   let request_id = 0;
+  const captured_status =
+    typeof model?.send === 'function'
+      ? 'The view is captured; saving writes the PNG, .json and .md.'
+      : 'The view is captured; saving downloads a saved-view JSON with its image.';
 
   const close = () => {
     dialog?.remove();
@@ -115,7 +120,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
     status.style.color = '#8a929b';
     status.style.minHeight = '14px';
     status.textContent = shot
-      ? 'The view is captured; saving writes the PNG, .json and .md.'
+      ? captured_status
       : 'Nothing to capture: the view may not be ready yet.';
     if (capture_error)
       status.textContent = `Capture failed: ${capture_error.message}`;
@@ -125,8 +130,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
         .then((result) => {
           if (dialog !== opened) return;
           shot = result;
-          status.textContent =
-            'The view is captured; saving writes the PNG, .json and .md.';
+          status.textContent = captured_status;
         })
         .catch((error) => {
           if (dialog === opened)
@@ -154,6 +158,31 @@ export const add_pic_button = (ui_container, { model, capture }) => {
 
     const submit = () => {
       if (!shot) return;
+      if (typeof model?.send !== 'function') {
+        if (!shot.snapshot) {
+          status.textContent = 'This visualization cannot export a saved view';
+          return;
+        }
+        const saved = {
+          ...shot.snapshot,
+          description: description.value.trim(),
+          title: title.value.trim(),
+          author: 'you',
+        };
+        const url = URL.createObjectURL(
+          new Blob([JSON.stringify(saved, null, 2)], {
+            type: 'application/json',
+          })
+        );
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'celldega-view.json';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        status.textContent =
+          'Downloaded saved view JSON (including image and replay settings)';
+        return;
+      }
       request_id += 1;
       model.send({
         event: 'pic',

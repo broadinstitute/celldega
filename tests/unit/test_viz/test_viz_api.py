@@ -160,19 +160,19 @@ def test_enrich_request_state_round_trip(monkeypatch) -> None:
     assert en.trait_metadata("latest_state", "sync") is None
 
 
-def test_clustergram_apply_state_sets_controls() -> None:
+def test_clustergram_apply_state_sets_controls(monkeypatch) -> None:
     cgm = _clustergram()
     cgm.row_names = ["MUC2", "TFF3"]
-
-    done = cgm.apply_state({"marker_level": 10, "mode": "dotplot", "size": "unit"})
-    assert done == ["DIM -> 10 markers per cluster", "mode -> dotplot", "dot size -> UNIT"]
-    assert (cgm.rank_dim, cgm.viz_mode, cgm.dot_size_encoded) == (10, "dotplot", False)
-
-    assert cgm.apply_state({"marker_level": "all"}) == ["DIM -> all rows"]
-    assert cgm.rank_dim == 0
-
+    sent = []
+    monkeypatch.setattr(cgm, "send", sent.append)
+    cgm.apply_state({"marker_level": 10, "mode": "dotplot", "size": "unit"})
+    assert sent[-1]["changes"] == {"marker_level": 10, "mode": "dotplot", "size": "unit"}
+    assert cgm.get_apply_result(cgm.apply_request_id) is None
+    # Browser owns mutation and acknowledgement; submission must not claim completion.
+    assert cgm.viz_mode == "heatmap"
     cgm.apply_state({"focus_gene": "MUC2"})
-    assert cgm.focused_gene == "MUC2"
+    assert sent[-1]["event"] == "apply_state" and sent[-1]["id"] == 2
+    assert cgm.focused_gene == ""
 
 
 def test_clustergram_apply_state_validates_before_changing() -> None:
@@ -213,7 +213,12 @@ def test_landscape_apply_state_sends_validated_changes(monkeypatch) -> None:
     assert sent[-1] == {
         "event": "apply_state",
         "id": 1,
-        "changes": {"clusters": ["4", "5"], "genes": ["MUC2"], "zoom_to": {"clusters": ["4"]}},
+        "changes": {
+            "clusters": ["4", "5"],
+            "genes": ["MUC2"],
+            "zoom_to": {"clusters": ["4"]},
+            "space": "spatial",
+        },
     }
 
     for bad in ({"colour": 1}, {"clusters": "4"}, {"space": "3d"}, {"zoom_to": {}}):
@@ -267,15 +272,16 @@ def test_clustergram_set_categories(monkeypatch) -> None:
     monkeypatch.setattr(cgm, "send", sent.append)
 
     done = cgm.apply_state({"categories": {"values": {"4": "Goblet cells", "5": "Plasma cells"}}})
-    assert done == ["labeled columns (cell_type): 4 → Goblet cells, 5 → Plasma cells"]
+    assert done == ["submitted col categories (cell_type)"]
     assert sent[-1] == {
-        "event": "set_categories",
+        "event": "apply_state",
         "id": 1,
-        "axis": "col",
-        "attribute": "cell_type",
-        "values": {"4": "Goblet cells", "5": "Plasma cells"},
-        "colors": {},
-        "replace": False,
+        "changes": {
+            "categories": {
+                "attribute": "cell_type",
+                "values": {"4": "Goblet cells", "5": "Plasma cells"},
+            }
+        },
     }
     with pytest.raises(ValueError, match="not col names"):
         cgm.set_categories({"99": "x"})

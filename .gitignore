@@ -139,3 +139,6 @@ uv.lock
 .conda/
 
 *.chat
+
+# Generated screenshot exports; see docs/visualizations.
+clerk_files/

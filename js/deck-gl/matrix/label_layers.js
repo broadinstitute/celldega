@@ -37,6 +37,7 @@ import {
   refresh_composition_dendro,
   toggle_dendro_layer_visibility,
 } from './dendro_layers';
+import { LABEL_CHARACTER_SET, fit_label } from './label_fit';
 import {
   col_label_color_triggers,
   get_layer_update_triggers,
@@ -46,6 +47,56 @@ import {
 } from './matrix_layers';
 
 const MAX_COL_LABEL_PIXEL_OFFSET = 18;
+
+// Row labels end (right-aligned) at this x, in the rows view's coordinates.
+const ROW_LABEL_X = 50;
+// Label layers draw at getSize * SIZE_SCALE pixels.
+const SIZE_SCALE = 2;
+// Gap kept between a fitted label and the left edge of the label area.
+const LABEL_EDGE_PAD = 3;
+
+/**
+ * Room a row label has, in pixels: from where it ends (next to the heatmap) to
+ * the left edge of the label area. The rows view keeps its x zoom and target
+ * fixed, so this only changes with the layout.
+ */
+export const row_label_room_px = (viz_state) => {
+  const { row_region, label_row_x } = viz_state.viz || {};
+  // Without a layout yet, nothing is shortened (NaN fails fit_label's check).
+  if (row_region === undefined) return Number.NaN;
+  return (
+    row_region / 2 +
+    (ROW_LABEL_X - label_row_x) * 2 ** (viz_state.zoom?.ini_zoom_x ?? 0) -
+    LABEL_EDGE_PAD
+  );
+};
+
+/** The row labels' current font size in pixels (it follows the y zoom). */
+export const row_label_font_px = (viz_state) =>
+  SIZE_SCALE *
+  (viz_state.mat.viz_mode === 'composition'
+    ? get_axis_label_font_size(viz_state, 'row')
+    : get_zoomed_axis_label_font_size(
+        viz_state,
+        'row',
+        viz_state.zoom?.zoom_data?.matrix?.zoom_y ?? 0
+      ));
+
+/**
+ * A row label as drawn: its beginning, ended with "…" when the whole label
+ * doesn't fit (instead of running off the left edge and losing its start).
+ * Composition mode positions and hides labels by its own fit rules.
+ */
+const row_label_text = (viz_state, d, font_weight = 'normal') => {
+  const label = d.display_name || d.name;
+  if (viz_state.mat.viz_mode === 'composition') return label;
+  return fit_label(
+    label,
+    row_label_room_px(viz_state),
+    row_label_font_px(viz_state),
+    { font_weight }
+  );
+};
 
 const row_label_get_position = (d, index, viz_state) => {
   const inst_index = d.index ?? index.index;
@@ -159,7 +210,8 @@ export const ini_row_label_layer = (viz_state) => {
     id: 'row-label-layer',
     data: filter_label_data(viz_state, 'row'),
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
-    getText: (d) => d.display_name || d.name,
+    getText: (d) => row_label_text(viz_state, d),
+    characterSet: LABEL_CHARACTER_SET,
     getSize: get_axis_label_font_size(viz_state, 'row'),
     // The focused row is drawn by the bold overlay. Keep its base datum in
     // place so sibling labels retain stable indices during animated reorders.
@@ -172,11 +224,12 @@ export const ini_row_label_layer = (viz_state) => {
     getAlignmentBaseline: 'center',
     fontFamily: 'Arial',
     sizeUnits: 'pixels',
-    sizeScale: 2,
+    sizeScale: SIZE_SCALE,
     updateTriggers: {
       getPosition: crop_sig,
       getColor: row_label_color_triggers(viz_state),
       getSize: crop_sig,
+      getText: [row_label_font_px(viz_state), row_label_room_px(viz_state)],
     },
     pickable: true,
     transitions,
@@ -205,7 +258,8 @@ export const ini_row_label_focus_layer = (viz_state) => {
     id: 'row-label-layer-focus',
     data,
     getPosition: (d, index) => row_label_get_position(d, index, viz_state),
-    getText: (d) => d.display_name || d.name,
+    getText: (d) => row_label_text(viz_state, d, 'bold'),
+    characterSet: LABEL_CHARACTER_SET,
     getSize: get_zoomed_axis_label_font_size(
       viz_state,
       'row',
@@ -218,7 +272,7 @@ export const ini_row_label_focus_layer = (viz_state) => {
     fontFamily: 'Arial',
     fontWeight: 'bold',
     sizeUnits: 'pixels',
-    sizeScale: 2,
+    sizeScale: SIZE_SCALE,
     // The overlay REPLACES the (transparent) base label, so it takes over its
     // click/hover behavior via the handlers stashed by the set_* wiring.
     pickable: true,

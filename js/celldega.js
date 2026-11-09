@@ -14,14 +14,19 @@ import {
   handleAsyncError,
   handleValidationWarning,
 } from './temp_utils/errorHandler';
+import { show_loading } from './ui/loading';
 import { link_models, make_options_model } from './utils/options_model';
 import { landmark } from './viz/landmark';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
+import { handle_snapshot_message } from './viz/snapshot';
 import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
+
+// Show the loading placeholder only for renders slower than this.
+const LOADING_DELAY_MS = 150;
 
 // Remove export keywords from render functions
 const render_landscape_ist = async ({ model, el }) => {
@@ -197,17 +202,93 @@ const render_landscape_h_e = async ({ model, el }) => {
   );
 };
 
+/**
+ * Viz API messages from Python for a spatial view (Landscape, CellCloud,
+ * NeighborhoodCloud): screenshots, state snapshots and setters, answered with
+ * one-off messages so nothing is saved into the notebook's widget state.
+ */
+const listen_for_viz_api = (model, landscape) => {
+  // Raster capture: Python sends {event: 'capture_raster'}; reply with a one-off
+  // message rather than synced traits, so captured images are never saved into the
+  // notebook's widget state.
+  if (!landscape || typeof landscape.capture_raster !== 'function') return;
+  const on_capture_request = (msg) => {
+    if (msg?.event !== 'capture_raster') return;
+    try {
+      const capture = landscape.capture_raster({
+        max_size: msg.max_size,
+        thumb_size: msg.thumb_size,
+      });
+      if (capture) {
+        model.send({ event: 'raster', id: msg.id, ...capture });
+      } else {
+        model.send({
+          event: 'raster_error',
+          id: msg.id,
+          error: 'No canvas to capture',
+        });
+      }
+    } catch (e) {
+      model.send({ event: 'raster_error', id: msg.id, error: e.message });
+      handleValidationWarning('Raster capture failed', {
+        data: { error: e.message },
+      });
+    }
+  };
+  model.on('msg:custom', on_capture_request);
+
+  // Viz API for Python (e.g. Clerk): state snapshots and setters, answered with
+  // one-off messages so nothing is saved into the notebook's widget state.
+  const on_state_message = async (msg) => {
+    if (
+      landscape.snapshot &&
+      ['capture_snapshot', 'restore_snapshot'].includes(msg?.event)
+    ) {
+      await handle_snapshot_message(model, landscape, msg);
+      return;
+    }
+    if (msg?.event === 'get_state' && landscape.get_state) {
+      try {
+        const state = landscape.get_state(msg.options || {});
+        model.send({ event: 'state', id: msg.id, state });
+      } catch (e) {
+        model.send({ event: 'state_error', id: msg.id, error: e.message });
+      }
+    } else if (msg?.event === 'apply_state' && landscape.apply_state) {
+      try {
+        const done = await landscape.apply_state(msg.changes || {});
+        model.send({ event: 'applied', id: msg.id, done });
+      } catch (e) {
+        model.send({ event: 'apply_error', id: msg.id, error: e.message });
+      }
+    }
+  };
+  model.on('msg:custom', on_state_message);
+
+  const finalize_landscape = landscape.finalize;
+  landscape.finalize = () => {
+    model.off?.('msg:custom', on_capture_request);
+    model.off?.('msg:custom', on_state_message);
+    finalize_landscape?.();
+  };
+};
+
 const render_landscape = async ({ model, el }) => {
   const technology = model.get('technology');
 
+  let landscape;
   if (
     ['MERSCOPE', 'Xenium', 'Chromium', 'Visium-HD'].includes(technology) ||
     is_orbit_technology(technology)
   ) {
-    return render_landscape_ist({ model, el });
+    landscape = await render_landscape_ist({ model, el });
   } else if (['h&e'].includes(technology)) {
-    return render_landscape_h_e({ model, el });
+    landscape = await render_landscape_h_e({ model, el });
   }
+
+  listen_for_viz_api(model, landscape);
+
+  return landscape;
 };
 
 const render_yearbook = async ({ model, el }) => {
@@ -330,29 +411,44 @@ async function render({ model, el }) {
       return;
     }
 
+    // Widgets can take a while to fetch their data: show the awning mark and
+    // "Loading…" until they appear (only if it takes more than a moment, so
+    // panels that render at once don't flash it).
+    const with_loading = async (render_widget) => {
+      const remove = show_loading(el, {
+        height: model.get('height'),
+        delay: LOADING_DELAY_MS,
+      });
+      try {
+        return await render_widget({ model, el });
+      } finally {
+        remove();
+      }
+    };
+
     switch (componentType) {
       case 'Landscape':
-        cleanup = await render_landscape({ model, el });
+        cleanup = await with_loading(render_landscape);
         break;
       case 'CellCloud':
       case 'NeighborhoodCloud':
         // 3D-orbit widgets reuse the ist render path; the orbit view, layers,
         // and manifest filename are driven by the model's technology /
         // manifest_name traits (see render_landscape_ist and landscape_ist).
-        cleanup = await render_landscape_ist({ model, el });
+        cleanup = await with_loading(render_landscape_ist);
+        listen_for_viz_api(model, cleanup);
         break;
       case 'Yearbook':
-        cleanup = await render_yearbook({ model, el });
+        cleanup = await with_loading(render_yearbook);
         break;
       case 'Matrix':
-        // return render_matrix_new({ model, el });
-        cleanup = await render_matrix_new({ model, el });
+        cleanup = await with_loading(render_matrix_new);
         break;
       case 'Enrich':
-        cleanup = await render_enrich({ model, el });
+        cleanup = await with_loading(render_enrich);
         break;
       case 'Landmark':
-        cleanup = await render_landmark({ model, el });
+        cleanup = await with_loading(render_landmark);
         break;
       default:
         handleValidationWarning(`Unknown component type: ${componentType}`, {

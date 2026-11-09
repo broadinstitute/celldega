@@ -8,8 +8,8 @@ on:
   push:
     branches: [main, develop]
     tags: ['v*']
+  # Run checks for stacked PRs targeting another feature branch too.
   pull_request:
-    branches: [main, develop]
   workflow_dispatch:
 
 # Add concurrency control to cancel redundant runs

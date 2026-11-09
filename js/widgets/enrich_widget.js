@@ -91,8 +91,10 @@ export const render_enrich = async ({ model, el }) => {
   const gene_hover_tooltip = make_gene_hover_tooltip();
 
   // Latest enrichment results, so a hovered gene can report which of the
-  // shown terms it appears in.
+  // shown terms it appears in (and for state snapshots, e.g. Clerk).
   let current_terms = [];
+  let current_link = null;
+  let loading = false;
 
   const format_p_value = (value) => {
     const number = Number(value);
@@ -386,6 +388,8 @@ export const render_enrich = async ({ model, el }) => {
     if (!genes.length) {
       clearTermSelection();
       current_terms = [];
+      current_link = null;
+      loading = false;
       barHolder.textContent = 'No genes provided.';
       paragraphHolder.textContent = 'Paragraph view';
       geneInfoHolder.textContent = '';
@@ -395,6 +399,7 @@ export const render_enrich = async ({ model, el }) => {
     }
 
     barHolder.textContent = 'Loading...';
+    loading = true;
 
     try {
       const cacheKey = `${genes.join(',')}__${lib}__${
@@ -435,6 +440,10 @@ export const render_enrich = async ({ model, el }) => {
         .slice(0, numTerms);
 
       current_terms = bar_data;
+      current_link = shortId
+        ? `https://maayanlab.cloud/Enrichr/enrich?dataset=${shortId}`
+        : null;
+      loading = false;
 
       const bar_data_values = bar_data.map((x) => x.score);
 
@@ -617,6 +626,9 @@ export const render_enrich = async ({ model, el }) => {
     } catch (error) {
       if (revision !== updateRevision) return;
       handleAsyncError(error, { context: 'render_enrich' });
+      current_terms = [];
+      current_link = null;
+      loading = false;
       barHolder.textContent = 'Error loading enrichment data.';
       geneInfoHolder.textContent = '';
       linkHolder.textContent = '';
@@ -675,6 +687,41 @@ export const render_enrich = async ({ model, el }) => {
 
   traitListeners.forEach(([event, listener]) => model.on(event, listener));
 
+  // State snapshot for Python (e.g. Clerk): what's on screen, as a one-off reply
+  // so it is never saved into the notebook's widget state.
+  const round = (value, digits) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Number(number.toPrecision(digits)) : null;
+  };
+  const onCustomMessage = (msg) => {
+    if (msg?.event !== 'get_state') return;
+    const max_terms = Math.max(0, Number(msg.options?.max_terms ?? 15) || 0);
+    model.send({
+      event: 'state',
+      id: msg.id,
+      state: {
+        kind: 'enrich',
+        library: store.selected_lib.get(),
+        gene_list: (model.get('gene_list') || []).slice(0, 200),
+        n_genes: (model.get('gene_list') || []).length,
+        source_label: model.get('source_label') || '',
+        loading,
+        terms: current_terms.slice(0, max_terms).map((term) => ({
+          name: term.name,
+          score: round(term.score, 4),
+          p_value: round(term.p_value, 3),
+          adjusted_p: round(term.adjusted_p, 3),
+          odds_ratio: round(term.odds_ratio, 4),
+          genes: Array.isArray(term.genes) ? term.genes.map(String) : [],
+        })),
+        selected_term: model.get('selected_term') || '',
+        term_genes: (model.get('term_genes') || []).map(String),
+        link: current_link,
+      },
+    });
+  };
+  model.on('msg:custom', onCustomMessage);
+
   // Start the first request without delaying registration of the cleanup
   // callback. A widget finalized during a slow Enrichr request can then cancel
   // the remaining work and release its listeners immediately.
@@ -687,6 +734,7 @@ export const render_enrich = async ({ model, el }) => {
     gene_hover_tooltip.destroy();
     subscriptions.forEach((unsubscribe) => unsubscribe?.());
     traitListeners.forEach(([event, listener]) => model.off?.(event, listener));
+    model.off?.('msg:custom', onCustomMessage);
     clearButton.removeEventListener('click', onClearClick);
     select.removeEventListener('change', onSelectChange);
     container.remove();

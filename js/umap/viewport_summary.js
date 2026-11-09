@@ -183,6 +183,7 @@ export const initialize_viewport_summary = (viz_state) => {
     const view = obs.landscape_view.get();
     const active = view === 'umap' || view === 'xy';
     if (!active) {
+      viz_state.viewport_gene_summary = null;
       if (was_active) {
         publish(obs.new_cell_bar_data, cats.cluster_counts);
         publish(obs.new_gene_bar_data, viz_state.genes.top_gene_counts);
@@ -196,7 +197,13 @@ export const initialize_viewport_summary = (viz_state) => {
       view === 'xy'
         ? viz_state.spatial.cell_xy_scatter_positions
         : viz_state.spatial.cell_umap_scatter_positions;
-    if (!positions || !bounds) return;
+    if (!positions || !bounds) {
+      viz_state.viewport_gene_summary = {
+        mode: 'unavailable',
+        scope: 'unknown',
+      };
+      return;
+    }
     const { indices, all, bars } = viewport_cells(positions, cats, bounds);
     publish(obs.new_cell_bar_data, bars);
     // Whole-dataset genes unless every visible cell has a signature.
@@ -232,6 +239,13 @@ export const initialize_viewport_summary = (viz_state) => {
         : 'Loading gene signatures…';
     }
     paint_trx(mode, status);
+    // Keep the meaning of the bars in state, not only in the TRX tooltip.
+    viz_state.viewport_gene_summary = {
+      mode,
+      scope: mode === 'dataset' ? 'dataset' : 'viewport',
+      units: mode === 'estimate' ? signatures.units : null,
+      status,
+    };
     publish(obs.new_gene_bar_data, gene_bars);
   };
 

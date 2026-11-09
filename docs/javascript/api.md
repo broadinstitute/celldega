@@ -9,8 +9,9 @@ The JavaScript component of Celldega is used within the Jupyter Widgets framewor
 page, without a Python kernel, from data on any static file server that allows
 cross-origin requests (a local server, a bucket, or Hugging Face). Each takes
 the container element and an options object, and returns the visualization
-with its `model` and a `finalize()` method. The lower-level `landscape_ist` and
-`matrix_viz` renderers, documented below, remain available.
+with its `model` and a `finalize()` method, plus the [Viz API](viz-api.md)'s getters,
+setters and exporters (`get_state`, `apply_state`, `capture_raster`). The lower-level
+`landscape_ist` and `matrix_viz` renderers, documented below, remain available.
 
 ### `landscape(el, options)`
 

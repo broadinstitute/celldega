@@ -338,6 +338,21 @@ export const make_img_layer_slider_callback = (
   };
 };
 
+/**
+ * Move a slider programmatically (e.g. a Python-driven trait change), keeping
+ * its filled-track styling in sync. Assigning `.value` alone would leave the
+ * track painted at the old position.
+ *
+ * @param {HTMLInputElement} slider - Slider element.
+ * @param {number|string} value - New value.
+ */
+export const set_slider_value = (slider, value) => {
+  if (!slider) return;
+
+  slider.value = String(value);
+  update_slider_fill_percent(slider);
+};
+
 export const ini_slider_params = (slider, ini_value, callback) => {
   ensure_slider_styles();
 
@@ -360,6 +375,11 @@ export const ini_slider_params = (slider, ini_value, callback) => {
   };
 
   slider.addEventListener('input', handle_input);
+  // Programmatic changes use the same callback as dragging, and can await it.
+  slider.apply_value = (value) => {
+    set_slider_value(slider, value);
+    return callback?.();
+  };
 };
 
 export const ini_slider = (slider_type, inst_deck, layers_obj, viz_state) => {
@@ -448,21 +468,6 @@ export const ini_discrete_slider_params = (slider, options = {}) => {
   });
 
   return slider;
-};
-
-/**
- * Move a slider programmatically (e.g. a Python-driven trait change), keeping
- * its filled-track styling in sync. Assigning `.value` alone would leave the
- * track painted at the old position.
- *
- * @param {HTMLInputElement} slider - Slider element.
- * @param {number|string} value - New value.
- */
-export const set_slider_value = (slider, value) => {
-  if (!slider) return;
-
-  slider.value = String(value);
-  update_slider_fill_percent(slider);
 };
 
 export const toggle_slider = (slider, state) => {

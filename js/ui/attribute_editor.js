@@ -23,7 +23,7 @@ const get_used_colors = (viz_state) => {
   );
 };
 
-const allocate_color = (viz_state) => {
+export const allocate_color = (viz_state) => {
   viz_state.manual_cat = viz_state.manual_cat || {};
   if (typeof viz_state.manual_cat.color_cursor !== 'number') {
     viz_state.manual_cat.color_cursor = 0;

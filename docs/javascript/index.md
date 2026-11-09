@@ -43,6 +43,11 @@ For a saved clustered Matrix, use `clustergram(element, {url})`.
 | `anndata_zarr_source(url, options)` | Cell-level Zarr metadata and per-gene expression reader |
 | `network_from_zarr(url)` | Restore a saved Matrix's browser visualization network |
 
+Each Landscape and Clustergram these return can also be read and driven from code:
+`get_state()` reports what it shows, `apply_state()` changes it, and `capture_raster()`
+takes a screenshot. See the [Viz API](viz-api.md), which web apps and AI agents can use
+to inspect a view, show evidence, and keep a reproducible picture of it.
+
 See the [API reference](api.md#visualizations-without-python-landscape-clustergram-and-link_models)
 for complete options and a linked Landscape/Clustergram example. Lower-level
 renderers remain available for custom integrations.

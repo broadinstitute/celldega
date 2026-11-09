@@ -22,6 +22,18 @@ const to_index_array = (values) =>
     ? values.map(Number).filter((value) => Number.isFinite(value))
     : [];
 
+const parse_markers = (raw, num_rows) => {
+  const markers = {};
+  if (!raw || typeof raw !== 'object') return markers;
+  Object.entries(raw).forEach(([group, indices]) => {
+    const rows = to_index_array(indices).filter(
+      (index) => index >= 0 && index < num_rows
+    );
+    if (rows.length) markers[String(group)] = rows;
+  });
+  return markers;
+};
+
 /**
  * Parse `network.views` into front-end state. Must run after the label data has
  * populated `viz_state.mat.orders` and `viz_state.linkage`, since the
@@ -76,6 +88,9 @@ export const ini_rank_views = (viz_state, network) => {
     current: null,
     filter: { row: null, col: null },
     leaf_map: { row: null, col: null },
+    // Each cluster's ranked markers (rank_genes_groups), best first, as row
+    // indices: {cluster name: [row index, ...]}. Empty without marker ranks.
+    markers: parse_markers(network?.markers, viz_state.mat.num_rows),
   };
 };
 

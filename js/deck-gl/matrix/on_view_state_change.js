@@ -4,6 +4,7 @@ import { refresh_row_label_visibility } from '../../matrix/composition_data';
 import { get_zoomed_axis_label_font_size } from '../../matrix/crop_filter';
 
 import { curate_pan_x, curate_pan_y } from './curate_pan';
+import { row_label_font_px, row_label_room_px } from './label_layers';
 import { get_mat_layers_list } from './matrix_layers';
 import { redefine_global_view_state } from './redefine_global_view_state';
 import { DENDRO_TREE_VIEW_IDS } from './views';
@@ -205,12 +206,21 @@ export const on_view_state_change = (
     // reveal themselves as soon as there's room.
     refresh_row_label_visibility(layers_mat, viz_state);
   } else {
+    // A new font size changes how much of each label fits (see label_fit.js).
+    const fit_trigger = [
+      row_label_font_px(viz_state),
+      row_label_room_px(viz_state),
+    ];
     layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
       getSize: get_zoomed_axis_label_font_size(
         viz_state,
         'row',
         viz_state.zoom.zoom_data.matrix.zoom_y
       ),
+      updateTriggers: {
+        ...layers_mat.row_label_layer.props?.updateTriggers,
+        getText: fit_trigger,
+      },
     });
     if (layers_mat.row_label_focus_layer) {
       // Keep the bold focus overlay sized like the base row labels.
@@ -221,6 +231,10 @@ export const on_view_state_change = (
             'row',
             viz_state.zoom.zoom_data.matrix.zoom_y
           ),
+          updateTriggers: {
+            ...layers_mat.row_label_focus_layer.props?.updateTriggers,
+            getText: fit_trigger,
+          },
         }
       );
     }

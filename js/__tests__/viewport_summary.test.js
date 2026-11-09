@@ -147,6 +147,10 @@ test('uses UMAP and XY positions, refreshes after load, and restores spatial bar
     { name: 'B', value: 1 },
   ]);
   expect(trx.attrs.title).toContain('Loading gene signatures');
+  expect(viz.viewport_gene_summary).toMatchObject({
+    mode: 'dataset',
+    scope: 'dataset',
+  });
   // No captions: the bars and TRX carry it.
   expect(parent.textContent).toBe('');
   resolve(signatures);
@@ -231,9 +235,18 @@ test('TRX is blue with every cell in view, purple for estimates, and stays estim
     viz.genes.top_gene_counts
   );
   expect(trx.styles.color).toBe('blue');
+  expect(viz.viewport_gene_summary).toMatchObject({
+    mode: 'whole',
+    scope: 'viewport',
+  });
   bounds = { min_x: -1, max_x: 2, min_y: -1, max_y: 2 };
   viz.refresh_viewport();
   expect(trx.styles.color).toBe('purple');
+  expect(viz.viewport_gene_summary).toMatchObject({
+    mode: 'estimate',
+    scope: 'viewport',
+    units: signatures.units,
+  });
   expect(viz.obs_store.new_gene_bar_data.get()[0]).toEqual({
     name: 'B',
     value: 3,
@@ -252,6 +265,7 @@ test('TRX is blue with every cell in view, purple for estimates, and stays estim
   expect(trx.styles.color).toBe('gray');
   expect(trx.styles.cursor).toBe('pointer');
   expect(trx.attrs.title).toBe('Transcripts');
+  expect(viz.viewport_gene_summary).toBeNull();
   dispose();
 });
 

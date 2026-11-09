@@ -39,6 +39,18 @@ const layer_shims = `
   const filter_label_data = (viz_state) => viz_state.labels.row_label_data;
   const get_axis_label_font_size = () => 10;
   const get_zoomed_axis_label_font_size = () => 10;
+  // Label fitting has its own tests (label_fit.test.js); here, record how the
+  // layers call it and pass labels through.
+  const LABEL_CHARACTER_SET = ['…'];
+  const fit_label = (text, max_px, font_px, options) => {
+    (globalThis.__fit_label_calls ||= []).push({
+      text,
+      max_px,
+      font_px,
+      weight: options?.font_weight,
+    });
+    return text;
+  };
   const get_axis_center_position = () => 0;
   const get_axis_display_count = () => 2;
   const composition_row_label_position = () => [50, 0];
@@ -121,6 +133,40 @@ describe('term-gene row label highlighting', () => {
     expect(layer.props.getColor({ name: 'FAM124A', index: 1 })).toEqual([
       0, 0, 0, 255,
     ]);
+  });
+
+  test('row labels are fitted to the label area at their current size', () => {
+    globalThis.__fit_label_calls = [];
+    const viz_state = make_viz_state();
+    viz_state.viz = {
+      ...(viz_state.viz || {}),
+      row_region: 100,
+      label_row_x: 15,
+    };
+    viz_state.zoom = { ini_zoom_x: 0, zoom_data: { matrix: { zoom_y: 0 } } };
+    const layer = ini_row_label_layer(viz_state);
+    expect(layer.props.characterSet).toContain('…');
+    layer.props.getText({ name: 'MUC2', display_name: 'MUC2 (Goblet cells)' });
+    // Room: half the label area, plus the label's offset from the view center,
+    // minus a small pad; font: getSize (10) x sizeScale (2).
+    expect(globalThis.__fit_label_calls.at(-1)).toEqual({
+      text: 'MUC2 (Goblet cells)',
+      max_px: 100 / 2 + (50 - 15) - 3,
+      font_px: 20,
+      weight: 'normal',
+    });
+    expect(layer.props.updateTriggers.getText).toEqual([20, 82]);
+
+    viz_state.labels.focused_row_index = 0;
+    const focus = ini_row_label_focus_layer(viz_state);
+    focus.props.getText({ name: 'MUC2', index: 0 });
+    expect(globalThis.__fit_label_calls.at(-1).weight).toBe('bold');
+
+    // Composition mode positions and hides labels by its own rules.
+    globalThis.__fit_label_calls = [];
+    viz_state.mat.viz_mode = 'composition';
+    ini_row_label_layer(viz_state).props.getText({ name: 'A' });
+    expect(globalThis.__fit_label_calls).toEqual([]);
   });
 
   test('composition-mode visibility still hides highlighted labels', () => {
@@ -404,6 +450,8 @@ describe('on_view_state_change during a programmatic transition', () => {
       }
       const refresh_row_label_visibility = () => {};
       const get_zoomed_axis_label_font_size = () => 10;
+      const row_label_font_px = () => 20;
+      const row_label_room_px = () => 100;
       const curate_pan_x = (x) => x;
       const curate_pan_y = (y) => y;
       const get_mat_layers_list = () => [];

@@ -91,7 +91,7 @@ RNA image channels.*
 | 3 | **TRX** | Transcripts and gene expression. Zoomed in, TRX shows or hides individual transcripts and the slider sets their size; zoomed out, the slider sets how strongly cells are colored by a selected gene. The bars rank genes: click one to color cells by its expression. |
 | 4 | **NBHD** | Neighborhoods: shows supplied tissue regions, or lets you draw your own. Appears only when neighborhoods are supplied or drawing is turned on. |
 | 5 | Gene search | Type one or more gene names, separated by commas, to color cells by expression; clear the box to return to cluster colors. The box below describes the selected gene, from UniProt. |
-| 6 | Celldega logo | Opens this visualization's documentation page. |
+| 6 | Celldega logo | Opens this visualization's documentation page. **PIC**, next to it, saves a [screenshot with a description](#screenshots). |
 | 7 | The view | Scroll to zoom, drag to pan, hover over cells and transcripts for details, and click a cell to select its cluster. |
 
 Conventions shared across visualizations:
@@ -147,3 +147,62 @@ browser. You can use it in two ways:
 
 Each visualization's page describes its interactions, which are the same in
 both cases, and then what the widget's Python back-end adds.
+
+## Reading and driving visualizations from code
+
+Every visualization can be read and changed from code as well as by clicking: getters
+report what it shows, setters change it as its controls would, and exporters capture it
+as an image. The same keys work in Python (`widget.request_state()`,
+`widget.apply_state()`, `widget.screenshot()`) and JavaScript; see the
+[Viz API](../javascript/viz-api.md).
+
+## Screenshots with provenance {#screenshots}
+
+A screenshot is only useful later if you know what it shows and how to make it again.
+Celldega saves each screenshot as three files side by side:
+
+- `<name>.png`: the image, with the record below embedded in the file;
+- `<name>.json`: your description, who made it and when, the Celldega version, each
+  widget's supported replay settings (`state`), its returned snapshot (`observed_state`), what was in view
+  (cell counts per cluster, top genes), and the data it came from (dataset name, base
+  URL or AnnData Zarr URL, AnnData shape, the Matrix's source);
+- `<name>.md`: the description, the image, and code to replay supported settings.
+
+New records also contain a versioned `snapshot` envelope with a data fingerprint.
+Image and state are captured together. `widget.restore_snapshot(...)` checks the
+schema, data identity and canvas before changing the view; see
+[portable saved views](../javascript/saved-views.md) for reopening exports and
+identifying remote datasets.
+
+Records are marked `restoration: "partial"`. They preserve the image and provenance,
+but do not yet restore every control or load the data into a fresh widget. See
+[replay coverage and limitations](../javascript/viz-api.md#replaying-supported-settings).
+
+Save one from a widget's control panel with **PIC**: it captures the view, then asks
+for a title and a description of what you're looking at and why it's interesting. Or
+from Python, on a Landscape, Clustergram, CellCloud or NeighborhoodCloud:
+
+```python
+landscape.screenshot(
+    description="Podocyte-like cells ring each glomerulus; the ring breaks where ...",
+    path="figures/",            # a folder, or a file like "figures/fig2a.png"
+)
+# A linked row (or several widgets) becomes one image, side by side:
+dega.viz.screenshot(linked, description="...", path="figures/fig2.png")
+```
+
+The image arrives from the browser after the cell finishes, so the call's output shows
+"Capturing…" and then a preview with the saved path. Without a path, screenshots go to
+`clerk_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
+kept out of version control or shared as a collection of evidence.
+
+Record what Python can't see, such as the AnnData file a widget was made from, once per
+widget; it's added to every screenshot of it, including PIC ones:
+
+```python
+landscape.screenshot_metadata = {"adata": "data/kidney.h5ad", "notebook": "review.ipynb"}
+```
+
+Read screenshots back with `dega.viz.load_screenshot(path)` (from the `.json`, or the
+PNG alone) and `dega.viz.load_screenshots(folder)`. A folder of screenshots works as a
+scrapbook of what you found along the way, reusable by people and application agents.

@@ -328,6 +328,10 @@ DEFAULT_MARKER_VIEW_LEVELS: tuple[int, ...] = (1, 2, 3, 5, 10, 25)
 # are skipped rather than exported with an empty linkage.
 MIN_VIEW_ROWS: int = 3
 
+# Ranked markers per cluster sent to the front end (``viz["markers"]``), so the
+# Clustergram and agents reading it can list a cluster's top markers in order.
+MAX_MARKERS_PER_CLUSTER: int = 100
+
 ERRORS: dict[str, str] = {
     "no_data": "No data loaded",
     "invalid_filter": "Filter type '{}' not supported. Use: {}",

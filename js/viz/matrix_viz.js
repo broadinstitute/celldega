@@ -73,12 +73,17 @@ import { get_tooltip } from '../deck-gl/matrix/matrix_tooltip';
 import { on_view_state_change } from '../deck-gl/matrix/on_view_state_change';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { focus_matrix_row } from '../deck-gl/matrix/row_search';
+import { initialize_state_controls } from '../deck-gl/matrix/state_controls';
 import { ini_views, ini_view_state } from '../deck-gl/matrix/views';
 import { ini_zoom_data } from '../deck-gl/matrix/zoom';
 import {
   apply_manual_definitions_to_axis,
   refresh_attribute_layers,
 } from '../matrix/attr_state';
+import {
+  apply_clustergram_state,
+  get_clustergram_state,
+} from '../matrix/clustergram_state';
 import {
   refresh_row_label_visibility,
   set_composition_colors,
@@ -94,6 +99,7 @@ import {
   set_col_label_data,
   update_label_display_names,
 } from '../matrix/label_data';
+import { apply_manual_categories } from '../matrix/manual_categories';
 import {
   set_mat_data,
   apply_mat_encoding,
@@ -112,13 +118,24 @@ import {
   sync_rank_view_model,
 } from '../matrix/rank_views';
 import { set_mat_constants } from '../matrix/set_constants';
-import { initialize_attribute_editor } from '../ui/attribute_editor';
+import {
+  allocate_color,
+  initialize_attribute_editor,
+} from '../ui/attribute_editor';
 import { initialize_attribute_labels } from '../ui/attribute_labels';
 import { initialize_dendro_tree_overlay } from '../ui/dendro_tree_overlay';
+import { add_pic_button } from '../ui/pic_button';
 import {
   make_matrix_ui_container,
   update_mode_button_visibility,
 } from '../ui/ui_containers';
+import { capture_deck } from '../utils/canvas_capture';
+
+import {
+  wait_for_canvas,
+  create_snapshot_api,
+  handle_snapshot_message,
+} from './snapshot';
 
 export const matrix_viz = async (
   model,
@@ -158,6 +175,7 @@ export const matrix_viz = async (
   );
 
   let finalized = false;
+  const matrix = {};
   const model_listeners = [];
   const on_model = (event, callback) => {
     const listener = (...args) => {
@@ -327,6 +345,7 @@ export const matrix_viz = async (
   // ---------------------------------------------------------------------------
   ini_views(viz_state);
   const global_view_state = ini_view_state(viz_state);
+  initialize_state_controls(deck_mat, layers_mat, viz_state);
 
   set_mat_layer_onclick(deck_mat, layers_mat, viz_state);
   set_mat_layer_onhover(deck_mat, layers_mat, viz_state);
@@ -382,6 +401,20 @@ export const matrix_viz = async (
 
   el.appendChild(ui_container);
   el.appendChild(viz_state.root);
+
+  // PIC: save a screenshot with a description (see ui/pic_button.js and
+  // Clustergram.screenshot); its replies arrive through the message handler below.
+  const pic = add_pic_button(ui_container, {
+    model,
+    capture: async () => {
+      const snapshot = await matrix.snapshot({
+        max_size: 2048,
+        thumb_size: 64,
+        state: { max_rows: 1, max_cols: 1, include_values: false },
+      });
+      return { ...snapshot.image, state: snapshot.observed_state, snapshot };
+    },
+  });
 
   initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);
 
@@ -750,14 +783,124 @@ export const matrix_viz = async (
     };
 
     on_model('change:matrix_slice_request', flushMatrixSliceRequest);
+
+    // Viz API messages from Python (e.g. Clerk), answered with one-off replies so
+    // nothing is saved into the notebook's widget state:
+    //   get_state      -> a snapshot of what the Clustergram shows
+    //   set_categories -> manual categories, applied like the category editor
+    //   capture_raster -> a screenshot of the heatmap
+    on_model('msg:custom', (msg) => {
+      if (pic.on_message(msg)) return;
+      if (['capture_snapshot', 'restore_snapshot'].includes(msg?.event)) {
+        void handle_snapshot_message(model, matrix, msg);
+        return;
+      }
+      if (msg?.event === 'capture_raster') {
+        try {
+          const capture = capture_deck(deck_mat, root, {
+            max_size: msg.max_size,
+            thumb_size: msg.thumb_size,
+          });
+          viz_state.model.send(
+            capture
+              ? { event: 'raster', id: msg.id, ...capture, view_state: {} }
+              : { event: 'raster_error', id: msg.id, error: 'No canvas' }
+          );
+        } catch (e) {
+          viz_state.model.send({
+            event: 'raster_error',
+            id: msg.id,
+            error: String(e?.message || e),
+          });
+        }
+      } else if (msg?.event === 'get_state') {
+        try {
+          const state = get_clustergram_state(viz_state, msg.options || {});
+          viz_state.model.send({ event: 'state', id: msg.id, state });
+        } catch (e) {
+          viz_state.model.send({
+            event: 'state_error',
+            id: msg.id,
+            error: String(e?.message || e),
+          });
+        }
+      } else if (msg?.event === 'apply_state') {
+        try {
+          const done = apply_clustergram_state(
+            model,
+            viz_state,
+            msg.changes || {},
+            (request) =>
+              apply_manual_categories(viz_state, request, allocate_color)
+          );
+          model.send({ event: 'applied', id: msg.id, done });
+        } catch (e) {
+          model.send({
+            event: 'apply_error',
+            id: msg.id,
+            error: String(e?.message || e),
+          });
+        }
+      } else if (msg?.event === 'set_categories') {
+        try {
+          const applied = apply_manual_categories(
+            viz_state,
+            msg,
+            allocate_color
+          );
+          viz_state.model.send({
+            event: 'categories_set',
+            id: msg.id,
+            applied,
+          });
+        } catch (e) {
+          viz_state.model.send({
+            event: 'categories_error',
+            id: msg.id,
+            error: String(e?.message || e),
+          });
+        }
+      }
+    });
   }
 
-  const matrix = {
+  Object.assign(matrix, {
     obs_store: viz_state.obs_store,
+    /**
+     * What the Clustergram shows (rows/cols on screen or in ranked order, order,
+     * marker level, dendrogram groups, attributes, selection, values) as JSON.
+     * See matrix/clustergram_state.js for options.
+     */
+    get_state: (options = {}) => get_clustergram_state(viz_state, options),
+    /**
+     * Change what the Clustergram shows, as its controls would: marker level
+     * (DIM), heatmap / dot plot, dot sizes, a focused row, manual categories.
+     * Same keys as Python's `Clustergram.apply_state`; validated first.
+     * @returns {string[]} What changed.
+     */
+    apply_state: (changes = {}) =>
+      apply_clustergram_state(model, viz_state, changes, (request) =>
+        apply_manual_categories(viz_state, request, allocate_color)
+      ),
+    /**
+     * Label rows or columns in a manual category, as the category editor would:
+     * `{values: {name: category}, axis: 'col', attribute, colors, replace}`.
+     * @returns {number} How many names were labeled.
+     */
+    set_categories: (request = {}) =>
+      apply_manual_categories(viz_state, request, allocate_color),
+    /**
+     * A screenshot of the Clustergram (heatmap, labels, category strips) as a
+     * downscaled base64 PNG plus a thumbnail; null if there is no canvas.
+     * @param {{max_size?: number, thumb_size?: number}} [capture_options]
+     */
+    capture_raster: (capture_options = {}) =>
+      capture_deck(deck_mat, root, capture_options),
     finalize: () => {
       if (finalized) return;
       finalized = true;
       viz_state.finalized = true;
+      pic.dispose();
       viz_state.dendro.tree_overlay?.destroy();
       model_listeners.splice(0).forEach(([event, listener]) => {
         model.off?.(event, listener);
@@ -795,7 +938,40 @@ export const matrix_viz = async (
       ui_container.remove();
       root.remove();
     },
-  };
+  });
+
+  Object.assign(
+    matrix,
+    create_snapshot_api({
+      ready: () => wait_for_canvas(deck_mat, () => finalized),
+      kind: 'clustergram',
+      get_state: matrix.get_state,
+      capture_raster: matrix.capture_raster,
+      apply_state: matrix.apply_state,
+      viewport: () => ({
+        width: deck_mat.getCanvas().width,
+        height: deck_mat.getCanvas().height,
+      }),
+      identity: () => ({
+        coverage: 'matrix-content',
+        data: {
+          rows: network.row_nodes,
+          cols: network.col_nodes,
+          values: network.mat,
+          sizes: network.size_mat,
+          linkage: network.linkage,
+          views: network.views,
+          markers: network.markers,
+          row_attr: network.row_attr,
+          col_attr: network.col_attr,
+          cat_colors: network.cat_colors,
+          matrix_colors: network.matrix_colors,
+          row_entity,
+          col_entity,
+        },
+      }),
+    })
+  );
 
   return matrix;
 };

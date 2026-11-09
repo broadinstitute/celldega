@@ -13,6 +13,9 @@ dist
 !notebooks/Xenium_Aligned_HE.ipynb
 !notebooks/archive/*.ipynb
 !docs/examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram.ipynb
+!docs/examples/tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix.ipynb
+!docs/examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix.ipynb
+!docs/examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb
 !docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
 !docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb

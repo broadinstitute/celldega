@@ -6,6 +6,9 @@ Clustergram of their marker genes. Click a Clustergram gene to color the cells b
 expression, or a cluster column to select its cells. Use the Clustergram's marker-level
 control to show more or fewer markers per cluster.
 
+For the Python workflow, open the [breast cancer tutorial](../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix.ipynb),
+which includes aligned H&E, a cell Yearbook, and a linked Landscape, Clustergram and Enrich.
+
 <div class="linked-gallery" data-atera-gallery="breast">
   <div class="linked-landscape-panel">
     <p data-atera-status="landscape" role="status">Loading the tissue… The first load may take a moment.</p>

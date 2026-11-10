@@ -96,3 +96,53 @@ describe('landscape_model_values', () => {
     ).toThrow(/Chromium/);
   });
 });
+
+describe('standalone clustergram()', () => {
+  // The constructor, from celldega.js, with its loaders and renderer stubbed.
+  const source = fs.readFileSync(
+    path.join(__dirname, '../celldega.js'),
+    'utf8'
+  );
+  const constructors = (rendered) => {
+    const start = source.indexOf('const static_matrix_model = (');
+    const end = source.indexOf(
+      '/**\n * Load and render a Clustergram from DegaFiles'
+    );
+    return new Function(
+      'make_options_model',
+      'matrix_viz',
+      'network_from_zarr',
+      'networkFromDegaFiles',
+      // landscape() sits between them in the file; it is never called here.
+      `${source.slice(start, end).replace('const landscape = async', 'const _landscape = async')}
+       return { clustergram };`
+    )(
+      make_options_model,
+      async (model) => {
+        rendered.push(model);
+        return {};
+      },
+      async () => ({ row_nodes: [], col_nodes: [] }),
+      async () => ({ row_nodes: [], col_nodes: [] })
+    );
+  };
+
+  test('a declared data_revision and the source reach the model saved views read', async () => {
+    const rendered = [];
+    const { clustergram } = constructors(rendered);
+    const network = { row_nodes: [], col_nodes: [] };
+    const viz = await clustergram(null, {
+      network,
+      data_revision: 'release-1',
+    });
+    expect(viz.model.get('data_revision')).toBe('release-1');
+    await clustergram(null, { url: 'https://example.org/m.zarr' });
+    expect(rendered[1].get('url')).toBe('https://example.org/m.zarr');
+    expect(rendered[1].get('data_revision')).toBe('');
+    await clustergram(null, {
+      base_url: 'https://example.org/dega',
+      name: 'leiden',
+    });
+    expect(rendered[2].get('url')).toBe('https://example.org/dega/cgm/leiden');
+  });
+});

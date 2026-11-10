@@ -373,3 +373,100 @@ test('point clouds with integer cell names select and frame cells by position', 
   );
   expect(framed.target).toEqual([70, 50, 0]);
 });
+
+test('an XY request superseded by a later one is rejected, not acknowledged', async () => {
+  const { apply_landscape_state } = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  state.genes.gene_names = ['ACTA2', 'ACTG2', 'AMY2A', 'GATM'];
+  state.expression_scatter_enabled = true;
+  const values = { xy_genes: [], xy_scale: 'log1p' };
+  let finish = null;
+  state.expression_ready = Promise.resolve();
+  state.model = {
+    get: (key) => values[key],
+    set: (key, value) => {
+      values[key] = value;
+      if (key === 'xy_genes') {
+        // Like expression_scatter: new axes supersede the request in flight.
+        finish?.({ error: 'Expression request was superseded or disposed' });
+        state.expression_ready = new Promise((resolve) => {
+          finish = resolve;
+        });
+      }
+    },
+    save_changes() {},
+  };
+  const context = { layers_obj: {}, update_view_state: jest.fn() };
+  const first = apply_landscape_state(state, context, {
+    xy: { genes: ['ACTA2', 'ACTG2'], scale: 'log1p' },
+  });
+  const second = apply_landscape_state(state, context, {
+    xy: { genes: ['AMY2A', 'GATM'], scale: 'log1p' },
+  });
+  finish({});
+  await expect(second).resolves.toContain('updated XY axes');
+  await expect(first).rejects.toThrow('superseded');
+});
+
+test('orbit clouds frame cells in 3D, in view at any camera rotation', () => {
+  const { OrbitViewport } = require('@deck.gl/core');
+  const api = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  state.initial_view_state = {
+    target: [0, 0, 0],
+    zoom: 0,
+    rotationX: 0,
+    rotationOrbit: 0,
+  };
+  state.cats.cell_name_to_index_map = new Map([
+    ['a', 0],
+    ['b', 1],
+  ]);
+  state.spatial.cell_scatter_data.attributes.getPosition = {
+    value: new Float32Array([5, 5, 1000, 15, 15, 2000]),
+    size: 3,
+  };
+  const size = { width: 800, height: 600 };
+  const framed = api.view_for_cells(state, { cells: ['a', 'b'] }, size);
+  expect(framed.target).toEqual([10, 10, 1500]);
+  // Every corner of the cells' bounding box projects inside the canvas.
+  const corners = [5, 15].flatMap((x) =>
+    [5, 15].flatMap((y) => [1000, 2000].map((z) => [x, y, z]))
+  );
+  for (const [rotationX, rotationOrbit] of [
+    [0, 0],
+    [45, 45],
+    [90, 0],
+    [-60, 200],
+  ]) {
+    const viewport = new OrbitViewport({
+      ...size,
+      ...framed,
+      rotationX,
+      rotationOrbit,
+    });
+    for (const corner of corners) {
+      const [x, y] = viewport.project(corner);
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThanOrEqual(size.width);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y).toBeLessThanOrEqual(size.height);
+    }
+  }
+});
+
+test('framing follows the dataset rotation the cell layer draws with', () => {
+  const api = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  // 90 degrees about the origin (column-major): (x, y) -> (-y, x).
+  state.rotation = {
+    modelMatrix: [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+  };
+  const framed = api.view_for_cells(
+    state,
+    { cells: ['c2', 'c3'] },
+    { width: 400, height: 400 }
+  );
+  // c2 (50, 40) and c3 (90, 60) are drawn at (-40, 50) and (-60, 90).
+  expect(framed.target).toEqual([-50, 70, 0]);
+});

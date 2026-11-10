@@ -4,10 +4,11 @@ const status = document.querySelector('#status');
 const controls = [...document.querySelectorAll('button, input')];
 const network = await (await fetch('./network.json')).json();
 const options = { width: 560, height: 450 };
-const render = (id, data = network) =>
+const render = (id, data = network, data_revision = '') =>
   celldega.clustergram(document.getElementById(id), {
     ...options,
     network: structuredClone(data),
+    data_revision,
   });
 let source = await render('source');
 let restored;
@@ -35,9 +36,9 @@ const busy = async (work) => {
   }
 };
 
-async function fresh(data = network) {
+async function fresh(data = network, data_revision = '') {
   restored?.finalize();
-  restored = await render('restored', data);
+  restored = await render('restored', data, data_revision);
   return restored;
 }
 
@@ -123,6 +124,7 @@ async function check() {
       JSON.stringify(saved.state) === JSON.stringify(again.state),
     fresh_instance_pixels: saved.image.png === again.image.png,
     data_change_rejected: false,
+    revision_change_rejected: false,
     future_schema_rejected: false,
   };
   try {
@@ -141,6 +143,17 @@ async function check() {
     result.data_change_rejected =
       error.message.includes('rows differ') &&
       before === JSON.stringify((await restored.snapshot()).state);
+  }
+  // The same matrix declared as two releases: a constructor's data_revision is
+  // recorded in the saved view and compared on restore.
+  const release_1 = await (await fresh(network, 'release-1')).snapshot();
+  await fresh(network, 'release-2');
+  try {
+    await restored.restore_snapshot(release_1);
+  } catch (error) {
+    result.revision_change_rejected =
+      release_1.identity.revision === 'release-1' &&
+      error.message.includes('data revision differ');
   }
   await restore();
   if (!Object.values(result).every(Boolean))

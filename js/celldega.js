@@ -492,7 +492,7 @@ async function render({ model, el }) {
 // The widget model a Clustergram renders with when there is no Python kernel.
 const static_matrix_model = (
   network,
-  { viz_mode = null, rank_dim = null } = {}
+  { viz_mode = null, rank_dim = null, url = '', data_revision = '' } = {}
 ) =>
   make_options_model({
     row_entity: JSON.stringify(
@@ -503,6 +503,9 @@ const static_matrix_model = (
     ),
     viz_mode,
     rank_dim,
+    // Saved views record where the data came from and compare a declared revision.
+    url,
+    data_revision,
   });
 
 /**
@@ -542,6 +545,9 @@ const landscape = async (el, options = {}) => {
  * @param {number} [options.rank_dim] - Open at this precomputed view level
  *   (e.g. 10 top markers per cluster), like Python's `Clustergram(rank_dim=)`;
  *   the full matrix by default
+ * @param {string} [options.data_revision] - An immutable revision of the data
+ *   (a release tag, commit hash or content digest). Saved views record it, and
+ *   restoring a view declared for another revision is refused.
  * @param {function} [options.row_label_callback] - Called with a clicked row name
  * @param {function} [options.col_label_callback] - Called with a clicked column name
  * @param {function} [options.col_dendro_callback] - Called on dendrogram selections
@@ -560,6 +566,7 @@ const clustergram = async (
     height = 500,
     viz_mode,
     rank_dim = null,
+    data_revision = '',
     row_label_callback = null,
     col_label_callback = null,
     col_dendro_callback = null,
@@ -579,6 +586,8 @@ const clustergram = async (
   const model = static_matrix_model(network, {
     viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
     rank_dim,
+    url: url || (base_url ? `${base_url}/cgm/${name}` : ''),
+    data_revision: String(data_revision || ''),
   });
   const viz = await matrix_viz(
     model,

@@ -165,11 +165,29 @@ export const cell_index = (viz_state, name) => {
   return cats?.cell_name_to_index_map?.get?.(String(name));
 };
 
+// deck.gl's OrbitView default vertical field of view, in degrees.
+const ORBIT_FOVY = 50;
+
+/** Whether the Landscape shows a 3D orbit view (point and neighborhood clouds). */
+const is_orbit_view = (viz_state) =>
+  'rotationOrbit' in (viz_state.initial_view_state || {});
+
 /**
  * A view state framing the given cells: by cluster(s) or by cell names.
+ *
+ * Positions go through the dataset rotation the cell layer draws with. A 2D view
+ * fits the cells' bounding box; an orbit view fits their 3D bounding sphere for the
+ * perspective camera, so they stay in frame at any camera rotation.
+ * @param {{width: number, height: number}} size - Canvas size in CSS pixels.
+ * @param {{fovy?: number}} [camera] - The orbit view's vertical field of view.
  * @returns {{target: number[], zoom: number}|null}
  */
-export const view_for_cells = (viz_state, { clusters, cells }, size) => {
+export const view_for_cells = (
+  viz_state,
+  { clusters, cells },
+  size,
+  { fovy = ORBIT_FOVY } = {}
+) => {
   const positions =
     viz_state.spatial?.cell_scatter_data?.attributes?.getPosition;
   if (!positions?.value) return null;
@@ -188,15 +206,44 @@ export const view_for_cells = (viz_state, { clusters, cells }, size) => {
   }
   if (!indices.length) return null;
 
-  const xs = indices
-    .map((i) => positions.value[i * stride])
-    .sort((a, b) => a - b);
-  const ys = indices
-    .map((i) => positions.value[i * stride + 1])
-    .sort((a, b) => a - b);
+  // World positions as drawn: a column-major 4x4 model matrix, when the dataset
+  // is rotated.
+  const m = viz_state.rotation?.modelMatrix;
+  const points = indices.map((i) => {
+    const x = positions.value[i * stride];
+    const y = positions.value[i * stride + 1];
+    const z = stride > 2 ? positions.value[i * stride + 2] : 0;
+    return m
+      ? [
+          m[0] * x + m[4] * y + m[8] * z + m[12],
+          m[1] * x + m[5] * y + m[9] * z + m[13],
+          m[2] * x + m[6] * y + m[10] * z + m[14],
+        ]
+      : [x, y, z];
+  });
   const q = indices.length > 50 ? ZOOM_QUANTILE : 0;
-  const [x0, x1] = [quantile(xs, q), quantile(xs, 1 - q)];
-  const [y0, y1] = [quantile(ys, q), quantile(ys, 1 - q)];
+  const bounds = (axis) => {
+    const values = points.map((p) => p[axis]).sort((a, b) => a - b);
+    return [quantile(values, q), quantile(values, 1 - q)];
+  };
+  const [x0, x1] = bounds(0);
+  const [y0, y1] = bounds(1);
+
+  if (is_orbit_view(viz_state)) {
+    const [z0, z1] = bounds(2);
+    const radius = Math.max(Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2, 0.5);
+    // The camera sits focal * height px from the target, which spans 2^zoom px per
+    // world unit. A sphere fits when that distance is at least radius / sin of the
+    // narrower half-angle of view.
+    const half_v = (fovy * Math.PI) / 360;
+    const half_h = Math.atan((Math.tan(half_v) * size.width) / size.height);
+    const focal = 1 / (2 * Math.tan(half_v));
+    const zoom = Math.log2(
+      (focal * size.height * Math.sin(Math.min(half_v, half_h))) /
+        (radius * ZOOM_PADDING)
+    );
+    return { target: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], zoom };
+  }
 
   const width = Math.max(x1 - x0, 1);
   const height = Math.max(y1 - y0, 1);
@@ -366,7 +413,9 @@ export const apply_landscape_state = async (
     if ((changes.space ?? current_space(viz_state)) !== 'spatial') {
       throw new Error('zoom_to works in the spatial view; switch space first');
     }
-    framed = view_for_cells(viz_state, target, size);
+    framed = view_for_cells(viz_state, target, size, {
+      fovy: context.deck?.props?.views?.[0]?.props?.fovy ?? ORBIT_FOVY,
+    });
     if (!framed) throw new Error('no matching cells to zoom to');
   }
 
@@ -394,6 +443,21 @@ export const apply_landscape_state = async (
   }
 
   await wait_for_expression(viz_state);
+  // wait_for_expression follows the newest transition, so a later request (or a
+  // user edit) may have replaced this one's axes or space while it waited. Only
+  // acknowledge what is actually shown.
+  if (
+    changes.xy &&
+    (JSON.stringify([...(viz_state.model.get('xy_genes') || [])]) !==
+      JSON.stringify(changes.xy.genes) ||
+      viz_state.model.get('xy_scale') !== changes.xy.scale)
+  )
+    throw new Error('XY axes were superseded by a later change');
+  if (
+    changes.space !== undefined &&
+    current_space(viz_state) !== String(changes.space)
+  )
+    throw new Error('Space change was superseded by a later change');
 
   if (Array.isArray(changes.clusters)) {
     const clusters = changes.clusters.map(String);

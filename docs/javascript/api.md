@@ -318,6 +318,9 @@ static file server that allows cross-origin requests.
     example `10` for the top 10 markers per cluster of
     `cluster(view="rank_genes_groups")`, like Python's
     `Clustergram(rank_dim=...)`. Opens the full matrix by default.
+  - `data_revision` (`string`, optional): An immutable revision of the data, such
+    as a release tag or commit hash. [Saved views](saved-views.md) record it, and
+    restoring a view declared for another revision is refused.
   - `row_label_callback`, `col_label_callback`, `col_dendro_callback`
     (`function`, optional): Called on row label, column label, and column
     dendrogram clicks.

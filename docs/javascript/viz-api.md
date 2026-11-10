@@ -94,7 +94,7 @@ Returns a promise of short descriptions of what changed, for example
 | `space` | `"spatial"`, `"umap"` or `"xy"` | the SPATIAL / UMAP / XY buttons |
 | `clusters` | cluster names; `[]` clears the selection | clicking (and shift-clicking) cluster bars |
 | `genes` | gene names (up to 20); `[]` returns to cluster colors | the comma-separated gene search |
-| `zoom_to` | `{"clusters": [...]}` or `{"cells": [...]}` | framing those cells (spatial view) |
+| `zoom_to` | `{"clusters": [...]}` or `{"cells": [...]}` | framing those cells (spatial view; in 3D for orbit clouds, at any camera rotation) |
 | `view` | `{"target": [x, y, z], "zoom": z}`; orbit views also accept `rotationOrbit`, `rotationX` | moving/rotating the camera |
 | `selected_cells` | exact cell IDs; `[]` clears them | selecting cells |
 | `xy` | `{"genes": ["GENE1", "GENE2"], "scale": "linear"}`; 0–2 genes, scale `linear` or `log1p` | XY axes and scaling |

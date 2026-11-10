@@ -170,8 +170,8 @@ Celldega saves a PNG and a human-readable Markdown companion:
   AnnData shape, the Matrix's source) embedded in its metadata;
 - `<name>.md`: the description, the image, provenance and code to reopen the view.
 
-The PNG is sufficient to carry the saved view; no JSON sidecar is written, and the
-Markdown companion is not needed for replay.
+The PNG alone carries the saved view; the Markdown companion is for readers and is
+not needed for replay.
 
 The saved view records what data it shows (cell, gene and cluster names, or a
 Clustergram's row and column names). Image and state are captured together.

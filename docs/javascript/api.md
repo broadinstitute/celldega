@@ -73,7 +73,7 @@ loading data or creating a visualization. It accepts the same binary inputs as
 `celldega.snapshot_png(snapshot, {title: ''})` creates an `image/png` Blob containing
 the image and embedded saved-view metadata from `await viz.snapshot(...)`.
 Standalone PIC uses this export, and Python saves the same PNG metadata record
-alongside a human-readable Markdown companion. No JSON sidecar is required. See
+alongside a human-readable Markdown companion. See
 [portable saved views](saved-views.md#reopen-a-png-as-an-interactive-visualization).
 
 ### `link_models(source, source_key, target, target_key)`

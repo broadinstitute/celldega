@@ -4,6 +4,43 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.29.0] - Unreleased
+
+### Added
+
+- A Viz API for reading and changing visualizations from code, the same in Python
+  and JavaScript: getters (`get_state` / `request_state`), setters (`apply_state`),
+  and exporters (`capture_raster` / `request_raster`) for Landscape, CellCloud,
+  NeighborhoodCloud and Clustergram; `Enrich.request_state`. See
+  [Viz API](docs/javascript/viz-api.md).
+- Saved views: `snapshot()` / `restore_snapshot()` capture the image, observations
+  and complete supported replay settings, and restore them after checking the data
+  (cell, gene and cluster names, or a Clustergram's row and column names, plus an
+  optional `data_revision`) and canvas size.
+- Screenshots as one PNG with its record embedded, plus a readable Markdown
+  companion: `widget.screenshot()`, `dega.viz.screenshot(...)` for linked widgets,
+  and the **PIC** button. Empty areas are white by default (`background=`).
+- Reopen a screenshot as an interactive visualization from its recorded data links:
+  `dega.viz.from_png(path)` and `widget.restore_png(path)`, and in JavaScript
+  `celldega.from_png`, `read_png` and `snapshot_png`.
+- `data_revision` on Landscape, Clustergram and the standalone JavaScript
+  constructors; `dega.viz.fingerprint_dataset` computes one for a local dataset.
+- A loading indicator while widgets fetch their data.
+- `CELLDEGA_LOCAL_ESM=serve` serves a local bundle once over HTTP for development,
+  instead of inlining it into every widget.
+
+### Changed
+
+- With no `xy_genes`, the XY view starts with the two genes with the highest
+  whole-dataset mean expression.
+- Long Clustergram row labels are shortened with "…" to fit, keeping their start.
+
+### Fixed
+
+- Focusing a gene from a linked Clustergram or Enrich sets it exactly, so the
+  Landscape's gene search and gene bars stay in sync when transcripts are shown.
+- Turning on neighborhood mode no longer errors in gene-less point clouds.
+
 ## [0.28.2] - 2026-11-08
 
 ### Changed

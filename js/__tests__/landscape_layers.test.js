@@ -177,3 +177,12 @@ test('available H&E source uses the same image mask and updates its control', as
     true
   );
 });
+
+test('neighborhoods report NBHD mode, not the always-visible layer flag', () => {
+  const { state, layers, api } = fixture();
+  // The neighborhood layer is created visible; NBHD mode starts off.
+  layers.nbhd_layer.props.visible = true;
+  expect(api.get_landscape_layers(state).layers.neighborhoods).toBe(false);
+  state.obs_store.viz_nbhd_layer.set(true);
+  expect(api.get_landscape_layers(state).layers.neighborhoods).toBe(true);
+});

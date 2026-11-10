@@ -56,13 +56,21 @@ export const get_landscape_layers = (state) => {
         }
       : { value: Number(state.sliders.trx.value) };
   }
+  // Neighborhoods report NBHD mode (what the setter sets): the neighborhood layer
+  // is always created visible, so its own flag says nothing about the view.
+  const nbhd_mode = state.obs_store.viz_nbhd_layer?.get?.();
   return {
     layers: {
       image: Boolean(state.obs_store.viz_image_layers?.get()),
       ...Object.fromEntries(
         Object.entries(LAYERS)
           .filter(([, key]) => layers[key])
-          .map(([name, key]) => [name, layers[key].props.visible !== false])
+          .map(([name, key]) => [
+            name,
+            name === 'neighborhoods' && typeof nbhd_mode === 'boolean'
+              ? nbhd_mode
+              : layers[key].props.visible !== false,
+          ])
       ),
     },
     channels,

@@ -495,11 +495,7 @@ def write_screenshot(
 
 
 def load_screenshot(path: str | Path) -> dict:
-    """Read a screenshot's embedded PNG record; explicit legacy JSON paths also work.
-
-    A neighboring JSON file never overrides PNG metadata. For a legacy JSON-only
-    record, pass its ``.json`` path explicitly.
-    """
+    """Read the record embedded in a screenshot PNG."""
     path = Path(path)
     if path.suffix.lower() == ".json":
         if path.stat().st_size > MAX_PNG_METADATA_BYTES:
@@ -513,10 +509,9 @@ def load_screenshot(path: str | Path) -> dict:
 
 
 def load_screenshots(folder: str | Path) -> list[dict]:
-    """PNG records and legacy JSON-only records in a folder, oldest first.
+    """Every screenshot PNG's record in a folder, oldest first.
 
-    Ignore unrelated or malformed files. A PNG is authoritative even when a stale
-    JSON sidecar exists; the companion must not substitute for a damaged PNG.
+    Unrelated or malformed files are skipped.
     """
     records = []
     if not Path(folder).is_dir():

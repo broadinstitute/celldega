@@ -203,10 +203,8 @@ Descriptions, authors, capture times, renderer version, canvas dimensions and da
 identity travel with the image.
 
 Inspect the record from Python with `dega.viz.load_screenshot("figure.png")`, or
-discover a folder's records with `dega.viz.load_screenshots("figures")`. A PNG's
-metadata is authoritative even if an older JSON sidecar exists. Explicitly opening
-a legacy `.json` record is still supported. Keep the original exported PNG when
-passing it through tools that remove image metadata.
+discover a folder's records with `dega.viz.load_screenshots("figures")`. Keep the
+original exported PNG when passing it through tools that remove image metadata.
 
 Manual exports default to `celldega_files/screenshots/`; set `screenshot_dir` or
 pass `path` to choose a location. The notebook PIC button writes a PNG and Markdown

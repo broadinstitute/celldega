@@ -158,15 +158,17 @@ async function check() {
   await restore();
   const png = celldega.snapshot_png(saved);
   const record = await celldega.read_png(png);
-  result.png_metadata = JSON.stringify(record.widgets[0].snapshot.state) === JSON.stringify(saved.state)
-    && !('image' in record.widgets[0].snapshot);
+  result.png_metadata =
+    JSON.stringify(record.widgets[0].snapshot.state) ===
+      JSON.stringify(saved.state) && !('image' in record.widgets[0].snapshot);
   restored.finalize();
   restored = await celldega.from_png(document.getElementById('restored'), png, {
     network: structuredClone(network),
   });
   await settled();
   const pngRestored = await restored.snapshot();
-  result.png_fresh_instance_state = JSON.stringify(pngRestored.state) === JSON.stringify(saved.state);
+  result.png_fresh_instance_state =
+    JSON.stringify(pngRestored.state) === JSON.stringify(saved.state);
   result.png_fresh_instance_pixels = pngRestored.image.png === saved.image.png;
   if (!Object.values(result).every(Boolean))
     throw new Error(JSON.stringify(result));

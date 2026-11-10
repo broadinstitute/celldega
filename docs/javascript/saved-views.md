@@ -146,14 +146,24 @@ The returned widget is interactive. A result of `None` means restoration is pend
 an `apply_error` result explains why restoration failed. As with `restore_snapshot`,
 do not wait for the reply inside the notebook cell that displays the widget.
 
-The PNG references the scientific data; it does not embed the dataset. The source
+The PNG references the scientific data; it does not embed the dataset. It records
+links (a `base_url`, `zarr_url`, or the Zarr store a Matrix was read from with
+`Matrix.read_zarr`) and constructor options, typically a few KB in all. The source
 must still be accessible, and private data needs the same access as a normal
-constructor call. For an in-memory Matrix or AnnData, supply the original object:
+constructor call.
+
+An object passed in memory has no link to record: a Matrix built in the notebook, or
+an AnnData given as `adata=` (`read_h5ad` keeps no path). The PNG stores its shape and
+marks it as required, and `from_png` asks for it by name. Supply the original object:
 
 ```python
 cgm = dega.viz.from_png("markers.png", matrix=mat)
+# The PNG still records the Landscape's base_url; adata adds its in-memory metadata.
 landscape = dega.viz.from_png("tissue.png", adata=adata)
 ```
+
+To make a Matrix reopenable from its link alone, write it once with
+`mat.write_zarr(path)` and open it with `Matrix.read_zarr(path)` before displaying it.
 
 Constructor keyword arguments can also relocate a source, for example
 `base_url="https://example.org/data"`. Reopening still checks the saved schema,
@@ -224,9 +234,10 @@ data binding. `apply_state` remains available for intentional edits; use
 The repository's `examples/viz-api/index.html` uses a small synthetic matrix and the
 built JS bundle. It supports PNG download/upload, restoration into a new instance,
 and executable checks for capture → significant change → restore, fresh-instance
-state/pixel equality, rejection of different data (a renamed row) and future-schema
-rejection. The exercise
-includes dendrogram cuts, selections/highlights, annotations, crop, order and camera.
+state/pixel equality, PNG export and reopening with `from_png` (state and pixels),
+and rejection of different data (a renamed row), of a different declared
+`data_revision`, and of a future schema. The exercise includes dendrogram cuts,
+selections/highlights, annotations, crop, order and camera.
 
 From the repository root:
 

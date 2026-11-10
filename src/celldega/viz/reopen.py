@@ -14,7 +14,45 @@ from .snapshots import validate_snapshot
 # Only data/configuration values may come from an image. In particular, never
 # deserialize arbitrary widget classes, _esm code, credentials or callbacks.
 _SOURCE_OPTIONS = frozenset(
-    ["width", "height", "data_revision", "base_url", "base_urls", "zarr_url", "zarr_layer", "url", "name", "technology", "dataset_name", "cluster_attr", "cell_attr", "cell_name_prefix", "segmentation", "alignment", "manifest_name", "centroids_url", "use_adata_3d_centroids", "spatial_key", "ini_x", "ini_y", "ini_z", "ini_zoom", "min_zoom", "max_zoom", "rotation_orbit", "rotation_x", "rotate", "scale_bar_microns_per_pixel", "cell_size", "max_tiles_to_view", "intermediate_zoom_limit", "viz_mode", "rank_dim", "row_label_scale", "col_label_scale"]
+    [
+        "width",
+        "height",
+        "data_revision",
+        "base_url",
+        "base_urls",
+        "zarr_url",
+        "zarr_layer",
+        "url",
+        "name",
+        "technology",
+        "dataset_name",
+        "cluster_attr",
+        "cell_attr",
+        "cell_name_prefix",
+        "segmentation",
+        "alignment",
+        "manifest_name",
+        "centroids_url",
+        "use_adata_3d_centroids",
+        "spatial_key",
+        "ini_x",
+        "ini_y",
+        "ini_z",
+        "ini_zoom",
+        "min_zoom",
+        "max_zoom",
+        "rotation_orbit",
+        "rotation_x",
+        "rotate",
+        "scale_bar_microns_per_pixel",
+        "cell_size",
+        "max_tiles_to_view",
+        "intermediate_zoom_limit",
+        "viz_mode",
+        "rank_dim",
+        "row_label_scale",
+        "col_label_scale",
+    ]
 )
 
 
@@ -147,7 +185,9 @@ def from_png(
     options.update(overrides)
     supplied_data = any(overrides.get(key) is not None for key in (*selectors, "adata", "AnnData"))
     if source.get("requires_data") and not supplied_data:
-        argument = "matrix=original_matrix" if constructor is Clustergram else "adata=original_adata"
+        argument = (
+            "matrix=original_matrix" if constructor is Clustergram else "adata=original_adata"
+        )
         raise ValueError(f"PNG was captured with in-memory data; pass {argument} to from_png")
 
     if constructor is Clustergram:
@@ -160,17 +200,25 @@ def from_png(
 
                 options["matrix"] = Matrix.read_zarr(url)
             elif base_url:
-                options["parquet_data"] = _degafiles_matrix(base_url, options.get("name", "default"))
+                options["parquet_data"] = _degafiles_matrix(
+                    base_url, options.get("name", "default")
+                )
             else:
                 raise ValueError("PNG has no reusable Matrix source; pass matrix=original_matrix")
     elif not any(options.get(key) for key in ("base_url", "base_urls", "zarr_url")):
-        raise ValueError("PNG has no reusable spatial data source; pass base_url=... or zarr_url=...")
+        raise ValueError(
+            "PNG has no reusable spatial data source; pass base_url=... or zarr_url=..."
+        )
 
     # A source can cross runtimes (e.g. a browser Cloud PNG reopened in Python).
     # Keep only constructor traits for recorded options; caller overrides remain
     # explicit and can include inputs such as adata or parquet_data.
     traits = constructor.class_traits()
-    options = {key: value for key, value in options.items() if key in traits or key in overrides or key in ("matrix", "parquet_data", "name")}
+    options = {
+        key: value
+        for key, value in options.items()
+        if key in traits or key in overrides or key in ("matrix", "parquet_data", "name")
+    }
     viz = constructor(**options)
     viz._queue_initial_snapshot(snapshot, allow_resize=allow_resize)
     return viz

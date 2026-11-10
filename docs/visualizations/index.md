@@ -204,8 +204,15 @@ The image arrives from the browser after the cell finishes, so the call's output
 `celldega_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
 kept out of version control or shared as a collection of evidence.
 
+The PNG records links, not data: a widget's `base_url` or `zarr_url`, and a Matrix's
+Zarr source when it was opened with `Matrix.read_zarr`, plus constructor options. An
+object passed in memory, such as `adata=adata` or a Matrix built in the notebook, has
+no path to record (`read_h5ad` keeps none). The PNG stores its shape and marks it as
+needed again when reopening. The whole record is typically a few KB.
+
 Record what Python can't see, such as the AnnData file a widget was made from, once per
-widget; it's added to every screenshot of it, including PIC ones:
+widget; it's added to every screenshot of it, including PIC ones. This is a note for
+readers: reopening still needs the object passed back.
 
 ```python
 landscape.screenshot_metadata = {"adata": "data/kidney.h5ad", "notebook": "review.ipynb"}

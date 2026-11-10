@@ -23,7 +23,10 @@ import { landscape_ist } from './viz/landscape_ist';
 import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
 import { read_png, snapshot_png } from './viz/png';
-import { consume_initial_snapshot, handle_snapshot_message } from './viz/snapshot';
+import {
+  consume_initial_snapshot,
+  handle_snapshot_message,
+} from './viz/snapshot';
 import { yearbook } from './viz/yearbook';
 import { render_enrich } from './widgets/enrich_widget';
 
@@ -495,7 +498,16 @@ async function render({ model, el }) {
 // The widget model a Clustergram renders with when there is no Python kernel.
 const static_matrix_model = (
   network,
-  { viz_mode = null, rank_dim = null, url = '', base_url = '', name = 'default', data_revision = '', width = 500, height = 500 } = {}
+  {
+    viz_mode = null,
+    rank_dim = null,
+    url = '',
+    base_url = '',
+    name = 'default',
+    data_revision = '',
+    width = 500,
+    height = 500,
+  } = {}
 ) =>
   make_options_model({
     row_entity: JSON.stringify(

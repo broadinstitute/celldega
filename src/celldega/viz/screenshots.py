@@ -103,12 +103,37 @@ def widget_source(widget) -> dict:
     # Constructor inputs are explicit and JSON-compatible. In particular, do not
     # serialize credentials, callbacks, AnnData, parquet bytes or matrix values.
     keys = (
-        "width", "height", "data_revision", "row_label_scale", "col_label_scale",
-        "viz_mode", "rank_dim", "technology", "dataset_name", "base_url", "zarr_url",
-        "zarr_layer", "cluster_attr", "cell_attr", "cell_name_prefix", "segmentation",
-        "alignment", "manifest_name", "centroids_url", "use_adata_3d_centroids",
-        "cell_size", "ini_x", "ini_y", "ini_z", "ini_zoom", "min_zoom", "max_zoom",
-        "rotation_orbit", "rotation_x", "rotate", "scale_bar_microns_per_pixel",
+        "width",
+        "height",
+        "data_revision",
+        "row_label_scale",
+        "col_label_scale",
+        "viz_mode",
+        "rank_dim",
+        "technology",
+        "dataset_name",
+        "base_url",
+        "zarr_url",
+        "zarr_layer",
+        "cluster_attr",
+        "cell_attr",
+        "cell_name_prefix",
+        "segmentation",
+        "alignment",
+        "manifest_name",
+        "centroids_url",
+        "use_adata_3d_centroids",
+        "cell_size",
+        "ini_x",
+        "ini_y",
+        "ini_z",
+        "ini_zoom",
+        "min_zoom",
+        "max_zoom",
+        "rotation_orbit",
+        "rotation_x",
+        "rotate",
+        "scale_bar_microns_per_pixel",
     )
     options = {
         key: deepcopy(value)
@@ -128,7 +153,12 @@ def widget_source(widget) -> dict:
     is_matrix = hasattr(widget, "set_categories")
     inline_spatial = any(
         bool(getattr(widget, key, None))
-        for key in ("meta_cell_parquet", "meta_cluster_parquet", "umap_parquet", "centroids_parquet")
+        for key in (
+            "meta_cell_parquet",
+            "meta_cluster_parquet",
+            "umap_parquet",
+            "centroids_parquet",
+        )
     )
     out["options"] = options
     out["requires_data"] = (
@@ -589,10 +619,7 @@ class Screenshot:
             )
         except OSError:
             pass
-        return (
-            f"{thumb}<span style='color:#47515b;font-size:12px'>Saved {self.path} "
-            f"(+ .md)</span>"
-        )
+        return f"{thumb}<span style='color:#47515b;font-size:12px'>Saved {self.path} (+ .md)</span>"
 
     def _render(self) -> None:
         if self._status is not None:

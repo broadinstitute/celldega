@@ -299,8 +299,13 @@ export const consume_initial_snapshot = async (model, api, element) => {
   model.save_changes?.();
   try {
     if (request.event !== 'restore_snapshot' || !api?.restore_snapshot)
-      throw new Error('This visualization cannot restore the queued saved view');
-    const done = await api.restore_snapshot(request.snapshot, request.options || {});
+      throw new Error(
+        'This visualization cannot restore the queued saved view'
+      );
+    const done = await api.restore_snapshot(
+      request.snapshot,
+      request.options || {}
+    );
     model.send({ event: 'applied', id: request.id, done });
   } catch (error) {
     const message = String(error.message || error);

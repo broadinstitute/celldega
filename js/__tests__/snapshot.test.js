@@ -20,31 +20,72 @@ const {
 )();
 
 test('initial notebook replay is cleared before awaiting and acknowledged exactly once', async () => {
-  const request = { event: 'restore_snapshot', id: 4, snapshot: { state: {} }, options: { allow_resize: true } };
+  const request = {
+    event: 'restore_snapshot',
+    id: 4,
+    snapshot: { state: {} },
+    options: { allow_resize: true },
+  };
   let value = request;
   let finish;
-  const model = { get: () => value, set: (_key, next) => { value = next; }, save_changes: jest.fn(), send: jest.fn() };
-  const api = { restore_snapshot: jest.fn(() => new Promise((resolve) => { finish = resolve; })) };
+  const model = {
+    get: () => value,
+    set: (_key, next) => {
+      value = next;
+    },
+    save_changes: jest.fn(),
+    send: jest.fn(),
+  };
+  const api = {
+    restore_snapshot: jest.fn(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    ),
+  };
   const pending = consume_initial_snapshot(model, api);
   expect(value).toEqual({});
   await consume_initial_snapshot(model, api);
   expect(api.restore_snapshot).toHaveBeenCalledTimes(1);
-  expect(api.restore_snapshot).toHaveBeenCalledWith(request.snapshot, { allow_resize: true });
+  expect(api.restore_snapshot).toHaveBeenCalledWith(request.snapshot, {
+    allow_resize: true,
+  });
   finish(['moved']);
   await pending;
-  expect(model.send).toHaveBeenCalledWith({ event: 'applied', id: 4, done: ['moved'] });
+  expect(model.send).toHaveBeenCalledWith({
+    event: 'applied',
+    id: 4,
+    done: ['moved'],
+  });
 });
 
 test('initial replay failure is acknowledged and visible, without retry on rerender', async () => {
   let value = { event: 'restore_snapshot', id: 7, snapshot: {} };
-  const model = { get: () => value, set: (_key, next) => { value = next; }, send: jest.fn() };
-  const api = { restore_snapshot: jest.fn(async () => { throw new Error('data revision differs'); }) };
+  const model = {
+    get: () => value,
+    set: (_key, next) => {
+      value = next;
+    },
+    send: jest.fn(),
+  };
+  const api = {
+    restore_snapshot: jest.fn(async () => {
+      throw new Error('data revision differs');
+    }),
+  };
   const el = document.createElement('div');
   await consume_initial_snapshot(model, api, el);
   await consume_initial_snapshot(model, api, el);
   expect(model.send).toHaveBeenCalledTimes(1);
-  expect(model.send).toHaveBeenCalledWith({ event: 'apply_error', id: 7, error: 'data revision differs' });
-  expect(el.querySelector('[role="alert"]').textContent).toContain('data revision differs');
+  expect(model.send).toHaveBeenCalledWith({
+    event: 'apply_error',
+    id: 7,
+    error: 'data revision differs',
+  });
+  expect(el.querySelector('[role="alert"]').textContent).toContain(
+    'data revision differs'
+  );
 });
 
 const fixture = (overrides = {}) => {

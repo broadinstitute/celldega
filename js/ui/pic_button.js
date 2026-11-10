@@ -174,7 +174,9 @@ export const add_pic_button = (ui_container, { model, capture }) => {
         };
         let url;
         try {
-          url = URL.createObjectURL(snapshot_png(saved, { title: title.value.trim() }));
+          url = URL.createObjectURL(
+            snapshot_png(saved, { title: title.value.trim() })
+          );
         } catch (error) {
           status.textContent = `Not saved: ${error.message}`;
           return;

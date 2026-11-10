@@ -13,7 +13,10 @@ describe('add_pic_button', () => {
       .replace(/^import .*;$/gm, '')
       .replace(/^export const /gm, 'const ');
     snapshot_png = jest.fn(() => new Blob(['PNG'], { type: 'image/png' }));
-    add_pic_button = new Function('snapshot_png', `${source}\nreturn add_pic_button;`)(snapshot_png);
+    add_pic_button = new Function(
+      'snapshot_png',
+      `${source}\nreturn add_pic_button;`
+    )(snapshot_png);
     document.body.innerHTML = '';
   });
 
@@ -150,12 +153,15 @@ describe('add_pic_button', () => {
       action('SAVE').click();
       const blob = URL.createObjectURL.mock.calls[0][0];
       expect(blob.type).toBe('image/png');
-      expect(snapshot_png).toHaveBeenCalledWith({
-        ...saved,
-        title: '',
-        description: 'Boundary observation',
-        author: 'you',
-      }, { title: '' });
+      expect(snapshot_png).toHaveBeenCalledWith(
+        {
+          ...saved,
+          title: '',
+          description: 'Boundary observation',
+          author: 'you',
+        },
+        { title: '' }
+      );
       expect(click).toHaveBeenCalledTimes(1);
       expect(dialog().textContent).toContain('Downloaded saved view');
       jest.advanceTimersByTime(1000);

@@ -306,11 +306,13 @@ def test_large_compressed_png_metadata_round_trips_without_pillow_global_changes
     assert len(json.dumps(names)) > 1024 * 1024
     target = screenshot_module.write_screenshot(
         tmp_path / "large.png",
-        [{
-            "image": _png(8, 8),
-            "source": {"widget": "Landscape"},
-            "snapshot": {"state": {"selected_cells": names}},
-        }],
+        [
+            {
+                "image": _png(8, 8),
+                "source": {"widget": "Landscape"},
+                "snapshot": {"state": {"selected_cells": names}},
+            }
+        ],
     )
     record = load_screenshot(target)
     assert record["widgets"][0]["snapshot"]["state"]["selected_cells"] == names
@@ -319,7 +321,9 @@ def test_large_compressed_png_metadata_round_trips_without_pillow_global_changes
 
 
 @pytest.mark.parametrize("compressed", [False, True])
-def test_png_text_reader_accepts_unicode_and_checks_metadata_bounds(tmp_path, monkeypatch, compressed):
+def test_png_text_reader_accepts_unicode_and_checks_metadata_bounds(
+    tmp_path, monkeypatch, compressed
+):
     from PIL.PngImagePlugin import PngInfo
 
     record = {
@@ -373,10 +377,18 @@ def test_source_options_preserve_constructor_inputs_without_bulk_data_or_credent
     from types import SimpleNamespace
 
     spatial = SimpleNamespace(
-        technology="Chromium", zarr_url="https://example.org/cells.zarr", zarr_layer="counts",
-        width=820, height=610, data_revision="release-2", cluster_attr="cell_type",
-        cell_attr=["cell_type", "leiden"], cell_name_prefix=True,
-        token="do-not-export", creds={"secret": "do-not-export"}, _adata=None,
+        technology="Chromium",
+        zarr_url="https://example.org/cells.zarr",
+        zarr_layer="counts",
+        width=820,
+        height=610,
+        data_revision="release-2",
+        cluster_attr="cell_type",
+        cell_attr=["cell_type", "leiden"],
+        cell_name_prefix=True,
+        token="do-not-export",
+        creds={"secret": "do-not-export"},
+        _adata=None,
         base_urls=[{"url": "https://example.org/cells", "label": "Cells", "token": "secret"}],
     )
     source = screenshot_module.widget_source(spatial)
@@ -384,7 +396,9 @@ def test_source_options_preserve_constructor_inputs_without_bulk_data_or_credent
     assert source["options"]["width"] == 820
     assert source["options"]["data_revision"] == "release-2"
     assert source["options"]["cell_attr"] == ["cell_type", "leiden"]
-    assert source["options"]["base_urls"] == [{"url": "https://example.org/cells", "label": "Cells"}]
+    assert source["options"]["base_urls"] == [
+        {"url": "https://example.org/cells", "label": "Cells"}
+    ]
     assert "token" not in source["options"] and "creds" not in source["options"]
     assert source["requires_data"] is False
     spatial.meta_cell_parquet = b"inline data is not a reconstructible source"

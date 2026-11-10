@@ -619,9 +619,7 @@ class _StateSnapshots(_StateGetter):
         )
         return self._apply_request_id
 
-    def restore_png(
-        self, path: str | Path, *, panel: int = 0, allow_resize: bool = False
-    ) -> int:
+    def restore_png(self, path: str | Path, *, panel: int = 0, allow_resize: bool = False) -> int:
         """Restore a PNG's saved panel into this already displayed visualization.
 
         Use ``dega.viz.from_png`` to construct a fresh widget instead. Returns an

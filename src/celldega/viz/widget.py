@@ -689,6 +689,9 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             on the available data. Single-cell data defaults to UMAP when
             supplied, otherwise XY.
         xy_genes (list of str, optional): Genes for the X and Y expression axes.
+            When empty at initialization, uses the two genes with the highest
+            whole-dataset mean expression; ties/missing statistics use dataset
+            gene order. Explicit axes and later saved-view restores take precedence.
         xy_scale (str, optional): "linear" or "log1p". Default: "log1p".
         nbhd (GeoDataFrame, optional): Neighborhood polygons, or an object
             exposing to_geodataframe(). Polygons retain their spatial/UMAP/XY

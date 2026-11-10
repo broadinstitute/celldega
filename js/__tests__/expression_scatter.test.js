@@ -80,11 +80,16 @@ const setup = ({
   initialFeatures = [],
   initialGates = [],
   spatialOptions = {},
+  initialGenes = [],
+  initialScale = 'log1p',
+  initialView,
+  geneNames = ['A', 'B'],
+  metaGene = {},
 } = {}) => {
   const callbacks = {};
   const values = {
-    xy_genes: [],
-    xy_scale: 'log1p',
+    xy_genes: initialGenes,
+    xy_scale: initialScale,
     gates: { type: 'FeatureCollection', features: initialGates },
   };
   const model = {
@@ -113,7 +118,7 @@ const setup = ({
         attributes: { getPosition: { value: umap, size: 2 } },
       },
     },
-    genes: { gene_names: hasGenes ? ['A', 'B'] : [] },
+    genes: { gene_names: hasGenes ? geneNames : [], meta_gene: metaGene },
     global_base_url: 'data',
     seg: { version: 'default' },
     cats: {
@@ -134,7 +139,9 @@ const setup = ({
       },
     },
     obs_store: {
-      landscape_view: observable(spatialOnly ? 'spatial' : 'umap'),
+      landscape_view: observable(
+        initialView || (spatialOnly ? 'spatial' : 'umap')
+      ),
       viz_edit_layer: observable(false),
       selected_cells: observable([]),
       selected_cats: observable([]),
@@ -249,6 +256,91 @@ describe('expression scatter and coordinate-aware gates', () => {
       to
     );
   });
+
+  test.each([false, true])(
+    'XY defaults rank dataset mean expression, with or without UMAP (spatialOnly=%s)',
+    async (spatialOnly) => {
+      const { state, model, dispose } = setup({
+        spatialOnly,
+        hasGenes: true,
+        geneNames: ['A', 'B', 'C'],
+        metaGene: { A: { mean: 1, max: 100 }, B: { mean: 12 }, C: { mean: 6 } },
+      });
+      expect(model.get('xy_genes')).toEqual(['B', 'C']);
+      expect(
+        [...state.containers.image.querySelectorAll('input')].map(
+          (input) => input.value
+        )
+      ).toEqual(['B', 'C']);
+      expect(load).not.toHaveBeenCalled();
+      state.buttons.buttons.xy.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(state.embedding_space.genes).toEqual(['B', 'C']);
+      expect(load.mock.calls.map((args) => args[3])).toEqual(['B', 'C']);
+      dispose();
+    }
+  );
+
+  test('starting directly in XY loads the default pair and keeps the requested scale', async () => {
+    const { state, model, dispose } = setup({
+      initialView: 'xy',
+      initialScale: 'linear',
+      geneNames: ['A', 'B', 'C'],
+      metaGene: { B: { mean: 8 }, C: { mean: 12 } },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(model.get('xy_genes')).toEqual(['C', 'B']);
+    expect(state.embedding_space).toMatchObject({
+      genes: ['C', 'B'],
+      scale: 'linear',
+    });
+    dispose();
+  });
+
+  test.each([{ initialGenes: ['C'] }, { initialGenes: ['C', 'A'] }])(
+    'explicit initial axes $initialGenes override expression defaults',
+    ({ initialGenes }) => {
+      const { model, dispose } = setup({
+        initialGenes,
+        geneNames: ['A', 'B', 'C'],
+        metaGene: { B: { mean: 9 } },
+      });
+      expect(model.get('xy_genes')).toEqual(initialGenes);
+      // Replay and intentional clearing after initialization must not reapply defaults.
+      model.set('xy_genes', ['A']);
+      expect(model.get('xy_genes')).toEqual(['A']);
+      model.set('xy_genes', []);
+      model.set('landscape_state', 'xy');
+      expect(model.get('xy_genes')).toEqual([]);
+      dispose();
+    }
+  );
+
+  test.each([
+    {
+      geneNames: ['C', 'A', 'B', 'D'],
+      metaGene: {
+        C: { mean: NaN },
+        A: { mean: 5 },
+        B: { mean: 5 },
+        D: { mean: Infinity },
+      },
+      expected: ['A', 'B'],
+    },
+    { geneNames: ['C', 'A', 'B'], metaGene: {}, expected: ['C', 'A'] },
+    { geneNames: ['A'], metaGene: { A: { mean: 1 } }, expected: ['A'] },
+  ])(
+    'defaults handle ties, missing statistics and a single gene: $expected',
+    ({ geneNames, metaGene, expected }) => {
+      const { model, dispose } = setup({ geneNames, metaGene });
+      expect(model.get('xy_genes')).toEqual(expected);
+      dispose();
+    }
+  );
 
   test('only the XY button enters XY, using the selected genes; zeros are kept', async () => {
     const { state, model, dispose } = setup();
@@ -587,6 +679,7 @@ describe('expression scatter and coordinate-aware gates', () => {
       modelEnabled: false,
     });
     const input = state.containers.image.querySelector('[aria-label="X gene"]');
+    state.containers.image.querySelector('[aria-label="Y gene"]').value = '';
     input.value = 'A';
     input.dispatchEvent(new Event('input'));
     state.buttons.buttons.xy.click();

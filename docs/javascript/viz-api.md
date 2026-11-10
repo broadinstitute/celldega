@@ -120,6 +120,13 @@ are saved, including the inactive mode. Older single-mode transcript sliders use
 `trx: {value: ...}` instead. Fields describe the available controls, so do not assume
 every dataset exposes the same channels or layers.
 
+When `xy_genes` is empty at construction, XY starts with the two genes with the
+highest whole-dataset mean expression (X first, Y second). Ties keep dataset gene
+order; genes without finite mean statistics follow those with statistics, in dataset
+order. A one-gene dataset initializes X only. Explicit constructor axes take
+precedence, and later edits or snapshot restores—including empty axes—are preserved.
+The default uses loaded metadata and fetches expression only when XY is entered.
+
 ### `capture_raster(options)`
 
 A screenshot of the view: `{png, thumb, width, height, view_state}`, where `png` and

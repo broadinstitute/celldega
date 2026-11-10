@@ -204,6 +204,19 @@ export const initialize_expression_scatter = (
     update_space();
     return () => disposers.forEach((dispose) => dispose?.());
   }
+  // Seed empty axes once, using whole-dataset means rather than viewport
+  // estimates. Stable sorting preserves source order for ties/missing stats.
+  // Later edits (including clearing axes or restoring a snapshot) are explicit.
+  if (!genes.length) {
+    const mean = (gene) => {
+      const value = viz_state.genes.meta_gene?.[gene]?.mean;
+      return Number.isFinite(value) ? value : -Infinity;
+    };
+    genes = [...viz_state.genes.gene_names]
+      .sort((a, b) => mean(b) - mean(a) || 0)
+      .slice(0, 2);
+    publish('xy_genes', genes);
+  }
   // Styled like the UMAP button (make_button), so the view modes line up.
   const button = (text, title, width, click) => {
     const element = document.createElement('div');

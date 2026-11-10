@@ -1,5 +1,7 @@
 import { version as CELLDEGA_VERSION } from '../../package.json';
 
+import { model_source } from './source';
+
 // A saved view is independent of Clerk and of the transport (web or notebook).
 export const SNAPSHOT_SCHEMA = 'celldega.view';
 // 2: name-based data identity and canvas size in CSS pixels (1 hashed all loaded data).
@@ -282,7 +284,32 @@ export const landscape_identity = (state) => ({
 
 /** Where a Landscape's data came from (recorded, not compared). */
 export const landscape_source = (state) => ({
+  ...model_source(state.model, 'landscape'),
   base_url: state.global_base_url || '',
   zarr_url: state.model?.get?.('zarr_url') || '',
   data_revision: String(state.model?.get?.('data_revision') || ''),
 });
+
+/** Python from_png queues replay before display; consume once after render. */
+export const consume_initial_snapshot = async (model, api, element) => {
+  const request = model.get?.('_initial_snapshot');
+  if (!request || !Object.keys(request).length) return;
+  // Clear before awaiting so duplicate views cannot apply the same request twice.
+  model.set('_initial_snapshot', {});
+  model.save_changes?.();
+  try {
+    if (request.event !== 'restore_snapshot' || !api?.restore_snapshot)
+      throw new Error('This visualization cannot restore the queued saved view');
+    const done = await api.restore_snapshot(request.snapshot, request.options || {});
+    model.send({ event: 'applied', id: request.id, done });
+  } catch (error) {
+    const message = String(error.message || error);
+    model.send({ event: 'apply_error', id: request.id, error: message });
+    if (element?.appendChild) {
+      const notice = document.createElement('div');
+      notice.setAttribute('role', 'alert');
+      notice.textContent = `Saved view was not restored: ${message}`;
+      element.appendChild(notice);
+    }
+  }
+};

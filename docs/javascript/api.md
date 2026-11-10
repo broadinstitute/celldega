@@ -47,6 +47,35 @@ matrix), `rank_dim` (see [`matrix_from_zarr`](#matrix_from_zarr-api-documentatio
 the `row_label_callback`, `col_label_callback`, and `col_dendro_callback` click
 callbacks, and `fetchOptions` for every request.
 
+### `from_png(el, input, options)`
+
+Open a Celldega PNG as an interactive visualization. `input` is a PNG `File`,
+`Blob`, `ArrayBuffer`, or `Uint8Array`. Returns a promise of the visualization
+after its supported saved settings have been restored.
+
+```javascript
+const viz = await celldega.from_png(container, file);
+```
+
+The embedded record supplies the widget type, source and constructor settings.
+Source data must still be available. `options` accepts `panel` (zero-based, default
+`0`), `allow_resize` (default `false`), and constructor overrides, such as a relocated
+`base_url`, a Matrix Zarr `url`, or the original in-memory `network`. Data identity,
+schema and canvas-size checks are the same as `restore_snapshot`. Reopening a
+composite's panels does not reconnect their cross-widget links.
+
+### `read_png(input)` and `snapshot_png(snapshot, options)`
+
+`await celldega.read_png(input)` extracts the embedded screenshot record without
+loading data or creating a visualization. It accepts the same binary inputs as
+`from_png`.
+
+`celldega.snapshot_png(snapshot, {title: ''})` creates an `image/png` Blob containing
+the image and embedded saved-view metadata from `await viz.snapshot(...)`.
+Standalone PIC uses this export, and Python saves the same PNG metadata record
+alongside a human-readable Markdown companion. No JSON sidecar is required. See
+[portable saved views](saved-views.md#reopen-a-png-as-an-interactive-visualization).
+
 ### `link_models(source, source_key, target, target_key)`
 
 Copies one visualization's model value to another whenever it changes, like

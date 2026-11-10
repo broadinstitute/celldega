@@ -156,6 +156,18 @@ async function check() {
       error.message.includes('data revision differ');
   }
   await restore();
+  const png = celldega.snapshot_png(saved);
+  const record = await celldega.read_png(png);
+  result.png_metadata = JSON.stringify(record.widgets[0].snapshot.state) === JSON.stringify(saved.state)
+    && !('image' in record.widgets[0].snapshot);
+  restored.finalize();
+  restored = await celldega.from_png(document.getElementById('restored'), png, {
+    network: structuredClone(network),
+  });
+  await settled();
+  const pngRestored = await restored.snapshot();
+  result.png_fresh_instance_state = JSON.stringify(pngRestored.state) === JSON.stringify(saved.state);
+  result.png_fresh_instance_pixels = pngRestored.image.png === saved.image.png;
   if (!Object.values(result).every(Boolean))
     throw new Error(JSON.stringify(result));
   show(`All checks passed.\n${JSON.stringify(result, null, 2)}`);
@@ -165,12 +177,10 @@ async function check() {
 document.querySelector('#save').onclick = () =>
   busy(async () => {
     saved = await source.snapshot();
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(saved, null, 2)], { type: 'application/json' })
-    );
+    const url = URL.createObjectURL(celldega.snapshot_png(saved));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'celldega-view.json';
+    link.download = 'celldega-view.png';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     show(
@@ -181,7 +191,9 @@ document.querySelector('#open').onchange = (event) =>
   busy(async () => {
     const file = event.target.files[0];
     if (!file) return;
-    saved = JSON.parse(await file.text());
+    saved = file.name.toLowerCase().endsWith('.png')
+      ? (await celldega.read_png(file)).widgets[0].snapshot
+      : JSON.parse(await file.text());
     await restore();
   });
 document.querySelector('#restore').onclick = () => busy(restore);

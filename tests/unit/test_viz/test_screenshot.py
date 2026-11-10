@@ -1,4 +1,4 @@
-"""Screenshots with provenance: PNG (record embedded) + .json + .md, from manual visualization workflows."""
+"""Screenshots with provenance: self-contained PNG + readable Markdown."""
 
 import base64
 import io
@@ -94,7 +94,8 @@ def test_write_screenshot_files_and_embedded_record(tmp_path) -> None:
         tmp_path, shots, description="A ring of cluster A.", title="Ring", author="you"
     )
     assert target.parent == tmp_path and target.name.startswith("ring_")
-    record = json.loads(target.with_suffix(".json").read_text())
+    assert not target.with_suffix(".json").exists()
+    record = load_screenshot(target)
     assert record["description"] == "A ring of cluster A."
     assert record["widgets"][0]["state"] == {"clusters": ["A"]}
     # The PNG carries its own record, so the file alone can be reproduced.
@@ -132,13 +133,14 @@ def test_landscape_screenshot_saves_when_the_browser_replies(tmp_path) -> None:
         "clusters": ["A"],
     }
     md = shot.path.with_suffix(".md").read_text()
-    assert f"record = dega.viz.load_screenshot('{shot.path.name}')" in md
-    assert "landscape.restore_snapshot(record['widgets'][0]['snapshot'])" in md
+    assert f"view = dega.viz.from_png('{shot.path.name}')" in md
+    assert "display(view)" in md
     assert widget["source"]["dataset_name"] == "Kidney section"
     assert widget["source"]["base_url"] == "https://example.org/kidney"
     assert widget["source"]["adata"] == "data/kidney.h5ad"  # screenshot_metadata
     assert widget["in_view"]["clusters"][0]["name"] == "A"
     assert "Saved" in shot._html()
+    assert ".json" not in shot._html()
 
 
 def test_linked_widgets_make_one_composite_screenshot(tmp_path) -> None:
@@ -256,3 +258,144 @@ def test_screenshot_keeps_observations_and_layer_replay_settings(tmp_path):
     assert widget["observed_state"] == state
     for key in ("layers", "channels", "sliders"):
         assert widget["snapshot"]["state"][key] == state[key]
+
+
+def test_png_alone_is_authoritative_and_folder_discovery_skips_stale_json(tmp_path):
+    shot = {
+        "image": _png(16, 16),
+        "source": {"widget": "Landscape"},
+        "snapshot": {
+            "schema": "celldega.view",
+            "version": 2,
+            "kind": "landscape",
+            "state": {"selected_cells": ["a", "b"], "space": "xy"},
+        },
+    }
+    target = screenshot_module.write_screenshot(
+        tmp_path / "observation.png", [shot], description="PNG observation"
+    )
+    # The Markdown companion is optional for machine loading too.
+    target.with_suffix(".md").unlink()
+    expected = load_screenshot(target)
+    stale = {**expected, "description": "stale JSON"}
+    target.with_suffix(".json").write_text(json.dumps(stale))
+    assert load_screenshot(target) == expected
+
+    legacy = {**expected, "title": "legacy", "created": "2000-01-01 00:00:00"}
+    legacy_path = tmp_path / "legacy.json"
+    legacy_path.write_text(json.dumps(legacy))
+    assert load_screenshot(legacy_path) == legacy
+    (tmp_path / "unrelated.png").write_bytes(base64.b64decode(_png(8, 8)))
+    (tmp_path / "broken.png").write_bytes(b"not a PNG")
+    (tmp_path / "broken.json").write_text(json.dumps(stale))
+    (tmp_path / "unrelated.json").write_text("[]")
+    (tmp_path / "broken_json.json").write_text("{")
+    records = screenshot_module.load_screenshots(tmp_path)
+    assert len(records) == 2
+    assert records[0]["title"] == "legacy"
+    assert records[1]["description"] == "PNG observation"
+    assert records[1]["_path"] == str(target)
+    assert screenshot_module.load_screenshots(tmp_path / "missing") == []
+
+
+def test_large_compressed_png_metadata_round_trips_without_pillow_global_changes(tmp_path):
+    from PIL import PngImagePlugin
+
+    text_limit = PngImagePlugin.MAX_TEXT_CHUNK
+    names = [f"cell-{i:08d}" for i in range(100_000)]
+    assert len(json.dumps(names)) > 1024 * 1024
+    target = screenshot_module.write_screenshot(
+        tmp_path / "large.png",
+        [{
+            "image": _png(8, 8),
+            "source": {"widget": "Landscape"},
+            "snapshot": {"state": {"selected_cells": names}},
+        }],
+    )
+    record = load_screenshot(target)
+    assert record["widgets"][0]["snapshot"]["state"]["selected_cells"] == names
+    assert PngImagePlugin.MAX_TEXT_CHUNK == text_limit
+    assert not target.with_suffix(".json").exists()
+
+
+@pytest.mark.parametrize("compressed", [False, True])
+def test_png_text_reader_accepts_unicode_and_checks_metadata_bounds(tmp_path, monkeypatch, compressed):
+    from PIL.PngImagePlugin import PngInfo
+
+    record = {
+        "celldega_screenshot": 3,
+        "description": "細胞 → π " * 200,
+        "widgets": [{"source": {"widget": "Landscape"}}],
+    }
+    info = PngInfo()
+    info.add_itxt("celldega", json.dumps(record, ensure_ascii=False), zip=compressed)
+    path = tmp_path / "unicode.png"
+    Image.new("RGB", (3, 3)).save(path, pnginfo=info)
+    assert load_screenshot(path) == record
+    monkeypatch.setattr(screenshot_module, "MAX_PNG_METADATA_BYTES", 128)
+    with pytest.raises(ValueError, match="metadata exceeds"):
+        load_screenshot(path)
+    with pytest.raises(ValueError, match="metadata exceeds"):
+        screenshot_module.write_screenshot(
+            tmp_path / "too-large.png",
+            [{"image": _png(3, 3), "source": {"widget": "Landscape"}}],
+            description=record["description"],
+        )
+    assert not (tmp_path / "too-large.png").exists()
+
+
+def test_png_text_reader_rejects_damaged_or_unsupported_records(tmp_path):
+    from PIL.PngImagePlugin import PngInfo
+
+    record = {"celldega_screenshot": 3, "widgets": []}
+    info = PngInfo()
+    info.add_itxt("celldega", json.dumps(record))
+    path = tmp_path / "record.png"
+    Image.new("RGB", (3, 3)).save(path, pnginfo=info)
+    good = path.read_bytes()
+    corrupt = bytearray(good)
+    corrupt[good.index(b"celldega\0") + len(b"celldega\0") + 5] ^= 1
+    path.write_bytes(corrupt)
+    with pytest.raises(ValueError, match="checksum"):
+        load_screenshot(path)
+    path.write_bytes(good[:-2])
+    with pytest.raises(ValueError, match="chunk"):
+        load_screenshot(path)
+    for invalid in ([], {**record, "celldega_screenshot": 999}, {**record, "widgets": [1]}):
+        info = PngInfo()
+        info.add_itxt("celldega", json.dumps(invalid))
+        Image.new("RGB", (3, 3)).save(path, pnginfo=info)
+        with pytest.raises(ValueError, match="unsupported"):
+            load_screenshot(path)
+
+
+def test_source_options_preserve_constructor_inputs_without_bulk_data_or_credentials():
+    from types import SimpleNamespace
+
+    spatial = SimpleNamespace(
+        technology="Chromium", zarr_url="https://example.org/cells.zarr", zarr_layer="counts",
+        width=820, height=610, data_revision="release-2", cluster_attr="cell_type",
+        cell_attr=["cell_type", "leiden"], cell_name_prefix=True,
+        token="do-not-export", creds={"secret": "do-not-export"}, _adata=None,
+        base_urls=[{"url": "https://example.org/cells", "label": "Cells", "token": "secret"}],
+    )
+    source = screenshot_module.widget_source(spatial)
+    assert source["options"]["zarr_layer"] == "counts"
+    assert source["options"]["width"] == 820
+    assert source["options"]["data_revision"] == "release-2"
+    assert source["options"]["cell_attr"] == ["cell_type", "leiden"]
+    assert source["options"]["base_urls"] == [{"url": "https://example.org/cells", "label": "Cells"}]
+    assert "token" not in source["options"] and "creds" not in source["options"]
+    assert source["requires_data"] is False
+    spatial.meta_cell_parquet = b"inline data is not a reconstructible source"
+    source = screenshot_module.widget_source(spatial)
+    assert source["requires_data"] is True
+    assert "meta_cell_parquet" not in source["options"]
+    cgm = _clustergram()
+    source = screenshot_module.widget_source(cgm)
+    assert source["options"]["url"] == "https://example.org/markers.zarr"
+    assert source["requires_data"] is False
+    cgm._matrix._source = None
+    source = screenshot_module.widget_source(cgm)
+    assert source["requires_data"] is True
+    assert "network" not in source["options"] and "parquet_data" not in source["options"]

@@ -4,9 +4,11 @@
  * The front-end side of `widget.screenshot(description=...)`. Clicking PIC captures
  * the view right away (image + the widget's state), then opens a small dialog for a
  * title and a description. SAVE sends both to Python, which writes the PNG (with the
- * record embedded), a .json sidecar and a .md explanation, and replies with the path.
- * Without a notebook transport, SAVE downloads the complete saved-view JSON.
+ * record embedded) and an optional .md explanation, and replies with the path.
+ * Without a notebook transport, SAVE downloads the PNG with its saved-view record.
  */
+
+import { snapshot_png } from '../viz/png';
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -56,8 +58,8 @@ export const add_pic_button = (ui_container, { model, capture }) => {
   let request_id = 0;
   const captured_status =
     typeof model?.send === 'function'
-      ? 'The view is captured; saving writes the PNG, .json and .md.'
-      : 'The view is captured; saving downloads a saved-view JSON with its image.';
+      ? 'The view is captured; saving writes a PNG with replay metadata.'
+      : 'The view is captured; saving downloads a PNG with replay metadata.';
 
   const close = () => {
     dialog?.remove();
@@ -170,18 +172,20 @@ export const add_pic_button = (ui_container, { model, capture }) => {
           title: title.value.trim(),
           author: 'you',
         };
-        const url = URL.createObjectURL(
-          new Blob([JSON.stringify(saved, null, 2)], {
-            type: 'application/json',
-          })
-        );
+        let url;
+        try {
+          url = URL.createObjectURL(snapshot_png(saved, { title: title.value.trim() }));
+        } catch (error) {
+          status.textContent = `Not saved: ${error.message}`;
+          return;
+        }
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'celldega-view.json';
+        link.download = 'celldega-view.png';
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         status.textContent =
-          'Downloaded saved view JSON (including image and replay settings)';
+          'Downloaded saved view PNG (including replay settings)';
         return;
       }
       request_id += 1;

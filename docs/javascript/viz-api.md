@@ -13,10 +13,12 @@ code. Support varies by widget and control. Three kinds of methods cover this:
 
 `get_state()` returns bounded scientific observations. `get_replay_state()` returns
 complete inputs for supported controls, without those observation caps. Only the
-latter can be passed directly to `apply_state()`; saved views use it automatically. Saved settings replay the supported
-parts of a view on widgets with the same data already loaded; full view restoration
-is not implemented yet. Use [portable snapshots](saved-views.md) to capture image
-and state together and validate data identity before restoring supported settings.
+latter can be passed directly to `apply_state()`; saved views use it automatically.
+Saved settings replay the supported parts of a view on widgets with the same data.
+`from_png` can construct a fresh visualization from an exported PNG's source
+references and restore those settings. Use [portable snapshots](saved-views.md) to
+capture image and state together and validate data identity before restoring
+supported settings; some controls remain outside replay coverage.
 
 The API uses corresponding operations in a web page (JavaScript) and a notebook
 (Python). Any web app, script or AI agent can use it to read a view, reason about it, show the
@@ -30,6 +32,8 @@ evidence it finds, and save it.
 | Export | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png`; or `widget.screenshot(description, path)` |
 | Save view | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
 | Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then `widget.get_apply_result(request_id)` |
+| Open PNG | `await celldega.from_png(el, file, options)` | `dega.viz.from_png(path, **options)`, then display the widget |
+| Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_screenshot(path)` |
 
 In Python, every request is answered asynchronously: the browser's reply reaches
 Python only after the calling cell finishes. Read `latest_state`, `raster_png` or

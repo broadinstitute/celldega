@@ -1,11 +1,11 @@
 """Screenshots with provenance: an image, a description, and what it takes to redo it.
 
 ``landscape.screenshot(description="...")`` (or ``dega.viz.screenshot(linked, ...)``
-for several linked widgets, or the PIC button in a widget's control panel) writes three
+for several linked widgets, or the PIC button in a widget's control panel) writes two
 files next to each other:
 
-- ``<name>.png``: the image, with the record below embedded in its metadata;
-- ``<name>.json``: the same record: description, who made it and when, and per widget
+- ``<name>.png``: the image, with its record embedded: description, author, time, and
+  per widget
   its saved view (``snapshot``: replay settings and data identity, for
   ``restore_snapshot``), the observed state, and the data it came from (dataset name,
   URLs, AnnData shape, Matrix source);
@@ -14,7 +14,8 @@ files next to each other:
 A saved view is the versioned image, replay state, observations and provenance.
 A screenshot is its user-facing image export. It becomes an evidence artifact when
 used to support or contradict a claim; reports collect artifacts and reasoning
-outside the Viz API. Source data must already be loaded before restoration. See the
+outside the Viz API. ``dega.viz.from_png`` reopens the referenced source data and
+restores supported settings; in-memory inputs must be supplied again. See the
 Viz API documentation for supported controls and remaining limitations.
 
 Capture is asynchronous: the browser sends the image after the cell has finished, so
@@ -35,6 +36,7 @@ import re
 import threading
 import time
 from typing import Any
+import zlib
 
 from .snapshots import restore_spec
 
@@ -45,6 +47,9 @@ SCHEMA_VERSION = 3
 DEFAULT_DIR = "celldega_files/screenshots"
 # PNG text chunk holding the record.
 PNG_KEY = "celldega"
+# Bound decoded metadata without imposing Pillow's 1 MiB compressed-text limit.
+MAX_PNG_METADATA_BYTES = 64 * 1024 * 1024
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # Seconds to wait for the browser before saving what arrived.
 CAPTURE_TIMEOUT = 8.0
 # Gap between widgets in a composite image, in pixels.
@@ -95,6 +100,40 @@ def widget_source(widget) -> dict:
     extra = getattr(widget, "screenshot_metadata", None)
     if extra:
         out.update(extra)
+    # Constructor inputs are explicit and JSON-compatible. In particular, do not
+    # serialize credentials, callbacks, AnnData, parquet bytes or matrix values.
+    keys = (
+        "width", "height", "data_revision", "row_label_scale", "col_label_scale",
+        "viz_mode", "rank_dim", "technology", "dataset_name", "base_url", "zarr_url",
+        "zarr_layer", "cluster_attr", "cell_attr", "cell_name_prefix", "segmentation",
+        "alignment", "manifest_name", "centroids_url", "use_adata_3d_centroids",
+        "cell_size", "ini_x", "ini_y", "ini_z", "ini_zoom", "min_zoom", "max_zoom",
+        "rotation_orbit", "rotation_x", "rotate", "scale_bar_microns_per_pixel",
+    )
+    options = {
+        key: deepcopy(value)
+        for key in keys
+        if (value := getattr(widget, key, None)) is not None and value != ""
+    }
+    if base_urls:
+        options["base_urls"] = [
+            {k: deepcopy(v) for k, v in item.items() if k in {"url", "label", "short_label"}}
+            for item in base_urls
+            if isinstance(item, dict)
+        ]
+    if matrix is not None:
+        source = getattr(matrix, "_source", None)
+        if source:
+            options["url"] = str(source)
+    is_matrix = hasattr(widget, "set_categories")
+    inline_spatial = any(
+        bool(getattr(widget, key, None))
+        for key in ("meta_cell_parquet", "meta_cluster_parquet", "umap_parquet", "centroids_parquet")
+    )
+    out["options"] = options
+    out["requires_data"] = (
+        not bool(options.get("url")) if is_matrix else adata is not None or inline_spatial
+    )
     return out
 
 
@@ -163,13 +202,105 @@ def compose(images_b64: list[str]):
     return canvas
 
 
-def read_png_record(path: str | Path) -> dict | None:
-    """The record embedded in a screenshot PNG, or ``None``."""
-    from PIL import Image
+def _checked_record(record: Any) -> dict:
+    if (
+        not isinstance(record, dict)
+        or type(record.get("celldega_screenshot")) is not int
+        or record["celldega_screenshot"] not in (1, 2, SCHEMA_VERSION)
+        or not isinstance(record.get("widgets"), list)
+        or any(not isinstance(widget, dict) for widget in record["widgets"])
+    ):
+        raise ValueError("Invalid or unsupported Celldega screenshot metadata")
+    return record
 
-    with Image.open(path) as img:
-        text = (getattr(img, "text", None) or {}).get(PNG_KEY)
-    return json.loads(text) if text else None
+
+def _inflate_metadata(data: bytes) -> bytes:
+    """Decompress with a hard output bound, including highly compressible lists."""
+    decoder = zlib.decompressobj()
+    try:
+        text = decoder.decompress(data, MAX_PNG_METADATA_BYTES + 1)
+    except zlib.error as exc:
+        raise ValueError("Invalid compressed Celldega PNG metadata") from exc
+    if len(text) > MAX_PNG_METADATA_BYTES or decoder.unconsumed_tail:
+        raise ValueError("Celldega PNG metadata exceeds the 64 MiB limit")
+    if not decoder.eof or decoder.unused_data:
+        raise ValueError("Invalid compressed Celldega PNG metadata")
+    return text
+
+
+def _decode_metadata(chunk_type: bytes, data: bytes) -> dict:
+    _keyword, _, payload = data.partition(b"\0")
+    encoding = "latin-1"
+    if chunk_type == b"iTXt":
+        if len(payload) < 4 or payload[0] not in (0, 1) or payload[1] != 0:
+            raise ValueError("Invalid Celldega PNG text chunk")
+        compressed = payload[0] == 1
+        fields = payload[2:].split(b"\0", 2)  # language, translated keyword, text
+        if len(fields) != 3:
+            raise ValueError("Invalid Celldega PNG text chunk")
+        text = _inflate_metadata(fields[2]) if compressed else fields[2]
+        encoding = "utf-8"
+    elif chunk_type == b"zTXt":
+        if not payload or payload[0] != 0:
+            raise ValueError("Invalid Celldega PNG text chunk")
+        text = _inflate_metadata(payload[1:])
+    else:
+        text = payload
+    if len(text) > MAX_PNG_METADATA_BYTES:
+        raise ValueError("Celldega PNG metadata exceeds the 64 MiB limit")
+    try:
+        return _checked_record(json.loads(text.decode(encoding)))
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Invalid Celldega PNG metadata JSON") from exc
+
+
+def read_png_record(path: str | Path) -> dict | None:
+    """Read bounded Celldega PNG text metadata, or ``None`` for a plain PNG.
+
+    Parses the text chunks directly so large selections can exceed Pillow's
+    default 1 MiB compressed-text limit without changing global image settings.
+    Image data is skipped, and metadata checksums and chunk boundaries are checked.
+    """
+    with Path(path).open("rb") as stream:
+        size = stream.seek(0, 2)
+        stream.seek(0)
+        if stream.read(8) != _PNG_SIGNATURE:
+            raise ValueError("Not a PNG file")
+        record = None
+        first = True
+        while stream.tell() < size:
+            header = stream.read(8)
+            if len(header) != 8:
+                raise ValueError("Truncated PNG chunk")
+            length, chunk_type = int.from_bytes(header[:4], "big"), header[4:]
+            if length > 0x7FFFFFFF or stream.tell() + length + 4 > size:
+                raise ValueError("Invalid PNG chunk length")
+            if first and (chunk_type != b"IHDR" or length != 13):
+                raise ValueError("Missing PNG image header")
+            first = False
+            if chunk_type in (b"iTXt", b"tEXt", b"zTXt"):
+                prefix = stream.read(min(length, 80))
+                keyword, separator, _text = prefix.partition(b"\0")
+                if separator and keyword == PNG_KEY.encode("ascii"):
+                    if record is not None:
+                        raise ValueError("Duplicate Celldega PNG metadata")
+                    # Encoded text has a small header in addition to its JSON.
+                    if length > MAX_PNG_METADATA_BYTES + 1024:
+                        raise ValueError("Celldega PNG metadata exceeds the 64 MiB limit")
+                    data = prefix + stream.read(length - len(prefix))
+                    crc = int.from_bytes(stream.read(4), "big")
+                    if zlib.crc32(data, zlib.crc32(chunk_type)) != crc:
+                        raise ValueError("Invalid Celldega PNG metadata checksum")
+                    record = _decode_metadata(chunk_type, data)
+                    continue
+                stream.seek(length - len(prefix) + 4, 1)
+            else:
+                stream.seek(length + 4, 1)
+            if chunk_type == b"IEND":
+                if length:
+                    raise ValueError("Invalid PNG end chunk")
+                return record
+    raise ValueError("Missing PNG end chunk")
 
 
 # ---- files -----------------------------------------------------------------------
@@ -210,12 +341,14 @@ def _markdown(record: dict, image_name: str) -> str:
     ]
     code = []
     widgets = record.get("widgets") or []
-    if any(widget.get("snapshot") for widget in widgets):
-        code.append(f"record = dega.viz.load_screenshot({image_name!r})")
     for index, widget in enumerate(widgets):
-        variable = _variable(widget["source"]["widget"])
+        source = widget.get("source") or {}
+        variable = _variable(source.get("widget", "view"))
         if widget.get("snapshot"):
-            code.append(f"{variable}.restore_snapshot(record['widgets'][{index}]['snapshot'])")
+            variable = "view" if len(widgets) == 1 else f"view_{index + 1}"
+            panel = f", panel={index}" if len(widgets) > 1 else ""
+            code.append(f"{variable} = dega.viz.from_png({image_name!r}{panel})")
+            code.append(f"display({variable})")
         elif widget.get("state"):
             settings = pprint.pformat(widget["state"], width=80, sort_dicts=False)
             code.append(f"{variable}.apply_state({settings})")
@@ -225,11 +358,16 @@ def _markdown(record: dict, image_name: str) -> str:
         lines += [
             "## Replay supported settings",
             "",
-            "With the same data loaded in these widgets, at the same size:",
+            "Reopen the PNG as an interactive visualization using its saved data references:",
             "",
             "```python",
             *code,
             "```",
+            "",
+            "The original datasets must remain available. For inputs kept only in memory, "
+            "pass the original data again, for example `matrix=matrix` or `adata=adata`. "
+            "Use a source URL override when the data has moved. Older exports containing "
+            "only replay settings require an existing widget with the same data loaded.",
             "",
             "Restoring first checks that the widget shows the same data (cell, gene and "
             "cluster names, or a Clustergram's row and column names) and canvas size, and "
@@ -257,7 +395,7 @@ def write_screenshot(
     author: str = "you",
     metadata: dict | None = None,
 ) -> Path:
-    """Write a screenshot's PNG (record embedded), ``.json`` and ``.md``.
+    """Write a screenshot's self-contained PNG record and readable ``.md`` companion.
 
     Args:
         path: A ``.png`` file, a folder for an auto-named file, or ``None`` for
@@ -310,38 +448,58 @@ def write_screenshot(
             # The replay settings live in the saved view; keep one copy.
             if isinstance(widget["snapshot"].get("state"), dict):
                 widget.pop("state", None)
-    text = json.dumps(record, indent=2, default=str)
+    text = json.dumps(record, ensure_ascii=False, separators=(",", ":"), default=str)
+    if len(text.encode("utf-8")) > MAX_PNG_METADATA_BYTES:
+        raise ValueError("Celldega PNG metadata exceeds the 64 MiB limit")
     info = PngInfo()
     info.add_itxt(PNG_KEY, text, zip=True)
     image.save(target, pnginfo=info)
-    target.with_suffix(".json").write_text(text)
     target.with_suffix(".md").write_text(_markdown(record, target.name))
     return target
 
 
 def load_screenshot(path: str | Path) -> dict:
-    """A screenshot's record, from its ``.json`` or (failing that) its PNG."""
+    """Read a screenshot's embedded PNG record; explicit legacy JSON paths also work.
+
+    A neighboring JSON file never overrides PNG metadata. For a legacy JSON-only
+    record, pass its ``.json`` path explicitly.
+    """
     path = Path(path)
-    sidecar = path.with_suffix(".json")
-    if sidecar.is_file():
-        return json.loads(sidecar.read_text())
-    record = read_png_record(path.with_suffix(".png"))
+    if path.suffix.lower() == ".json":
+        if path.stat().st_size > MAX_PNG_METADATA_BYTES:
+            raise ValueError("Celldega screenshot metadata exceeds the 64 MiB limit")
+        return _checked_record(json.loads(path.read_text(encoding="utf-8")))
+    png = path if path.suffix.lower() == ".png" else path.with_suffix(".png")
+    record = read_png_record(png)
     if record is None:
         raise ValueError(f"{path} is not a Celldega screenshot")
     return record
 
 
 def load_screenshots(folder: str | Path) -> list[dict]:
-    """Every screenshot record in a folder, oldest first."""
+    """PNG records and legacy JSON-only records in a folder, oldest first.
+
+    Ignore unrelated or malformed files. A PNG is authoritative even when a stale
+    JSON sidecar exists; the companion must not substitute for a damaged PNG.
+    """
     records = []
-    for sidecar in sorted(Path(folder).glob("*.json")):
+    if not Path(folder).is_dir():
+        return records
+    files = sorted(Path(folder).iterdir())
+    pngs = [path for path in files if path.is_file() and path.suffix.lower() == ".png"]
+    png_stems = {path.stem for path in pngs}
+    legacy = [
+        path
+        for path in files
+        if path.is_file() and path.suffix.lower() == ".json" and path.stem not in png_stems
+    ]
+    for path in [*pngs, *legacy]:
         try:
-            record = json.loads(sidecar.read_text())
-        except (OSError, json.JSONDecodeError):
+            record = load_screenshot(path)
+        except (OSError, ValueError, UnicodeError):
             continue
-        if isinstance(record, dict) and record.get("celldega_screenshot"):
-            record["_path"] = str(sidecar.with_suffix(".png"))
-            records.append(record)
+        record["_path"] = str(path if path.suffix.lower() == ".png" else path.with_suffix(".png"))
+        records.append(record)
     return sorted(records, key=lambda r: r.get("created", ""))
 
 
@@ -433,7 +591,7 @@ class Screenshot:
             pass
         return (
             f"{thumb}<span style='color:#47515b;font-size:12px'>Saved {self.path} "
-            f"(+ .json, .md)</span>"
+            f"(+ .md)</span>"
         )
 
     def _render(self) -> None:
@@ -640,8 +798,8 @@ class Screenshots:
     ) -> Screenshot:
         """Save what this widget shows as a PNG with a description and provenance.
 
-        Writes ``<name>.png`` (with the record embedded), ``<name>.json`` and
-        ``<name>.md`` (description, image, and ``restore_snapshot`` code to replay
+        Writes ``<name>.png`` (with the record embedded) and
+        ``<name>.md`` (description, image, and ``from_png`` code to reopen
         the view). The browser sends the image after the cell finishes, so the
         returned object's output updates when the files are written.
 

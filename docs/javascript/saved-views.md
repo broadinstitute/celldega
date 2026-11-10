@@ -5,6 +5,10 @@ of agent interfaces and notebook widgets. The goal is to **preserve an interacti
 A snapshot keeps the rendered image, semantic visualization state, bounded scientific
 observations, complete supported replay settings, and provenance together.
 
+The exported **PNG is the saved-view file**: it contains both the image and the
+metadata needed to replay supported settings. Python also writes a human-readable
+Markdown companion. No separate JSON file is required.
+
 ## Terms and scope
 
 | Term | Meaning |
@@ -49,7 +53,7 @@ The JSON envelope uses `schema: "celldega.view"` and `version: 2`:
 | `captured_at` | UTC timestamp for the coordinated capture |
 | `state` | Semantic replay inputs from `get_replay_state()`, independent of observation caps |
 | `description`, `author` | Why the observation matters, and who recorded it |
-| `source` | Where the data came from: URLs, name, declared revision (recorded, not compared) |
+| `source` | Data URLs, name, declared revision, widget type and supported constructor options for reopening |
 | `observed_state` | The scientific observations returned by the getter |
 | `image` | Base64 PNG, thumbnail and dimensions |
 | `identity` | What data the view is of: counts and hashes of its names (see below) |
@@ -124,20 +128,92 @@ never synced into the notebook's saved widget state. Requests carry IDs and resp
 are matched individually, so concurrent captures cannot substitute a newer image for
 an older request. `widget.screenshot()` and the PIC button use this same capture path.
 
-Screenshot records (PNG metadata and JSON sidecars) contain a compact restore envelope
-under each widget's `snapshot` (its `state` holds the replay settings), with pixels
-stored in the PNG and observations under `observed_state`. Reopen with:
+## Reopen a PNG as an interactive visualization
+
+In a notebook, `from_png` reads the metadata, constructs the appropriate widget from
+its recorded data source and dimensions, and restores the supported settings when
+the widget first renders:
 
 ```python
-record = dega.viz.load_screenshot("figure.png")
-fresh_cgm.restore_snapshot(record["widgets"][0]["snapshot"])
+view = dega.viz.from_png("figure.png")
+display(view)
+
+# In a later cell, inspect the browser's acknowledgement:
+view.get_apply_result(view.apply_request_id)
 ```
 
+The returned widget is interactive. A result of `None` means restoration is pending;
+an `apply_error` result explains why restoration failed. As with `restore_snapshot`,
+do not wait for the reply inside the notebook cell that displays the widget.
+
+The PNG references the scientific data; it does not embed the dataset. The source
+must still be accessible, and private data needs the same access as a normal
+constructor call. For an in-memory Matrix or AnnData, supply the original object:
+
+```python
+cgm = dega.viz.from_png("markers.png", matrix=mat)
+landscape = dega.viz.from_png("tissue.png", adata=adata)
+```
+
+Constructor keyword arguments can also relocate a source, for example
+`base_url="https://example.org/data"`. Reopening still checks the saved schema,
+data identity and canvas size. Pass `allow_resize=True` only when accepting the
+different field of view implied by a different canvas size. The original renderer
+version is recorded; exact pixel equality across versions or GPUs is not promised.
+
+Each call opens one panel. For a composite screenshot, use `panel=0`, `panel=1`,
+and so on to reopen its widgets separately; cross-widget links must be reconnected.
+An existing widget with its data already loaded can instead use
+`request_id = widget.restore_png("figure.png", panel=0)` and check that request's
+acknowledgement in a later cell.
+
+In a web or desktop application:
+
+```javascript
+// `file` is a PNG File from an <input type="file" accept="image/png">.
+const record = await celldega.read_png(file); // Inspect metadata without rendering.
+const viz = await celldega.from_png(container, file);
+
+// A saved view of an in-memory network needs that network again:
+const cgm = await celldega.from_png(otherContainer, file, { network });
+```
+
+`from_png` resolves after restoration succeeds and rejects on failure. It accepts
+`panel`, `allow_resize`, and constructor options, including a replacement source.
+`read_png` accepts a `File`, `Blob`, `ArrayBuffer`, or `Uint8Array`.
+
+### What the PNG stores
+
+The PNG's `celldega` iTXt metadata contains a versioned screenshot record
+(`celldega_screenshot: 3`). Each entry in `widgets` contains a compact saved-view
+envelope under `snapshot`, with replay settings in `snapshot.state`, observations
+under `observed_state`, and source/constructor information under `source`. Pixels
+live in the PNG image data and are not duplicated as base64 inside the metadata.
+Descriptions, authors, capture times, renderer version, canvas dimensions and data
+identity travel with the image.
+
+Inspect the record from Python with `dega.viz.load_screenshot("figure.png")`, or
+discover a folder's records with `dega.viz.load_screenshots("figures")`. A PNG's
+metadata is authoritative even if an older JSON sidecar exists. Explicitly opening
+a legacy `.json` record is still supported. Keep the original exported PNG when
+passing it through tools that remove image metadata.
+
 Manual exports default to `celldega_files/screenshots/`; set `screenshot_dir` or
-pass `path` to choose a location. The notebook PIC button writes PNG/JSON/Markdown.
-Without a kernel, PIC downloads one saved-view JSON with the image embedded, and its
-description can be supplied in the dialog. An application may persist the same JSON
-in its own storage; no Clerk or notebook objects are required.
+pass `path` to choose a location. The notebook PIC button writes a PNG and Markdown
+companion with a description, image preview, provenance and reopening code. The
+Markdown is for readers and is not required for replay. Without a kernel, PIC
+downloads the PNG with its description and saved-view metadata embedded.
+
+For a programmatic browser export:
+
+```javascript
+const saved = await viz.snapshot({ description: 'A marker-enriched boundary.' });
+const png = celldega.snapshot_png(saved); // Blob with type image/png.
+```
+
+An application can store this Blob or download it using `URL.createObjectURL(png)`.
+The in-memory `snapshot()`/`restore_snapshot()` JSON API remains available; PNG is
+the portable image export and does not require Clerk or a notebook.
 
 Earlier screenshot records remain readable, but their plain `state` has no verified
 data binding. `apply_state` remains available for intentional edits; use
@@ -146,7 +222,7 @@ data binding. `apply_state` remains available for intentional edits; use
 ## JavaScript-only example and browser check
 
 The repository's `examples/viz-api/index.html` uses a small synthetic matrix and the
-built JS bundle. It supports JSON download/upload, restoration into a new instance,
+built JS bundle. It supports PNG download/upload, restoration into a new instance,
 and executable checks for capture → significant change → restore, fresh-instance
 state/pixel equality, rejection of different data (a renamed row) and future-schema
 rejection. The exercise

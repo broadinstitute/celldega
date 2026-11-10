@@ -526,6 +526,9 @@ class _StateSnapshots(_StateGetter):
 
     apply_error = traitlets.Unicode("")
     apply_capture_id = traitlets.Int(0)
+    # from_png constructs a widget before it has a browser view. A synced
+    # one-shot request survives that gap; the renderer consumes and clears it.
+    _initial_snapshot = traitlets.Dict(default_value={}).tag(sync=True)
 
     @property
     def apply_request_id(self) -> int:
@@ -614,6 +617,35 @@ class _StateSnapshots(_StateGetter):
                 "options": {"allow_resize": allow_resize},
             }
         )
+        return self._apply_request_id
+
+    def restore_png(
+        self, path: str | Path, *, panel: int = 0, allow_resize: bool = False
+    ) -> int:
+        """Restore a PNG's saved panel into this already displayed visualization.
+
+        Use ``dega.viz.from_png`` to construct a fresh widget instead. Returns an
+        acknowledgement request id, as :meth:`restore_snapshot` does.
+        """
+        from .reopen import _png_panel
+
+        _saved, snapshot = _png_panel(path, panel)
+        return self.restore_snapshot(snapshot, allow_resize=allow_resize)
+
+    def _queue_initial_snapshot(self, snapshot: dict, *, allow_resize: bool = False) -> int:
+        """Queue from_png's one-shot restore for the first browser render."""
+        from .snapshots import validate_snapshot
+
+        validate_snapshot(snapshot)
+        if not isinstance(allow_resize, bool):
+            raise ValueError("allow_resize must be a boolean")
+        self._apply_request_id += 1
+        self._initial_snapshot = {
+            "event": "restore_snapshot",
+            "id": self._apply_request_id,
+            "snapshot": deepcopy(snapshot),
+            "options": {"allow_resize": allow_resize},
+        }
         return self._apply_request_id
 
     def _listen_for_state(self) -> None:

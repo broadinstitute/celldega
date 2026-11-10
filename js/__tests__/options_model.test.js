@@ -143,6 +143,8 @@ describe('standalone clustergram()', () => {
       base_url: 'https://example.org/dega',
       name: 'leiden',
     });
-    expect(rendered[2].get('url')).toBe('https://example.org/dega/cgm/leiden');
+    expect(rendered[2].get('url')).toBe('');
+    expect(rendered[2].get('base_url')).toBe('https://example.org/dega');
+    expect(rendered[2].get('name')).toBe('leiden');
   });
 });

@@ -4,7 +4,7 @@ const path = require('path');
 
 const source = fs
   .readFileSync(path.join(__dirname, '../viz/snapshot.js'), 'utf8')
-  .replace(/^import .*;$/gm, 'const CELLDEGA_VERSION = "test";')
+  .replace(/^import .*;$/gm, '')
   .replace(/^export const /gm, 'const ');
 const {
   create_snapshot_api,
@@ -14,9 +14,38 @@ const {
   names_signature,
   identity_differences,
   landscape_identity,
+  consume_initial_snapshot,
 } = new Function(
-  `${source}; return { create_snapshot_api, handle_snapshot_message, wait_for_operation, hash_names, names_signature, identity_differences, landscape_identity };`
+  `const CELLDEGA_VERSION = "test"; ${source}; return { create_snapshot_api, handle_snapshot_message, wait_for_operation, hash_names, names_signature, identity_differences, landscape_identity, consume_initial_snapshot };`
 )();
+
+test('initial notebook replay is cleared before awaiting and acknowledged exactly once', async () => {
+  const request = { event: 'restore_snapshot', id: 4, snapshot: { state: {} }, options: { allow_resize: true } };
+  let value = request;
+  let finish;
+  const model = { get: () => value, set: (_key, next) => { value = next; }, save_changes: jest.fn(), send: jest.fn() };
+  const api = { restore_snapshot: jest.fn(() => new Promise((resolve) => { finish = resolve; })) };
+  const pending = consume_initial_snapshot(model, api);
+  expect(value).toEqual({});
+  await consume_initial_snapshot(model, api);
+  expect(api.restore_snapshot).toHaveBeenCalledTimes(1);
+  expect(api.restore_snapshot).toHaveBeenCalledWith(request.snapshot, { allow_resize: true });
+  finish(['moved']);
+  await pending;
+  expect(model.send).toHaveBeenCalledWith({ event: 'applied', id: 4, done: ['moved'] });
+});
+
+test('initial replay failure is acknowledged and visible, without retry on rerender', async () => {
+  let value = { event: 'restore_snapshot', id: 7, snapshot: {} };
+  const model = { get: () => value, set: (_key, next) => { value = next; }, send: jest.fn() };
+  const api = { restore_snapshot: jest.fn(async () => { throw new Error('data revision differs'); }) };
+  const el = document.createElement('div');
+  await consume_initial_snapshot(model, api, el);
+  await consume_initial_snapshot(model, api, el);
+  expect(model.send).toHaveBeenCalledTimes(1);
+  expect(model.send).toHaveBeenCalledWith({ event: 'apply_error', id: 7, error: 'data revision differs' });
+  expect(el.querySelector('[role="alert"]').textContent).toContain('data revision differs');
+});
 
 const fixture = (overrides = {}) => {
   const data = { rows: ['g1', 'g2'], cols: ['a', 'b'], revision: '' };

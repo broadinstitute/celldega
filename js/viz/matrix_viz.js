@@ -136,9 +136,11 @@ import { capture_deck } from '../utils/canvas_capture';
 import {
   wait_for_canvas,
   create_snapshot_api,
+  consume_initial_snapshot,
   handle_snapshot_message,
   names_signature,
 } from './snapshot';
+import { model_source } from './source';
 
 export const matrix_viz = async (
   model,
@@ -985,12 +987,15 @@ export const matrix_viz = async (
         cols: names_signature(source_names.cols),
       }),
       source: () => ({
+        ...model_source(model, 'clustergram', { width, height }),
         url: model.get?.('url') || model.get?.('zarr_url') || '',
         name: network.name || '',
         data_revision: String(model.get?.('data_revision') || ''),
       }),
     })
   );
+
+  void consume_initial_snapshot(model, matrix, root);
 
   return matrix;
 };

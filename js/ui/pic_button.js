@@ -33,8 +33,9 @@ const text_button = (label, title, color = 'gray') => {
  * Add a PIC button next to the widget's logo (in its search row when there is one).
  *
  * @param {HTMLElement} ui_container - The widget's control panel.
- * @param {{model: object, capture: () => ({png: string, state?: object,
- *   view_state?: object}|null)}} options - `capture` reads the view now.
+ * @param {{model: object, capture: () => ({snapshot: object}|null|
+ *   Promise<{snapshot: object}>)}} options - `capture` reads the view now, as a saved
+ *   view (image, observed state, replay settings, identity); see viz/snapshot.js.
  * @returns {{button: HTMLElement, on_message: (msg: object) => boolean,
  *   dispose: () => void}} Route custom messages to `on_message` (it returns true
  *   for the ones it handled); call `dispose` on finalize.

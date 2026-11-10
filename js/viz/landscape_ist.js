@@ -140,6 +140,7 @@ import {
   wait_for_operation,
   create_snapshot_api,
   landscape_identity,
+  landscape_source,
 } from './snapshot';
 
 // Row group reading support
@@ -1230,13 +1231,9 @@ export const landscape_ist = async (
   // state to recreate it (see ui/pic_button.js and Landscape.screenshot).
   const pic = add_pic_button(ui_container, {
     model: viz_state.model,
-    capture: async () => {
-      const snapshot = await landscape.snapshot({
-        max_size: 2048,
-        thumb_size: 64,
-      });
-      return { ...snapshot.image, state: snapshot.observed_state, snapshot };
-    },
+    capture: async () => ({
+      snapshot: await landscape.snapshot({ max_size: 2048, thumb_size: 64 }),
+    }),
   });
   const on_pic_message = (msg) => pic.on_message(msg);
   viz_state.model.on('msg:custom', on_pic_message);
@@ -1619,9 +1616,11 @@ export const landscape_ist = async (
       apply_state: landscape.apply_state,
       get_replay_state: landscape.get_replay_state,
       identity: () => landscape_identity(viz_state),
+      source: () => landscape_source(viz_state),
+      // CSS pixels: the camera framing depends on them, not on the device pixel ratio.
       viewport: () => ({
-        width: deck_ist.getCanvas().width,
-        height: deck_ist.getCanvas().height,
+        width: deck_ist.getCanvas().clientWidth,
+        height: deck_ist.getCanvas().clientHeight,
       }),
     })
   );

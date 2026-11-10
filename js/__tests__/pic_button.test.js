@@ -27,7 +27,14 @@ describe('add_pic_button', () => {
     return { ui, row, logo };
   };
 
-  const setup = (shot = { png: 'UE5H', state: { kind: 'landscape' } }) => {
+  const SAVED = {
+    schema: 'celldega.view',
+    version: 2,
+    image: { png: 'UE5H' },
+    observed_state: { kind: 'landscape' },
+  };
+
+  const setup = (shot = { snapshot: SAVED }) => {
     const { ui, row, logo } = panel();
     const model = { send: jest.fn() };
     const capture = jest.fn(() => shot);
@@ -55,18 +62,18 @@ describe('add_pic_button', () => {
     dialog().querySelector('input').value = ' Glomerulus ';
     dialog().querySelector('textarea').value = 'Podocyte-like ring.';
     action('SAVE').click();
+    // The image and state travel once, inside the saved view.
     expect(model.send).toHaveBeenCalledWith({
       event: 'pic',
       id: 1,
       title: 'Glomerulus',
       description: 'Podocyte-like ring.',
-      png: 'UE5H',
-      state: { kind: 'landscape' },
+      snapshot: SAVED,
     });
     expect(dialog().textContent).toContain('Saving…');
   });
 
-  test('waits for snapshot hashing before allowing a save', async () => {
+  test('waits for an asynchronous capture before allowing a save', async () => {
     let finish;
     const pending = new Promise((resolve) => {
       finish = resolve;
@@ -75,14 +82,11 @@ describe('add_pic_button', () => {
     pic.button.click();
     action('SAVE').click();
     expect(model.send).not.toHaveBeenCalled();
-    finish({ png: 'PNG', snapshot: { schema: 'celldega.view', version: 1 } });
+    finish({ snapshot: SAVED });
     await Promise.resolve();
     action('SAVE').click();
     expect(model.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        png: 'PNG',
-        snapshot: { schema: 'celldega.view', version: 1 },
-      })
+      expect.objectContaining({ snapshot: SAVED })
     );
   });
 
@@ -130,7 +134,7 @@ describe('add_pic_button', () => {
       const { ui } = panel();
       const saved = {
         schema: 'celldega.view',
-        version: 1,
+        version: 2,
         image: { png: 'PNG' },
         state: { focus_gene: 'MUC2' },
       };

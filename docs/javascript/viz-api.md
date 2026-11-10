@@ -26,23 +26,24 @@ evidence it finds, and save it.
 | --- | --- | --- |
 | Get | `viz.get_state(options)` returns the state | `widget.request_state(...)`, then `widget.latest_state` |
 | Replay inputs | `viz.get_replay_state()` | `widget.latest_snapshot["state"]` after capture |
-| Set | `await viz.apply_state(changes)` | `await widget.apply_state_async(changes)` |
+| Set | `await viz.apply_state(changes)` | `widget.apply_state(changes)`, then `widget.get_apply_result(widget.apply_request_id)` |
 | Export | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png`; or `widget.screenshot(description, path)` |
 | Save view | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
-| Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then check `apply_capture_id` / `apply_error` |
+| Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then `widget.get_apply_result(request_id)` |
 
-In Python, getters and exporters are asynchronous: the browser replies after the
-calling cell finishes, so read `latest_state` or `raster_png` in a later cell, or
-`observe` them. Neither is ever saved into the notebook's widget state.
+In Python, every request is answered asynchronously: the browser's reply reaches
+Python only after the calling cell finishes. Read `latest_state`, `raster_png` or
+`get_apply_result(...)` in a later cell, or `observe` the traits. Nothing is ever
+saved into the notebook's widget state.
 
 Design rules the API follows:
 
 - **Scientific meaning, not interface details.** State names clusters, genes, spaces
   and marker levels, not buttons or DOM elements.
-- **Input validation.** Unknown settings and invalid input are rejected. Runtime
-  failures, such as unavailable data, can still leave a partial change. Python
-  setters submit asynchronous requests. `apply_state_async` waits for the exact request
-  acknowledgement; `apply_state` returns submission descriptions, not completion.
+- **Input validation.** Unknown settings and invalid input are rejected; in Python,
+  in the calling cell. Runtime failures, such as unavailable data, can still leave a
+  partial change. Python `apply_state` returns what it submitted, not completion;
+  the browser's acknowledgement says whether it was applied.
 - **Same paths as the controls.** Setting clusters behaves like clicking cluster bars,
   setting genes like the gene search, and so on, so linked widgets update as usual.
 - **Only what you pass changes.** Setting categories changes the labels you name and
@@ -159,12 +160,17 @@ The result has, per axis (`rows`, `cols`), the names described, which of them we
   value, size}]}]`;
 - `display`: `mode`, `size` and `focused_row`;
 - `selection`: the current click, selected genes, dendrogram group and crop;
-- `values`: `{values, sizes}` for the rows by columns described.
+- `values`: `{values, sizes}` for the rows by columns described;
 - `view`: `{target: [x, y], zoom: [xZoom, yZoom]}` for the matrix camera;
-- `crop`: `{row: [...names] | null, col: [...names] | null}`; null means uncropped;
-- `order`: `{row, col}`, each a named order or the complete ordered list of names.
-  These three control fields are independent of `max_rows` / `max_cols`: capped
-  observations do not truncate the settings needed to restore the view.
+- `crop`: `{row: [...names] | null, col: [...names] | null}`; null means uncropped.
+  An axis cropped to more than 100 names is left out (its count is in
+  `selection.crop`);
+- `order`: `{row, col}` for axes in a named order. An explicit order (custom, or by
+  an attribute) is left out here and labeled in `rows.order` / `cols.order`.
+
+Every field is bounded, so the result stays small enough for an agent's prompt. The
+complete settings, including every name of an explicit order or crop, come from
+`get_replay_state()` and saved views.
 
 ```javascript
 const state = clustergram.get_state({ rows: 'ranked', max_rows: 25 });
@@ -291,24 +297,33 @@ An explicit layer restore also cancels delayed visibility resets from space chan
 
 ### Completion and errors
 
-Every Python `apply_state` call now sends one request, including trait-only controls.
+Every Python `apply_state` call sends one request, including trait-only controls.
 The browser validates availability, applies the requested controls and replies with
-`applied` or `apply_error`. Prefer:
+`applied` or `apply_error`. The reply reaches Python only after the cell that sent
+the request finishes, so check it from the next cell:
 
 ```python
-await cgm.apply_state_async({"dendrogram": {"row": 35}}, timeout=10)
-request_id = cgm.restore_snapshot(saved)
-await cgm.wait_for_apply(request_id, timeout=10)
+cgm.apply_state({"dendrogram": {"row": 35}})
+request_id = cgm.apply_request_id
 ```
 
-For a nonblocking notebook cell, call `apply_state`, save `apply_request_id`, then
-inspect `get_apply_result(request_id)` in a later cell. It returns `None` while pending
-and never substitutes another request's success. `apply_capture_id` and `apply_error`
-remain available for observers. JavaScript Landscape setters accept a second
-`{timeout_ms: 30000}` option. Errors and timeouts never acknowledge success; they can
-leave partial changes, and timeout does not cancel pending browser work. Recapture
-before treating the outcome as evidence. Ordinary camera/reorder style animations
-may still need to settle before comparing PNG pixels.
+```python
+cgm.get_apply_result(request_id)  # {"event": "applied", "done": [...]} or apply_error
+```
+
+`get_apply_result` returns `None` while pending and never substitutes another
+request's result; `restore_snapshot` returns a request id to check the same way.
+`apply_capture_id` and `apply_error` remain available for observers. Code that runs
+outside a cell, such as a background task (`asyncio.ensure_future`) or an
+application, can `await cgm.apply_state_async(changes)` or
+`await cgm.wait_for_apply(request_id)`, which raise on failure or timeout. Awaiting
+them in the cell that sent the request would always time out.
+
+JavaScript Landscape setters accept a second `{timeout_ms: 30000}` option. Errors
+and timeouts never acknowledge success; they can leave partial changes, and timeout
+does not cancel pending browser work. Recapture before treating the outcome as
+evidence. Ordinary camera/reorder style animations may still need to settle before
+comparing PNG pixels.
 
 ### Coverage boundaries
 

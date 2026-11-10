@@ -15,11 +15,11 @@ def widget():
 def snapshot(value):
     return {
         "schema": "celldega.view",
-        "version": 1,
+        "version": 2,
         "kind": "landscape",
         "state": {"clusters": [value]},
         "observed_state": {"kind": "landscape", "value": value},
-        "identity": {"algorithm": "sha256", "digest": "a" * 64, "unverified": []},
+        "identity": {"revision": "", "cells": {"count": 2, "hash": "0" * 14}},
         "viewport": {"width": 10, "height": 10},
         "image": {"png": value},
     }
@@ -67,16 +67,24 @@ def test_restore_validates_before_sending_or_changing_traits():
     sent = []
     w.send = sent.append
     before = w.landscape_state
-    invalid = snapshot("old")
-    invalid["version"] = 999
-    with pytest.raises(ValueError, match="schema/version"):
-        w.restore_snapshot(invalid)
+    for version in (1, 999):  # 1 hashed all loaded data; recapture those views
+        invalid = snapshot("old")
+        invalid["version"] = version
+        with pytest.raises(ValueError, match="schema/version"):
+            w.restore_snapshot(invalid)
+    no_identity = snapshot("old")
+    no_identity["identity"] = {}
+    with pytest.raises(ValueError, match="no data identity"):
+        w.restore_snapshot(no_identity)
+    with pytest.raises(ValueError, match="allow_resize"):
+        w.restore_snapshot(snapshot("old"), allow_resize="yes")
     assert sent == [] and w.landscape_state == before
     original = snapshot("old")
-    w.restore_snapshot(original)
+    w.restore_snapshot(original, allow_resize=True)
     original["state"]["clusters"].append("mutated")
     assert sent[0]["event"] == "restore_snapshot"
     assert sent[0]["snapshot"]["state"]["clusters"] == ["old"]
+    assert sent[0]["options"] == {"allow_resize": True}
 
 
 def test_dataset_fingerprint_covers_content_names_and_is_portable(tmp_path):
@@ -103,7 +111,9 @@ def test_setter_acknowledgements_are_exact_and_timeouts_are_errors():
         rid = w.apply_request_id
         assert w.get_apply_result(rid) is None
         w._on_apply_msg(w, {"event": "applied", "id": rid + 1, "done": ["unrelated"]}, [])
-        with pytest.raises(TimeoutError):
+        # The message says how to check from a notebook, where the reply can't
+        # arrive while the requesting cell runs.
+        with pytest.raises(TimeoutError, match=rf"get_apply_result\({rid}\)"):
             await pending
         assert w.get_apply_result(rid) is None
         w._on_apply_msg(
@@ -117,3 +127,16 @@ def test_setter_acknowledgements_are_exact_and_timeouts_are_errors():
         assert await w.apply_state_async({"selected_cells": ["c1"]}) == ["restored"]
 
     asyncio.run(check())
+
+
+def test_enrich_has_the_getter_but_no_setters():
+    from celldega.viz import Enrich
+
+    e = Enrich(gene_list=["G1"])
+    sent = []
+    e.send = sent.append
+    e.request_state(max_terms=3)
+    assert sent[-1] == {"event": "get_state", "id": 1, "options": {"max_terms": 3}}
+    # Its front end only answers get_state, so it offers no setter to wait on.
+    for name in ("apply_state", "apply_state_async", "restore_snapshot", "wait_for_apply"):
+        assert not hasattr(e, name)

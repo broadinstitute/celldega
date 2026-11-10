@@ -5,9 +5,10 @@ for several linked widgets, or the PIC button in a widget's control panel) write
 files next to each other:
 
 - ``<name>.png``: the image, with the record below embedded in its metadata;
-- ``<name>.json``: the same record: description, who made it and when, each widget's
-  supported ``apply_state`` settings, the observed state, and the data it came from
-  (dataset name, URLs, AnnData shape, Matrix source);
+- ``<name>.json``: the same record: description, who made it and when, and per widget
+  its saved view (``snapshot``: replay settings and data identity, for
+  ``restore_snapshot``), the observed state, and the data it came from (dataset name,
+  URLs, AnnData shape, Matrix source);
 - ``<name>.md``: the description, the image, and code to replay supported settings.
 
 A saved view is the versioned image, replay state, observations and provenance.
@@ -38,7 +39,8 @@ from typing import Any
 from .snapshots import restore_spec
 
 
-SCHEMA_VERSION = 2
+# 3: a widget's replay settings are kept once, in its saved view (``snapshot.state``).
+SCHEMA_VERSION = 3
 # Manual exports have an application-neutral default.
 DEFAULT_DIR = "celldega_files/screenshots"
 # PNG text chunk holding the record.
@@ -96,16 +98,27 @@ def widget_source(widget) -> dict:
     return out
 
 
-def _reproduction(widget, state: dict | None) -> dict:
-    """Supported ``apply_state`` settings (empty if unknown; not a full restore)."""
-    from .widget import _clustergram_reproduction, _landscape_reproduction
+def replay_settings(widget: dict) -> dict:
+    """A record widget's replay settings: its saved view's, else (older records) ``state``."""
+    snapshot = widget.get("snapshot") or {}
+    settings = snapshot.get("state")
+    return settings if isinstance(settings, dict) else widget.get("state") or {}
 
-    kind = (state or {}).get("kind")
-    if kind == "landscape":
-        return _landscape_reproduction(state)
-    if kind == "clustergram":
-        return _clustergram_reproduction(state)
-    return {}
+
+def _brief(value: Any, items: int = 8) -> Any:
+    """``value`` with long lists and mappings shortened, for summaries and prompts."""
+    if isinstance(value, dict):
+        entries = list(value.items())
+        out = {k: _brief(v, items) for k, v in entries[: items * 3]}
+        if len(entries) > items * 3:
+            out["..."] = f"{len(entries) - items * 3} more"
+        return out
+    if isinstance(value, list | tuple):
+        out = [_brief(v, items) for v in value[:items]]
+        if len(value) > items:
+            out.append(f"... {len(value) - items} more")
+        return out
+    return value
 
 
 def _in_view(state: dict | None, top: int = 10) -> dict:
@@ -196,30 +209,33 @@ def _markdown(record: dict, image_name: str) -> str:
         "",
     ]
     code = []
-    for widget in record.get("widgets") or []:
+    widgets = record.get("widgets") or []
+    if any(widget.get("snapshot") for widget in widgets):
+        code.append(f"record = dega.viz.load_screenshot({image_name!r})")
+    for index, widget in enumerate(widgets):
+        variable = _variable(widget["source"]["widget"])
         if widget.get("snapshot"):
-            settings = pprint.pformat(widget["snapshot"], width=80, sort_dicts=False)
-            code.append(f"{_variable(widget['source']['widget'])}.restore_snapshot({settings})")
+            code.append(f"{variable}.restore_snapshot(record['widgets'][{index}]['snapshot'])")
         elif widget.get("state"):
             settings = pprint.pformat(widget["state"], width=80, sort_dicts=False)
-            code.append(f"{_variable(widget['source']['widget'])}.apply_state({settings})")
+            code.append(f"{variable}.apply_state({settings})")
         elif widget.get("view_state"):
             code.append(f"# {widget['source']['widget']} camera: {widget['view_state']}")
     if code:
         lines += [
             "## Replay supported settings",
             "",
-            "With the same data loaded in these widgets:",
-            "This is a partial restore: gates, edited neighborhood geometry, custom "
-            "non-manual palettes and cross-widget links are not restored. The image "
-            "records what was shown. See the Viz API control coverage for supported settings.",
-            "New snapshot records verify data identity and canvas dimensions before replay. "
-            "Streamed Landscape assets need an immutable data_revision; allow_unverified=True "
-            "explicitly checks loaded data only and never bypasses a fingerprint mismatch.",
+            "With the same data loaded in these widgets, at the same size:",
             "",
             "```python",
             *code,
             "```",
+            "",
+            "Restoring first checks that the widget shows the same data (cell, gene and "
+            "cluster names, or a Clustergram's row and column names) and canvas size, and "
+            "changes nothing if not. It is a partial restore: gates, edited neighborhood "
+            "geometry, custom non-manual palettes and cross-widget links are not restored. "
+            "The image records what was shown.",
             "",
         ]
     lines += ["## Data", ""]
@@ -247,7 +263,9 @@ def write_screenshot(
         path: A ``.png`` file, a folder for an auto-named file, or ``None`` for
             :data:`DEFAULT_DIR`.
         shots: One per widget: ``{"image": base64 PNG, "source": widget_source(...),
-            "state": apply_state settings, "view_state": camera, "in_view": {...}}``.
+            "snapshot": saved view (restore_spec), "observed_state": ...,
+            "view_state": camera, "in_view": {...}}``. ``"state"`` (apply_state
+            settings) is kept only when there is no saved view.
 
     Returns:
         Path: The PNG written.
@@ -289,6 +307,9 @@ def write_screenshot(
                 "description": description,
                 "author": author,
             }
+            # The replay settings live in the saved view; keep one copy.
+            if isinstance(widget["snapshot"].get("state"), dict):
+                widget.pop("state", None)
     text = json.dumps(record, indent=2, default=str)
     info = PngInfo()
     info.add_itxt(PNG_KEY, text, zip=True)
@@ -325,7 +346,11 @@ def load_screenshots(folder: str | Path) -> list[dict]:
 
 
 def summarize(records: Iterable[dict]) -> str:
-    """Markdown summary of saved screenshot records for reports or briefings."""
+    """Markdown summary of saved screenshot records for reports or briefings.
+
+    Long settings (an explicit order, a cell selection) are shortened, so a briefing
+    stays small; the records themselves keep everything.
+    """
     lines = ["### Screenshots shared by the scientist", ""]
     for record in records:
         name = Path(record.get("_path") or record.get("image") or "screenshot").name
@@ -336,8 +361,9 @@ def summarize(records: Iterable[dict]) -> str:
         for widget in record.get("widgets") or []:
             source = widget.get("source") or {}
             parts = []
-            if widget.get("state"):
-                parts.append(f"view {json.dumps(widget['state'])}")
+            settings = replay_settings(widget)
+            if settings:
+                parts.append(f"view {json.dumps(_brief(settings))}")
             for key, items in (widget.get("in_view") or {}).items():
                 names = ", ".join(str(i.get("name")) for i in items[:8])
                 parts.append(f"{key} in view: {names}")
@@ -492,7 +518,6 @@ class _Capture:
                 {
                     "image": image.get("png", ""),
                     "source": widget_source(widget),
-                    "state": snapshot.get("state") or {},
                     "observed_state": deepcopy(state),
                     "snapshot": restore_spec(snapshot),
                     "capture_error": reply.get("error")
@@ -502,7 +527,14 @@ class _Capture:
                 }
             )
         if not any(s["image"] for s in shots):
-            self.result._set(error="no widget sent an image (are they displayed?)")
+            # A browser error says why; silence usually means nothing is displayed.
+            errors = [s["capture_error"] for s in shots if s["capture_error"]]
+            reasons = [e for e in errors if e != "snapshot timed out"]
+            self.result._set(
+                error="; ".join(reasons)
+                if reasons
+                else "no widget sent an image (are they displayed?)"
+            )
             return
         path, title, author, metadata = self.args
         try:
@@ -558,15 +590,21 @@ def screenshot(
 
 
 def save_from_browser(widget, content: dict) -> Path:
-    """Save a screenshot the widget's PIC button captured in the browser."""
+    """Save a screenshot the widget's PIC button captured in the browser.
+
+    The PIC message carries one saved view (``snapshot``): image, observed state,
+    replay settings and identity, recorded the same way as :func:`screenshot`.
+    """
+    snapshot = content.get("snapshot") or {}
+    image = snapshot.get("image") or {}
+    observed = snapshot.get("observed_state")
     shot = {
-        "image": content.get("png") or "",
+        "image": image.get("png") or "",
         "source": widget_source(widget),
-        "state": _reproduction(widget, content.get("state")),
-        "observed_state": deepcopy(content.get("state")),
-        "snapshot": restore_spec(content.get("snapshot") or {}),
-        "view_state": dict(content.get("view_state") or {}),
-        "in_view": _in_view(content.get("state")),
+        "observed_state": deepcopy(observed),
+        "snapshot": restore_spec(snapshot),
+        "view_state": dict(image.get("view_state") or {}),
+        "in_view": _in_view(observed),
     }
     return write_screenshot(
         getattr(widget, "screenshot_dir", None) or None,
@@ -603,7 +641,7 @@ class Screenshots:
         """Save what this widget shows as a PNG with a description and provenance.
 
         Writes ``<name>.png`` (with the record embedded), ``<name>.json`` and
-        ``<name>.md`` (description, image, and ``apply_state`` code to replay
+        ``<name>.md`` (description, image, and ``restore_snapshot`` code to replay
         the view). The browser sends the image after the cell finishes, so the
         returned object's output updates when the files are written.
 

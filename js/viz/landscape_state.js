@@ -150,6 +150,22 @@ const quantile = (sorted, q) =>
   ];
 
 /**
+ * A cell's position in the loaded cell arrays, or undefined. Point clouds with
+ * integer cell names skip the name map: there a cell's name is its position.
+ */
+export const cell_index = (viz_state, name) => {
+  const { cats } = viz_state;
+  if (viz_state.vector_name_integer && !cats?.cell_name_to_index_map?.size) {
+    const index = Number(name);
+    const count = cats?.cell_names_array?.length ?? 0;
+    return Number.isInteger(index) && index >= 0 && index < count
+      ? index
+      : undefined;
+  }
+  return cats?.cell_name_to_index_map?.get?.(String(name));
+};
+
+/**
  * A view state framing the given cells: by cluster(s) or by cell names.
  * @returns {{target: number[], zoom: number}|null}
  */
@@ -161,9 +177,8 @@ export const view_for_cells = (viz_state, { clusters, cells }, size) => {
 
   let indices = [];
   if (Array.isArray(cells) && cells.length) {
-    const index_map = viz_state.cats?.cell_name_to_index_map;
     indices = cells
-      .map((name) => index_map?.get?.(String(name)))
+      .map((name) => cell_index(viz_state, name))
       .filter((index) => index !== undefined);
   } else if (Array.isArray(clusters) && clusters.length) {
     const wanted = new Set(clusters.map(String));
@@ -201,12 +216,15 @@ export const view_for_cells = (viz_state, { clusters, cells }, size) => {
  * @param {object} viz_state
  * @param {{layers_obj: object, update_view_state: Function, size: {width: number,
  *   height: number}}} context
- * @param {object} changes - Any of:
+ * @param {object} changes - Any of `LANDSCAPE_APPLY_KEYS`:
  *   space: 'spatial', 'umap' or 'xy';
  *   clusters: cluster names to select (exactly; [] clears the selection);
  *   genes: genes to color cells by (up to 20; [] returns to cluster colors);
- *   view: {target: [x, y], zoom}; zoom_to: {clusters: [...]} or {cells: [...]};
- *   reset_view: true.
+ *   view: {target: [x, y], zoom} (orbit views: also rotationOrbit, rotationX);
+ *   zoom_to: {clusters: [...]} or {cells: [...]}; reset_view: true;
+ *   selected_cells: cell names ([] clears them);
+ *   xy: {genes: [x, y], scale: 'linear' | 'log1p'};
+ *   layers, channels, sliders, image_source: see landscape_layers.js.
  * @returns {Promise<string[]>} What changed.
  */
 export const apply_landscape_state = async (
@@ -236,11 +254,12 @@ export const apply_landscape_state = async (
       throw new Error(`${key} must be a list of names`);
     }
   }
-  if (changes.selected_cells) {
-    const known = viz_state.cats?.cell_name_to_index_map;
-    if (changes.selected_cells.some((name) => !known?.has(String(name))))
-      throw new Error('unknown selected cell names');
-  }
+  if (
+    changes.selected_cells?.some(
+      (name) => cell_index(viz_state, name) === undefined
+    )
+  )
+    throw new Error('unknown selected cell names');
   if ('xy' in changes) {
     const { xy } = changes;
     if (

@@ -32,15 +32,15 @@ const json = JSON.stringify(saved);
 await freshViz.restore_snapshot(JSON.parse(json));
 ```
 
-The browser waits for its canvas to initialize, then reads the image, observations
-and identity material in one JavaScript task. Hashing completes afterward without
-reading the live view again. Capture represents the current rendered frame: wait for
-animations and data loading to settle when you need a stable figure. Each widget in
-a composite has its own capture time; a composite is not a cross-widget transaction.
+The browser waits for its canvas to initialize, then reads the image, observations,
+replay settings and data identity in one JavaScript task. Capture represents the
+current rendered frame: wait for animations and data loading to settle when you need
+a stable figure. Each widget in a composite has its own capture time; a composite is
+not a cross-widget transaction.
 
 ## The contract
 
-The JSON envelope uses `schema: "celldega.view"` and `version: 1`:
+The JSON envelope uses `schema: "celldega.view"` and `version: 2`:
 
 | Field | Meaning |
 | --- | --- |
@@ -49,52 +49,59 @@ The JSON envelope uses `schema: "celldega.view"` and `version: 1`:
 | `captured_at` | UTC timestamp for the coordinated capture |
 | `state` | Semantic replay inputs from `get_replay_state()`, independent of observation caps |
 | `description`, `author` | Why the observation matters, and who recorded it |
-| `source` | Available dataset URLs/name or declared revision; embedded data need not have a URL |
+| `source` | Where the data came from: URLs, name, declared revision (recorded, not compared) |
 | `observed_state` | The scientific observations returned by the getter |
 | `image` | Base64 PNG, thumbnail and dimensions |
-| `identity` | SHA-256 fingerprint, coverage and assets not verified |
-| `viewport` | Canvas pixel dimensions, including device pixel ratio |
+| `identity` | What data the view is of: counts and hashes of its names (see below) |
+| `viewport` | Canvas size in CSS pixels |
 | `capture` | Image size and observation options used |
 | `restoration` | `partial`: see the [control coverage](viz-api.md#replaying-supported-settings) |
 
-`restore_snapshot` rejects unknown schema versions, wrong widget kinds, changed
-data and different canvas dimensions before changing the view. `allow_resize: true`
-permits different canvas dimensions; pixel equality is then not guaranteed. Additive
-fields may be ignored by readers; incompatible schema changes require a new version.
-This is a data/view contract, not a promise of identical pixels across browser, GPU
-or Celldega renderer versions. Python screenshot/report records also record the
-installed Celldega version. The original PNG remains the visual evidence.
+`restore_snapshot` rejects other schema versions, wrong widget kinds, different data
+and a different canvas size before changing the view, and its error names what
+differs. `allow_resize: true` permits a different canvas size; the same camera then
+frames a different extent. The size is in CSS pixels, so a view saved on a
+high-density display restores on a standard one. Additive fields may be ignored by
+readers; incompatible schema changes require a new version (version 1 views, which
+hashed all loaded data, need recapturing). This is a data/view contract, not a
+promise of identical pixels across browser, GPU or Celldega renderer versions.
+Python screenshot/report records also record the installed Celldega version. The
+original PNG remains the visual evidence.
 
-### What the fingerprint establishes
+### What the identity checks
 
-Clustergram hashes the loaded matrix values, dot-size matrix, axis metadata,
-linkages, marker rankings, rank views and entity definitions. Identical names and
-dimensions with changed values do not pass. It does not depend on a widget instance ID.
-Source metadata is separated from mutable renderer decorations: cuts and manual
-annotation edits are replay state, not changes to source dataset identity.
+A saved view records what its data is by name, cheaply enough to compute on every
+capture:
 
-Landscape hashes loaded cell identities, categories, positions, embedding, gene
-metadata and source configuration. Images, transcripts and expression assets may
-be streamed later, so this alone cannot identify the full remote dataset. By default
-restore refuses snapshots with unidentified assets. Supply `data_revision` as a
-`sha256:<64 lowercase hex digits>` content digest when constructing the Landscape.
-The producer must publish immutable data under that revision and update it when any
-asset changes. The browser trusts this declaration for assets it has not downloaded;
-it does not crawl or independently re-hash the entire remote store.
+| Visualization | Identity |
+| --- | --- |
+| Landscape (and the spatial clouds) | Cell names, gene names and each cell's cluster label (with the cluster attribute), each as a count and a fast hash |
+| Clustergram | Row names and column names, each as a count and a fast hash |
 
-For a local dataset, compute the revision before opening it:
+Restoring onto other cells, genes, clusterings, rows or columns is refused. Hashes
+are computed once per loaded array, so captures stay fast on large datasets, and
+need no secure (HTTPS) page. They tell datasets apart; they are not cryptographic
+and do not cover values: the same names with different expression values match.
+
+For exact content identity, declare a `data_revision` when constructing the
+visualization: any immutable identifier, such as a release tag, a commit hash, or a
+digest of the files. Saved views record it, and restoring compares it whenever both
+the view and the visualization declare one. For a local dataset:
 
 ```python
 revision = dega.viz.fingerprint_dataset("data/my-dataset")
 landscape = dega.viz.Landscape(base_url=dataset_url, data_revision=revision)
 ```
 
-The helper hashes file contents and relative names. It can be expensive for large
-stores; compute it when publishing immutable data, keep exports outside the dataset,
-and regenerate it after edits. The equivalent JS constructor accepts `data_revision`.
-Without a revision, an explicit `allow_unverified: true` (Python:
-`allow_unverified=True`) checks loaded data only. This option never bypasses a
-fingerprint mismatch. The snapshot's identity coverage remains visible in its record.
+`fingerprint_dataset` hashes file contents and relative names. It can be slow for
+large stores; compute it when publishing immutable data, keep exports outside the
+dataset, and regenerate it after edits. Clustergram and the JS constructors accept
+`data_revision` too.
+
+Restoring a Clustergram view never discards annotations made since it was saved:
+an axis's saved manual annotations are applied only when that axis has none now (or
+the same ones), and the result lists any axis whose current annotations were kept.
+Use `apply_state({annotations: ...})` to replace them deliberately.
 
 ## Notebook use
 
@@ -103,8 +110,14 @@ request_id = cgm.request_snapshot(max_rows=25)
 # In a later cell, after the browser replies:
 saved = cgm.latest_snapshot
 restore_id = fresh_cgm.restore_snapshot(saved)
-await fresh_cgm.wait_for_apply(restore_id) # raises on failure or timeout
+# In a later cell: None while pending, else {"event": "applied" or "apply_error", ...}
+fresh_cgm.get_apply_result(restore_id)
 ```
+
+The browser's reply reaches Python only after the cell that sent the request
+finishes, so don't `await` it in that cell (`wait_for_apply` would time out). From a
+background task or an application, `await fresh_cgm.wait_for_apply(restore_id)`
+raises on failure or timeout.
 
 `latest_snapshot`, `snapshot_error` and `snapshot_capture_id` are Python-side traits,
 never synced into the notebook's saved widget state. Requests carry IDs and responses
@@ -112,8 +125,8 @@ are matched individually, so concurrent captures cannot substitute a newer image
 an older request. `widget.screenshot()` and the PIC button use this same capture path.
 
 Screenshot records (PNG metadata and JSON sidecars) contain a compact restore envelope
-under each widget's `snapshot`, with pixels stored in the PNG and observations under
-`observed_state`. Reopen with:
+under each widget's `snapshot` (its `state` holds the replay settings), with pixels
+stored in the PNG and observations under `observed_state`. Reopen with:
 
 ```python
 record = dega.viz.load_screenshot("figure.png")
@@ -135,7 +148,8 @@ data binding. `apply_state` remains available for intentional edits; use
 The repository's `examples/viz-api/index.html` uses a small synthetic matrix and the
 built JS bundle. It supports JSON download/upload, restoration into a new instance,
 and executable checks for capture → significant change → restore, fresh-instance
-state/pixel equality, changed-data rejection and future-schema rejection. The exercise
+state/pixel equality, rejection of different data (a renamed row) and future-schema
+rejection. The exercise
 includes dendrogram cuts, selections/highlights, annotations, crop, order and camera.
 
 From the repository root:

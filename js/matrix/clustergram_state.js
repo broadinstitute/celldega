@@ -367,42 +367,73 @@ const values_for = (viz_state, row_indices, col_indices) => {
   return { values, sizes };
 };
 
-/** Replayable controls are independent of the capped evidence window. */
-export const get_clustergram_controls = (viz_state) => {
+const camera_for = (viz_state) => {
   const camera = viz_state.zoom?.zoom_data?.matrix;
-  return {
-    view: camera
-      ? {
-          target: [camera.pan_x, camera.pan_y],
-          zoom: [camera.zoom_x, camera.zoom_y],
-        }
-      : null,
-    crop: Object.fromEntries(
-      AXES.map((axis) => [
-        axis,
-        Array.isArray(viz_state.crop?.filter?.[axis])
-          ? viz_state.crop.filter[axis].map((index) =>
-              name_at(viz_state, axis, index)
-            )
-          : null,
-      ])
-    ),
-    order: Object.fromEntries(
-      AXES.map((axis) => {
-        const current = viz_state.order?.current?.[axis] || 'clust';
-        if (NAMED_ORDERS.includes(current)) return [axis, current];
-        const ranks = viz_state.mat?.orders?.[axis]?.[current] || [];
-        return [
-          axis,
-          nodes(viz_state, axis)
-            .map((_, index) => index)
-            .sort((a, b) => (ranks[b] ?? 0) - (ranks[a] ?? 0))
-            .map((index) => name_at(viz_state, axis, index)),
-        ];
-      })
-    ),
-  };
+  return camera
+    ? {
+        target: [camera.pan_x, camera.pan_y],
+        zoom: [camera.zoom_x, camera.zoom_y],
+      }
+    : null;
 };
+
+const current_order = (viz_state, axis) =>
+  viz_state.order?.current?.[axis] || 'clust';
+
+const crop_filter = (viz_state, axis) =>
+  Array.isArray(viz_state.crop?.filter?.[axis])
+    ? viz_state.crop.filter[axis]
+    : null;
+
+/** Replayable controls, complete: every name of an explicit order or crop. */
+export const get_clustergram_controls = (viz_state) => ({
+  view: camera_for(viz_state),
+  crop: Object.fromEntries(
+    AXES.map((axis) => [
+      axis,
+      crop_filter(viz_state, axis)?.map((index) =>
+        name_at(viz_state, axis, index)
+      ) ?? null,
+    ])
+  ),
+  order: Object.fromEntries(
+    AXES.map((axis) => {
+      const current = current_order(viz_state, axis);
+      if (NAMED_ORDERS.includes(current)) return [axis, current];
+      const ranks = viz_state.mat?.orders?.[axis]?.[current] || [];
+      return [
+        axis,
+        nodes(viz_state, axis)
+          .map((_, index) => index)
+          .sort((a, b) => (ranks[b] ?? 0) - (ranks[a] ?? 0))
+          .map((index) => name_at(viz_state, axis, index)),
+      ];
+    })
+  ),
+});
+
+/**
+ * The same controls, bounded for observations: named orders only (an explicit order
+ * is labeled in rows/cols.order) and crops of at most MAX_LISTED names (larger crops
+ * are counted in selection.crop). Complete settings: get_clustergram_replay_state.
+ */
+const observed_controls = (viz_state) => ({
+  view: camera_for(viz_state),
+  crop: Object.fromEntries(
+    AXES.flatMap((axis) => {
+      const filter = crop_filter(viz_state, axis);
+      if (filter && filter.length > MAX_LISTED) return [];
+      return [
+        [axis, filter?.map((index) => name_at(viz_state, axis, index)) ?? null],
+      ];
+    })
+  ),
+  order: Object.fromEntries(
+    AXES.map((axis) => [axis, current_order(viz_state, axis)]).filter(
+      ([, order]) => NAMED_ORDERS.includes(order)
+    )
+  ),
+});
 
 /**
  * Snapshot of the Clustergram as the user sees it.
@@ -462,7 +493,7 @@ export const get_clustergram_state = (viz_state, options = {}) => {
   return {
     kind: 'clustergram',
     version: CLUSTERGRAM_STATE_VERSION,
-    ...get_clustergram_controls(viz_state),
+    ...observed_controls(viz_state),
     on_screen_known: bounds !== null,
     rows: axis_state('row'),
     cols: axis_state('col'),
@@ -610,11 +641,16 @@ const prepare_controls = (viz_state, changes) => {
  *
  * @param {object} model - The Clustergram's model (anywidget or standalone).
  * @param {object} viz_state - The Clustergram's visualization state.
- * @param {object} changes - Any of: `marker_level` (markers per cluster, the DIM
- *   slider, or `'all'`); `mode` (`'heatmap'` or `'dotplot'`); `size` (`'prop'` or
- *   `'unit'`); `focus_gene` (a row name to zoom to and bold; `''` clears it);
- *   `categories` (`{values, axis, attribute, colors, replace}`, see
- *   `apply_manual_categories`).
+ * @param {object} changes - Any of `CLUSTERGRAM_APPLY_KEYS`: `marker_level`
+ *   (markers per cluster, the DIM slider, or `'all'`); `mode` (`'heatmap'` or
+ *   `'dotplot'`); `size` (`'prop'` or `'unit'`); `focus_gene` (a row name to zoom to
+ *   and bold; `''` clears it); `categories` (`{values, axis, attribute, colors,
+ *   replace}`, see `apply_manual_categories`); `annotations` (replace each given
+ *   axis's manual annotations; `null` clears it); `dendrogram` (`{row, col}` cut
+ *   percentages); `selection` (`{rows, cols, genes, highlighted_genes,
+ *   dendrogram}`); `order` (`{row, col}`: a named order or every name in display
+ *   order); `crop` (`{row, col}`: names, or `null` to uncrop); `view` (`{target:
+ *   [x, y], zoom: [x_zoom, y_zoom]}`).
  * @param {(viz_state: object) => string} [apply_categories] - Applies
  *   `categories` (the Clustergram passes its manual-category editor).
  * @returns {string[]} A short description of each change.
@@ -691,7 +727,7 @@ export const apply_clustergram_state = (
       typeof categories.values !== 'object'
     ) {
       throw new Error(
-        "categories must be like {values: {'4': 'Goblet cells'}, axis: 'col'}"
+        "categories must be like {values: {'<name>': '<category>'}, axis: 'col'}"
       );
     }
     if (!apply_categories)

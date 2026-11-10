@@ -124,11 +124,16 @@ def test_landscape_screenshot_saves_when_the_browser_replies(tmp_path) -> None:
     widget = record["widgets"][0]
     assert widget["snapshot"]["description"] == "Cluster A rings the structure."
     assert widget["snapshot"]["author"] == "you"
-    assert widget["state"] == {
+    # One copy of the replay settings, in the saved view.
+    assert "state" not in widget
+    assert widget["snapshot"]["state"] == {
         "space": "spatial",
         "view": {"target": [10.0, 20.0, 0], "zoom": -2.0},
         "clusters": ["A"],
     }
+    md = shot.path.with_suffix(".md").read_text()
+    assert f"record = dega.viz.load_screenshot('{shot.path.name}')" in md
+    assert "landscape.restore_snapshot(record['widgets'][0]['snapshot'])" in md
     assert widget["source"]["dataset_name"] == "Kidney section"
     assert widget["source"]["base_url"] == "https://example.org/kidney"
     assert widget["source"]["adata"] == "data/kidney.h5ad"  # screenshot_metadata
@@ -149,7 +154,11 @@ def test_linked_widgets_make_one_composite_screenshot(tmp_path) -> None:
     assert shot.wait(timeout=5) and not shot.error
     record = load_screenshot(shot.path)
     assert [w["source"]["widget"] for w in record["widgets"]] == ["Landscape", "Clustergram"]
-    assert record["widgets"][1]["state"] == {"marker_level": 5, "mode": "dotplot", "focus_gene": ""}
+    assert screenshot_module.replay_settings(record["widgets"][1]) == {
+        "marker_level": 5,
+        "mode": "dotplot",
+        "focus_gene": "",
+    }
     assert record["widgets"][1]["source"]["matrix"]["source"] == "https://example.org/markers.zarr"
     assert record["size"] == [80 + screenshot_module.GAP + 60, 60]
 
@@ -169,6 +178,16 @@ def test_pic_button_save_from_the_browser(tmp_path) -> None:
     ls.screenshot_dir = tmp_path
     sent = []
     ls.send = sent.append
+    replay = {"space": "spatial", "clusters": ["A"], "selected_cells": ["c1", "c2"]}
+    saved_view = {
+        "schema": "celldega.view",
+        "version": 2,
+        "kind": "landscape",
+        "state": replay,
+        "observed_state": LANDSCAPE_STATE,
+        "identity": {"revision": "", "cells": {"count": 2, "hash": "0" * 14}},
+        "image": {"png": _png(30, 30), "view_state": {"zoom": -2}},
+    }
     ls._on_pic_msg(
         ls,
         {
@@ -176,18 +195,39 @@ def test_pic_button_save_from_the_browser(tmp_path) -> None:
             "id": 3,
             "title": "Glomerulus",
             "description": "Tight cluster of A cells.",
-            "png": _png(30, 30),
-            "state": LANDSCAPE_STATE,
+            "snapshot": saved_view,
         },
         [],
     )
     assert sent[-1]["event"] == "pic_saved" and sent[-1]["id"] == 3
     record = load_screenshot(sent[-1]["path"])
     assert record["title"] == "Glomerulus" and record["author"] == "you"
-    assert record["widgets"][0]["state"]["clusters"] == ["A"]
+    widget = record["widgets"][0]
+    # Recorded like screenshot(): the browser's complete replay settings, once.
+    assert widget["snapshot"]["state"] == replay and "state" not in widget
+    assert widget["observed_state"] == LANDSCAPE_STATE
+    assert widget["in_view"]["clusters"][0]["name"] == "A"
+    assert "png" not in widget["snapshot"].get("image", {})
 
-    ls._on_pic_msg(ls, {"event": "pic", "id": 4, "png": ""}, [])
+    ls._on_pic_msg(ls, {"event": "pic", "id": 4, "snapshot": {}}, [])
     assert sent[-1]["event"] == "pic_error"
+
+
+def test_briefing_summaries_shorten_long_settings() -> None:
+    names = [f"G{i}" for i in range(500)]
+    record = {
+        "celldega_screenshot": 3,
+        "title": "Reordered",
+        "widgets": [
+            {
+                "source": {"widget": "Clustergram"},
+                "snapshot": {"state": {"order": {"row": names}, "mode": "dotplot"}},
+            }
+        ],
+    }
+    text = screenshot_module.summarize([record])
+    assert '"mode": "dotplot"' in text
+    assert "G7" in text and "G8" not in text and "492 more" in text
 
 
 def test_widget_screenshots_default_to_celldega_files(tmp_path, monkeypatch) -> None:
@@ -215,4 +255,4 @@ def test_screenshot_keeps_observations_and_layer_replay_settings(tmp_path):
     widget = record["widgets"][0]
     assert widget["observed_state"] == state
     for key in ("layers", "channels", "sliders"):
-        assert widget["state"][key] == state[key]
+        assert widget["snapshot"]["state"][key] == state[key]

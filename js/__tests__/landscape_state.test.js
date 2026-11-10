@@ -349,3 +349,27 @@ test('XY loading must finish successfully before the setter acknowledges', async
   await expect(pending).rejects.toThrow('expression unavailable');
   expect(complete).toBe(false);
 });
+
+test('point clouds with integer cell names select and frame cells by position', async () => {
+  const api = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  // Integer-named point clouds skip the name map: a cell's name is its position.
+  state.vector_name_integer = true;
+  state.cats.cell_name_to_index_map = new Map();
+  state.cats.cell_names_array = ['0', '1', '2', '3'];
+  state.model = { set: jest.fn(), save_changes: jest.fn() };
+  const context = { layers_obj: {}, update_view_state: jest.fn() };
+  await api.apply_landscape_state(state, context, {
+    selected_cells: ['2', '3'],
+  });
+  expect(state.obs_store.selected_cells.get()).toEqual(['2', '3']);
+  await expect(
+    api.apply_landscape_state(state, context, { selected_cells: ['4'] })
+  ).rejects.toThrow('unknown selected cell names');
+  const framed = api.view_for_cells(
+    state,
+    { cells: ['2', '3'] },
+    { width: 400, height: 400 }
+  );
+  expect(framed.target).toEqual([70, 50, 0]);
+});

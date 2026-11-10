@@ -165,16 +165,17 @@ Celldega saves each screenshot as three files side by side:
 
 - `<name>.png`: the image, with the record below embedded in the file;
 - `<name>.json`: your description, who made it and when, the Celldega version, each
-  widget's supported replay settings (`state`), its returned snapshot (`observed_state`), what was in view
-  (cell counts per cluster, top genes), and the data it came from (dataset name, base
-  URL or AnnData Zarr URL, AnnData shape, the Matrix's source);
+  widget's saved view (`snapshot`, with its replay settings in `snapshot.state`), its
+  observed state (`observed_state`), what was in view (cell counts per cluster, top
+  genes), and the data it came from (dataset name, base URL or AnnData Zarr URL,
+  AnnData shape, the Matrix's source);
 - `<name>.md`: the description, the image, and code to replay supported settings.
 
-New records also contain a versioned `snapshot` envelope with a data fingerprint.
-Image and state are captured together. `widget.restore_snapshot(...)` checks the
-schema, data identity and canvas before changing the view; see
-[portable saved views](../javascript/saved-views.md) for reopening exports and
-identifying remote datasets.
+The saved view records what data it shows (cell, gene and cluster names, or a
+Clustergram's row and column names). Image and state are captured together.
+`widget.restore_snapshot(...)` checks the schema, data identity and canvas size
+before changing the view; see [portable saved views](../javascript/saved-views.md)
+for reopening exports and declaring an exact data revision.
 
 Records are marked `restoration: "partial"`. They preserve the image and provenance,
 but do not yet restore every control or load the data into a fresh widget. See

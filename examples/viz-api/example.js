@@ -46,7 +46,10 @@ async function restore() {
   const viz = await fresh();
   await viz.restore_snapshot(saved);
   await settled();
-  show(`Restored ${saved.kind} view. Data identity: ${saved.identity.digest}`);
+  const { rows, cols } = saved.identity;
+  show(
+    `Restored ${saved.kind} view of ${rows.count} rows x ${cols.count} columns (names ${rows.hash} / ${cols.hash}).`
+  );
   return viz;
 }
 
@@ -128,14 +131,15 @@ async function check() {
     result.future_schema_rejected = error.message.includes('schema/version');
   }
   const changed = structuredClone(network);
-  changed.mat[0][0] += 0.5; // Same names/dimensions, different scientific value.
+  // Same dimensions, a different row: the saved view is for other data.
+  changed.row_nodes[0].name = `${changed.row_nodes[0].name}-other`;
   await fresh(changed);
   const before = JSON.stringify((await restored.snapshot()).state);
   try {
     await restored.restore_snapshot(saved);
   } catch (error) {
     result.data_change_rejected =
-      error.message.includes('fingerprint') &&
+      error.message.includes('rows differ') &&
       before === JSON.stringify((await restored.snapshot()).state);
   }
   await restore();

@@ -118,6 +118,7 @@ import {
   set_rank_view_state,
   sync_rank_view_model,
 } from '../matrix/rank_views';
+import { annotations_to_restore } from '../matrix/replay_controls';
 import { set_mat_constants } from '../matrix/set_constants';
 import {
   allocate_color,
@@ -136,6 +137,7 @@ import {
   wait_for_canvas,
   create_snapshot_api,
   handle_snapshot_message,
+  names_signature,
 } from './snapshot';
 
 export const matrix_viz = async (
@@ -162,23 +164,12 @@ export const matrix_viz = async (
   const row_entity = model.get('row_entity');
   const col_entity = model.get('col_entity');
 
-  // Dendrogram cuts and manual category edits decorate the renderer's node
-  // objects. Identity binds the source metadata, not those mutable view fields.
-  const source_metadata = JSON.parse(
-    JSON.stringify({
-      rows: network.row_nodes,
-      cols: network.col_nodes,
-      linkage: network.linkage,
-      views: network.views,
-      markers: network.markers,
-      row_attr: network.row_attr,
-      col_attr: network.col_attr,
-      cat_colors: network.cat_colors,
-      matrix_colors: network.matrix_colors,
-      row_entity,
-      col_entity,
-    })
-  );
+  // Saved views identify the matrix by its row and column names, read once here
+  // (the renderer later decorates the node objects with view state).
+  const source_names = {
+    rows: (network.row_nodes || []).map((node) => String(node.name)),
+    cols: (network.col_nodes || []).map((node) => String(node.name)),
+  };
 
   const viz_state = set_mat_constants(
     model,
@@ -425,14 +416,13 @@ export const matrix_viz = async (
   // Clustergram.screenshot); its replies arrive through the message handler below.
   const pic = add_pic_button(ui_container, {
     model,
-    capture: async () => {
-      const snapshot = await matrix.snapshot({
+    capture: async () => ({
+      snapshot: await matrix.snapshot({
         max_size: 2048,
         thumb_size: 64,
         state: { max_rows: 1, max_cols: 1, include_values: false },
-      });
-      return { ...snapshot.image, state: snapshot.observed_state, snapshot };
-    },
+      }),
+    }),
   });
 
   initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);
@@ -891,13 +881,15 @@ export const matrix_viz = async (
      * See matrix/clustergram_state.js for options.
      */
     get_state: (options = {}) => get_clustergram_state(viz_state, options),
+    /** Complete supported settings, for apply_state (see clustergram_state.js). */
+    get_replay_state: () => get_clustergram_replay_state(viz_state),
     /**
-     * Change what the Clustergram shows, as its controls would: marker level
-     * (DIM), heatmap / dot plot, dot sizes, a focused row, manual categories.
-     * Same keys as Python's `Clustergram.apply_state`; validated first.
+     * Change what the Clustergram shows, as its controls would: marker level,
+     * mode, dot sizes, focus, categories and annotations, dendrogram cuts,
+     * selection, order, crop and camera. Same keys as Python's
+     * `Clustergram.apply_state` (see apply_clustergram_state); validated first.
      * @returns {string[]} What changed.
      */
-    get_replay_state: () => get_clustergram_replay_state(viz_state),
     apply_state: (changes = {}) =>
       apply_clustergram_state(model, viz_state, changes, (request) =>
         apply_manual_categories(viz_state, request, allocate_color)
@@ -967,23 +959,35 @@ export const matrix_viz = async (
       kind: 'clustergram',
       get_state: matrix.get_state,
       capture_raster: matrix.capture_raster,
-      apply_state: matrix.apply_state,
+      // Restoring a view never discards annotations made since it was saved.
+      apply_state: (state) => {
+        const { annotations, kept } = annotations_to_restore(
+          viz_state,
+          state.annotations
+        );
+        const changes = { ...state };
+        delete changes.annotations;
+        if (Object.keys(annotations).length) changes.annotations = annotations;
+        return [
+          ...matrix.apply_state(changes),
+          ...kept.map((axis) => `kept the current ${axis} annotations`),
+        ];
+      },
       get_replay_state: matrix.get_replay_state,
+      // CSS pixels: the camera framing depends on them, not on the device pixel ratio.
       viewport: () => ({
-        width: deck_mat.getCanvas().width,
-        height: deck_mat.getCanvas().height,
+        width: deck_mat.getCanvas().clientWidth,
+        height: deck_mat.getCanvas().clientHeight,
       }),
       identity: () => ({
-        source: {
-          url: model.get('url') || model.get('zarr_url') || '',
-          name: network.name || '',
-        },
-        coverage: 'matrix-content',
-        data: {
-          ...source_metadata,
-          values: network.mat,
-          sizes: network.size_mat,
-        },
+        revision: String(model.get?.('data_revision') || ''),
+        rows: names_signature(source_names.rows),
+        cols: names_signature(source_names.cols),
+      }),
+      source: () => ({
+        url: model.get?.('url') || model.get?.('zarr_url') || '',
+        name: network.name || '',
+        data_revision: String(model.get?.('data_revision') || ''),
       }),
     })
   );

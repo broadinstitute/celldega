@@ -470,3 +470,47 @@ test('framing follows the dataset rotation the cell layer draws with', () => {
   // c2 (50, 40) and c3 (90, 60) are drawn at (-40, 50) and (-60, 90).
   expect(framed.target).toEqual([-50, 70, 0]);
 });
+
+test('a 2D view at a custom zoom round-trips without camera rotation', async () => {
+  const api = load_landscape_state(make_shims());
+  const state = make_viz_state();
+  state.obs_store.selected_cells.set([]);
+  // After a pan or zoom, deck.gl's 2D camera state reports the orbit camera's
+  // zero rotations (OrthographicState extends OrbitState).
+  state.current_view_state = {
+    target: [120.5, 80.25, 0],
+    zoom: 4.75,
+    rotationOrbit: 0,
+    rotationX: 0,
+  };
+  const saved = JSON.parse(
+    JSON.stringify(api.get_landscape_replay_state(state))
+  );
+  expect(saved.view).toEqual({ target: [120.5, 80.25, 0], zoom: 4.75 });
+
+  const fresh = make_viz_state();
+  fresh.obs_store.selected_cells.set([]);
+  const context = {
+    layers_obj: {},
+    update_view_state: jest.fn(async (view) => {
+      fresh.current_view_state = view;
+    }),
+  };
+  await api.apply_landscape_state(fresh, context, saved);
+  expect(fresh.current_view_state).toMatchObject({
+    target: [120.5, 80.25, 0],
+    zoom: 4.75,
+  });
+
+  // Views saved before the fix carry the zero rotations; they still restore.
+  await api.apply_landscape_state(fresh, context, {
+    view: { ...saved.view, rotationOrbit: 0, rotationX: 0 },
+  });
+  expect(fresh.current_view_state.zoom).toBe(4.75);
+  // A real rotation still needs an orbit view.
+  await expect(
+    api.apply_landscape_state(fresh, context, {
+      view: { ...saved.view, rotationX: 30 },
+    })
+  ).rejects.toThrow('Camera rotation requires an orbit view');
+});

@@ -57,6 +57,14 @@ const current_space = (viz_state) =>
   viz_state.obs_store?.landscape_view?.get?.() ||
   (viz_state.umap_state ? 'umap' : 'spatial');
 
+/** Whether the Landscape shows a 3D orbit view (point and neighborhood clouds). */
+const is_orbit_view = (viz_state) =>
+  'rotationOrbit' in (viz_state.initial_view_state || {});
+
+// deck.gl's 2D camera state inherits the orbit camera's rotationOrbit/rotationX
+// (always 0) once the user pans or zooms. They mean nothing in a 2D view.
+const CAMERA_ROTATION = ['rotationOrbit', 'rotationX'];
+
 /**
  * What the Landscape shows, as plain JSON.
  * @param {object} viz_state
@@ -74,15 +82,22 @@ export const get_landscape_state = (
     ...get_landscape_layers(viz_state),
     space: current_space(viz_state),
     view_state: {
+      // Always [x, y, z]: deck.gl reports a 2D target as [x, y] after a pan but
+      // [x, y, 0] from the initial view or a restore.
       target: Array.isArray(view.target)
-        ? view.target.map((v) => (Number.isFinite(v) ? v : null))
+        ? [view.target[0], view.target[1], view.target[2] ?? 0].map((v) =>
+            Number.isFinite(v) ? v : null
+          )
         : null,
       zoom: Number.isFinite(view.zoom) ? view.zoom : null,
-      ...Object.fromEntries(
-        ['rotationOrbit', 'rotationX']
-          .filter((key) => Number.isFinite(view[key]))
-          .map((key) => [key, view[key]])
-      ),
+      // Camera rotation exists only in orbit views.
+      ...(is_orbit_view(viz_state)
+        ? Object.fromEntries(
+            CAMERA_ROTATION.filter((key) => Number.isFinite(view[key])).map(
+              (key) => [key, view[key]]
+            )
+          )
+        : {}),
     },
     // 'cluster', a gene name, or 'g1 + g2' when colored by several genes.
     color_by,
@@ -167,10 +182,6 @@ export const cell_index = (viz_state, name) => {
 
 // deck.gl's OrbitView default vertical field of view, in degrees.
 const ORBIT_FOVY = 50;
-
-/** Whether the Landscape shows a 3D orbit view (point and neighborhood clouds). */
-const is_orbit_view = (viz_state) =>
-  'rotationOrbit' in (viz_state.initial_view_state || {});
 
 /**
  * A view state framing the given cells: by cluster(s) or by cell names.
@@ -385,14 +396,16 @@ export const apply_landscape_state = async (
       throw new Error('view.zoom must be a finite number');
     }
   }
-  for (const key of ['rotationOrbit', 'rotationX']) {
+  for (const key of CAMERA_ROTATION) {
     if (key in (changes.view || {})) {
       if (
         typeof changes.view[key] !== 'number' ||
         !Number.isFinite(changes.view[key])
       )
         throw new Error(`view.${key} must be finite`);
-      if (!(key in (viz_state.initial_view_state || {})))
+      // Views saved from a 2D camera before this fix carry a zero rotation; it
+      // changes nothing, so accept it. Any other rotation needs an orbit view.
+      if (!is_orbit_view(viz_state) && changes.view[key] !== 0)
         throw new Error('Camera rotation requires an orbit view');
     }
   }
@@ -525,9 +538,9 @@ export const apply_landscape_state = async (
     new_view = {
       ...base,
       ...Object.fromEntries(
-        ['rotationOrbit', 'rotationX']
-          .filter((key) => key in changes.view)
-          .map((key) => [key, changes.view[key]])
+        CAMERA_ROTATION.filter(
+          (key) => is_orbit_view(viz_state) && key in changes.view
+        ).map((key) => [key, changes.view[key]])
       ),
       ...(Array.isArray(target)
         ? {

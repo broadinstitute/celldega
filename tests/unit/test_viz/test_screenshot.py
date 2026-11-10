@@ -116,6 +116,26 @@ def test_compose_places_widgets_side_by_side() -> None:
     assert image.size == (100 + screenshot_module.GAP + 20, 50)
 
 
+def _transparent_png(width: int, height: int) -> str:
+    buffer = io.BytesIO()
+    Image.new("RGBA", (width, height), (0, 0, 0, 0)).save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode()
+
+
+def test_screenshots_sit_on_white_unless_asked_to_keep_transparency() -> None:
+    # Empty canvas areas are transparent; a saved image puts them on white.
+    white = screenshot_module.compose([_transparent_png(10, 10)])
+    assert white.mode == "RGB" and white.getpixel((5, 5)) == (255, 255, 255)
+    composite = screenshot_module.compose([_transparent_png(10, 10), _png(10, 10)])
+    assert composite.getpixel((5, 5)) == (255, 255, 255)
+    assert composite.getpixel((10 + screenshot_module.GAP // 2, 5)) == (255, 255, 255)
+    assert composite.getpixel((10 + screenshot_module.GAP + 5, 5)) == (200, 30, 30)
+    clear = screenshot_module.compose([_transparent_png(10, 10)], background=None)
+    assert clear.mode == "RGBA" and clear.getpixel((5, 5))[3] == 0
+    black = screenshot_module.compose([_transparent_png(10, 10)], background="black")
+    assert black.getpixel((5, 5)) == (0, 0, 0)
+
+
 def test_landscape_screenshot_saves_when_the_browser_replies(tmp_path) -> None:
     ls = _landscape()
     _browser(ls, _png(60, 40), LANDSCAPE_STATE)
@@ -239,6 +259,39 @@ def test_widget_screenshots_default_to_celldega_files(tmp_path, monkeypatch) -> 
     shot = ls.screenshot("x")
     assert shot.wait(timeout=5) and not shot.error
     assert shot.path.parent == Path("celldega_files/screenshots")
+
+
+def test_pic_and_screenshot_save_to_the_same_place(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    saved_view = {
+        "schema": "celldega.view",
+        "version": 2,
+        "kind": "landscape",
+        "state": {"space": "spatial"},
+        "identity": {"revision": "", "cells": {"count": 1, "hash": "0" * 14}},
+        "image": {"png": _png(20, 20)},
+    }
+
+    def pic(widget):
+        sent = []
+        widget.send = sent.append
+        widget._on_pic_msg(widget, {"event": "pic", "id": 1, "snapshot": saved_view}, [])
+        assert sent[-1]["event"] == "pic_saved", sent[-1]
+        return Path(sent[-1]["path"])
+
+    def code(widget):
+        _browser(widget, _png(20, 20), LANDSCAPE_STATE)
+        shot = widget.screenshot("x")
+        assert shot.wait(timeout=5) and not shot.error
+        return shot.path
+
+    # By default both go to celldega_files/screenshots ...
+    ls = _landscape()
+    assert pic(ls).parent == code(ls).parent == Path(screenshot_module.DEFAULT_DIR)
+    # ... and a widget's screenshot_dir moves both.
+    ls = _landscape()
+    ls.screenshot_dir = tmp_path / "figures"
+    assert pic(ls).parent == code(ls).parent == tmp_path / "figures"
 
 
 def test_screenshot_keeps_observations_and_layer_replay_settings(tmp_path):

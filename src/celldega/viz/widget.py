@@ -353,9 +353,19 @@ class _RasterCapture(traitlets.HasTraits):
     data_revision = traitlets.Unicode("").tag(sync=True)
 
     def request_snapshot(
-        self, *, max_size=1024, thumb_size=192, description=None, author=None, **state_options
+        self,
+        *,
+        max_size=1024,
+        thumb_size=192,
+        description=None,
+        author=None,
+        background: str | None = "white",
+        **state_options,
     ) -> int:
         """Capture image, observed state, replay settings and identity in one browser task.
+
+        ``background`` is a CSS color behind the image where the visualization draws
+        nothing (white by default); ``None`` keeps the canvas's transparency.
 
         The asynchronous reply sets ``latest_snapshot`` and ``snapshot_capture_id``.
         These traits are never synced or embedded in notebook widget state.
@@ -367,6 +377,8 @@ class _RasterCapture(traitlets.HasTraits):
         }
         if any(not isinstance(value, str) for value in metadata.values()):
             raise ValueError("description and author must be strings")
+        if background is not None and not isinstance(background, str):
+            raise ValueError("background must be a CSS color string or None")
         self._snapshot_request_id += 1
         self.send(
             {
@@ -375,6 +387,7 @@ class _RasterCapture(traitlets.HasTraits):
                 "options": {
                     "max_size": int(max_size),
                     "thumb_size": int(thumb_size),
+                    "background": background,
                     "state": state_options,
                     **metadata,
                 },

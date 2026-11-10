@@ -207,15 +207,17 @@ def _decode(png_b64: str):
     return Image.open(io.BytesIO(base64.b64decode(png_b64))).convert("RGBA")
 
 
-def compose(images_b64: list[str]):
-    """Place images side by side at a common height (the smallest, so none is upscaled)."""
+def compose(images_b64: list[str], background: str | None = "white"):
+    """Place images side by side at a common height (the smallest, so none is upscaled).
+
+    Transparent areas sit on ``background`` (white by default), as does the gap
+    between widgets; ``None`` keeps transparency.
+    """
     from PIL import Image
 
     images = [_decode(b) for b in images_b64 if b]
     if not images:
         raise ValueError("no image to save")
-    if len(images) == 1:
-        return images[0]
     height = min(img.height for img in images)
     scaled = [
         img
@@ -224,12 +226,13 @@ def compose(images_b64: list[str]):
         for img in images
     ]
     width = sum(img.width for img in scaled) + GAP * (len(scaled) - 1)
-    canvas = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+    canvas = Image.new("RGBA", (width, height), background or (0, 0, 0, 0))
     x = 0
     for img in scaled:
-        canvas.paste(img, (x, 0))
+        canvas.alpha_composite(img, (x, 0))
         x += img.width + GAP
-    return canvas
+    # Opaque images need no alpha channel, which also makes the file smaller.
+    return canvas.convert("RGB") if background else canvas
 
 
 def _checked_record(record: Any) -> dict:
@@ -424,6 +427,7 @@ def write_screenshot(
     title: str = "",
     author: str = "you",
     metadata: dict | None = None,
+    background: str | None = "white",
 ) -> Path:
     """Write a screenshot's self-contained PNG record and readable ``.md`` companion.
 
@@ -434,6 +438,8 @@ def write_screenshot(
             "snapshot": saved view (restore_spec), "observed_state": ...,
             "view_state": camera, "in_view": {...}}``. ``"state"`` (apply_state
             settings) is kept only when there is no saved view.
+        background: Color behind transparent areas and between widgets (white
+            by default); ``None`` keeps transparency.
 
     Returns:
         Path: The PNG written.
@@ -443,7 +449,7 @@ def write_screenshot(
     from PIL.PngImagePlugin import PngInfo
 
     images = [s.get("image") for s in shots if s.get("image")]
-    image = compose(images)
+    image = compose(images, background=background)
     hint = title or next(
         (s["source"].get("dataset_name") for s in shots if s.get("source", {}).get("dataset_name")),
         "-".join(s["source"]["widget"] for s in shots),
@@ -645,10 +651,22 @@ class _Capture:
     timer saves whatever arrived if a widget never answers (e.g. not displayed).
     """
 
-    def __init__(self, widgets, result: Screenshot, path, title, author, metadata, max_size):
+    def __init__(
+        self,
+        widgets,
+        result: Screenshot,
+        path,
+        title,
+        author,
+        metadata,
+        max_size,
+        *,
+        background: str | None = "white",
+    ):
         self.widgets = widgets
         self.result = result
         self.args = (path, title, author, metadata)
+        self.background = background
         self.lock = threading.Lock()
         self.pending: list[tuple[Any, str, int]] = []
         self.handlers: list[tuple[Any, str, Any]] = []
@@ -666,7 +684,11 @@ class _Capture:
                 widget,
                 "snapshot_capture_id",
                 lambda w=widget, k=kwargs: w.request_snapshot(
-                    max_size=max_size, description=result.description, author=author, **k
+                    max_size=max_size,
+                    description=result.description,
+                    author=author,
+                    background=background,
+                    **k,
                 ),
             )
         self.ready = True
@@ -730,6 +752,7 @@ class _Capture:
                 title=title,
                 author=author,
                 metadata=metadata,
+                background=self.background,
             )
         except Exception as exc:  # surface in the cell's output, not the log
             self.result._set(error=str(exc))
@@ -745,6 +768,7 @@ def screenshot(
     metadata: dict | None = None,
     author: str = "you",
     max_size: int = 2048,
+    background: str | None = "white",
 ) -> Screenshot:
     """Save a screenshot of one or more widgets with a description and provenance.
 
@@ -761,16 +785,20 @@ def screenshot(
             Set ``widget.screenshot_metadata`` to record it with every screenshot
             of that widget, including ones taken with its PIC button.
         max_size: Longest side of each widget's image, in pixels.
+        background: A CSS color behind areas the visualization leaves empty
+            (white by default); ``None`` keeps them transparent.
 
     Returns:
         Screenshot: Displays its progress and a preview; ``.path`` once saved.
     """
+    if background is not None and not isinstance(background, str):
+        raise ValueError("background must be a CSS color string or None")
     found = find_widgets(widgets)
     result = Screenshot(description)
     if not found:
         result._set(error="no Celldega widget that can take screenshots was given")
         return result
-    _Capture(found, result, path, title, author, metadata, max_size)
+    _Capture(found, result, path, title, author, metadata, max_size, background=background)
     return result
 
 
@@ -822,6 +850,7 @@ class Screenshots:
         title: str = "",
         metadata: dict | None = None,
         max_size: int = 2048,
+        background: str | None = "white",
     ) -> Screenshot:
         """Save what this widget shows as a PNG with a description and provenance.
 
@@ -837,6 +866,8 @@ class Screenshots:
             title: Optional short title (also used in the file name).
             metadata: Anything else to record, e.g. the AnnData's path.
             max_size: Longest side of the image, in pixels.
+            background: A CSS color behind areas the visualization leaves empty
+                (white by default); ``None`` keeps them transparent.
 
         Returns:
             Screenshot: Displays its progress and a preview; ``.path`` once saved.
@@ -848,6 +879,7 @@ class Screenshots:
             title=title,
             metadata=metadata,
             max_size=max_size,
+            background=background,
         )
 
     def _listen_for_pics(self) -> None:

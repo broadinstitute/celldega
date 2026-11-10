@@ -202,7 +202,10 @@ dega.viz.screenshot(linked, description="...", path="figures/fig2.png")
 The image arrives from the browser after the cell finishes, so the call's output shows
 "Capturing…" and then a preview with the saved path. Without a path, screenshots go to
 `celldega_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
-kept out of version control or shared as a collection of evidence.
+kept out of version control or shared as a collection of evidence. Areas the
+visualization leaves empty are white, so the image looks the same in light and dark
+viewers; pass `background="black"` (any CSS color) or `background=None` for
+transparency.
 
 The PNG records links, not data: a widget's `base_url` or `zarr_url`, and a Matrix's
 Zarr source when it was opened with `Matrix.read_zarr`, plus constructor options. An

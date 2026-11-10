@@ -137,7 +137,9 @@ The default uses loaded metadata and fetches expression only when XY is entered.
 A screenshot of the view: `{png, thumb, width, height, view_state}`, where `png` and
 `thumb` are base64 PNGs (no `data:` prefix). `options.max_size` and
 `options.thumb_size` set their longest side in pixels (1024 and 192 by default). It
-captures the visualization itself, not the control panel.
+captures the visualization itself, not the control panel. Areas it leaves empty are
+white; `options.background` sets another CSS color, or `null` keeps them transparent.
+`snapshot(options)` takes the same option.
 
 ## Clustergram
 

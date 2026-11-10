@@ -191,6 +191,9 @@ export const create_snapshot_api = ({
       capture: {
         max_size: options.max_size ?? 1024,
         thumb_size: options.thumb_size ?? 192,
+        // capture_deck's default; null kept the canvas's transparency.
+        background:
+          options.background === undefined ? 'white' : options.background,
         state: copy(options.state || {}),
       },
       restoration: 'partial',

@@ -31,7 +31,16 @@ def test_coordinated_transport_and_out_of_order_replies():
     w.send = sent.append
     first, second = w.request_snapshot(max_size=500, max_bars=10), w.request_snapshot()
     assert [m["event"] for m in sent] == ["capture_snapshot", "capture_snapshot"]
-    assert sent[0]["options"] == {"max_size": 500, "thumb_size": 192, "state": {"max_bars": 10}}
+    assert sent[0]["options"] == {
+        "max_size": 500,
+        "thumb_size": 192,
+        "background": "white",
+        "state": {"max_bars": 10},
+    }
+    w.request_snapshot(background=None)
+    assert sent[-1]["options"]["background"] is None
+    with pytest.raises(ValueError, match="background"):
+        w.request_snapshot(background=0)
     for rid, value in ((second, "new"), (first, "old")):
         w._on_snapshot_msg(w, {"event": "snapshot", "id": rid, "snapshot": snapshot(value)}, [])
     assert w.latest_snapshot["image"]["png"] == "new"

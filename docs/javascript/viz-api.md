@@ -18,8 +18,9 @@ parts of a view on widgets with the same data already loaded; full view restorat
 is not implemented yet. Use [portable snapshots](saved-views.md) to capture image
 and state together and validate data identity before restoring supported settings.
 
-The API uses corresponding operations in a web page (JavaScript) and a notebook
-(Python). Any web app, script or AI agent can use it to read a view, reason about it, show the
+The API uses corresponding operations in a web page (JavaScript) and a notebook (Python). It was built
+for [Clerk AI](../clerk/index.md), Celldega's AI assistant, but it doesn't depend on it:
+any web app, script or AI agent can use it to read a view, reason about it, show the
 evidence it finds, and save it.
 
 | | JavaScript (web page) | Python (notebook widget) |

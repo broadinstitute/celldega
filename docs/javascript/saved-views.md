@@ -154,4 +154,5 @@ python scripts/check_viz_snapshot.py --channel chrome
 ```
 
 The page exposes `window.celldegaSnapshotExample.check()` for another test runner.
-The same instance methods can be called by an application renderer.
+The same instance methods can be called by an application renderer. See the
+[Clerk host contract](../clerk/hosting.md) for the separate agent orchestration layer.

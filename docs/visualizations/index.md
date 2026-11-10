@@ -209,4 +209,5 @@ landscape.screenshot_metadata = {"adata": "data/kidney.h5ad", "notebook": "revie
 
 Read screenshots back with `dega.viz.load_screenshot(path)` (from the `.json`, or the
 PNG alone) and `dega.viz.load_screenshots(folder)`. A folder of screenshots works as a
-scrapbook of what you found along the way, reusable by people and application agents.
+scrapbook of what you found along the way, and [Clerk AI](../clerk/index.md) can read it as
+a briefing or add its own.

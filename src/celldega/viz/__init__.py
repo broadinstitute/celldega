@@ -2,6 +2,7 @@
 Module for visualization
 """
 
+import contextlib
 import json
 
 from ipywidgets import HBox, Layout, VBox, jsdlink, jslink
@@ -11,7 +12,7 @@ from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
 from .screenshots import Screenshot, load_screenshot, load_screenshots, screenshot
 from .snapshots import fingerprint_dataset
-from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
+from .widget import Clerk, Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
 def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
@@ -403,8 +404,135 @@ def landscape_yearbook_clustergram(
     return VBox([top_row, yearbook])
 
 
+def _feed_landscape_raster_to_clerk(
+    landscape: Landscape, clerk: Clerk, *, capture_on_select: bool = True
+) -> None:
+    """Wire a Landscape's raster capture into a Clerk's image evidence.
+
+    Copies the captured PNG and its exact view state (zoom/pan) into the Clerk, and
+    (optionally) requests a fresh capture whenever the Landscape selection changes so the
+    attached raster reflects what the user is inspecting.
+    """
+
+    def _copy_raster(change):
+        png = change["new"] or ""
+        if png:
+            # Preview first: the panel redraws when ``has_image`` flips.
+            clerk.image_thumb_b64 = landscape.raster_thumb or ""
+            clerk.image_b64 = png
+
+    def _copy_view_state(change):
+        vs = change["new"] or {}
+        if vs:
+            clerk.image_view_state = dict(vs)
+
+    landscape.observe(_copy_raster, names="raster_png")
+    landscape.observe(_copy_view_state, names="raster_view_state")
+
+    if capture_on_select:
+
+        def _capture(_change):
+            with contextlib.suppress(Exception):
+                landscape.request_raster()
+
+        landscape.observe(_capture, names="update_trigger")
+
+    # Request an initial capture so the first question can include an image.
+    with contextlib.suppress(Exception):
+        landscape.request_raster()
+
+
+def _feed_clustergram_genes_to_clerk(cgm: Clustergram, clerk: Clerk) -> None:
+    """Wire a Clustergram's selected genes into a Clerk's ``gene_list`` evidence."""
+
+    def _on_selected_genes(change):
+        clerk.gene_list = list(change["new"] or [])
+
+    cgm.observe(_on_selected_genes, names="selected_genes")
+
+
+def link_clerk(
+    clerk: Clerk,
+    *,
+    landscape: Landscape | None = None,
+    clustergram: Clustergram | None = None,
+    enrich: Enrich | None = None,
+    capture_on_select: bool = True,
+) -> Clerk:
+    """Link a standalone `Clerk` to whichever widgets you pass -- the integration point.
+
+    Clerk stands alone and only sees the widgets you pass it. Widgets are modular and
+    swappable: pass any subset. The usual case is ``Landscape`` + ``Clustergram`` +
+    ``Enrich``. Each question from the chat box captures the linked views as they are
+    at that moment:
+
+    - ``landscape`` -> a screenshot of the current view (+ zoom/pan view state) in
+      ``clerk.image_b64`` / ``clerk.image_view_state``.
+    - ``clustergram`` -> a snapshot of what's on screen (``Clustergram.request_state``),
+      plus any genes named in the question; its selected genes also flow into
+      ``clerk.gene_list``.
+    - ``enrich`` -> the enrichment results on screen (``Enrich.request_state``). Clerk
+      then stops fetching its own Enrichr terms.
+
+    Yearbook is intentionally *not* linked into Clerk -- it's a sidecar you lay out
+    separately. This only wires state; lay the widgets out however you like. Returns
+    ``clerk`` for chaining.
+
+    Args:
+        clerk (Clerk): The Clerk widget to link.
+        landscape (Landscape | None): Source of raster / view-state evidence.
+        clustergram (Clustergram | None): Source of matrix and gene-list evidence.
+        enrich (Enrich | None): Source of enrichment-result evidence.
+        capture_on_select (bool): Re-capture the Landscape raster on each selection.
+    """
+    # Remember linked widgets so later features (set-state, evidence sharing) can find
+    # them without re-plumbing.
+    linked = dict(getattr(clerk, "_linked_widgets", {}) or {})
+    if clustergram is not None:
+        _feed_clustergram_genes_to_clerk(clustergram, clerk)
+        linked["clustergram"] = clustergram
+    if landscape is not None:
+        _feed_landscape_raster_to_clerk(landscape, clerk, capture_on_select=capture_on_select)
+        linked["landscape"] = landscape
+    if enrich is not None:
+        linked["enrich"] = enrich
+        clerk.fetch_enrichr = False  # read the Enrich panel's results instead
+    clerk._linked_widgets = linked
+    return clerk
+
+
+def landscape_clerk(
+    landscape: Landscape,
+    clerk: Clerk,
+    width: str = "600px",
+    height: str = "650px",
+    *,
+    capture_on_select: bool = True,
+) -> HBox:
+    """Convenience layout: a `Landscape` beside a portrait `Clerk`, wired via
+    :func:`link_clerk`.
+
+    For anything else, call :func:`link_clerk` and arrange the widgets yourself.
+
+    Args:
+        landscape (Landscape): A `Landscape` widget.
+        clerk (Clerk): A `Clerk` widget.
+        width (str): Width of the Landscape widget.
+        height (str): Height of both widgets.
+        capture_on_select (bool): Re-capture the raster on each Landscape selection.
+
+    Returns:
+        HBox: Both widgets side by side.
+    """
+    link_clerk(clerk, landscape=landscape, capture_on_select=capture_on_select)
+    landscape.layout = Layout(width=width, height=height)
+    clerk.layout = Layout(height=height)
+    return HBox([landscape, clerk])
+
+
 __all__ = [
     "CellCloud",
+    "Clerk",
     "Clustergram",
     "Composition",
     "Enrich",
@@ -416,9 +544,11 @@ __all__ = [
     "clustergram_enrich",
     "get_local_server",
     "get_proxy_server",
+    "landscape_clerk",
     "landscape_clustergram",
     "landscape_yearbook",
     "landscape_yearbook_clustergram",
+    "link_clerk",
     "load_screenshot",
     "load_screenshots",
     "screenshot",

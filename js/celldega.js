@@ -23,6 +23,7 @@ import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
 import { handle_snapshot_message } from './viz/snapshot';
 import { yearbook } from './viz/yearbook';
+import { render_clerk } from './widgets/clerk_widget';
 import { render_enrich } from './widgets/enrich_widget';
 
 // Show the loading placeholder only for renders slower than this.
@@ -447,6 +448,9 @@ async function render({ model, el }) {
       case 'Enrich':
         cleanup = await with_loading(render_enrich);
         break;
+      case 'Clerk':
+        cleanup = await with_loading(render_clerk);
+        break;
       case 'Landmark':
         cleanup = await with_loading(render_landmark);
         break;
@@ -668,6 +672,7 @@ export default {
   render_yearbook,
   render_matrix_new,
   render_enrich,
+  render_clerk,
   buildRowAxisSlice,
   buildColAxisSlice,
   buildCellSlice,

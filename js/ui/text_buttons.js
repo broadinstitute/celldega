@@ -26,27 +26,13 @@ import { set_nbhd_button_color } from './nbhd_button';
 import { toggle_slider } from './sliders';
 import { sync_trx_button } from './trx_handle';
 
-let is_visible;
-
-let img_layer_visible = true;
-
-export const get_img_layer_visible = () => img_layer_visible;
-
-const set_img_layer_visible = (visible) => {
-  img_layer_visible = visible;
-};
+export const get_img_layer_visible = (viz_state) =>
+  viz_state?.img_layer_visible !== false;
 
 const toggle_visible_button = (event) => {
   const current = d3.select(event.currentTarget);
-
-  if (current.style('color') === 'blue') {
-    current.style('color', 'gray');
-    is_visible = false;
-  } else {
-    current.style('color', 'blue');
-    is_visible = true;
-  }
-
+  const is_visible = current.style('color') !== 'blue';
+  current.style('color', is_visible ? 'blue' : 'gray');
   return is_visible;
 };
 
@@ -105,8 +91,23 @@ const REORDER_OPTIONS = [
  * Reorder one axis of the matrix to `order_name` ('clust', 'rank', 'rankvar',
  * or 'ini') and refresh every layer that depends on that order.
  */
-const apply_reorder = (axis, order_name, deck_mat, layers_mat, viz_state) => {
+export const apply_reorder = (
+  axis,
+  order_name,
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
   viz_state.order.current[axis] = order_name;
+  const dropdown = viz_state.reorder_dropdowns?.[axis];
+  if (dropdown) {
+    dropdown.value = REORDER_OPTIONS.some(
+      (option) => option.order === order_name
+    )
+      ? order_name
+      : 'custom';
+    dropdown.style.color = viz_state.buttons.text_active;
+  }
 
   layers_mat.mat_layer = layers_mat.mat_layer.clone({
     updateTriggers: mat_reorder_triggers(viz_state),
@@ -320,8 +321,8 @@ const ist_img_button_callback = async (
   _layers_obj,
   viz_state
 ) => {
-  toggle_visible_button(event);
-  const show = is_visible;
+  const show = toggle_visible_button(event);
+  viz_state.img_layer_visible = show;
 
   if (viz_state.obs_store.umap_state.get() && show) {
     viz_state.obs_store.landscape_view.set('spatial');
@@ -329,8 +330,6 @@ const ist_img_button_callback = async (
     viz_state.obs_store.viz_image_layers.set(show);
     viz_state.obs_store.viz_background_layer.set(show);
   }
-
-  set_img_layer_visible(show);
 };
 
 /**
@@ -389,7 +388,7 @@ const trx_button_callback_ist = async (
     return;
   }
 
-  toggle_visible_button(event);
+  const is_visible = toggle_visible_button(event);
   toggle_slider(viz_state.sliders.trx, is_visible);
   toggle_trx_layer_visibility(layers_obj, is_visible);
   // Dimmed while loading only when on.
@@ -410,6 +409,7 @@ const trx_button_callback_ist = async (
 };
 
 const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
+  let is_visible;
   // During NBHD editing cells remain visible as drawing context. Clicking
   // CELL exits that context without toggling the highlighted cells off.
   if (
@@ -419,7 +419,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
     is_visible = true;
     d3.select(event.currentTarget).style('color', 'blue');
   } else {
-    toggle_visible_button(event);
+    is_visible = toggle_visible_button(event);
   }
   toggle_slider(viz_state.sliders.cell, is_visible);
 
@@ -458,7 +458,7 @@ const cell_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
 };
 
 const nbhd_button_callback = async (event, deck_ist, layers_obj, viz_state) => {
-  toggle_visible_button(event);
+  const is_visible = toggle_visible_button(event);
 
   toggle_slider(viz_state.sliders.nbhd, is_visible);
 
@@ -525,11 +525,11 @@ const make_ist_img_layer_button_callback = (
   return async (event) => {
     const inUmap = viz_state.obs_store.umap_state.get();
 
-    if (!img_layer_visible && !inUmap) {
+    if (!get_img_layer_visible(viz_state) && !inUmap) {
       return;
     }
 
-    toggle_visible_button(event);
+    const is_visible = toggle_visible_button(event);
 
     if (inUmap) {
       viz_state.obs_store.landscape_view.set('spatial');

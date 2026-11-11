@@ -9,8 +9,9 @@ The JavaScript component of Celldega is used within the Jupyter Widgets framewor
 page, without a Python kernel, from data on any static file server that allows
 cross-origin requests (a local server, a bucket, or Hugging Face). Each takes
 the container element and an options object, and returns the visualization
-with its `model` and a `finalize()` method. The lower-level `landscape_ist` and
-`matrix_viz` renderers, documented below, remain available.
+with its `model` and a `finalize()` method, plus the [Viz API](viz-api.md)'s getters,
+setters and exporters (`get_state`, `apply_state`, `capture_raster`). The lower-level
+`landscape_ist` and `matrix_viz` renderers, documented below, remain available.
 
 ### `landscape(el, options)`
 
@@ -45,6 +46,36 @@ The other options are `width` and `height` (500 by default), `viz_mode`
 matrix), `rank_dim` (see [`matrix_from_zarr`](#matrix_from_zarr-api-documentation-experimental)),
 the `row_label_callback`, `col_label_callback`, and `col_dendro_callback` click
 callbacks, and `fetchOptions` for every request.
+
+### `from_png(el, input, options)`
+
+Open a Celldega PNG as an interactive visualization. `input` is a PNG `File`,
+`Blob`, `ArrayBuffer`, or `Uint8Array`. Returns a promise of the visualization
+after its supported saved settings have been restored.
+
+```javascript
+const viz = await celldega.from_png(container, file);
+```
+
+The embedded record supplies the widget type, source and constructor settings.
+Source data must still be available. `options` accepts `panel` (zero-based, default
+`0`), `allow_resize` (default `false`), and constructor overrides, such as a relocated
+`base_url`, a Matrix Zarr `url`, or the original in-memory `network`. Data identity,
+schema and canvas-size checks are the same as `restore_snapshot`. Reopening a
+composite's panels does not reconnect their cross-widget links.
+
+### `read_png(input)` and `screenshot_png(saved_view, options)`
+
+`await celldega.read_png(input)` extracts the embedded screenshot record without
+loading data or creating a visualization. It accepts the same binary inputs as
+`from_png`.
+
+`celldega.screenshot_png(saved_view, {title: ''})` makes a screenshot from a saved
+view (`await viz.snapshot(...)`): an `image/png` Blob of its image with the saved view
+embedded.
+Standalone PIC uses this export, and Python saves the same PNG metadata record
+alongside a human-readable Markdown companion. See
+[portable saved views](saved-views.md#reopen-a-png-as-an-interactive-visualization).
 
 ### `link_models(source, source_key, target, target_key)`
 
@@ -317,6 +348,9 @@ static file server that allows cross-origin requests.
     example `10` for the top 10 markers per cluster of
     `cluster(view="rank_genes_groups")`, like Python's
     `Clustergram(rank_dim=...)`. Opens the full matrix by default.
+  - `data_revision` (`string`, optional): An immutable revision of the data, such
+    as a release tag or commit hash. [Saved views](saved-views.md) record it, and
+    restoring a view declared for another revision is refused.
   - `row_label_callback`, `col_label_callback`, `col_dendro_callback`
     (`function`, optional): Called on row label, column label, and column
     dendrogram clicks.

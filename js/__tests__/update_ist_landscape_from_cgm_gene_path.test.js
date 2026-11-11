@@ -8,6 +8,7 @@ describe('linked Clustergram gene selection for Landscape', () => {
     expression: [],
     refreshed: [],
     selectedCats: [],
+    selectedGenes: [],
   };
   // When the expression load lands, and whether a newer load replaced it.
   const control = { applied: true, pending: null };
@@ -44,7 +45,20 @@ describe('linked Clustergram gene selection for Landscape', () => {
         calls.selectedCats.push([...selected]);
         calls.events.push('selected-cats');
       };
-      const update_selected_genes = () => {};
+      // Like the real ones: the update toggles a repeated selection off; the
+      // forced set doesn't.
+      const update_selected_genes = (genes, selected) => {
+        const current = genes.selected_genes || [];
+        const same =
+          selected.length === current.length &&
+          selected.every((value, i) => value === current[i]);
+        genes.selected_genes = same ? [] : selected;
+        calls.selectedGenes.push([...genes.selected_genes]);
+      };
+      const force_set_selected_genes = (genes, selected) => {
+        genes.selected_genes = selected;
+        calls.selectedGenes.push([...selected]);
+      };
       const set_nbhd_button_color = () => {};
       const update_cell_exp_array = async (
         _cats, _genes, _baseUrl, gene, _version, _integer, _aws, cbgReader
@@ -81,6 +95,7 @@ describe('linked Clustergram gene selection for Landscape', () => {
     calls.expression.length = 0;
     calls.refreshed.length = 0;
     calls.selectedCats.length = 0;
+    calls.selectedGenes.length = 0;
     control.applied = true;
     control.pending = null;
   });
@@ -313,6 +328,29 @@ describe('linked Clustergram gene selection for Landscape', () => {
     expect(vizState.cats.cat).toBe('cluster');
     expect(vizState.cats.selected_cats).toEqual([]);
     expect(calls.expression.map(({ gene }) => gene)).toEqual(['CD79B']);
+  });
+
+  test('a focus on a gene already shown keeps it in the gene search and bars', async () => {
+    // e.g. Clerk shows CD79B (selected_genes = [CD79B]) and then focuses it in
+    // the Clustergram, which reaches this Landscape through the Enrich link.
+    const values = { focused_gene: 'CD79B', update_trigger: null };
+    const vizState = makeVizState();
+    vizState.model = linkedModel(values);
+    vizState.genes.selected_genes = ['CD79B'];
+    sync_focused_gene_to_landscape(vizState.model);
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.genes.selected_genes).toEqual(['CD79B']);
+    expect(vizState.cats.cat).toBe('CD79B');
+    expect(vizState.cats.selected_cats).toEqual(['CD79B']);
+  });
+
+  test('a repeated row click still clears the gene from the gene search', async () => {
+    const vizState = makeVizState();
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.genes.selected_genes).toEqual(['Matn1']);
+    await update_ist_landscape_from_cgm(null, {}, vizState);
+    expect(vizState.genes.selected_genes).toEqual([]);
+    expect(vizState.cats.cat).toBe('cluster');
   });
 
   test('an Enrich unfocus leaves a gene chosen since then alone', async () => {

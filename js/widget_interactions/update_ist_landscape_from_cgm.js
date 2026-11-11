@@ -8,7 +8,10 @@ import {
   is_current_gene_load,
   select_genes,
 } from '../global_variables/select_genes';
-import { update_selected_genes } from '../global_variables/selected_genes';
+import {
+  force_set_selected_genes,
+  update_selected_genes,
+} from '../global_variables/selected_genes';
 import { handleAsyncError } from '../temp_utils/errorHandler';
 import { set_nbhd_button_color } from '../ui/nbhd_button';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -269,9 +272,14 @@ export const update_ist_landscape_from_cgm = async (
           viz_state.highlighted_cells = new Set();
 
           update_cat(viz_state.cats, new_cat);
-          update_selected_genes(
+          // A row click toggles; a focus (Enrich, Clerk) sets the gene exactly.
+          // Toggling here would clear a gene that's already shown -- the gene
+          // search box and gene bars would empty while its colors stayed.
+          (click_info.focus || click_info.unfocus
+            ? force_set_selected_genes
+            : update_selected_genes)(
             viz_state.genes,
-            click_info.unfocus ? [] : [inst_gene],
+            click_info.unfocus || new_cat === 'cluster' ? [] : [inst_gene],
             viz_state.obs_store
           );
 

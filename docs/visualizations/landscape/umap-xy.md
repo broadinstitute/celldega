@@ -201,6 +201,11 @@ cells being shown:
 
 ## XY: two-gene expression
 
+XY initializes X and Y with the two genes with the highest whole-dataset mean
+expression, unless you supply `xy_genes`. Ties retain dataset gene order; missing
+statistics fall back to that order after genes with known means. A dataset with
+one gene initializes X only. Changing or restoring the axes keeps your choices.
+
 **XY** plots each cell's expression of two genes, with **LIN** (linear) and
 **LOG** (`log1p`) axes. It is available for spatial and single-cell data with
 gene expression, even without a UMAP. Type the genes in the **X** and **Y**

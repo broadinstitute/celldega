@@ -23,10 +23,14 @@ import pandas as pd
 import traitlets
 
 from ._widget_lifecycle import CelldegaWidget
+from .screenshots import Screenshots
 from .widget import (
     _WIDGET_ESM,
+    Landscape,
     _hsv_to_hex,
     _local_dir_for_url,
+    _RasterCapture,
+    _StateSnapshots,
     _zarr_store_url,
 )
 
@@ -52,7 +56,7 @@ def _reset_index_for_parquet(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index()
 
 
-class _SpatialWidget(CelldegaWidget):
+class _SpatialWidget(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     """Shared base for celldega spatial widgets (trait surface + AnnData plumbing).
 
     Holds the traits and construction logic common to every spatial widget:
@@ -65,6 +69,10 @@ class _SpatialWidget(CelldegaWidget):
 
     Not instantiated directly — use ``CellCloud`` or ``NeighborhoodCloud``.
     """
+
+    APPLY_STATE_KEYS = Landscape.APPLY_STATE_KEYS
+    apply_state = Landscape.apply_state
+    request_state = Landscape.request_state
 
     _esm = _WIDGET_ESM
 
@@ -189,6 +197,10 @@ class _SpatialWidget(CelldegaWidget):
             self.add_traits(**parquet_traits)
 
         super().__init__(**kwargs)
+        # Screenshots (screenshot(), the PIC button, Clerk) like Landscape's.
+        self._listen_for_raster()
+        self._listen_for_state()
+        self._listen_for_pics()
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr

@@ -29,6 +29,8 @@ describe('anywidget render lifecycle', () => {
       'render_landmark',
       'handleValidationWarning',
       'handleAsyncError',
+      'show_loading',
+      'LOADING_DELAY_MS',
       `${render_source}; return render;`
     );
     render = factory(
@@ -39,7 +41,9 @@ describe('anywidget render lifecycle', () => {
       renderer,
       renderer,
       jest.fn(),
-      (error) => ({ message: error.message })
+      (error) => ({ message: error.message }),
+      jest.fn(() => jest.fn()),
+      0
     );
 
     listeners = new Map();

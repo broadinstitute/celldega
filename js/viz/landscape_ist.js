@@ -106,6 +106,7 @@ import {
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
+import { add_pic_button } from '../ui/pic_button';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
@@ -113,6 +114,7 @@ import { make_ist_ui_container } from '../ui/ui_containers';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
 import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
+import { capture_deck } from '../utils/canvas_capture';
 import {
   createEmptyCellCompact,
   createEmptyTrxCompact,
@@ -126,6 +128,20 @@ import {
   sync_focused_gene_to_landscape,
   update_ist_landscape_from_cgm,
 } from '../widget_interactions/update_ist_landscape_from_cgm';
+
+import {
+  apply_landscape_state,
+  get_landscape_state,
+  get_landscape_replay_state,
+  wait_for_expression,
+} from './landscape_state';
+import {
+  wait_for_canvas,
+  wait_for_operation,
+  create_snapshot_api,
+  landscape_identity,
+  landscape_source,
+} from './snapshot';
 
 // Row group reading support
 
@@ -273,6 +289,7 @@ export const landscape_ist = async (
   const pending_timeouts = new Set();
   const pending_animation_frames = new Set();
   let finalized = false;
+  const landscape = {};
 
   const subscribe = (observable, callback, subscribe_options) => {
     const unsubscribe = observable.subscribe(callback, subscribe_options);
@@ -330,7 +347,9 @@ export const landscape_ist = async (
   // Set up centralized image visibility management via obs_store
   // This handles the logic for showing/hiding images based on gene/cluster selection and zoom level
   viz_state.update_viz_image_layers =
-    viz_state.obs_store.setup_image_visibility_manager(get_img_layer_visible);
+    viz_state.obs_store.setup_image_visibility_manager(() =>
+      get_img_layer_visible(viz_state)
+    );
 
   viz_state.seg = {};
   viz_state.seg.version = segmentation;
@@ -907,13 +926,14 @@ export const landscape_ist = async (
         // set cell layer to not visible
         new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
 
-        // set gene/cat bars to disabled color
-        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+        // set gene/cat bars to disabled color (gene-less datasets, such as some
+        // point clouds, have no gene bars)
+        viz_state.genes.svg_bar_gene?.selectAll('rect').style('opacity', 0.2);
+        viz_state.cats.svg_bar_cluster?.selectAll('rect').style('opacity', 0.2);
+        viz_state.nbhd.svg_bar_nbhd?.selectAll('rect').style('opacity', 1.0);
 
-        viz_state.buttons.buttons.cell.style('color', 'gray');
-        viz_state.buttons.buttons.trx.style('color', 'gray');
+        viz_state.buttons.buttons.cell?.style('color', 'gray');
+        viz_state.buttons.buttons.trx?.style('color', 'gray');
         viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
         toggle_slider(viz_state.sliders.cell, false);
@@ -924,12 +944,12 @@ export const landscape_ist = async (
       } else {
         new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
-        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+        viz_state.genes.svg_bar_gene?.selectAll('rect').style('opacity', 1.0);
+        viz_state.cats.svg_bar_cluster?.selectAll('rect').style('opacity', 1.0);
+        viz_state.nbhd.svg_bar_nbhd?.selectAll('rect').style('opacity', 0.2);
 
-        viz_state.buttons.buttons.cell.style('color', 'blue');
-        viz_state.buttons.buttons.trx.style('color', 'blue');
+        viz_state.buttons.buttons.cell?.style('color', 'blue');
+        viz_state.buttons.buttons.trx?.style('color', 'blue');
         viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
         toggle_slider(viz_state.sliders.cell, true);
@@ -1208,6 +1228,21 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  // PIC: save a screenshot with a description; Python writes the PNG and the
+  // state to recreate it (see ui/pic_button.js and Landscape.screenshot).
+  const pic = add_pic_button(ui_container, {
+    model: viz_state.model,
+    capture: async () => ({
+      snapshot: await landscape.snapshot({ max_size: 2048, thumb_size: 64 }),
+    }),
+  });
+  const on_pic_message = (msg) => pic.on_message(msg);
+  viz_state.model.on('msg:custom', on_pic_message);
+  cleanup_callbacks.push(() => {
+    viz_state.model.off?.('msg:custom', on_pic_message);
+    pic.dispose();
+  });
+
   // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
   // Done after the UI is built so the viz_nbhd_layer subscription can update the
   // buttons, sliders, and category bars.
@@ -1301,7 +1336,7 @@ export const landscape_ist = async (
           trx_layer: true,
         });
 
-        schedule_timeout(() => {
+        viz_state.spatial_restore_timeout = schedule_timeout(() => {
           if (viz_state.obs_store.landscape_view.get() !== 'spatial') return;
           viz_state.obs_store.viz_background_layer.set(true);
           viz_state.obs_store.viz_image_layers.set(true);
@@ -1363,7 +1398,7 @@ export const landscape_ist = async (
     on_clusters_select: [],
   };
 
-  const landscape = {
+  Object.assign(landscape, {
     /**
      * Register a callback for gene selection events.
      * @param {function} callback - Function called with (gene_name)
@@ -1464,7 +1499,7 @@ export const landscape_ist = async (
     update_view_state: async (new_view_state, close_up, _trx_layer) => {
       viz_state.close_up = close_up;
 
-      calc_viewport(
+      await calc_viewport(
         new_view_state,
         deck_ist,
         layers_obj,
@@ -1487,6 +1522,50 @@ export const landscape_ist = async (
       viz_state.layers_obj = layers_obj;
     },
     update_layers: () => {},
+    /**
+     * Capture the current deck.gl view as a downscaled base64 PNG and thumbnail,
+     * plus the exact view state (zoom/pan/rotation) for reproducibility.
+     * @param {{max_size?: number, thumb_size?: number}} [capture_options]
+     * @returns {{png: string, thumb: string, width: number, height: number,
+     *   view_state: object|null}|null} capture, or null if there is no canvas.
+     */
+    capture_raster: (capture_options = {}) => {
+      const capture = capture_deck(deck_ist, root, capture_options);
+      if (!capture) return null;
+      return { ...capture, view_state: viz_state.current_view_state || null };
+    },
+    /**
+     * What the Landscape shows: space, camera, coloring, selection and the
+     * cluster / gene counts in the current field of view (see landscape_state.js).
+     */
+    get_state: (state_options = {}) =>
+      get_landscape_state(viz_state, state_options),
+    /**
+     * Change what the Landscape shows, as its controls would: select clusters,
+     * color by genes, move or reset the camera, zoom to clusters or cells.
+     * @returns {Promise<string[]>} What changed.
+     */
+    get_replay_state: () => get_landscape_replay_state(viz_state),
+    apply_state: (changes = {}, { timeout_ms = 30000 } = {}) => {
+      const canvas = deck_ist.getCanvas?.();
+      return wait_for_operation(
+        () =>
+          apply_landscape_state(
+            viz_state,
+            {
+              deck: deck_ist,
+              layers_obj,
+              update_view_state: landscape.update_view_state,
+              size: {
+                width: canvas?.clientWidth || width || 800,
+                height: canvas?.clientHeight || height || 600,
+              },
+            },
+            changes
+          ),
+        timeout_ms
+      );
+    },
     finalize: () => {
       if (finalized) return;
       finalized = true;
@@ -1523,7 +1602,29 @@ export const landscape_ist = async (
       ui_container.remove();
       root.remove();
     },
-  };
+  });
+
+  Object.assign(
+    landscape,
+    create_snapshot_api({
+      ready: async () => {
+        await wait_for_canvas(deck_ist, () => finalized);
+        await wait_for_operation(() => wait_for_expression(viz_state));
+      },
+      kind: 'landscape',
+      get_state: landscape.get_state,
+      capture_raster: landscape.capture_raster,
+      apply_state: landscape.apply_state,
+      get_replay_state: landscape.get_replay_state,
+      identity: () => landscape_identity(viz_state),
+      source: () => landscape_source(viz_state),
+      // CSS pixels: the camera framing depends on them, not on the device pixel ratio.
+      viewport: () => ({
+        width: deck_ist.getCanvas().clientWidth,
+        height: deck_ist.getCanvas().clientHeight,
+      }),
+    })
+  );
 
   return landscape;
 };

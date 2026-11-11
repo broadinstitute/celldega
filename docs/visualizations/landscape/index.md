@@ -306,7 +306,29 @@ As a notebook widget, a Landscape also shares state with Python:
 - **Updates from Python**: `landscape.update_cell_clusters(...)` recolors cells
   with new cluster labels, and `landscape.highlight_cells(...)` highlights cells.
 
-The zoom, pan, slider positions, and selected genes are not sent back to Python.
+The zoom, pan, slider positions, and selected genes are not sent back to Python
+automatically, but you can ask for them, and set them, from code:
+
+```python
+# Change what the Landscape shows, as its controls would.
+landscape.apply_state({"clusters": ["4", "5"]})          # highlight clusters ([] clears)
+landscape.apply_state({"genes": ["MUC2", "TFF3"]})        # color cells by genes ([] = clusters)
+landscape.apply_state({"zoom_to": {"clusters": ["4"]}})  # frame a cluster (or {"cells": [...]})
+landscape.apply_state({"view": {"target": [x, y], "zoom": 2}})
+landscape.apply_state({"reset_view": True})
+landscape.apply_state({"space": "umap"})
+
+# Ask what it shows: space, camera, coloring, selection, and the cells per cluster
+# and top genes in the current field of view. The reply arrives asynchronously, so
+# read it in a later cell.
+landscape.request_state()
+landscape.latest_state
+
+# Drawn neighborhoods with each one's cell count and cluster mix.
+landscape.neighborhood_summary()
+```
+
+Layer toggles and sliders are not settable yet.
 
 ## Use it from Python
 

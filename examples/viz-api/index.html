@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Celldega · portable views</title>
+    <style>
+      body {
+        margin: 32px;
+        color: #23313b;
+        background: #f7f9fb;
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+      }
+      h1 {
+        margin-bottom: 4px;
+        font-size: 28px;
+      }
+      p {
+        max-width: 900px;
+      }
+      button,
+      label {
+        padding: 9px 14px;
+        border: 1px solid #bccbd5;
+        border-radius: 5px;
+        background: white;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      input {
+        max-width: 230px;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 20px 0;
+      }
+      main {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+      section {
+        background: white;
+        padding: 12px;
+        border: 1px solid #dce5eb;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 12px;
+      }
+      pre {
+        white-space: pre-wrap;
+        padding: 14px;
+        border-left: 3px solid #2c7fb8;
+        background: #eaf1f6;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Save a view. Reopen it. Check the evidence.</h1>
+    <p>
+      A JavaScript-only example with synthetic data. Explore the left
+      visualization, save its view, then restore it into a fresh instance on the
+      right. The same API is available to an app or agent.
+    </p>
+    <nav>
+      <button id="save" disabled>Save view as PNG</button>
+      <label
+        >Open saved view
+        <input
+          id="open"
+          type="file"
+          accept="image/png,.png,application/json,.json"
+          disabled
+      /></label>
+      <button id="restore" disabled>Restore in fresh instance</button>
+      <button id="check" disabled>Run reproducibility checks</button>
+    </nav>
+    <pre id="status" role="status">Loading…</pre>
+    <main>
+      <section>
+        <h2>Explore</h2>
+        <div id="source"></div>
+      </section>
+      <section>
+        <h2>Restored view</h2>
+        <div id="restored"></div>
+      </section>
+    </main>
+    <script type="module" src="./example.js"></script>
+  </body>
+</html>

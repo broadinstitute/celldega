@@ -299,7 +299,26 @@ As a notebook widget, a Clustergram also shares its state with Python:
 - **Annotations**: categories assigned in the manual category editor are in
   `cgm.manual_cat`.
 - **Updates from Python**: for example, `cgm.viz_mode = "heatmap"` switches a
-  dot plot to a heatmap.
+  dot plot to a heatmap. `cgm.apply_state({...})` sets controls by name:
+  `marker_level` (the DIM slider, or `"all"`), `mode` (`"heatmap"` /
+  `"dotplot"`), `size` (`"prop"` / `"unit"`), `focus_gene` (zoom to a gene, like
+  the search box), and `categories` (see below).
+- **Annotations from Python**: `cgm.set_categories({"4": "Goblet cells", "5":
+  "Plasma cells"})` labels columns in the manual category, exactly as the editor
+  would; the strips, bars and `cgm.manual_cat` update. Pass `axis="row"` for rows,
+  `attribute=...` to choose or create the category, `colors={...}` for colors, and
+  `replace=True` to clear the axis's other labels first.
+- **Snapshots**: `cgm.request_state()` asks the browser what is shown (rows and
+  columns on screen, order, marker level, dendrogram groups, attributes, selection,
+  values); `cgm.request_state(markers={"clusters": ["4"], "n": 25})` also returns
+  a cluster's ranked `rank_genes_groups` markers. Read `cgm.latest_state` in a
+  later cell.
+- **Images**: `cgm.request_raster()` captures the heatmap (with its labels and
+  category strips) as a PNG, like the Landscape's; read `cgm.raster_png` (and the
+  `cgm.raster_thumb` preview) in a later cell. Captures stay in memory and are never
+  saved into the notebook. In JavaScript, `matrix.capture_raster()` returns the same.
+  To save a PNG file that can be reopened, use `cgm.screenshot()` (see
+  [Screenshots](index.md#screenshots)).
 
 ```python
 cgm = dega.viz.Clustergram(matrix=mat, manual_col_cat="cell_type")

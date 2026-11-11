@@ -9,6 +9,9 @@ from ipywidgets import HBox, Layout, VBox, jsdlink, jslink
 from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
+from .reopen import from_png
+from .screenshots import Screenshot, load_screenshot, load_screenshots, screenshot
+from .snapshots import fingerprint_dataset
 from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
@@ -409,12 +412,17 @@ __all__ = [
     "Landmark",
     "Landscape",
     "NeighborhoodCloud",
+    "Screenshot",
     "Yearbook",
     "clustergram_enrich",
+    "from_png",
     "get_local_server",
     "get_proxy_server",
     "landscape_clustergram",
     "landscape_yearbook",
     "landscape_yearbook_clustergram",
+    "load_screenshot",
+    "load_screenshots",
+    "screenshot",
     "spatial_clustergram",
 ]

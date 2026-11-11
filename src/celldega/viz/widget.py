@@ -1138,7 +1138,9 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         return summary
 
     def __init__(self, **kwargs):
-        pins = kwargs.pop("pins", None)
+        # Snapshots to pin on the tissue (``snapshots=``; ``pins=`` is an alias).
+        pins = kwargs.pop("snapshots", None)
+        pins = kwargs.pop("pins", None) if pins is None else pins
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
@@ -1600,7 +1602,51 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     def pins(self, snapshots) -> None:
         from .snapshot_widget import Snapshots
 
-        self.pin_data = [] if snapshots is None else Snapshots(snapshots).pins()
+        if snapshots is None:
+            self.pin_data = []
+            return
+        kept, other = [], []
+        for pin in Snapshots(snapshots).pins():
+            source = (pin.get("snapshot") or {}).get("source") or {}
+            (kept if self._same_data(source) else other).append(pin)
+        if other:
+            warnings.warn(
+                "Not pinned, Snapshots of other data than this Landscape: "
+                + ", ".join(p["name"] for p in other),
+                stacklevel=2,
+            )
+        self.pin_data = kept
+
+    # Constructor options that say which data a Landscape shows.
+    _DATA_KEYS = (
+        "base_url",
+        "base_urls",
+        "zarr_url",
+        "zarr_layer",
+        "technology",
+        "segmentation",
+        "alignment",
+        "dataset_name",
+        "cell_name_prefix",
+        "data_revision",
+    )
+
+    def _same_data(self, source: dict) -> bool:
+        """Whether a Snapshot's ``source`` is this Landscape's data, as far as both say.
+
+        Opening a pin checks the data itself (its cell, gene and cluster names) too.
+        """
+        for key in self._DATA_KEYS:
+            theirs = source.get(key)
+            mine = getattr(self, key, None) if self.has_trait(key) else None
+            if theirs in (None, "", []) or mine in (None, "", []):
+                continue
+            if isinstance(mine, list | tuple) or isinstance(theirs, list | tuple):
+                if list(mine) != list(theirs):
+                    return False
+            elif str(mine) != str(theirs):
+                return False
+        return True
 
     @property
     def nbhd_polygons(self):

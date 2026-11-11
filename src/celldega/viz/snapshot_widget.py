@@ -289,7 +289,9 @@ class Snapshots:
         poi = dega.viz.Snapshots(["figures/glomerulus.png", "figures/medulla.png"])
         poi = dega.viz.Snapshots("celldega_files/snapshots")   # every Snapshot PNG
         poi = dega.viz.Snapshots(landscape.snap)
-        landscape.pins = poi
+        poi.card("Glomerulus", landscape=landscape)             # one postcard, by name
+        dega.viz.Landscape(base_url=..., snapshots=poi)         # pinned on the tissue
+        landscape.pins = poi                                    # or pin them later
     """
 
     def __init__(self, items=None):
@@ -341,6 +343,17 @@ class Snapshots:
     def names(self) -> list[str]:
         return list(self._items)
 
+    def card(self, name: str, **kwargs) -> Snapshot:
+        """A postcard for one of these Snapshots, chosen by name.
+
+        ``poi.card("Glomerulus", landscape=landscape)`` links it to a viewer, like
+        :class:`Snapshot`; other keyword arguments go to :class:`Snapshot` too.
+        """
+        if name not in self._items:
+            raise KeyError(f"No Snapshot named {name!r}; have {self.names()}")
+        kwargs.setdefault("name", name)
+        return Snapshot(self._items[name], **kwargs)
+
     def __repr__(self) -> str:
         return f"Snapshots({self.names()!r})"
 
@@ -369,9 +382,7 @@ class Snapshots:
             out.append(
                 {
                     "name": name,
-                    "description": str(
-                        record.get("description") or view.get("description") or ""
-                    ),
+                    "description": str(record.get("description") or view.get("description") or ""),
                     "target": [x, y],
                     "snapshot": restore_spec(view),
                 }

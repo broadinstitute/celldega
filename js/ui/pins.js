@@ -134,7 +134,10 @@ export const add_pins_control = ({
     const on = shown() && in_space() && count > 0;
     button.style.display = count ? '' : 'none';
     button.style.color = shown() ? 'blue' : 'gray';
-    if (!button.title.startsWith('Open') && !button.title.startsWith("Couldn't"))
+    if (
+      !button.title.startsWith('Open') &&
+      !button.title.startsWith("Couldn't")
+    )
       button.title = `${shown() ? 'Hide' : 'Show'} ${count} pinned Snapshot${
         count === 1 ? '' : 's'
       } (hover a pin for its memo; click to open its view)`;
@@ -177,10 +180,9 @@ export const add_pins_control = ({
   events.forEach((event) => model?.on?.(event, sync));
   // After the view's own handlers (XY swaps the image controls too).
   const on_view = () => setTimeout(sync, 0);
-  const unsubscribe = viz_state.obs_store.landscape_view?.subscribe?.(
-    on_view,
-    { immediate: false }
-  );
+  const unsubscribe = viz_state.obs_store.landscape_view?.subscribe?.(on_view, {
+    immediate: false,
+  });
   sync();
 
   return {

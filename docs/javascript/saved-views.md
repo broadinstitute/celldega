@@ -11,13 +11,21 @@ Markdown companion. No separate JSON file is required.
 
 ## Terms and scope
 
+Celldega captures a view at three levels, each built on the one before:
+
+| | What it is | JavaScript | Python | Reopen with |
+| --- | --- | --- | --- | --- |
+| **Raster** | The image alone: a base64 PNG, a thumbnail and the camera at capture time | `viz.capture_raster()` | `widget.request_raster()`, then `widget.raster_png` | (an image only) |
+| **Saved view** | An in-memory object, one per widget: the raster plus the observed state, complete replay settings, data identity, source and canvas size | `await viz.snapshot()` | `widget.request_snapshot()`, then `widget.latest_snapshot` | `restore_snapshot(saved_view)` |
+| **Screenshot** | A PNG file: the image, with each widget's saved view embedded (minus its pixels, which are the PNG itself), links to the data and a description. Python also writes a readable `.md` and combines linked widgets into one image. | `celldega.screenshot_png(saved_view)`; the PIC button downloads one | `widget.screenshot()`, `dega.viz.screenshot(linked)`, the PIC button | `from_png(file)`, `widget.restore_png(path)` |
+
+The methods that make a saved view are named `snapshot`; these pages call the object a
+saved view. Two broader ideas build on these and sit outside the API:
+
 | Term | Meaning |
 | --- | --- |
-| Raster / image | Pixels only, returned by `capture_raster`. |
-| Screenshot | A user-facing saved image; Celldega's exports attach saved-view metadata. |
-| Snapshot / saved view | The versioned image + semantic state + provenance + replay contract. These are synonyms here. |
-| Evidence artifact | A saved view used to support or contradict a scientific claim. The description explains why it matters. |
-| Case / report | A higher-level collection of evidence and reasoning, outside the Viz API. |
+| Evidence artifact | A screenshot or saved view used to support or contradict a scientific claim. The description explains why it matters. |
+| Case / report | A collection of evidence and reasoning. |
 
 A scientist can use this API for exploration, figures, tutorials, reports, web or
 desktop applications without constructing an agent. Agents consume this same contract.
@@ -215,13 +223,14 @@ downloads the PNG with its description and saved-view metadata embedded.
 For a programmatic browser export:
 
 ```javascript
-const saved = await viz.snapshot({ description: 'A marker-enriched boundary.' });
-const png = celldega.snapshot_png(saved); // Blob with type image/png.
+const saved_view = await viz.snapshot({ description: 'A marker-enriched boundary.' });
+const screenshot = celldega.screenshot_png(saved_view); // Blob with type image/png.
 ```
 
-An application can store this Blob or download it using `URL.createObjectURL(png)`.
-The in-memory `snapshot()`/`restore_snapshot()` JSON API remains available; PNG is
-the portable image export and does not require Clerk or a notebook.
+An application can store this Blob or download it using
+`URL.createObjectURL(screenshot)`. The saved view itself is plain JSON, so an
+application can also keep it and restore it with `restore_snapshot()`; the screenshot
+is the portable file, and needs no Clerk or notebook.
 
 Earlier screenshot records remain readable, but their plain `state` has no verified
 data binding. `apply_state` remains available for intentional edits; use

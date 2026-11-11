@@ -64,14 +64,15 @@ Source data must still be available. `options` accepts `panel` (zero-based, defa
 schema and canvas-size checks are the same as `restore_snapshot`. Reopening a
 composite's panels does not reconnect their cross-widget links.
 
-### `read_png(input)` and `snapshot_png(snapshot, options)`
+### `read_png(input)` and `screenshot_png(saved_view, options)`
 
 `await celldega.read_png(input)` extracts the embedded screenshot record without
 loading data or creating a visualization. It accepts the same binary inputs as
 `from_png`.
 
-`celldega.snapshot_png(snapshot, {title: ''})` creates an `image/png` Blob containing
-the image and embedded saved-view metadata from `await viz.snapshot(...)`.
+`celldega.screenshot_png(saved_view, {title: ''})` makes a screenshot from a saved
+view (`await viz.snapshot(...)`): an `image/png` Blob of its image with the saved view
+embedded.
 Standalone PIC uses this export, and Python saves the same PNG metadata record
 alongside a human-readable Markdown companion. See
 [portable saved views](saved-views.md#reopen-a-png-as-an-interactive-visualization).

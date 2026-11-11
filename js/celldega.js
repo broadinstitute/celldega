@@ -22,7 +22,7 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
-import { read_png, snapshot_png } from './viz/png';
+import { read_png, screenshot_png } from './viz/png';
 import {
   consume_initial_snapshot,
   handle_snapshot_message,
@@ -683,7 +683,7 @@ export default {
   clustergram,
   link_models,
   read_png,
-  snapshot_png,
+  screenshot_png,
   from_png,
   // Lower-level renderers and readers.
   anndata_zarr_source,

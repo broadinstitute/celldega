@@ -193,8 +193,14 @@ export const write_png = (png, record) => {
   return output;
 };
 
-/** A snapshot's image plus its compact replay contract in the shared PNG record. */
-export const snapshot_png = (snapshot, { title = '' } = {}) => {
+/**
+ * A screenshot: a PNG of a saved view's image with the saved view (minus its pixels)
+ * embedded, in the same record Python's `screenshot()` writes.
+ * @param {object} snapshot - A saved view from `await viz.snapshot()`.
+ * @param {{title?: string}} [options]
+ * @returns {Blob} An `image/png` Blob.
+ */
+export const screenshot_png = (snapshot, { title = '' } = {}) => {
   if (!snapshot?.image?.png) throw new Error('Saved view has no PNG image');
   const { image, observed_state, ...compact } = snapshot;
   const record = {

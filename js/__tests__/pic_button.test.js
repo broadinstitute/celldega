@@ -3,7 +3,7 @@
 // PIC: the control-panel button that saves a screenshot with a description.
 describe('add_pic_button', () => {
   let add_pic_button;
-  let snapshot_png;
+  let screenshot_png;
 
   beforeEach(() => {
     const fs = require('fs');
@@ -12,11 +12,11 @@ describe('add_pic_button', () => {
       .readFileSync(path.join(__dirname, '../ui/pic_button.js'), 'utf8')
       .replace(/^import .*;$/gm, '')
       .replace(/^export const /gm, 'const ');
-    snapshot_png = jest.fn(() => new Blob(['PNG'], { type: 'image/png' }));
+    screenshot_png = jest.fn(() => new Blob(['PNG'], { type: 'image/png' }));
     add_pic_button = new Function(
-      'snapshot_png',
+      'screenshot_png',
       `${source}\nreturn add_pic_button;`
-    )(snapshot_png);
+    )(screenshot_png);
     document.body.innerHTML = '';
   });
 
@@ -153,7 +153,7 @@ describe('add_pic_button', () => {
       action('SAVE').click();
       const blob = URL.createObjectURL.mock.calls[0][0];
       expect(blob.type).toBe('image/png');
-      expect(snapshot_png).toHaveBeenCalledWith(
+      expect(screenshot_png).toHaveBeenCalledWith(
         {
           ...saved,
           title: '',

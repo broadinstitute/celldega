@@ -8,15 +8,16 @@ code. Support varies by widget and control. Three kinds of methods cover this:
   and the values behind them.
 - **Setters** change what it shows, as its controls would: select clusters, color by
   genes, zoom to cells, move the Clustergram's marker level, label columns.
-- **Exporters** capture what it shows as an image. In Python, a screenshot also saves
-  the observed state, supported replay settings and a description of why it matters.
+- **Exporters** capture what it shows at three levels: a raster (the image alone), a
+  saved view (the image with its state, in memory), and a screenshot (a PNG file with
+  the saved view embedded). See [the three levels](saved-views.md#terms-and-scope).
 
 `get_state()` returns bounded scientific observations. `get_replay_state()` returns
 complete inputs for supported controls, without those observation caps. Only the
 latter can be passed directly to `apply_state()`; saved views use it automatically.
 Saved settings replay the supported parts of a view on widgets with the same data.
 `from_png` can construct a fresh visualization from an exported PNG's source
-references and restore those settings. Use [portable snapshots](saved-views.md) to
+references and restore those settings. Use [portable saved views](saved-views.md) to
 capture image and state together and validate data identity before restoring
 supported settings; some controls remain outside replay coverage.
 
@@ -29,8 +30,9 @@ evidence it finds, and save it.
 | Get | `viz.get_state(options)` returns the state | `widget.request_state(...)`, then `widget.latest_state` |
 | Replay inputs | `viz.get_replay_state()` | `widget.latest_snapshot["state"]` after capture |
 | Set | `await viz.apply_state(changes)` | `widget.apply_state(changes)`, then `widget.get_apply_result(widget.apply_request_id)` |
-| Export | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png`; or `widget.screenshot(description, path)` |
+| Raster | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png` |
 | Save view | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
+| Screenshot | `celldega.screenshot_png(saved_view)` returns a PNG Blob | `widget.screenshot(description, path)` writes the PNG |
 | Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then `widget.get_apply_result(request_id)` |
 | Open PNG | `await celldega.from_png(el, file, options)` | `dega.viz.from_png(path, **options)`, then display the widget |
 | Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_screenshot(path)` |
@@ -134,7 +136,7 @@ The default uses loaded metadata and fetches expression only when XY is entered.
 
 ### `capture_raster(options)`
 
-A screenshot of the view: `{png, thumb, width, height, view_state}`, where `png` and
+The view's image (a raster): `{png, thumb, width, height, view_state}`, where `png` and
 `thumb` are base64 PNGs (no `data:` prefix). `options.max_size` and
 `options.thumb_size` set their longest side in pixels (1024 and 192 by default). It
 captures the visualization itself, not the control panel. Areas it leaves empty are
@@ -233,7 +235,7 @@ clustergram.set_categories({
 
 ### `capture_raster(options)`
 
-A screenshot of the heatmap with its labels and category strips: `{png, thumb, width,
+The heatmap's image, with its labels and category strips: `{png, thumb, width,
 height}`, as for the Landscape.
 
 ## Example: read, show, capture

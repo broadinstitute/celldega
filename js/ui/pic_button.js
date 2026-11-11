@@ -8,7 +8,7 @@
  * Without a notebook transport, SAVE downloads the PNG with its saved-view record.
  */
 
-import { snapshot_png } from '../viz/png';
+import { screenshot_png } from '../viz/png';
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -175,7 +175,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
         let url;
         try {
           url = URL.createObjectURL(
-            snapshot_png(saved, { title: title.value.trim() })
+            screenshot_png(saved, { title: title.value.trim() })
           );
         } catch (error) {
           status.textContent = `Not saved: ${error.message}`;

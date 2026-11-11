@@ -904,7 +904,7 @@ export const matrix_viz = async (
     set_categories: (request = {}) =>
       apply_manual_categories(viz_state, request, allocate_color),
     /**
-     * A screenshot of the Clustergram (heatmap, labels, category strips) as a
+     * The Clustergram's image (heatmap, labels, category strips) as a
      * downscaled base64 PNG plus a thumbnail; null if there is no canvas.
      * @param {{max_size?: number, thumb_size?: number}} [capture_options]
      */

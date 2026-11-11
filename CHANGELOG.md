@@ -22,7 +22,7 @@ All notable changes to Celldega are documented here. This project follows
   and the **PIC** button. Empty areas are white by default (`background=`).
 - Reopen a screenshot as an interactive visualization from its recorded data links:
   `dega.viz.from_png(path)` and `widget.restore_png(path)`, and in JavaScript
-  `celldega.from_png`, `read_png` and `snapshot_png`.
+  `celldega.from_png`, `read_png` and `screenshot_png`.
 - `data_revision` on Landscape, Clustergram and the standalone JavaScript
   constructors; `dega.viz.fingerprint_dataset` computes one for a local dataset.
 - A loading indicator while widgets fetch their data.

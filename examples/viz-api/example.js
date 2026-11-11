@@ -156,7 +156,7 @@ async function check() {
       error.message.includes('data revision differ');
   }
   await restore();
-  const png = celldega.snapshot_png(saved);
+  const png = celldega.screenshot_png(saved);
   const record = await celldega.read_png(png);
   result.png_metadata =
     JSON.stringify(record.widgets[0].snapshot.state) ===
@@ -179,7 +179,7 @@ async function check() {
 document.querySelector('#save').onclick = () =>
   busy(async () => {
     saved = await source.snapshot();
-    const url = URL.createObjectURL(celldega.snapshot_png(saved));
+    const url = URL.createObjectURL(celldega.screenshot_png(saved));
     const link = document.createElement('a');
     link.href = url;
     link.download = 'celldega-view.png';

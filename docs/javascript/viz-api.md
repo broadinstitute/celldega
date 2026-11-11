@@ -8,15 +8,18 @@ code. Support varies by widget and control. Three kinds of methods cover this:
   and the values behind them.
 - **Setters** change what it shows, as its controls would: select clusters, color by
   genes, zoom to cells, move the Clustergram's marker level, label columns.
-- **Exporters** capture what it shows as an image. In Python, a screenshot also saves
-  the observed state, supported replay settings and a description of why it matters.
+- **Exporters** capture what it shows at three levels: a raster (the image alone), a
+  saved view (the image with its state, in memory), and a screenshot (a PNG file with
+  the saved view embedded). See [the three levels](saved-views.md#terms-and-scope).
 
 `get_state()` returns bounded scientific observations. `get_replay_state()` returns
 complete inputs for supported controls, without those observation caps. Only the
-latter can be passed directly to `apply_state()`; saved views use it automatically. Saved settings replay the supported
-parts of a view on widgets with the same data already loaded; full view restoration
-is not implemented yet. Use [portable snapshots](saved-views.md) to capture image
-and state together and validate data identity before restoring supported settings.
+latter can be passed directly to `apply_state()`; saved views use it automatically.
+Saved settings replay the supported parts of a view on widgets with the same data.
+`from_png` can construct a fresh visualization from an exported PNG's source
+references and restore those settings. Use [portable saved views](saved-views.md) to
+capture image and state together and validate data identity before restoring
+supported settings; some controls remain outside replay coverage.
 
 The API uses corresponding operations in a web page (JavaScript) and a notebook (Python). It was built
 for [Clerk AI](../clerk/index.md), Celldega's AI assistant, but it doesn't depend on it:
@@ -27,23 +30,27 @@ evidence it finds, and save it.
 | --- | --- | --- |
 | Get | `viz.get_state(options)` returns the state | `widget.request_state(...)`, then `widget.latest_state` |
 | Replay inputs | `viz.get_replay_state()` | `widget.latest_snapshot["state"]` after capture |
-| Set | `await viz.apply_state(changes)` | `await widget.apply_state_async(changes)` |
-| Export | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png`; or `widget.screenshot(description, path)` |
+| Set | `await viz.apply_state(changes)` | `widget.apply_state(changes)`, then `widget.get_apply_result(widget.apply_request_id)` |
+| Raster | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png` |
 | Save view | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
-| Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then check `apply_capture_id` / `apply_error` |
+| Screenshot | `celldega.screenshot_png(saved_view)` returns a PNG Blob | `widget.screenshot(description, path)` writes the PNG |
+| Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then `widget.get_apply_result(request_id)` |
+| Open PNG | `await celldega.from_png(el, file, options)` | `dega.viz.from_png(path, **options)`, then display the widget |
+| Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_screenshot(path)` |
 
-In Python, getters and exporters are asynchronous: the browser replies after the
-calling cell finishes, so read `latest_state` or `raster_png` in a later cell, or
-`observe` them. Neither is ever saved into the notebook's widget state.
+In Python, every request is answered asynchronously: the browser's reply reaches
+Python only after the calling cell finishes. Read `latest_state`, `raster_png` or
+`get_apply_result(...)` in a later cell, or `observe` the traits. Nothing is ever
+saved into the notebook's widget state.
 
 Design rules the API follows:
 
 - **Scientific meaning, not interface details.** State names clusters, genes, spaces
   and marker levels, not buttons or DOM elements.
-- **Input validation.** Unknown settings and invalid input are rejected. Runtime
-  failures, such as unavailable data, can still leave a partial change. Python
-  setters submit asynchronous requests. `apply_state_async` waits for the exact request
-  acknowledgement; `apply_state` returns submission descriptions, not completion.
+- **Input validation.** Unknown settings and invalid input are rejected; in Python,
+  in the calling cell. Runtime failures, such as unavailable data, can still leave a
+  partial change. Python `apply_state` returns what it submitted, not completion;
+  the browser's acknowledgement says whether it was applied.
 - **Same paths as the controls.** Setting clusters behaves like clicking cluster bars,
   setting genes like the gene search, and so on, so linked widgets update as usual.
 - **Only what you pass changes.** Setting categories changes the labels you name and
@@ -94,7 +101,7 @@ Returns a promise of short descriptions of what changed, for example
 | `space` | `"spatial"`, `"umap"` or `"xy"` | the SPATIAL / UMAP / XY buttons |
 | `clusters` | cluster names; `[]` clears the selection | clicking (and shift-clicking) cluster bars |
 | `genes` | gene names (up to 20); `[]` returns to cluster colors | the comma-separated gene search |
-| `zoom_to` | `{"clusters": [...]}` or `{"cells": [...]}` | framing those cells (spatial view) |
+| `zoom_to` | `{"clusters": [...]}` or `{"cells": [...]}` | framing those cells (spatial view; in 3D for orbit clouds, at any camera rotation) |
 | `view` | `{"target": [x, y, z], "zoom": z}`; orbit views also accept `rotationOrbit`, `rotationX` | moving/rotating the camera |
 | `selected_cells` | exact cell IDs; `[]` clears them | selecting cells |
 | `xy` | `{"genes": ["GENE1", "GENE2"], "scale": "linear"}`; 0–2 genes, scale `linear` or `log1p` | XY axes and scaling |
@@ -130,10 +137,12 @@ The default uses loaded metadata and fetches expression only when XY is entered.
 
 ### `capture_raster(options)`
 
-A screenshot of the view: `{png, thumb, width, height, view_state}`, where `png` and
+The view's image (a raster): `{png, thumb, width, height, view_state}`, where `png` and
 `thumb` are base64 PNGs (no `data:` prefix). `options.max_size` and
 `options.thumb_size` set their longest side in pixels (1024 and 192 by default). It
-captures the visualization itself, not the control panel.
+captures the visualization itself, not the control panel. Areas it leaves empty are
+white; `options.background` sets another CSS color, or `null` keeps them transparent.
+`snapshot(options)` takes the same option.
 
 ## Clustergram
 
@@ -160,12 +169,17 @@ The result has, per axis (`rows`, `cols`), the names described, which of them we
   value, size}]}]`;
 - `display`: `mode`, `size` and `focused_row`;
 - `selection`: the current click, selected genes, dendrogram group and crop;
-- `values`: `{values, sizes}` for the rows by columns described.
+- `values`: `{values, sizes}` for the rows by columns described;
 - `view`: `{target: [x, y], zoom: [xZoom, yZoom]}` for the matrix camera;
-- `crop`: `{row: [...names] | null, col: [...names] | null}`; null means uncropped;
-- `order`: `{row, col}`, each a named order or the complete ordered list of names.
-  These three control fields are independent of `max_rows` / `max_cols`: capped
-  observations do not truncate the settings needed to restore the view.
+- `crop`: `{row: [...names] | null, col: [...names] | null}`; null means uncropped.
+  An axis cropped to more than 100 names is left out (its count is in
+  `selection.crop`);
+- `order`: `{row, col}` for axes in a named order. An explicit order (custom, or by
+  an attribute) is left out here and labeled in `rows.order` / `cols.order`.
+
+Every field is bounded, so the result stays small enough for an agent's prompt. The
+complete settings, including every name of an explicit order or crop, come from
+`get_replay_state()` and saved views.
 
 ```javascript
 const state = clustergram.get_state({ rows: 'ranked', max_rows: 25 });
@@ -222,7 +236,7 @@ clustergram.set_categories({
 
 ### `capture_raster(options)`
 
-A screenshot of the heatmap with its labels and category strips: `{png, thumb, width,
+The heatmap's image, with its labels and category strips: `{png, thumb, width,
 height}`, as for the Landscape.
 
 ## Example: read, show, capture
@@ -292,24 +306,33 @@ An explicit layer restore also cancels delayed visibility resets from space chan
 
 ### Completion and errors
 
-Every Python `apply_state` call now sends one request, including trait-only controls.
+Every Python `apply_state` call sends one request, including trait-only controls.
 The browser validates availability, applies the requested controls and replies with
-`applied` or `apply_error`. Prefer:
+`applied` or `apply_error`. The reply reaches Python only after the cell that sent
+the request finishes, so check it from the next cell:
 
 ```python
-await cgm.apply_state_async({"dendrogram": {"row": 35}}, timeout=10)
-request_id = cgm.restore_snapshot(saved)
-await cgm.wait_for_apply(request_id, timeout=10)
+cgm.apply_state({"dendrogram": {"row": 35}})
+request_id = cgm.apply_request_id
 ```
 
-For a nonblocking notebook cell, call `apply_state`, save `apply_request_id`, then
-inspect `get_apply_result(request_id)` in a later cell. It returns `None` while pending
-and never substitutes another request's success. `apply_capture_id` and `apply_error`
-remain available for observers. JavaScript Landscape setters accept a second
-`{timeout_ms: 30000}` option. Errors and timeouts never acknowledge success; they can
-leave partial changes, and timeout does not cancel pending browser work. Recapture
-before treating the outcome as evidence. Ordinary camera/reorder style animations
-may still need to settle before comparing PNG pixels.
+```python
+cgm.get_apply_result(request_id)  # {"event": "applied", "done": [...]} or apply_error
+```
+
+`get_apply_result` returns `None` while pending and never substitutes another
+request's result; `restore_snapshot` returns a request id to check the same way.
+`apply_capture_id` and `apply_error` remain available for observers. Code that runs
+outside a cell, such as a background task (`asyncio.ensure_future`) or an
+application, can `await cgm.apply_state_async(changes)` or
+`await cgm.wait_for_apply(request_id)`, which raise on failure or timeout. Awaiting
+them in the cell that sent the request would always time out.
+
+JavaScript Landscape setters accept a second `{timeout_ms: 30000}` option. Errors
+and timeouts never acknowledge success; they can leave partial changes, and timeout
+does not cancel pending browser work. Recapture before treating the outcome as
+evidence. Ordinary camera/reorder style animations may still need to settle before
+comparing PNG pixels.
 
 ### Coverage boundaries
 

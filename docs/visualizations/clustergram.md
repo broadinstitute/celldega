@@ -313,10 +313,12 @@ As a notebook widget, a Clustergram also shares its state with Python:
   values); `cgm.request_state(markers={"clusters": ["4"], "n": 25})` also returns
   a cluster's ranked `rank_genes_groups` markers. Read `cgm.latest_state` in a
   later cell.
-- **Screenshots**: `cgm.request_raster()` captures the heatmap (with its labels and
+- **Images**: `cgm.request_raster()` captures the heatmap (with its labels and
   category strips) as a PNG, like the Landscape's; read `cgm.raster_png` (and the
   `cgm.raster_thumb` preview) in a later cell. Captures stay in memory and are never
   saved into the notebook. In JavaScript, `matrix.capture_raster()` returns the same.
+  To save a PNG file that can be reopened, use `cgm.screenshot()` (see
+  [Screenshots](index.md#screenshots)).
 
 ```python
 cgm = dega.viz.Clustergram(matrix=mat, manual_col_cat="cell_type")

@@ -284,21 +284,21 @@ def test_capture_dedup_preserves_changed_data_identity():
     w.record[0]["steps"] = []
     saved = {
         "schema": "celldega.view",
-        "version": 1,
+        "version": 2,
         "kind": "clustergram",
         "state": {"mode": "heatmap"},
         "captured_at": "2026-11-08T12:00:00Z",
-        "identity": {"algorithm": "sha256", "digest": "a" * 64},
+        "identity": {"revision": "", "rows": {"count": 3, "hash": "a" * 14}},
     }
     views = {"clustergram_image": PNG, "snapshots": {"clustergram": saved}}
     w._log_capture(views, "first")
     saved["captured_at"] = "2026-11-08T12:01:00Z"
     w._log_capture(views, "unchanged")
     assert len(w.record[0]["steps"]) == 1
-    # A value outside the visible/capped observations can change without new pixels.
-    saved["identity"]["digest"] = "b" * 64
+    # The data can change without new pixels (e.g. rows outside the capped view).
+    saved["identity"]["rows"]["hash"] = "b" * 14
     w._log_capture(views, "changed data")
     steps = w.record[0]["steps"]
     assert len(steps) == 2
-    assert steps[0]["snapshots"]["clustergram"]["identity"]["digest"] == "a" * 64
-    assert steps[1]["snapshots"]["clustergram"]["identity"]["digest"] == "b" * 64
+    assert steps[0]["snapshots"]["clustergram"]["identity"]["rows"]["hash"] == "a" * 14
+    assert steps[1]["snapshots"]["clustergram"]["identity"]["rows"]["hash"] == "b" * 14

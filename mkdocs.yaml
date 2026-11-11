@@ -99,6 +99,8 @@ nav:
       - API: javascript/api.md
       - "Viz API: getters, setters, exporters": javascript/viz-api.md
       - "Portable saved views": javascript/saved-views.md
+      - Development:
+          - State management: javascript/development/state-management.md
   - Gallery:
       - gallery/index.md
       # Grouped by visualization, then technology (as on gallery/index.md).

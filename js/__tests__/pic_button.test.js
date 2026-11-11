@@ -3,14 +3,20 @@
 // PIC: the control-panel button that saves a screenshot with a description.
 describe('add_pic_button', () => {
   let add_pic_button;
+  let screenshot_png;
 
   beforeEach(() => {
     const fs = require('fs');
     const path = require('path');
     const source = fs
       .readFileSync(path.join(__dirname, '../ui/pic_button.js'), 'utf8')
+      .replace(/^import .*;$/gm, '')
       .replace(/^export const /gm, 'const ');
-    add_pic_button = new Function(`${source}\nreturn add_pic_button;`)();
+    screenshot_png = jest.fn(() => new Blob(['PNG'], { type: 'image/png' }));
+    add_pic_button = new Function(
+      'screenshot_png',
+      `${source}\nreturn add_pic_button;`
+    )(screenshot_png);
     document.body.innerHTML = '';
   });
 
@@ -27,7 +33,14 @@ describe('add_pic_button', () => {
     return { ui, row, logo };
   };
 
-  const setup = (shot = { png: 'UE5H', state: { kind: 'landscape' } }) => {
+  const SAVED = {
+    schema: 'celldega.view',
+    version: 2,
+    image: { png: 'UE5H' },
+    observed_state: { kind: 'landscape' },
+  };
+
+  const setup = (shot = { snapshot: SAVED }) => {
     const { ui, row, logo } = panel();
     const model = { send: jest.fn() };
     const capture = jest.fn(() => shot);
@@ -55,18 +68,18 @@ describe('add_pic_button', () => {
     dialog().querySelector('input').value = ' Glomerulus ';
     dialog().querySelector('textarea').value = 'Podocyte-like ring.';
     action('SAVE').click();
+    // The image and state travel once, inside the saved view.
     expect(model.send).toHaveBeenCalledWith({
       event: 'pic',
       id: 1,
       title: 'Glomerulus',
       description: 'Podocyte-like ring.',
-      png: 'UE5H',
-      state: { kind: 'landscape' },
+      snapshot: SAVED,
     });
     expect(dialog().textContent).toContain('Saving…');
   });
 
-  test('waits for snapshot hashing before allowing a save', async () => {
+  test('waits for an asynchronous capture before allowing a save', async () => {
     let finish;
     const pending = new Promise((resolve) => {
       finish = resolve;
@@ -75,14 +88,11 @@ describe('add_pic_button', () => {
     pic.button.click();
     action('SAVE').click();
     expect(model.send).not.toHaveBeenCalled();
-    finish({ png: 'PNG', snapshot: { schema: 'celldega.view', version: 1 } });
+    finish({ snapshot: SAVED });
     await Promise.resolve();
     action('SAVE').click();
     expect(model.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        png: 'PNG',
-        snapshot: { schema: 'celldega.view', version: 1 },
-      })
+      expect.objectContaining({ snapshot: SAVED })
     );
   });
 
@@ -130,7 +140,7 @@ describe('add_pic_button', () => {
       const { ui } = panel();
       const saved = {
         schema: 'celldega.view',
-        version: 1,
+        version: 2,
         image: { png: 'PNG' },
         state: { focus_gene: 'MUC2' },
       };
@@ -142,16 +152,16 @@ describe('add_pic_button', () => {
       dialog().querySelector('textarea').value = 'Boundary observation';
       action('SAVE').click();
       const blob = URL.createObjectURL.mock.calls[0][0];
-      const text = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.readAsText(blob);
-      });
-      expect(JSON.parse(text)).toMatchObject({
-        ...saved,
-        description: 'Boundary observation',
-        author: 'you',
-      });
+      expect(blob.type).toBe('image/png');
+      expect(screenshot_png).toHaveBeenCalledWith(
+        {
+          ...saved,
+          title: '',
+          description: 'Boundary observation',
+          author: 'you',
+        },
+        { title: '' }
+      );
       expect(click).toHaveBeenCalledTimes(1);
       expect(dialog().textContent).toContain('Downloaded saved view');
       jest.advanceTimersByTime(1000);

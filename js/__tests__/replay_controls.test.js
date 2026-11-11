@@ -5,10 +5,14 @@ const path = require('path');
 const source = fs
   .readFileSync(path.join(__dirname, '../matrix/replay_controls.js'), 'utf8')
   .replace(/^export const /gm, 'const ');
-const { get_replay_controls, validate_replay_controls, restore_annotations } =
-  new Function(
-    `${source}; return { get_replay_controls, validate_replay_controls, restore_annotations };`
-  )();
+const {
+  get_replay_controls,
+  validate_replay_controls,
+  restore_annotations,
+  annotations_to_restore,
+} = new Function(
+  `${source}; return { get_replay_controls, validate_replay_controls, restore_annotations, annotations_to_restore };`
+)();
 const fixture = () => {
   const names = Array.from({ length: 150 }, (_, i) => `g${i}`);
   const store = () => ({
@@ -75,4 +79,36 @@ test('invalid cuts, selection names and annotations fail before changing state',
   ])
     expect(() => validate_replay_controls(state, changes)).toThrow();
   expect(get_replay_controls(state)).toEqual(before);
+});
+
+test('a saved-view restore never discards annotations made since the capture', () => {
+  const state = fixture();
+  const review = {
+    attribute: 'review',
+    values: { g1: 'marker' },
+    colors: { marker: '#aa1122' },
+  };
+  // A fresh view: the saved annotations apply, and empty axes stay empty.
+  expect(annotations_to_restore(state, { row: review, col: null })).toEqual({
+    annotations: { row: review },
+    kept: [],
+  });
+  // Labels added after the capture are kept, not replaced or cleared.
+  restore_annotations(state, {
+    row: {
+      attribute: 'review',
+      values: { g1: 'marker', g2: 'new label' },
+      colors: {},
+    },
+    col: { attribute: 'cell_type', values: { C: 'other' }, colors: {} },
+  });
+  expect(annotations_to_restore(state, { row: review, col: null })).toEqual({
+    annotations: {},
+    kept: ['row'],
+  });
+  // Matching annotations restore as-is (e.g. to bring back their colors).
+  restore_annotations(state, { row: review });
+  expect(annotations_to_restore(state, { row: review }).annotations).toEqual({
+    row: review,
+  });
 });

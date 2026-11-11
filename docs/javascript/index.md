@@ -39,13 +39,15 @@ For a saved clustered Matrix, use `clustergram(element, {url})`.
 | --- | --- |
 | `landscape(element, options)` | Spatial tissue and low dimensional embedding landscapes |
 | `clustergram(element, options)` | Heatmap or dot plot from a network, DegaFiles, or a saved Matrix Zarr |
+| `from_png(element, file, options)` | Reopen an exported PNG as an interactive visualization using its saved source and state |
+| `read_png(file)` / `screenshot_png(snapshot)` | Read embedded PNG metadata / export a saved view as a PNG |
 | `link_models(source, key, target, key)` | Link selections between visualizations |
 | `anndata_zarr_source(url, options)` | Cell-level Zarr metadata and per-gene expression reader |
 | `network_from_zarr(url)` | Restore a saved Matrix's browser visualization network |
 
 Each Landscape and Clustergram these return can also be read and driven from code:
 `get_state()` reports what it shows, `apply_state()` changes it, and `capture_raster()`
-takes a screenshot. See the [Viz API](viz-api.md), which web apps and AI agents can use
+captures its image. See the [Viz API](viz-api.md), which web apps and AI agents can use
 to inspect a view, show evidence, and keep a reproducible picture of it.
 
 See the [API reference](api.md#visualizations-without-python-landscape-clustergram-and-link_models)
@@ -63,3 +65,9 @@ renderers remain available for custom integrations.
 
 See [File Formats](../getting-started/file_formats.md) for the layouts, and
 the [Gallery](../gallery/index.md) for live examples.
+
+## Development
+
+To add controls or embed Celldega in an application, see
+[State management](development/state-management.md): where a visualization's state
+lives, how the observable store works, and how a change becomes a deck.gl redraw.

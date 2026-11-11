@@ -30,12 +30,13 @@ Recommended acceptance gates before expanding the POC:
   is also independent. `docs/clerk/hosting.md` maps the same boundary onto the inspected
   celldega-app renderer, scoped window registry and Python worker.
 
-Implemented in this follow-up: a `celldega.view` v1 snapshot envelope, same-task
-image/state capture, SHA-256 loaded-data identity, strict restore compatibility checks,
-explicit coverage for streamed Landscape assets, a local dataset revision helper,
-manual/Clerk capture through the same API, and fresh-instance JS browser checks.
-Remote dataset revisions are producer declarations; the browser does not crawl an
-entire remote store. Remaining replay coverage is documented in the Viz API.
+Implemented in this follow-up: a `celldega.view` v2 saved-view envelope, same-task
+image/state capture, name-based data identity (cell, gene and cluster-label names, or a
+Clustergram's row and column names) with an optional producer-declared
+`data_revision`, restore compatibility checks, a local dataset revision helper,
+manual/Clerk capture through the same API, screenshots as PNGs with the saved view
+embedded (reopened with `from_png`), and fresh-instance JS browser checks. Remaining
+replay coverage is documented in the Viz API.
 
 Batch annotation, Make-tier execution, report chapters, video and MCP can remain
 follow-on work until these gates hold. Supporting another model backend does not

@@ -350,13 +350,25 @@ class _RasterCapture(traitlets.HasTraits):
     latest_snapshot = traitlets.Dict(default_value={})
     snapshot_error = traitlets.Unicode("")
     snapshot_capture_id = traitlets.Int(0)
-    # A producer-supplied immutable revision of remote dataset assets.
+    # Optional, producer-declared immutable revision of the data (a release tag, a
+    # commit hash, or dega.viz.fingerprint_dataset(...)). Saved views record it, and
+    # restoring compares it when both the view and the widget declare one.
     data_revision = traitlets.Unicode("").tag(sync=True)
 
     def request_snapshot(
-        self, *, max_size=1024, thumb_size=192, description=None, author=None, **state_options
+        self,
+        *,
+        max_size=1024,
+        thumb_size=192,
+        description=None,
+        author=None,
+        background: str | None = "white",
+        **state_options,
     ) -> int:
         """Capture image, observed state, replay settings and identity in one browser task.
+
+        ``background`` is a CSS color behind the image where the visualization draws
+        nothing (white by default); ``None`` keeps the canvas's transparency.
 
         The asynchronous reply sets ``latest_snapshot`` and ``snapshot_capture_id``.
         These traits are never synced or embedded in notebook widget state.
@@ -368,6 +380,8 @@ class _RasterCapture(traitlets.HasTraits):
         }
         if any(not isinstance(value, str) for value in metadata.values()):
             raise ValueError("description and author must be strings")
+        if background is not None and not isinstance(background, str):
+            raise ValueError("background must be a CSS color string or None")
         self._snapshot_request_id += 1
         self.send(
             {
@@ -376,6 +390,7 @@ class _RasterCapture(traitlets.HasTraits):
                 "options": {
                     "max_size": int(max_size),
                     "thumb_size": int(thumb_size),
+                    "background": background,
                     "state": state_options,
                     **metadata,
                 },
@@ -470,8 +485,8 @@ class _RasterCapture(traitlets.HasTraits):
         self.raster_capture_id = reply_id
 
 
-class _StateSnapshots(traitlets.HasTraits):
-    """Mixin: request bounded observations and acknowledge browser state changes.
+class _StateGetter(traitlets.HasTraits):
+    """Mixin: request bounded observations of what a widget shows (the getter).
 
     The widget's front end answers a ``{"event": "get_state", "id", "options"}``
     message with ``{"event": "state", "id", "state"}`` (or ``"state_error"``). The
@@ -486,8 +501,50 @@ class _StateSnapshots(traitlets.HasTraits):
     # Id of the latest request the browser answered (successfully or not). Set last,
     # so observers of this trait see the finished snapshot.
     state_capture_id = traitlets.Int(0)
+
+    def _listen_for_state(self) -> None:
+        self._state_request_id = 0
+        self.on_msg(self._on_state_msg)
+
+    def _send_state_request(self, options: dict) -> int:
+        self._state_request_id += 1
+        self.send({"event": "get_state", "id": self._state_request_id, "options": options})
+        return self._state_request_id
+
+    def _on_state_msg(self, _widget, content, _buffers) -> None:
+        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
+            return
+        reply_id = content.get("id")
+        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
+        if reply_id < self.state_capture_id:
+            return  # stale reply (e.g. a second view answering an older request)
+        if content["event"] == "state_error":
+            self.state_error = str(content.get("error") or "State snapshot failed")
+        else:
+            self.state_error = ""
+            self.latest_state = dict(content.get("state") or {})
+        self.state_capture_id = reply_id
+
+
+class _StateSnapshots(_StateGetter):
+    """Mixin: the getter plus setters and saved-view restores, with acknowledgements.
+
+    For widgets whose front end applies ``apply_state`` and ``restore_snapshot``
+    (Landscape, Clustergram and the spatial clouds); subclasses define
+    ``apply_state``.
+
+    Python can't wait for the browser inside the cell that sent a request: the
+    kernel handles the browser's reply only after the cell finishes. Check
+    :meth:`get_apply_result` (or observe ``apply_capture_id``) from a later cell;
+    :meth:`wait_for_apply` and :meth:`apply_state_async` are for code running
+    outside a cell, such as a background task or an application.
+    """
+
     apply_error = traitlets.Unicode("")
     apply_capture_id = traitlets.Int(0)
+    # from_png constructs a widget before it has a browser view. A synced
+    # one-shot request survives that gap; the renderer consumes and clears it.
+    _initial_snapshot = traitlets.Dict(default_value={}).tag(sync=True)
 
     @property
     def apply_request_id(self) -> int:
@@ -495,11 +552,19 @@ class _StateSnapshots(traitlets.HasTraits):
         return self._apply_request_id
 
     def get_apply_result(self, request_id: int) -> dict | None:
-        """Return this request's acknowledgement, never a newer request's result."""
+        """This request's acknowledgement (``None`` while pending), never a newer one's.
+
+        In a notebook, call it from a cell after the one that made the request.
+        """
         return deepcopy(self._apply_replies.get(request_id))
 
     async def wait_for_apply(self, request_id: int, *, timeout: float = 10) -> list[str]:
         """Await an exact browser acknowledgement; timeout does not cancel browser work.
+
+        Not from the notebook cell that made the request: the reply can't arrive
+        until that cell finishes, so the wait would time out. Use it from a
+        background task (``asyncio.ensure_future``) or an application; in a
+        notebook, check :meth:`get_apply_result` in a later cell instead.
 
         Browser failures may leave partial changes. A timed-out call raises rather
         than claiming success; recapture the view before using it as evidence.
@@ -517,31 +582,47 @@ class _StateSnapshots(traitlets.HasTraits):
                     raise ValueError(reply.get("error") or "apply_state failed")
                 return list(reply.get("done") or [])
             if loop.time() >= deadline:
-                raise TimeoutError(f"No browser acknowledgement for request {request_id}")
+                raise TimeoutError(
+                    f"No browser acknowledgement for request {request_id} within "
+                    f"{timeout:g} s. Awaited in the notebook cell that sent it? The "
+                    "reply arrives only after the cell finishes: check "
+                    f"get_apply_result({request_id}) in a later cell."
+                )
             await asyncio.sleep(min(0.01, max(0, deadline - loop.time())))
 
     async def apply_state_async(self, changes: dict, *, timeout: float = 10) -> list[str]:
-        """Submit settings and return only after the browser confirms completion."""
+        """Submit settings and return after the browser confirms completion.
+
+        Like :meth:`wait_for_apply`, not from the notebook cell that sends them.
+        """
         if not isinstance(timeout, int | float) or not np.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be positive and finite")
         self.apply_state(changes)
         return await self.wait_for_apply(self.apply_request_id, timeout=timeout)
 
     def restore_snapshot(
-        self, snapshot: dict, *, allow_unverified=False, allow_resize=False
+        self,
+        snapshot: dict,
+        *,
+        allow_resize: bool = False,
+        allow_unverified: bool | None = None,  # accepted for earlier callers; not needed
     ) -> int:
-        """Validate a saved view's schema, data and canvas, then restore in the browser.
+        """Restore a saved view's supported settings, after the browser checks it fits.
 
-        Returns a request id. Observe ``apply_capture_id`` / ``apply_error`` for
-        completion. No traits change before browser compatibility checks pass.
-        Remote assets need a content-based ``data_revision``; ``allow_unverified``
-        explicitly opts into checking only loaded data. Fingerprint mismatches
-        are always rejected.
+        The browser compares the saved view's data identity (cell, gene and
+        cluster-label names, or a Clustergram's row and column names, plus a declared
+        ``data_revision``) and canvas size with what it shows, and changes nothing if
+        either differs. ``allow_resize=True`` accepts a different canvas size.
+        ``allow_unverified`` is accepted for earlier callers and ignored: saved views
+        no longer need it.
+
+        Returns a request id: check :meth:`get_apply_result` in a later cell, or
+        observe ``apply_capture_id`` / ``apply_error``.
         """
         from .snapshots import validate_snapshot
 
-        if not isinstance(allow_unverified, bool) or not isinstance(allow_resize, bool):
-            raise ValueError("Restore overrides must be booleans")
+        if not isinstance(allow_resize, bool):
+            raise ValueError("allow_resize must be a boolean")
         validate_snapshot(snapshot)
         self._apply_request_id += 1
         self.send(
@@ -549,20 +630,43 @@ class _StateSnapshots(traitlets.HasTraits):
                 "event": "restore_snapshot",
                 "id": self._apply_request_id,
                 "snapshot": deepcopy(snapshot),
-                "options": {
-                    "allow_unverified": bool(allow_unverified),
-                    "allow_resize": bool(allow_resize),
-                },
+                "options": {"allow_resize": allow_resize},
             }
         )
         return self._apply_request_id
 
+    def restore_png(self, path: str | Path, *, panel: int = 0, allow_resize: bool = False) -> int:
+        """Restore a PNG's saved panel into this already displayed visualization.
+
+        Use ``dega.viz.from_png`` to construct a fresh widget instead. Returns an
+        acknowledgement request id, as :meth:`restore_snapshot` does.
+        """
+        from .reopen import _png_panel
+
+        _saved, snapshot = _png_panel(path, panel)
+        return self.restore_snapshot(snapshot, allow_resize=allow_resize)
+
+    def _queue_initial_snapshot(self, snapshot: dict, *, allow_resize: bool = False) -> int:
+        """Queue from_png's one-shot restore for the first browser render."""
+        from .snapshots import validate_snapshot
+
+        validate_snapshot(snapshot)
+        if not isinstance(allow_resize, bool):
+            raise ValueError("allow_resize must be a boolean")
+        self._apply_request_id += 1
+        self._initial_snapshot = {
+            "event": "restore_snapshot",
+            "id": self._apply_request_id,
+            "snapshot": deepcopy(snapshot),
+            "options": {"allow_resize": allow_resize},
+        }
+        return self._apply_request_id
+
     def _listen_for_state(self) -> None:
-        self._state_request_id = 0
+        super()._listen_for_state()
         self._apply_request_id = 0
         self._apply_replies = {}
         self._latest_apply_id = 0
-        self.on_msg(self._on_state_msg)
         self.on_msg(self._on_apply_msg)
 
     def _send_apply_request(self, changes: dict) -> int:
@@ -587,25 +691,6 @@ class _StateSnapshots(traitlets.HasTraits):
                 else ""
             )
         self.apply_capture_id = reply_id
-
-    def _send_state_request(self, options: dict) -> int:
-        self._state_request_id += 1
-        self.send({"event": "get_state", "id": self._state_request_id, "options": options})
-        return self._state_request_id
-
-    def _on_state_msg(self, _widget, content, _buffers) -> None:
-        if not isinstance(content, dict) or content.get("event") not in ("state", "state_error"):
-            return
-        reply_id = content.get("id")
-        reply_id = reply_id if isinstance(reply_id, int) else self.state_capture_id
-        if reply_id < self.state_capture_id:
-            return  # stale reply (e.g. a second view answering an older request)
-        if content["event"] == "state_error":
-            self.state_error = str(content.get("error") or "State snapshot failed")
-        else:
-            self.state_error = ""
-            self.latest_state = dict(content.get("state") or {})
-        self.state_capture_id = reply_id
 
 
 class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
@@ -848,9 +933,11 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     def apply_state(self, changes: dict) -> list[str]:
         """Change what the Landscape shows, as its controls would.
 
-        Input structure is validated before submission. Availability checks run in
-        the browser; observe ``apply_capture_id`` and ``apply_error`` for completion.
-        Runtime failures may leave partial changes.
+        Input structure is validated here, so mistakes raise in the calling cell.
+        Availability (names, layers, views) is checked in the browser, which then
+        applies the changes; check :meth:`get_apply_result` with
+        :attr:`apply_request_id` in a later cell, or observe ``apply_capture_id`` and
+        ``apply_error``. Runtime failures may leave partial changes.
 
         Args:
             changes: Any of:
@@ -859,18 +946,22 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                   clears the selection), like clicking cluster bars.
                 - ``genes``: genes to color cells by (up to 20; ``[]`` returns to
                   cluster colors), like the comma-separated gene search.
-                - ``view``: ``{"target": [x, y], "zoom": z}`` camera position.
+                - ``view``: ``{"target": [x, y], "zoom": z}`` camera position (orbit
+                  views also take ``rotationOrbit`` and ``rotationX``).
                 - ``zoom_to``: ``{"clusters": [...]}`` or ``{"cells": [...]}`` to frame
                   those cells (spatial view).
                 - ``reset_view``: ``True`` to return to the starting view.
                 - ``space``: ``"spatial"``, ``"umap"`` or ``"xy"``.
+                - ``selected_cells``: cell names to select (``[]`` clears them).
+                - ``xy``: ``{"genes": [x_gene, y_gene], "scale": "linear" | "log1p"}``
+                  for the XY expression view (up to two genes).
                 - ``layers``: booleans for image, cells, transcripts, neighborhoods.
                 - ``channels``: ``{name: {"visible": bool, "intensity": 0..100}}``.
                 - ``sliders``: cell/nbhd values and ``trx: {"size": ..., "opacity": ...}``.
                 - ``image_source``: ``"primary"`` or ``"he"`` (when available).
 
         Returns:
-            list[str]: Submission descriptions; use apply_state_async for completion.
+            list[str]: What was submitted; not confirmation that the browser applied it.
 
         Raises:
             ValueError: For an unknown key or an invalid value (nothing changes).
@@ -1549,7 +1640,7 @@ class ManualAttributeTrait(traitlets.Unicode):
         return super().validate(obj, str(value).strip())
 
 
-class Enrich(_StateSnapshots, CelldegaWidget):
+class Enrich(_StateGetter, CelldegaWidget):
     """
     A widget for interactive enrichment analysis using the Enrichr API.
 
@@ -3126,9 +3217,9 @@ class Clerk(CelldegaWidget):
             if not snapshot:
                 continue
             try:
-                # Same-session undo: remote bytes aren't re-downloaded, but the
-                # loaded-data fingerprint must still match (e.g. after dataset switch).
-                rid = widget.restore_snapshot(snapshot, allow_unverified=True)
+                # Same-session undo: the restore still checks the saved view matches
+                # the loaded data (e.g. after a dataset switch).
+                rid = widget.restore_snapshot(snapshot)
                 answered = self._request_and_wait(
                     [(widget, "apply_capture_id", lambda rid=rid: rid)]
                 )[0]
@@ -3488,6 +3579,8 @@ def _validate_landscape_controls(key: str, value: dict) -> None:
                     not isinstance(setting, dict)
                     or set(setting) - {"size", "opacity", "value"}
                     or any(
+                        # The size limit depends on the dataset's transcript scale,
+                        # which only the browser knows; it checks that bound.
                         not bounded(
                             v, 150 if k == "opacity" else float("inf") if k == "size" else 100
                         )
@@ -3534,8 +3627,10 @@ def _clustergram_reproduction(state: dict | None) -> dict:
         out["size"] = display["size"]
     if "focused_row" in display:
         out["focus_gene"] = display["focused_row"] or ""
+    # Observations list named orders and small crops only (see request_state); the
+    # complete settings are in a saved view's ``state``.
     for key in ("view", "order", "crop"):
-        if state.get(key) is not None:
+        if state.get(key):
             out[key] = deepcopy(state[key])
     return out
 
@@ -4128,6 +4223,9 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         groups at the current cut, row/column attributes for the chosen items, the
         selection (clicked label, selected genes, dendrogram group, Enrich term
         genes, crop), and the values (and dot sizes) for the chosen rows x columns.
+        Everything is bounded: an explicit (custom or attribute) order is labeled
+        rather than listed, and a crop of more than 100 names is counted. Complete
+        replay settings come with a saved view (:meth:`request_snapshot`).
 
         Capture is asynchronous: the reply sets :attr:`latest_state`, or
         :attr:`state_error` on failure. ``observe`` :attr:`latest_state` or read it
@@ -4164,7 +4262,7 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             if not spec:
                 return None
             if not isinstance(spec, dict):
-                raise ValueError("markers must be a dict like {'clusters': ['4'], 'n': 25}")
+                raise ValueError("markers must be a dict like {'clusters': ['<cluster>'], 'n': 25}")
             clusters = spec.get("clusters")
             return {
                 "clusters": None if clusters is None else [str(c) for c in clusters],
@@ -4184,8 +4282,7 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             }
         )
 
-    #: Keys :meth:`apply_state` understands (the setter half of the Clustergram's API;
-    #: more controls -- order, dendrogram cut, crop, selection, zoom -- will follow).
+    #: Keys :meth:`apply_state` understands (the setter half of the Clustergram's API).
     APPLY_STATE_KEYS = (
         "marker_level",
         "mode",
@@ -4203,9 +4300,11 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     def apply_state(self, changes: dict) -> list[str]:
         """Change what the Clustergram shows, as its controls would.
 
-        Input structure is validated before submission. Navigation availability is
-        checked in the browser; observe ``apply_capture_id`` and ``apply_error`` for
-        completion of every setter request. Runtime failures may leave partial changes.
+        Input structure is validated here, so mistakes raise in the calling cell.
+        Availability (names, orders, controls) is checked in the browser, which then
+        applies the changes; check :meth:`get_apply_result` with
+        :attr:`apply_request_id` in a later cell, or observe ``apply_capture_id`` and
+        ``apply_error``. Runtime failures may leave partial changes.
 
         Args:
             changes: Any of:
@@ -4218,15 +4317,25 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 - ``focus_gene``: a row name to zoom to and bold, like the search
                   box; ``""`` clears it.
                 - ``categories``: manual categories, as for :meth:`set_categories`:
-                  ``{"values": {"4": "Goblet cells"}, "axis": "col", "attribute":
-                  "cell_type", "colors": {...}, "replace": False}``.
+                  ``{"values": {"<name>": "<category>"}, "axis": "col", "attribute":
+                  "cell_type", "colors": {...}, "replace": False}``. Only the names
+                  given change.
+                - ``annotations``: ``{"row": spec, "col": spec}`` replacing each
+                  given axis's manual annotations, where spec is ``{"attribute",
+                  "values", "colors"}`` or ``None`` (clears the axis). Not with
+                  ``categories``.
+                - ``dendrogram``: ``{"row": 35, "col": 65}`` cut percentages (0-100).
+                - ``selection``: any of ``rows``, ``cols``, ``genes``,
+                  ``highlighted_genes`` (lists of names) and ``dendrogram``
+                  (``{"axis", "members"}``, a group that exists at the current cut).
                 - ``view``: ``{"target": [x, y], "zoom": [x_zoom, y_zoom]}``.
                 - ``crop``: ``{"row": [...names], "col": None}``; None clears an axis.
-                - ``order``: per-axis named order or every axis name in display order.
+                - ``order``: per axis, a named order (``"clust"``, ``"rank"``,
+                  ``"rankvar"``, ``"ini"``, ``"alpha"``) or every name in display order.
 
         Returns:
-            list[str]: A short description of each change, e.g. ``"DIM -> 10 markers
-            per cluster"``.
+            list[str]: What was submitted, e.g. ``"DIM -> 10 markers per cluster"``;
+            not confirmation that the browser applied it.
 
         Raises:
             ValueError: For an unknown key or an invalid value (nothing changes).
@@ -4275,7 +4384,7 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         if categories is not None:
             if not isinstance(categories, dict) or not isinstance(categories.get("values"), dict):
                 raise ValueError(
-                    "categories must be like {'values': {'4': 'Goblet cells'}, 'axis': 'col'}"
+                    "categories must be like {'values': {'<name>': '<category>'}, 'axis': 'col'}"
                 )
             category_kwargs = {
                 key: categories[key]

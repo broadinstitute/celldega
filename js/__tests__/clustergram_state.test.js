@@ -30,7 +30,7 @@ const load_clustergram_state = (display) => {
   new Function(
     'module',
     'display',
-    `${shims}\n${replay}\n${source}\nmodule.exports = { get_clustergram_state, get_clustergram_replay_state, visible_world_bounds, apply_clustergram_state };`
+    `${shims}\n${replay}\n${source}\nmodule.exports = { get_clustergram_state, get_clustergram_controls, get_clustergram_replay_state, visible_world_bounds, apply_clustergram_state };`
   )(module, display);
   return module.exports;
 };
@@ -356,8 +356,11 @@ describe('apply_clustergram_state', () => {
 });
 
 test('navigation snapshots round-trip independently of the capped evidence window', () => {
-  const { get_clustergram_state, apply_clustergram_state } =
-    load_clustergram_state(DISPLAY);
+  const {
+    get_clustergram_state,
+    get_clustergram_controls,
+    apply_clustergram_state,
+  } = load_clustergram_state(DISPLAY);
   const state = make_viz_state();
   state.mat.orders = {
     row: { clust: [3, 4, 2, 1], rank: [1, 2, 3, 4] },
@@ -390,10 +393,8 @@ test('navigation snapshots round-trip independently of the capped evidence windo
     },
   };
   const model = { set: jest.fn(), save_changes: jest.fn() };
-  const controls = () => {
-    const s = get_clustergram_state(state, { max_rows: 1, max_cols: 1 });
-    return { order: s.order, crop: s.crop, view: s.view };
-  };
+  // Complete controls, whatever the observation caps.
+  const controls = () => get_clustergram_controls(state);
   const saved = controls();
   apply_clustergram_state(model, state, {
     order: { row: ['g3', 'g2', 'g1', 'g0'] },
@@ -402,6 +403,12 @@ test('navigation snapshots round-trip independently of the capped evidence windo
   });
   const custom = controls();
   expect(custom.order.row).toEqual(['g3', 'g2', 'g1', 'g0']);
+  // Observations stay bounded: an explicit order is labeled, not listed.
+  const observed = get_clustergram_state(state, { max_rows: 1, max_cols: 1 });
+  expect(observed.order).toEqual({ col: 'rank' });
+  expect(observed.rows.order.name).toBe('custom');
+  expect(observed.crop).toEqual({ row: null, col: null });
+  expect(observed.view).toEqual(custom.view);
   apply_clustergram_state(model, state, saved);
   expect(controls()).toEqual(saved);
   apply_clustergram_state(model, state, custom);

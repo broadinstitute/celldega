@@ -161,30 +161,34 @@ as an image. The same keys work in Python (`widget.request_state()`,
 The goal is to **preserve an interactive observation as reproducible visual evidence**.
 A screenshot is the image export; its saved-view record preserves the scientific
 context and supported replay settings.
-Celldega saves each screenshot as three files side by side:
+Celldega saves a PNG and a human-readable Markdown companion:
 
-- `<name>.png`: the image, with the record below embedded in the file;
-- `<name>.json`: your description, who made it and when, the Celldega version, each
-  widget's supported replay settings (`state`), its returned snapshot (`observed_state`), what was in view
-  (cell counts per cluster, top genes), and the data it came from (dataset name, base
-  URL or AnnData Zarr URL, AnnData shape, the Matrix's source);
-- `<name>.md`: the description, the image, and code to replay supported settings.
+- `<name>.png`: the image, with your description, who made it and when, the Celldega version, each
+  widget's saved view (`snapshot`, with its replay settings in `snapshot.state`), its
+  observed state (`observed_state`), what was in view (cell counts per cluster, top
+  genes), and the data it came from (dataset name, base URL or AnnData Zarr URL,
+  AnnData shape, the Matrix's source) embedded in its metadata;
+- `<name>.md`: the description, the image, provenance and code to reopen the view.
 
-New records also contain a versioned `snapshot` envelope with a data fingerprint.
-Image and state are captured together. `widget.restore_snapshot(...)` checks the
-schema, data identity and canvas before changing the view; see
-[portable saved views](../javascript/saved-views.md) for reopening exports and
-identifying remote datasets.
+The PNG alone carries the saved view; the Markdown companion is for readers and is
+not needed for replay.
+
+The saved view records what data it shows (cell, gene and cluster names, or a
+Clustergram's row and column names). Image and state are captured together.
+`widget.restore_snapshot(...)` checks the schema, data identity and canvas size
+before changing the view; see [portable saved views](../javascript/saved-views.md)
+for reopening exports and declaring an exact data revision.
 
 Records are marked `restoration: "partial"`. They preserve the image and provenance,
-but do not yet restore every control or load the data into a fresh widget. See
+and `from_png` can load a recorded source into a fresh widget, but not every control
+is restored. See
 [replay coverage and limitations](../javascript/viz-api.md#replaying-supported-settings).
 
 Save one from a widget's control panel with **PIC**: it captures the view, then asks
 for a title and a description of what you're looking at and why it's interesting. Or
 from Python, on a Landscape, Clustergram, CellCloud or NeighborhoodCloud. In a web
-page without a notebook kernel, PIC downloads a saved-view JSON containing the PNG,
-replay state and description:
+page without a notebook kernel, PIC downloads a PNG with the replay state and
+description embedded:
 
 ```python
 landscape.screenshot(
@@ -198,16 +202,43 @@ dega.viz.screenshot(linked, description="...", path="figures/fig2.png")
 The image arrives from the browser after the cell finishes, so the call's output shows
 "Capturing…" and then a preview with the saved path. Without a path, screenshots go to
 `celldega_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
-kept out of version control or shared as a collection of evidence.
+kept out of version control or shared as a collection of evidence. Areas the
+visualization leaves empty are white, so the image looks the same in light and dark
+viewers; pass `background="black"` (any CSS color) or `background=None` for
+transparency.
+
+The PNG records links, not data: a widget's `base_url` or `zarr_url`, and a Matrix's
+Zarr source when it was opened with `Matrix.read_zarr`, plus constructor options. An
+object passed in memory, such as `adata=adata` or a Matrix built in the notebook, has
+no path to record (`read_h5ad` keeps none). The PNG stores its shape and marks it as
+needed again when reopening. The whole record is typically a few KB.
 
 Record what Python can't see, such as the AnnData file a widget was made from, once per
-widget; it's added to every screenshot of it, including PIC ones:
+widget; it's added to every screenshot of it, including PIC ones. This is a note for
+readers: reopening still needs the object passed back.
 
 ```python
 landscape.screenshot_metadata = {"adata": "data/kidney.h5ad", "notebook": "review.ipynb"}
 ```
 
-Read screenshots back with `dega.viz.load_screenshot(path)` (from the `.json`, or the
-PNG alone) and `dega.viz.load_screenshots(folder)`. A folder of screenshots works as a
-scrapbook of what you found along the way, and [Clerk AI](../clerk/index.md) can read it as
-a briefing or add its own.
+Reopen the image as an interactive visualization:
+
+```python
+view = dega.viz.from_png("figures/fig2a.png")
+display(view)
+# In a later cell: None while pending, else applied/apply_error.
+view.get_apply_result(view.apply_request_id)
+```
+
+The original data must still be available. Supply `matrix=mat` or `adata=adata`
+when the original view used an in-memory object; constructor options can point to
+a relocated source. For a composite screenshot, `panel=1` opens the second widget.
+Use `widget.restore_png(path)` to restore into a widget that already has its data.
+See [portable saved views](../javascript/saved-views.md#reopen-a-png-as-an-interactive-visualization)
+for browser usage, validation and restoration limits.
+
+Inspect the embedded record with `dega.viz.load_screenshot(path)` and discover a
+folder's PNG records with `dega.viz.load_screenshots(folder)`. A folder of screenshots
+works as a scrapbook of what you found along the way, reusable by people and
+application agents: [Clerk AI](../clerk/index.md) can read it as a briefing or add
+its own.

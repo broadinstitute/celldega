@@ -143,6 +143,30 @@ export const validate_replay_controls = (state, changes) => {
   }
 };
 
+const same_annotations = (store, spec) =>
+  store.attribute === spec.attribute &&
+  JSON.stringify(Object.fromEntries([...store.values].sort())) ===
+    JSON.stringify(Object.fromEntries(Object.entries(spec.values).sort()));
+
+/**
+ * The annotations a saved-view restore may apply without discarding work: an axis
+ * is restored only when it has no assignments now (or already matches). Axes the
+ * view saved as empty are left alone, never cleared.
+ * @returns {{annotations: object, kept: string[]}} What to restore, and the axes
+ *   whose current, different annotations were kept.
+ */
+export const annotations_to_restore = (state, annotations) => {
+  const restore = {};
+  const kept = [];
+  for (const [axis, spec] of Object.entries(annotations || {})) {
+    if (!spec) continue;
+    const store = state.obs_store?.manual_cat?.[axis];
+    if (store?.values?.size && !same_annotations(store, spec)) kept.push(axis);
+    else restore[axis] = spec;
+  }
+  return { annotations: restore, kept };
+};
+
 export const restore_annotations = (state, annotations) => {
   for (const [axis, spec] of Object.entries(annotations)) {
     const store = state.obs_store.manual_cat[axis];

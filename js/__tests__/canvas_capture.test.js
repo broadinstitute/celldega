@@ -24,10 +24,15 @@ describe('canvas_capture', () => {
 
   beforeEach(() => {
     drawn = [];
-    // jsdom has no 2D canvas: record draws and fake the PNG encoding by size.
+    // jsdom has no 2D canvas: record fills and draws, and fake the PNG encoding
+    // by size.
     jest
       .spyOn(HTMLCanvasElement.prototype, 'getContext')
       .mockImplementation(() => ({
+        fillStyle: '',
+        fillRect(x, y, w, h) {
+          drawn.push({ fill: this.fillStyle, w, h });
+        },
         drawImage: (source, x, y, w, h) => drawn.push({ source, w, h }),
       }));
     jest
@@ -85,6 +90,23 @@ describe('canvas_capture', () => {
     });
     // The WebGL canvas is read once; the thumbnail comes from the 2D copy.
     expect(drawn.filter((d) => d.source === canvas)).toHaveLength(1);
+  });
+
+  test('captures sit on white by default; background: null keeps transparency', () => {
+    const canvas = make_canvas(400, 200);
+    const deck = { getCanvas: () => canvas };
+    capture_deck(deck, null, { max_size: 400 });
+    // White fills the copy before the WebGL canvas is drawn over it.
+    expect(drawn[0]).toEqual({ fill: 'white', w: 400, h: 200 });
+    expect(drawn[1].source).toBe(canvas);
+
+    drawn = [];
+    capture_deck(deck, null, { max_size: 400, background: '#000' });
+    expect(drawn[0].fill).toBe('#000');
+
+    drawn = [];
+    capture_deck(deck, null, { max_size: 400, background: null });
+    expect(drawn.some((d) => 'fill' in d)).toBe(false);
   });
 
   test('capture_deck falls back to the root canvas and handles no canvas', () => {

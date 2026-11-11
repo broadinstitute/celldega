@@ -1,7 +1,10 @@
 """Transport-independent saved-view validation and local dataset fingerprints.
 
-The browser computes/compares the fingerprint of the data it actually renders.
-These helpers are also usable by celldega-app without a notebook or widget.
+A saved view identifies its data by name: the browser records counts and fast hashes
+of the loaded cell, gene and cluster-label names (or a Clustergram's row and column
+names) and compares them on restore. A producer can also declare an immutable
+``data_revision`` (for example from :func:`fingerprint_dataset`) for exact content
+identity. These helpers are also usable by celldega-app without a notebook or widget.
 """
 
 from __future__ import annotations
@@ -13,7 +16,8 @@ from pathlib import Path
 
 
 SCHEMA = "celldega.view"
-VERSION = 1
+# 2: name-based data identity and canvas size in CSS pixels (1 hashed all loaded data).
+VERSION = 2
 
 
 def restore_spec(snapshot: dict) -> dict:
@@ -42,36 +46,35 @@ def restore_spec(snapshot: dict) -> dict:
 
 
 def validate_snapshot(snapshot: dict) -> None:
-    if (
-        not isinstance(snapshot, dict)
-        or snapshot.get("schema") != SCHEMA
-        or snapshot.get("version") != VERSION
-    ):
-        raise ValueError("Unsupported saved-view schema/version")
+    """Check a saved view's envelope before sending it to the browser.
+
+    The browser checks the data identity and canvas size against what it shows.
+    """
+    if not isinstance(snapshot, dict) or snapshot.get("schema") != SCHEMA:
+        raise ValueError("Not a Celldega saved view (unsupported schema/version)")
+    if snapshot.get("version") != VERSION:
+        raise ValueError(
+            f"Unsupported saved-view schema/version {snapshot.get('version')!r}; this "
+            f"Celldega reads version {VERSION}. Recapture the view."
+        )
     if snapshot.get("kind") not in ("landscape", "clustergram"):
         raise ValueError("Unsupported saved-view kind")
     if not isinstance(snapshot.get("state"), dict):
         raise ValueError("Saved view has no replay settings")
-    identity = snapshot.get("identity") or {}
-    if not isinstance(identity, dict):
-        raise ValueError("Saved view has no valid SHA-256 data identity")
-    digest = identity.get("digest", "")
-    if (
-        identity.get("algorithm") != "sha256"
-        or not isinstance(digest, str)
-        or len(digest) != 64
-        or any(c not in "0123456789abcdef" for c in digest)
-    ):
-        raise ValueError("Saved view has no valid SHA-256 data identity")
+    identity = snapshot.get("identity")
+    if not isinstance(identity, dict) or not identity:
+        raise ValueError("Saved view has no data identity")
 
 
 def fingerprint_dataset(path: str | Path) -> str:
     """Hash all file contents and relative names in a local dataset (or one file).
 
-    This can be expensive for large stores; call when publishing/loading an immutable
-    dataset, pass the result as ``Landscape(data_revision=...)``, and regenerate it
-    after modifying the data. The browser trusts that revision for remote assets it
-    has not downloaded. Keep exports outside this directory. Symlinks are rejected.
+    Use it to declare an exact content revision: compute it when publishing an
+    immutable dataset, pass the result as ``Landscape(data_revision=...)`` (or
+    ``Clustergram``), and regenerate it after modifying the data. Any immutable
+    identifier works as a revision (a release tag or commit hash, say); this is one
+    way to make one. It can be slow for large stores. Keep exports outside this
+    directory. Symlinks are rejected.
     """
     root = Path(path)
     if not root.exists():

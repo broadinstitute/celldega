@@ -140,6 +140,7 @@ import {
   wait_for_operation,
   create_snapshot_api,
   landscape_identity,
+  landscape_source,
 } from './snapshot';
 
 // Row group reading support
@@ -925,13 +926,14 @@ export const landscape_ist = async (
         // set cell layer to not visible
         new_toggle_cell_layer_visibility(viz_state.layers_obj, false);
 
-        // set gene/cat bars to disabled color
-        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 0.2);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 0.2);
-        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 1.0);
+        // set gene/cat bars to disabled color (gene-less datasets, such as some
+        // point clouds, have no gene bars)
+        viz_state.genes.svg_bar_gene?.selectAll('rect').style('opacity', 0.2);
+        viz_state.cats.svg_bar_cluster?.selectAll('rect').style('opacity', 0.2);
+        viz_state.nbhd.svg_bar_nbhd?.selectAll('rect').style('opacity', 1.0);
 
-        viz_state.buttons.buttons.cell.style('color', 'gray');
-        viz_state.buttons.buttons.trx.style('color', 'gray');
+        viz_state.buttons.buttons.cell?.style('color', 'gray');
+        viz_state.buttons.buttons.trx?.style('color', 'gray');
         viz_state.buttons.buttons.nbhd?.style('color', 'blue');
 
         toggle_slider(viz_state.sliders.cell, false);
@@ -942,12 +944,12 @@ export const landscape_ist = async (
       } else {
         new_toggle_cell_layer_visibility(viz_state.layers_obj, true);
 
-        viz_state.genes.svg_bar_gene.selectAll('rect').style('opacity', 1.0);
-        viz_state.cats.svg_bar_cluster.selectAll('rect').style('opacity', 1.0);
-        viz_state.nbhd.svg_bar_nbhd.selectAll('rect').style('opacity', 0.2);
+        viz_state.genes.svg_bar_gene?.selectAll('rect').style('opacity', 1.0);
+        viz_state.cats.svg_bar_cluster?.selectAll('rect').style('opacity', 1.0);
+        viz_state.nbhd.svg_bar_nbhd?.selectAll('rect').style('opacity', 0.2);
 
-        viz_state.buttons.buttons.cell.style('color', 'blue');
-        viz_state.buttons.buttons.trx.style('color', 'blue');
+        viz_state.buttons.buttons.cell?.style('color', 'blue');
+        viz_state.buttons.buttons.trx?.style('color', 'blue');
         viz_state.buttons.buttons.nbhd?.style('color', 'gray');
 
         toggle_slider(viz_state.sliders.cell, true);
@@ -1230,13 +1232,9 @@ export const landscape_ist = async (
   // state to recreate it (see ui/pic_button.js and Landscape.screenshot).
   const pic = add_pic_button(ui_container, {
     model: viz_state.model,
-    capture: async () => {
-      const snapshot = await landscape.snapshot({
-        max_size: 2048,
-        thumb_size: 64,
-      });
-      return { ...snapshot.image, state: snapshot.observed_state, snapshot };
-    },
+    capture: async () => ({
+      snapshot: await landscape.snapshot({ max_size: 2048, thumb_size: 64 }),
+    }),
   });
   const on_pic_message = (msg) => pic.on_message(msg);
   viz_state.model.on('msg:custom', on_pic_message);
@@ -1619,9 +1617,11 @@ export const landscape_ist = async (
       apply_state: landscape.apply_state,
       get_replay_state: landscape.get_replay_state,
       identity: () => landscape_identity(viz_state),
+      source: () => landscape_source(viz_state),
+      // CSS pixels: the camera framing depends on them, not on the device pixel ratio.
       viewport: () => ({
-        width: deck_ist.getCanvas().width,
-        height: deck_ist.getCanvas().height,
+        width: deck_ist.getCanvas().clientWidth,
+        height: deck_ist.getCanvas().clientHeight,
       }),
     })
   );

@@ -57,9 +57,9 @@ def snapshot_browser(widget, render):
             settings.setdefault("focus_gene", "")
         snapshot = {
             "schema": "celldega.view",
-            "version": 1,
+            "version": 2,
             "kind": kind,
-            "identity": {"algorithm": "sha256", "digest": "a" * 64, "unverified": []},
+            "identity": {"revision": "", "cells": {"count": 2, "hash": "0" * 14}},
             "viewport": {"width": 640, "height": 480},
             "state": settings,
             "observed_state": state,

@@ -57,6 +57,14 @@ const current_space = (viz_state) =>
   viz_state.obs_store?.landscape_view?.get?.() ||
   (viz_state.umap_state ? 'umap' : 'spatial');
 
+/** Whether the Landscape shows a 3D orbit view (point and neighborhood clouds). */
+const is_orbit_view = (viz_state) =>
+  'rotationOrbit' in (viz_state.initial_view_state || {});
+
+// deck.gl's 2D camera state inherits the orbit camera's rotationOrbit/rotationX
+// (always 0) once the user pans or zooms. They mean nothing in a 2D view.
+const CAMERA_ROTATION = ['rotationOrbit', 'rotationX'];
+
 /**
  * What the Landscape shows, as plain JSON.
  * @param {object} viz_state
@@ -74,15 +82,22 @@ export const get_landscape_state = (
     ...get_landscape_layers(viz_state),
     space: current_space(viz_state),
     view_state: {
+      // Always [x, y, z]: deck.gl reports a 2D target as [x, y] after a pan but
+      // [x, y, 0] from the initial view or a restore.
       target: Array.isArray(view.target)
-        ? view.target.map((v) => (Number.isFinite(v) ? v : null))
+        ? [view.target[0], view.target[1], view.target[2] ?? 0].map((v) =>
+            Number.isFinite(v) ? v : null
+          )
         : null,
       zoom: Number.isFinite(view.zoom) ? view.zoom : null,
-      ...Object.fromEntries(
-        ['rotationOrbit', 'rotationX']
-          .filter((key) => Number.isFinite(view[key]))
-          .map((key) => [key, view[key]])
-      ),
+      // Camera rotation exists only in orbit views.
+      ...(is_orbit_view(viz_state)
+        ? Object.fromEntries(
+            CAMERA_ROTATION.filter((key) => Number.isFinite(view[key])).map(
+              (key) => [key, view[key]]
+            )
+          )
+        : {}),
     },
     // 'cluster', a gene name, or 'g1 + g2' when colored by several genes.
     color_by,
@@ -150,10 +165,40 @@ const quantile = (sorted, q) =>
   ];
 
 /**
+ * A cell's position in the loaded cell arrays, or undefined. Point clouds with
+ * integer cell names skip the name map: there a cell's name is its position.
+ */
+export const cell_index = (viz_state, name) => {
+  const { cats } = viz_state;
+  if (viz_state.vector_name_integer && !cats?.cell_name_to_index_map?.size) {
+    const index = Number(name);
+    const count = cats?.cell_names_array?.length ?? 0;
+    return Number.isInteger(index) && index >= 0 && index < count
+      ? index
+      : undefined;
+  }
+  return cats?.cell_name_to_index_map?.get?.(String(name));
+};
+
+// deck.gl's OrbitView default vertical field of view, in degrees.
+const ORBIT_FOVY = 50;
+
+/**
  * A view state framing the given cells: by cluster(s) or by cell names.
+ *
+ * Positions go through the dataset rotation the cell layer draws with. A 2D view
+ * fits the cells' bounding box; an orbit view fits their 3D bounding sphere for the
+ * perspective camera, so they stay in frame at any camera rotation.
+ * @param {{width: number, height: number}} size - Canvas size in CSS pixels.
+ * @param {{fovy?: number}} [camera] - The orbit view's vertical field of view.
  * @returns {{target: number[], zoom: number}|null}
  */
-export const view_for_cells = (viz_state, { clusters, cells }, size) => {
+export const view_for_cells = (
+  viz_state,
+  { clusters, cells },
+  size,
+  { fovy = ORBIT_FOVY } = {}
+) => {
   const positions =
     viz_state.spatial?.cell_scatter_data?.attributes?.getPosition;
   if (!positions?.value) return null;
@@ -161,9 +206,8 @@ export const view_for_cells = (viz_state, { clusters, cells }, size) => {
 
   let indices = [];
   if (Array.isArray(cells) && cells.length) {
-    const index_map = viz_state.cats?.cell_name_to_index_map;
     indices = cells
-      .map((name) => index_map?.get?.(String(name)))
+      .map((name) => cell_index(viz_state, name))
       .filter((index) => index !== undefined);
   } else if (Array.isArray(clusters) && clusters.length) {
     const wanted = new Set(clusters.map(String));
@@ -173,15 +217,44 @@ export const view_for_cells = (viz_state, { clusters, cells }, size) => {
   }
   if (!indices.length) return null;
 
-  const xs = indices
-    .map((i) => positions.value[i * stride])
-    .sort((a, b) => a - b);
-  const ys = indices
-    .map((i) => positions.value[i * stride + 1])
-    .sort((a, b) => a - b);
+  // World positions as drawn: a column-major 4x4 model matrix, when the dataset
+  // is rotated.
+  const m = viz_state.rotation?.modelMatrix;
+  const points = indices.map((i) => {
+    const x = positions.value[i * stride];
+    const y = positions.value[i * stride + 1];
+    const z = stride > 2 ? positions.value[i * stride + 2] : 0;
+    return m
+      ? [
+          m[0] * x + m[4] * y + m[8] * z + m[12],
+          m[1] * x + m[5] * y + m[9] * z + m[13],
+          m[2] * x + m[6] * y + m[10] * z + m[14],
+        ]
+      : [x, y, z];
+  });
   const q = indices.length > 50 ? ZOOM_QUANTILE : 0;
-  const [x0, x1] = [quantile(xs, q), quantile(xs, 1 - q)];
-  const [y0, y1] = [quantile(ys, q), quantile(ys, 1 - q)];
+  const bounds = (axis) => {
+    const values = points.map((p) => p[axis]).sort((a, b) => a - b);
+    return [quantile(values, q), quantile(values, 1 - q)];
+  };
+  const [x0, x1] = bounds(0);
+  const [y0, y1] = bounds(1);
+
+  if (is_orbit_view(viz_state)) {
+    const [z0, z1] = bounds(2);
+    const radius = Math.max(Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2, 0.5);
+    // The camera sits focal * height px from the target, which spans 2^zoom px per
+    // world unit. A sphere fits when that distance is at least radius / sin of the
+    // narrower half-angle of view.
+    const half_v = (fovy * Math.PI) / 360;
+    const half_h = Math.atan((Math.tan(half_v) * size.width) / size.height);
+    const focal = 1 / (2 * Math.tan(half_v));
+    const zoom = Math.log2(
+      (focal * size.height * Math.sin(Math.min(half_v, half_h))) /
+        (radius * ZOOM_PADDING)
+    );
+    return { target: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], zoom };
+  }
 
   const width = Math.max(x1 - x0, 1);
   const height = Math.max(y1 - y0, 1);
@@ -201,12 +274,15 @@ export const view_for_cells = (viz_state, { clusters, cells }, size) => {
  * @param {object} viz_state
  * @param {{layers_obj: object, update_view_state: Function, size: {width: number,
  *   height: number}}} context
- * @param {object} changes - Any of:
+ * @param {object} changes - Any of `LANDSCAPE_APPLY_KEYS`:
  *   space: 'spatial', 'umap' or 'xy';
  *   clusters: cluster names to select (exactly; [] clears the selection);
  *   genes: genes to color cells by (up to 20; [] returns to cluster colors);
- *   view: {target: [x, y], zoom}; zoom_to: {clusters: [...]} or {cells: [...]};
- *   reset_view: true.
+ *   view: {target: [x, y], zoom} (orbit views: also rotationOrbit, rotationX);
+ *   zoom_to: {clusters: [...]} or {cells: [...]}; reset_view: true;
+ *   selected_cells: cell names ([] clears them);
+ *   xy: {genes: [x, y], scale: 'linear' | 'log1p'};
+ *   layers, channels, sliders, image_source: see landscape_layers.js.
  * @returns {Promise<string[]>} What changed.
  */
 export const apply_landscape_state = async (
@@ -236,11 +312,12 @@ export const apply_landscape_state = async (
       throw new Error(`${key} must be a list of names`);
     }
   }
-  if (changes.selected_cells) {
-    const known = viz_state.cats?.cell_name_to_index_map;
-    if (changes.selected_cells.some((name) => !known?.has(String(name))))
-      throw new Error('unknown selected cell names');
-  }
+  if (
+    changes.selected_cells?.some(
+      (name) => cell_index(viz_state, name) === undefined
+    )
+  )
+    throw new Error('unknown selected cell names');
   if ('xy' in changes) {
     const { xy } = changes;
     if (
@@ -319,14 +396,16 @@ export const apply_landscape_state = async (
       throw new Error('view.zoom must be a finite number');
     }
   }
-  for (const key of ['rotationOrbit', 'rotationX']) {
+  for (const key of CAMERA_ROTATION) {
     if (key in (changes.view || {})) {
       if (
         typeof changes.view[key] !== 'number' ||
         !Number.isFinite(changes.view[key])
       )
         throw new Error(`view.${key} must be finite`);
-      if (!(key in (viz_state.initial_view_state || {})))
+      // Views saved from a 2D camera before this fix carry a zero rotation; it
+      // changes nothing, so accept it. Any other rotation needs an orbit view.
+      if (!is_orbit_view(viz_state) && changes.view[key] !== 0)
         throw new Error('Camera rotation requires an orbit view');
     }
   }
@@ -347,7 +426,9 @@ export const apply_landscape_state = async (
     if ((changes.space ?? current_space(viz_state)) !== 'spatial') {
       throw new Error('zoom_to works in the spatial view; switch space first');
     }
-    framed = view_for_cells(viz_state, target, size);
+    framed = view_for_cells(viz_state, target, size, {
+      fovy: context.deck?.props?.views?.[0]?.props?.fovy ?? ORBIT_FOVY,
+    });
     if (!framed) throw new Error('no matching cells to zoom to');
   }
 
@@ -375,6 +456,21 @@ export const apply_landscape_state = async (
   }
 
   await wait_for_expression(viz_state);
+  // wait_for_expression follows the newest transition, so a later request (or a
+  // user edit) may have replaced this one's axes or space while it waited. Only
+  // acknowledge what is actually shown.
+  if (
+    changes.xy &&
+    (JSON.stringify([...(viz_state.model.get('xy_genes') || [])]) !==
+      JSON.stringify(changes.xy.genes) ||
+      viz_state.model.get('xy_scale') !== changes.xy.scale)
+  )
+    throw new Error('XY axes were superseded by a later change');
+  if (
+    changes.space !== undefined &&
+    current_space(viz_state) !== String(changes.space)
+  )
+    throw new Error('Space change was superseded by a later change');
 
   if (Array.isArray(changes.clusters)) {
     const clusters = changes.clusters.map(String);
@@ -442,9 +538,9 @@ export const apply_landscape_state = async (
     new_view = {
       ...base,
       ...Object.fromEntries(
-        ['rotationOrbit', 'rotationX']
-          .filter((key) => key in changes.view)
-          .map((key) => [key, changes.view[key]])
+        CAMERA_ROTATION.filter(
+          (key) => is_orbit_view(viz_state) && key in changes.view
+        ).map((key) => [key, changes.view[key]])
       ),
       ...(Array.isArray(target)
         ? {

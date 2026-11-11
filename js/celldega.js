@@ -16,12 +16,17 @@ import {
 } from './temp_utils/errorHandler';
 import { show_loading } from './ui/loading';
 import { link_models, make_options_model } from './utils/options_model';
+import { create_from_png } from './viz/from_png';
 import { landmark } from './viz/landmark';
 import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
-import { handle_snapshot_message } from './viz/snapshot';
+import { read_png, screenshot_png } from './viz/png';
+import {
+  consume_initial_snapshot,
+  handle_snapshot_message,
+} from './viz/snapshot';
 import { yearbook } from './viz/yearbook';
 import { render_clerk } from './widgets/clerk_widget';
 import { render_enrich } from './widgets/enrich_widget';
@@ -208,7 +213,7 @@ const render_landscape_h_e = async ({ model, el }) => {
  * NeighborhoodCloud): screenshots, state snapshots and setters, answered with
  * one-off messages so nothing is saved into the notebook's widget state.
  */
-const listen_for_viz_api = (model, landscape) => {
+const listen_for_viz_api = (model, landscape, element) => {
   // Raster capture: Python sends {event: 'capture_raster'}; reply with a one-off
   // message rather than synced traits, so captured images are never saved into the
   // notebook's widget state.
@@ -265,6 +270,7 @@ const listen_for_viz_api = (model, landscape) => {
     }
   };
   model.on('msg:custom', on_state_message);
+  void consume_initial_snapshot(model, landscape, element);
 
   const finalize_landscape = landscape.finalize;
   landscape.finalize = () => {
@@ -287,7 +293,7 @@ const render_landscape = async ({ model, el }) => {
     landscape = await render_landscape_h_e({ model, el });
   }
 
-  listen_for_viz_api(model, landscape);
+  listen_for_viz_api(model, landscape, el);
 
   return landscape;
 };
@@ -437,7 +443,7 @@ async function render({ model, el }) {
         // and manifest filename are driven by the model's technology /
         // manifest_name traits (see render_landscape_ist and landscape_ist).
         cleanup = await with_loading(render_landscape_ist);
-        listen_for_viz_api(model, cleanup);
+        listen_for_viz_api(model, cleanup, el);
         break;
       case 'Yearbook':
         cleanup = await with_loading(render_yearbook);
@@ -496,7 +502,16 @@ async function render({ model, el }) {
 // The widget model a Clustergram renders with when there is no Python kernel.
 const static_matrix_model = (
   network,
-  { viz_mode = null, rank_dim = null } = {}
+  {
+    viz_mode = null,
+    rank_dim = null,
+    url = '',
+    base_url = '',
+    name = 'default',
+    data_revision = '',
+    width = 500,
+    height = 500,
+  } = {}
 ) =>
   make_options_model({
     row_entity: JSON.stringify(
@@ -507,6 +522,13 @@ const static_matrix_model = (
     ),
     viz_mode,
     rank_dim,
+    // Saved views record where the data came from and compare a declared revision.
+    url,
+    base_url,
+    name,
+    width,
+    height,
+    data_revision,
   });
 
 /**
@@ -546,6 +568,9 @@ const landscape = async (el, options = {}) => {
  * @param {number} [options.rank_dim] - Open at this precomputed view level
  *   (e.g. 10 top markers per cluster), like Python's `Clustergram(rank_dim=)`;
  *   the full matrix by default
+ * @param {string} [options.data_revision] - An immutable revision of the data
+ *   (a release tag, commit hash or content digest). Saved views record it, and
+ *   restoring a view declared for another revision is refused.
  * @param {function} [options.row_label_callback] - Called with a clicked row name
  * @param {function} [options.col_label_callback] - Called with a clicked column name
  * @param {function} [options.col_dendro_callback] - Called on dendrogram selections
@@ -564,6 +589,7 @@ const clustergram = async (
     height = 500,
     viz_mode,
     rank_dim = null,
+    data_revision = '',
     row_label_callback = null,
     col_label_callback = null,
     col_dendro_callback = null,
@@ -583,6 +609,12 @@ const clustergram = async (
   const model = static_matrix_model(network, {
     viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
     rank_dim,
+    url: url || '',
+    base_url: base_url || '',
+    name,
+    width,
+    height,
+    data_revision: String(data_revision || ''),
   });
   const viz = await matrix_viz(
     model,
@@ -647,11 +679,16 @@ const matrix_from_dega_files = (
  */
 const matrix_from_zarr = (el, options = {}) => clustergram(el, options);
 
+const from_png = create_from_png({ landscape, clustergram });
+
 export default {
   // Options-object entry points for web pages without Python.
   landscape,
   clustergram,
   link_models,
+  read_png,
+  screenshot_png,
+  from_png,
   // Lower-level renderers and readers.
   anndata_zarr_source,
   landmark,

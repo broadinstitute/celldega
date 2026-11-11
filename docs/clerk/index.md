@@ -381,12 +381,14 @@ dega.viz.landscape_clerk(landscape, clerk)
 
 ## Landscape raster capture (a reusable feature)
 
-Clerk needed a screenshot, so `Landscape` gained a general screenshot API. Request a
-capture; when the browser replies, the image and the exact view state are set on the
-widget (in memory only — captures are never saved into the notebook):
+Clerk needed to see the view, so `Landscape` gained a general raster capture: the
+image alone, the first of the [three capture levels](../javascript/saved-views.md#terms-and-scope)
+(raster, saved view, screenshot). Request a capture; when the browser replies, the
+image and the exact view state are set on the widget (in memory only — captures are
+never saved into the notebook):
 
 ```python
-landscape.request_raster()      # asks the browser to snapshot the current view
+landscape.request_raster()      # asks the browser to capture the current view
 # ...in a later cell, once the browser has replied:
 landscape.raster_png            # base64 PNG (no data: prefix), longest side <= 1024 px
 landscape.raster_thumb          # small preview

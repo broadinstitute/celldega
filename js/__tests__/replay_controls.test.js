@@ -112,3 +112,23 @@ test('a saved-view restore never discards annotations made since the capture', (
     row: review,
   });
 });
+
+test('a dendrogram group can be selected by its members or by its name', () => {
+  const state = fixture();
+  validate_replay_controls(state, {
+    selection: { dendrogram: { axis: 'row', members: ['g1', 'g2'] } },
+  });
+  // By the name the Clustergram state lists it under (resolved at the current cut).
+  validate_replay_controls(state, {
+    selection: { dendrogram: { axis: 'row', name: '39' } },
+  });
+  for (const dendrogram of [
+    { axis: 'row', name: '' },
+    { axis: 'row', name: '39', members: ['g1'] },
+    { axis: 'side', name: '39' },
+    { axis: 'row', members: ['unknown'] },
+  ])
+    expect(() =>
+      validate_replay_controls(state, { selection: { dendrogram } })
+    ).toThrow();
+});

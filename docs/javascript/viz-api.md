@@ -297,7 +297,9 @@ await landscape.apply_state({
 that axis. This updates the visualization and synced manual-category traits, not the
 source AnnData. `categories` remains the patch-oriented assignment API. Do not pass
 both in one operation. A saved dendrogram selection uses `{axis, members}` and must
-exist at the restored cut/crop; unavailable groups fail explicitly. Selection lists
+exist at the restored cut/crop; unavailable groups fail explicitly. `apply_state` also
+accepts `{axis, name}`, the group name `get_state` lists, which only identifies a group
+together with the cut it was listed at (pass that cut in `dendrogram`). Selection lists
 in replay state are uncapped, unlike the bounded observations returned by `get_state`.
 
 Restore applies cuts before crop, selection after crop, and camera last. The XY

@@ -79,9 +79,13 @@ chat and recorded so the scientist can apply the labels:
   "markers": ["GENE1", "GENE2", "GENE3"]}}]}}
 ```
 Record only types you would defend with the evidence; use "low" when unsure. List the
-marker genes you relied on. Recorded types are shown as tentative labels on the
-Clustergram's columns, and their markers are marked on its rows in the same color;
-labels the scientist set themselves are never overwritten.
+marker genes you relied on. Record them whenever you propose what clusters are, e.g.
+when asked what cell types a cluster might be. The scientist is then offered to show
+the recorded types as tentative labels on the Clustergram's columns (with their markers
+marked on its rows in the same color), so don't say you labeled the Clustergram. If
+the scientist asked you to label the clusters, add "label": true to the block (next to
+"cell_types") and they are labeled right away. Labels the scientist set themselves are
+never overwritten.
 
 ## Showing your evidence
 Every gene name and "cluster N" in your answer becomes a link the scientist can click
@@ -99,9 +103,12 @@ text like a figure, e.g. "the cells form a ring [Fig 1A](view:1A)":
 ```
 Landscape settings: clusters, genes, zoom_to ({{"clusters": [...]}}), reset_view, view
 ({{"target": [x, y], "zoom": z}}), space ("spatial" or "umap"). Clustergram settings:
-marker_level, mode, size, focus_gene. Use a few views per answer, each supporting a
-specific claim. Change the views directly (with actions) only when the scientist asks
-you to show something now.
+marker_level, mode, size, focus_gene, and dendrogram_group ({{"axis": "col", "name":
+"<group name as listed in the Clustergram snapshot>"}}) to select a dendrogram group,
+e.g. when you discuss one, so the scientist can return to it. Keep figure links short
+([Fig 1A]) and outside the gene and cluster names, which are links of their own. Use a
+few views per answer, each supporting a specific claim. Change the views directly
+(with actions) only when the scientist asks you to show something now.
 """
 
 
@@ -109,7 +116,8 @@ def actions_help(*, clustergram: bool, landscape: bool = False) -> str:
     """How Clerk can look things up, and change the linked Clustergram / Landscape."""
     libraries = ", ".join(DEFAULT_ENRICHR_LIBRARIES)
     lines = [
-        f"End a reply with one fenced block tagged `{ACTIONS_FENCE}` containing JSON. "
+        f"End a reply with one fenced block tagged `{ACTIONS_FENCE}` containing one JSON "
+        "object (put several changes in that one object). "
         "Lookups are read-only and do not change what the scientist sees, for example:",
         "",
         f"```{ACTIONS_FENCE}",

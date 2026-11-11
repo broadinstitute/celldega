@@ -860,6 +860,9 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
     selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+    #: Clusters highlighted in the browser while cells are colored by cluster (set by
+    #: the front end; a linked Clustergram shows them as blue column labels).
+    selected_clusters = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
     xy_genes = traitlets.List(trait=traitlets.Unicode(), default_value=[], maxlen=2).tag(sync=True)
     xy_scale = traitlets.Enum(["linear", "log1p"], default_value="log1p").tag(sync=True)
@@ -2004,6 +2007,7 @@ class Clerk(CelldegaWidget):
             "gene_list": req.get("gene_list") or list(self.gene_list),
             "enrichr_terms": req.get("enrichr_terms") or [],
             "enrichr_library": str(req.get("enrichr_library") or ""),
+            "enrichr_short_id": str(req.get("enrichr_short_id") or ""),
             "info": self.context_info,
             "image_b64": self.image_b64 or None,
             "model": self.model,
@@ -2387,27 +2391,83 @@ class Clerk(CelldegaWidget):
             self.findings.append(entry)
             confidence = f" ({entry['confidence']})" if entry["confidence"] else ""
             recorded.append(f"{entry['cluster']} → {entry['label']}{confidence}")
-        if recorded:
-            self._append(
-                {
-                    "role": "action",
-                    "content": "Recorded tentative cell types: " + ", ".join(recorded),
-                }
+        if not recorded:
+            return
+        latest = self.findings[-len(recorded) :]
+        n = len(recorded)
+        # One short line in the chat; the per-cluster list is in its Evidence.
+        message = {
+            "role": "action",
+            "content": f"Recorded tentative cell types for {n} cluster{'s' if n != 1 else ''}",
+            "detail": "Recorded cell types: " + ", ".join(recorded),
+        }
+        cgm = self._linked_widgets.get("clustergram")
+        can_label = hasattr(cgm, "set_categories") and self.label_clustergram is not False
+        # Label right away when set to, or when the scientist asked Clerk to label
+        # (Clerk then marks the block "label": true); otherwise offer to.
+        label_now = can_label and (self.label_clustergram is True or findings.get("label") is True)
+        if can_label and not label_now:
+            try:
+                _axis, attribute = cgm._category_target("col", None)
+            except (AttributeError, ValueError):
+                attribute = self.clustergram_label_attribute
+            message["label_offer"] = {
+                "id": uuid.uuid4().hex[:12],
+                "status": "offered",
+                # The manual column category the labels would go in.
+                "attribute": attribute,
+                "cell_types": [
+                    {"cluster": e["cluster"], "label": e["label"], "markers": e["markers"]}
+                    for e in latest
+                ],
+            }
+        self._append(message)
+        self._log_step("findings", ", ".join(recorded), cell_types=[dict(e) for e in latest])
+        if label_now:
+            labeled = self._label_clustergram(
+                {e["cluster"]: e["label"] for e in latest},
+                {e["cluster"]: e["markers"] for e in latest},
             )
-            latest = self.findings[-len(recorded) :]
-            self._log_step("findings", ", ".join(recorded), cell_types=[dict(e) for e in latest])
-            if self.label_clustergram:
-                self._label_clustergram(
-                    {e["cluster"]: e["label"] for e in latest},
-                    {e["cluster"]: e["markers"] for e in latest},
-                )
+            if labeled:
+                self._append({"role": "action", "content": labeled[0], "detail": labeled[1]})
 
-    # Write recorded cell types into the linked Clustergram's manual column category,
-    # and mark the marker genes Clerk relied on (rows) with the same label.
-    label_clustergram = True
+    # Recorded cell types can label the linked Clustergram's columns (a manual
+    # category) and mark the marker genes Clerk relied on (rows) with the same label.
+    # "ask" offers this as a button under the recorded types; True labels right away;
+    # False never labels.
+    label_clustergram: "bool | Literal['ask']" = "ask"
     # Attributes used when the Clustergram has no manual category set up on an axis.
     clustergram_label_attribute = "clerk_cell_type"
     clustergram_marker_attribute = "clerk_marker"
+
+    def _label_from_offer(self, offer_id: str) -> None:
+        """Apply the cell types a LABEL button offered (see :attr:`label_clustergram`)."""
+        if self.pending:
+            return
+        messages = [dict(m) for m in self.messages]
+        for message in messages:
+            offer = message.get("label_offer")
+            if isinstance(offer, dict) and offer.get("id") == offer_id:
+                break
+        else:
+            return
+        if offer.get("status") != "offered":
+            return
+        if not hasattr(self._linked_widgets.get("clustergram"), "set_categories"):
+            self._append({"role": "error", "content": "Link a Clustergram to label it."})
+            return
+        cell_types = [c for c in offer.get("cell_types") or [] if isinstance(c, dict)]
+        labeled = self._label_clustergram(
+            {str(c.get("cluster")): str(c.get("label")) for c in cell_types},
+            {str(c.get("cluster")): [str(g) for g in c.get("markers") or []] for c in cell_types},
+        )
+        offer = {**offer, "status": "done"}
+        if labeled:
+            offer["result"], offer["result_detail"] = labeled
+        else:
+            offer["result"] = "Nothing to label: the Clustergram already shows these labels"
+        message["label_offer"] = offer
+        self.messages = messages
 
     def _label_axis(self, cgm, axis: str, labels: dict, default_attribute: str):
         """Set Clerk's labels on one Clustergram axis, keeping the scientist's own.
@@ -2443,17 +2503,23 @@ class Clerk(CelldegaWidget):
                     mine[name] = label
         return apply, kept, attribute
 
-    def _label_clustergram(self, labels: dict[str, str], markers: dict | None = None) -> None:
+    def _label_clustergram(
+        self, labels: dict[str, str], markers: dict | None = None
+    ) -> tuple[str, str] | None:
         """Label Clustergram columns with Clerk's proposals and mark their marker genes.
 
         ``labels`` maps clusters to cell types; ``markers`` maps clusters to the genes
         Clerk cited, which are labeled (rows) with their cluster's cell type, in the
         same color. Labels the scientist set are never overwritten.
+
+        Returns:
+            ``(summary, detail)`` describing what changed (a short line and the
+            per-cluster list), or ``None`` when nothing changed.
         """
         cgm = self._linked_widgets.get("clustergram")
         if cgm is None or not hasattr(cgm, "set_categories"):
-            return
-        note = []
+            return None
+        summary, detail = [], []
         previous = dict(self._clerk_marks.get("col") or {})
         try:
             applied, kept, attribute = self._label_axis(
@@ -2461,12 +2527,15 @@ class Clerk(CelldegaWidget):
             )
         except ValueError as exc:
             self._append({"role": "error", "content": f"Couldn't label the Clustergram: {exc}"})
-            return
+            return None
         if applied:
+            n = len(applied)
+            summary.append(f"Labeled {n} Clustergram column{'s' if n != 1 else ''}")
             pairs = ", ".join(f"{k} → {v}" for k, v in applied.items())
-            note.append(f"Labeled Clustergram columns ({attribute}): {pairs}")
+            detail.append(f"Clustergram columns ({attribute}): {pairs}")
         if kept:
-            note.append("kept your labels for " + ", ".join(kept))
+            summary.append(f"kept your labels for {len(kept)}")
+            detail.append("Kept your labels for " + ", ".join(kept))
 
         rows = self._marker_rows(cgm, labels, markers or {}, previous)
         if rows:
@@ -2476,13 +2545,15 @@ class Clerk(CelldegaWidget):
                 )
             except ValueError as exc:
                 marked, row_attribute = {}, ""
-                note.append(f"couldn't mark marker genes: {exc}")
+                summary.append("couldn't mark marker genes")
+                detail.append(f"Couldn't mark marker genes: {exc}")
             shown = [g for g, label in marked.items() if label is not None]
             if shown:
-                listed = ", ".join(shown[:12]) + (f" +{len(shown) - 12}" if len(shown) > 12 else "")
-                note.append(f"marked marker genes ({row_attribute}): {listed}")
-        if note:
-            self._append({"role": "action", "content": "; ".join(note)})
+                summary.append(f"marked {len(shown)} marker gene{'s' if len(shown) != 1 else ''}")
+                detail.append(f"Marker genes ({row_attribute}): " + ", ".join(shown))
+        if not summary:
+            return None
+        return "; ".join(summary), "\n".join(detail)
 
     def _marker_rows(self, cgm, labels: dict, markers: dict, previous: dict) -> dict:
         """``{gene: cell type}`` for cited marker genes that are Clustergram rows.
@@ -2559,16 +2630,26 @@ class Clerk(CelldegaWidget):
         if self.pending and message.get("role") in ("error", "pause"):
             self._log_step(message["role"], str(message.get("content", "")))
 
-    #: Terms per library in an inline Enrichr result (as in the Enrich panel).
-    ENRICHMENT_TERMS = 8
+    #: Terms per library in an inline Enrichr result; its chart scrolls, as in the
+    #: Enrich panel. Clerk itself reads the top ``ENRICHMENT_PROMPT_TERMS``.
+    ENRICHMENT_TERMS = 20
+    ENRICHMENT_PROMPT_TERMS = 8
 
     def _append_enrichment(
-        self, label: str, genes: list, results: dict, *, once: bool = False
+        self,
+        label: str,
+        genes: list,
+        results: dict,
+        *,
+        once: bool = False,
+        url: str = "",
+        title: str = "",
     ) -> None:
         """Show Enrichr results in the conversation, like the Enrich panel.
 
         The panel draws an ``enrichment`` message as a bar graph of the top terms per
-        library and a paragraph of the genes tested, linked to the views. The
+        library and a paragraph of the genes tested, linked to the views, plus a link
+        to the same results on the Enrichr website (``url``) when known. The
         results already reach the model as text, so these messages are left out of
         its history. ``once`` skips results identical to the last ones shown.
         """
@@ -2602,15 +2683,18 @@ class Clerk(CelldegaWidget):
             if key == getattr(self, "_last_enrichment", None):
                 return
             self._last_enrichment = key
-        self._append(
-            {
-                "role": "enrichment",
-                "content": f"Enrichr results for {label}",
-                "label": label,
-                "genes": genes,
-                "libraries": libraries,
-            }
-        )
+        message = {
+            "role": "enrichment",
+            "content": f"Enrichr results for {label}",
+            # The panel folds the results under this title, e.g. "Cluster 4 upregulated".
+            "title": title or label,
+            "label": label,
+            "genes": genes,
+            "libraries": libraries,
+        }
+        if url:
+            message["url"] = url
+        self._append(message)
 
     # -- The case record: what was asked, what Clerk did, and how to reproduce it --
 
@@ -2926,18 +3010,28 @@ class Clerk(CelldegaWidget):
             if spec["cluster"]:
                 genes = by_cluster.get(spec["cluster"], [])[: spec["n"]]
                 label = f"cluster {spec['cluster']}'s top {len(genes)} markers"
+                # Ranked markers (rank_genes_groups) are the cluster's upregulated genes.
+                title = f"Cluster {spec['cluster']} upregulated"
             else:
                 genes, label = spec["genes"], f"{len(spec['genes'])} genes"
+                title = label[:1].upper() + label[1:]
             if not genes:
                 results.append(f"Enrichr for {label}: no genes to test.")
                 continue
             try:
-                found = lookups.enrichr(genes, spec["libraries"] or lookups.DEFAULT_LIBRARIES)
-                results.append(lookups.format_enrichr(label, found))
+                found = lookups.enrichr(
+                    genes,
+                    spec["libraries"] or lookups.DEFAULT_LIBRARIES,
+                    top=self.ENRICHMENT_TERMS,
+                )
+                url = lookups.enrichr_link(genes)
+                # Clerk reads the top few terms; the panel's chart scrolls through more.
+                brief = {lib: terms[: self.ENRICHMENT_PROMPT_TERMS] for lib, terms in found.items()}
+                results.append(lookups.format_enrichr(label, brief, url=url))
             except Exception as exc:  # network or service problems become a note
                 results.append(f"Enrichr for {label} failed: {exc}")
                 continue
-            self._append_enrichment(label, genes, found)
+            self._append_enrichment(label, genes, found, url=url, title=title)
         for query in reads.get("pubmed") or []:
             try:
                 results.append(lookups.format_pubmed(query, lookups.pubmed(query)))
@@ -2971,12 +3065,20 @@ class Clerk(CelldegaWidget):
             if call.get("enrichr_terms"):
                 # The panel's own Enrichr results for the selected genes, shown once
                 # per gene list rather than with every question about it.
+                url = _enrichr_page(call.get("enrichr_short_id"))
+                if url:
+                    call["notes"].append(f"Enrichr page for the selected genes' results: {url}")
+                n = len(call.get("gene_list") or [])
                 self._append_enrichment(
-                    f"{len(call.get('gene_list') or [])} selected genes",
+                    f"{n} selected genes",
                     call.get("gene_list") or [],
                     {call.get("enrichr_library") or "CellMarker_2024": call["enrichr_terms"]},
                     once=True,
+                    url=url,
+                    title=f"{n} selected gene{'s' if n != 1 else ''}",
                 )
+                # The chart scrolls through them all; Clerk reads the top few.
+                call["enrichr_terms"] = call["enrichr_terms"][: self.ENRICHMENT_PROMPT_TERMS]
             cgm = self._linked_widgets.get("clustergram")
             # Lookups (Enrichr, PubMed) work without widgets; Clustergram / Landscape
             # lookups and changes only when those are linked.
@@ -3078,7 +3180,19 @@ class Clerk(CelldegaWidget):
             response = None
             kind = event["kind"]
             if kind == "answer":
-                text, views = event["text"], event["views"]
+                from ..clerk.llm import resolve_dendrogram_groups
+
+                text = event["text"]
+                views, problems = resolve_dendrogram_groups(
+                    event["views"], call.get("clustergram_state")
+                )
+                if problems:
+                    self._append(
+                        {
+                            "role": "error",
+                            "content": "Some cited views were changed: " + "; ".join(problems),
+                        }
+                    )
                 message = {"role": "assistant", "content": text, **self._links_for(text)}
                 if views:
                     message["views"] = views
@@ -3376,7 +3490,7 @@ class Clerk(CelldegaWidget):
 
     def _apply_view(self, view) -> None:
         """Show a view Clerk cited (``[Fig 1A](view:1A)``) in the linked widgets."""
-        from ..clerk.llm import VIEW_KEYS
+        from ..clerk.llm import RESOLVED_VIEW_KEYS, VIEW_KEYS
 
         if not isinstance(view, dict):
             return
@@ -3389,7 +3503,11 @@ class Clerk(CelldegaWidget):
             if not hasattr(widget, "apply_state"):
                 problems.append(f"no {widget_name.title()} is linked")
                 continue
-            settings = {k: v for k, v in settings.items() if k in keys}
+            allowed = (*keys, *RESOLVED_VIEW_KEYS.get(widget_name, ()))
+            settings = {k: v for k, v in settings.items() if k in allowed}
+            # A group the view names is resolved when the answer arrives (by then
+            # the cut and members are known); an unresolved one can't be shown.
+            settings.pop("dendrogram_group", None)
             try:
                 widget.apply_state(settings)
             except ValueError as exc:
@@ -3594,8 +3712,13 @@ class Clerk(CelldegaWidget):
         )
 
     def _on_panel_msg(self, _widget, content, _buffers) -> None:
-        """The panel's OPEN button: a saved conversation, read in the browser."""
-        if not isinstance(content, dict) or content.get("event") != "load_conversation":
+        """One-off panel messages: a LABEL offer accepted, or OPEN's saved conversation."""
+        if not isinstance(content, dict):
+            return
+        if content.get("event") == "label_clustergram":
+            self._label_from_offer(str(content.get("id") or ""))
+            return
+        if content.get("event") != "load_conversation":
             return
         name = str(content.get("name") or "the file")
         try:
@@ -3666,7 +3789,17 @@ def _is_screenshot_record(path: Path) -> bool:
 
 
 #: A question's call fields that are Clerk's own bookkeeping, not ``clerk.ask`` options.
-_CLERK_CALL_ONLY = frozenset({"done", "enrichr_library"})
+_CLERK_CALL_ONLY = frozenset({"done", "enrichr_library", "enrichr_short_id"})
+
+_ENRICHR_SHORT_ID = re.compile(r"^[A-Za-z0-9]{1,64}$")
+
+
+def _enrichr_page(short_id) -> str:
+    """The Enrichr web page for a gene list the panel uploaded, or ``""``."""
+    from ..clerk import lookups
+
+    short_id = str(short_id or "")
+    return lookups.enrichr_app_url(short_id) if _ENRICHR_SHORT_ID.match(short_id) else ""
 
 
 def _ask(question: str, call: dict) -> str:
@@ -3763,17 +3896,29 @@ def _validate_replay_controls(widget, changes):
                 widget._check_category_names(key[:-1], dict.fromkeys(value))
         group = selection.get("dendrogram")
         if group is not None:
-            if (
-                not isinstance(group, dict)
-                or set(group) != {"axis", "members"}
-                or group["axis"] not in axes
-                or not isinstance(group["members"], list)
-                or not group["members"]
-                or any(not isinstance(v, str) for v in group["members"])
-                or len(set(group["members"])) != len(group["members"])
-            ):
-                raise ValueError("selection.dendrogram requires axis and unique members")
-            widget._check_category_names(group["axis"], dict.fromkeys(group["members"]))
+            # A group at the current cut: by its members, or by the name the
+            # Clustergram snapshot lists it under.
+            by_name = (
+                isinstance(group, dict)
+                and set(group) == {"axis", "name"}
+                and group["axis"] in axes
+                and isinstance(group["name"], str)
+                and bool(group["name"])
+            )
+            if not by_name:
+                if (
+                    not isinstance(group, dict)
+                    or set(group) != {"axis", "members"}
+                    or group["axis"] not in axes
+                    or not isinstance(group["members"], list)
+                    or not group["members"]
+                    or any(not isinstance(v, str) for v in group["members"])
+                    or len(set(group["members"])) != len(group["members"])
+                ):
+                    raise ValueError(
+                        "selection.dendrogram requires axis and unique members (or name)"
+                    )
+                widget._check_category_names(group["axis"], dict.fromkeys(group["members"]))
 
 
 def _validate_clustergram_controls(widget, changes: dict) -> dict:
@@ -4608,7 +4753,8 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 - ``dendrogram``: ``{"row": 35, "col": 65}`` cut percentages (0-100).
                 - ``selection``: any of ``rows``, ``cols``, ``genes``,
                   ``highlighted_genes`` (lists of names) and ``dendrogram``
-                  (``{"axis", "members"}``, a group that exists at the current cut).
+                  (``{"axis", "members"}``, a group that exists at the current cut,
+                  or ``{"axis", "name"}`` with the name ``get_state`` lists it under).
                 - ``view``: ``{"target": [x, y], "zoom": [x_zoom, y_zoom]}``.
                 - ``crop``: ``{"row": [...names], "col": None}``; None clears an axis.
                 - ``order``: per axis, a named order (``"clust"``, ``"rank"``,
@@ -4796,6 +4942,9 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     # ``selected_genes``, which *feeds* enrichment input — reusing it would
     # loop the linkage.
     highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
+    #: Columns drawn with blue labels: e.g. the clusters highlighted in a linked
+    #: Landscape (see `spatial_clustergram`), or columns shift-clicked here.
+    highlighted_cols = traitlets.List(default_value=[]).tag(sync=True)
     #: Upper bound on the gene set a column click sends to enrichment.
     top_n_genes = traitlets.Int(50).tag(sync=True)
 

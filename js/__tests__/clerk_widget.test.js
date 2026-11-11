@@ -7,6 +7,7 @@ describe('Clerk panel', () => {
   let turns;
   let tooltip;
   let contain_scroll;
+  let enrichr;
 
   const make_model = (initial) => {
     const state = { ...initial };
@@ -77,9 +78,18 @@ describe('Clerk panel', () => {
       'render_enrichment',
       `${source}\nreturn render_clerk;`
     );
+    enrichr = {
+      post: jest.fn(async () => ({ userListId: '7', shortId: 'Sh0rt' })),
+      fetch: jest.fn(async (_id, library) => ({
+        [library]: [
+          [1, 'Goblet', 0.001, 9, 30, ['MUC2'], 0.01],
+          [2, 'Paneth', 0.01, 3, 5, ['TFF3'], 0.05],
+        ],
+      })),
+    };
     render_clerk = factory(
-      jest.fn(),
-      jest.fn(),
+      enrichr.post,
+      enrichr.fetch,
       jest.fn(),
       contain_scroll,
       () => tooltip,
@@ -329,7 +339,7 @@ describe('Clerk panel', () => {
     expect(model.get('request')).toMatchObject({ continue: true });
   });
 
-  test('Expand all opens every fold; Export asks Python for a report', async () => {
+  test('Expand opens every fold; Export asks Python for a report', async () => {
     const { el, model } = await render({
       messages: [
         { role: 'user', content: 'q' },
@@ -339,9 +349,9 @@ describe('Clerk panel', () => {
     });
     const button = (text) =>
       [...el.querySelectorAll('button')].find((b) => b.textContent === text);
-    button('Expand all').click();
+    button('Expand').click();
     expect([...el.querySelectorAll('details')].every((d) => d.open)).toBe(true);
-    button('Collapse all').click();
+    button('Collapse').click();
     expect([...el.querySelectorAll('details')].every((d) => !d.open)).toBe(
       true
     );
@@ -580,9 +590,191 @@ describe('Clerk panel', () => {
   test('scrolling the conversation never scrolls the notebook page', async () => {
     const { el } = await render();
     const contained = contain_scroll.mock.calls.map(([element]) => element);
-    // The conversation pane (the scrolling one with the turns) and the gene strip.
-    expect(contained).toHaveLength(2);
+    // The conversation pane (the scrolling one with the turns).
+    expect(contained).toHaveLength(1);
     expect(contained.every((element) => el.contains(element))).toBe(true);
     expect(contained[0].style.overflowY).toBe('auto');
+  });
+  test('selected genes fold away above the conversation, with Enrichr', async () => {
+    const { el, model } = await render();
+    expect(el.querySelector('details.clerk-selected')).toBeNull();
+    model.set('gene_list', ['MUC2', 'TFF3']);
+    const fold = el.querySelector('details.clerk-selected');
+    expect(fold.open).toBe(false);
+    expect(fold.querySelector('summary').textContent).toBe(
+      'Selected genes (2)'
+    );
+    // The genes are links, like those in answers.
+    const genes = [...fold.querySelectorAll('.clerk-gene')];
+    expect(genes.map((g) => g.textContent)).toEqual(['MUC2', 'TFF3']);
+    genes[1].click();
+    expect(model.get('request')).toMatchObject({ show_genes: ['TFF3'] });
+    // ENRICHR runs them through Enrichr in the browser and draws the results here.
+    [...fold.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Enrichr')
+      .click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const opened = el.querySelector('details.clerk-selected');
+    expect(opened.open).toBe(true);
+    expect(
+      [...opened.querySelectorAll('.clerk-enrichment-term')].map(
+        (t) => t.textContent
+      )
+    ).toEqual(['Goblet', 'Paneth']);
+    expect(opened.querySelector('a.clerk-enrichment-link').href).toBe(
+      'https://maayanlab.cloud/Enrichr/enrich?dataset=Sh0rt'
+    );
+    expect(enrichr.post).toHaveBeenCalledTimes(1);
+  });
+
+  test('a question sends the Enrichr page of the selected genes', async () => {
+    const { el, model } = await render({ gene_list: ['MUC2'] });
+    el.querySelector('textarea').value = 'What is this?';
+    el.querySelector('button.clerk-ask').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(model.get('request')).toMatchObject({
+      question: 'What is this?',
+      enrichr_library: 'CellMarker_2024',
+      enrichr_short_id: 'Sh0rt',
+    });
+    expect(model.get('request').enrichr_terms[0]).toMatchObject({
+      name: 'Goblet',
+      adjusted_p: 0.01,
+      odds_ratio: 9,
+    });
+  });
+
+  test('Enrichr results fold under their title', async () => {
+    const { el } = await render({
+      messages: [
+        { role: 'user', content: 'q' },
+        {
+          role: 'enrichment',
+          title: 'Cluster 4 upregulated',
+          label: "cluster 4's top 2 markers",
+          genes: ['MUC2', 'TFF3'],
+          libraries: {
+            CellMarker_2024: [{ name: 'Goblet', score: 3, genes: ['MUC2'] }],
+          },
+        },
+        { role: 'assistant', content: 'Goblet-like.' },
+      ],
+    });
+    const fold = el.querySelector('details.clerk-figure');
+    expect(fold.open).toBe(false);
+    expect(fold.querySelector('summary').textContent).toBe(
+      'Enrichr · Cluster 4 upregulated'
+    );
+    expect(fold.querySelector('.clerk-enrichment-title')).toBeNull();
+  });
+
+  test('recorded cell types: one short line, details in Evidence, and a Label offer', async () => {
+    const offer = {
+      id: 'o1',
+      status: 'offered',
+      cell_types: [{ cluster: '4', label: 'Goblet', markers: ['MUC2'] }],
+    };
+    const messages = [
+      { role: 'user', content: 'q' },
+      {
+        role: 'assistant',
+        content: 'Goblet cells.\n\nEvidence:\n- MUC2 high',
+        genes: ['MUC2'],
+      },
+      {
+        role: 'action',
+        content: 'Recorded tentative cell types for 1 cluster',
+        detail: 'Recorded cell types: 4 → Goblet (high)',
+        label_offer: offer,
+      },
+    ];
+    const { el, model } = await render({ messages, cluster_names: ['4'] });
+    model.send = jest.fn();
+    expect(el.textContent).toContain(
+      '↻ Recorded tentative cell types for 1 cluster'
+    );
+    const evidence = [...el.querySelectorAll('details.clerk-fold')].find(
+      (d) => d.querySelector('summary').textContent === 'Evidence'
+    );
+    expect(evidence.querySelector('.clerk-recorded').textContent).toBe(
+      'Recorded cell types: 4 → Goblet (high)'
+    );
+    expect(el.querySelector('.clerk-offer').textContent).toContain(
+      'Label these clusters in the Clustergram?'
+    );
+    const label = [...el.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Label'
+    );
+    label.click();
+    expect(model.send).toHaveBeenCalledWith({
+      event: 'label_clustergram',
+      id: 'o1',
+    });
+
+    // Once applied, the offer becomes a line saying what changed.
+    messages[2] = {
+      ...messages[2],
+      label_offer: {
+        ...offer,
+        status: 'done',
+        result: 'Labeled 1 Clustergram column',
+      },
+    };
+    model.set('messages', [...messages]);
+    expect(el.querySelector('.clerk-offer')).toBeNull();
+    expect(el.textContent).toContain('↻ Labeled 1 Clustergram column');
+
+    // No offer while Clerk is answering.
+    messages[2] = { ...messages[2], label_offer: offer };
+    model.set('pending', true);
+    model.set('messages', [...messages]);
+    expect(el.querySelector('.clerk-offer')).toBeNull();
+  });
+
+  test('genes and clusters inside a cited view link are links of their own', async () => {
+    const views = {
+      '1A': { landscape: { clusters: ['16'], genes: ['PODXL'] } },
+    };
+    const { el, model } = await render({
+      cluster_names: ['16'],
+      messages: answer_with(
+        '[cluster 16 podocytes (PODXL)](view:1A) line the tuft.',
+        {
+          genes: ['PODXL'],
+          views,
+        }
+      ),
+    });
+    const view = el.querySelector('a.clerk-view');
+    view.querySelector('.clerk-cluster').click();
+    expect(model.get('request')).toMatchObject({ show_clusters: ['16'] });
+    expect(model.get('request').apply_view).toBeUndefined();
+    view.querySelector('.clerk-gene').click();
+    expect(model.get('request')).toMatchObject({ show_genes: ['PODXL'] });
+    // The rest of the link still shows the view.
+    view.click();
+    expect(model.get('request')).toMatchObject({ apply_view: views['1A'] });
+  });
+
+  test('a view selecting a dendrogram group says so on hover', async () => {
+    const views = {
+      '2A': {
+        clustergram: {
+          dendrogram: { col: 40 },
+          selection: { dendrogram: { axis: 'col', members: ['4', '5'] } },
+        },
+      },
+    };
+    const { el } = await render({
+      messages: answer_with('[Fig 2A](view:2A)', { views }),
+    });
+    el.querySelector('a.clerk-view').dispatchEvent(
+      new MouseEvent('mouseenter')
+    );
+    expect(tooltip.show_html.mock.calls.at(-1)[0]).toContain(
+      'Clustergram column dendrogram group of 2'
+    );
   });
 });

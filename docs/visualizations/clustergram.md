@@ -280,12 +280,17 @@ Clustergram drives the other views:
 | Click a gene label | Colors cells by that gene; click again to return to clusters | — |
 | Click a column label | Selects that cluster's cells | Receives the column's top marker genes |
 | Click a column dendrogram branch | Selects those clusters' cells | — |
+| Shift-click column labels | Selects those clusters' cells (shift-click again to remove one) | Receives their top marker genes |
 | Click a row dendrogram branch, or crop rows | Colors cells by the genes' combined expression | Receives those genes |
+| Shift-click gene labels | Colors cells by the genes' combined expression | Receives those genes |
 | Click a mark | Colors cells by that gene within that cluster | — |
 
 Selecting an Enrich term turns its genes' labels blue in the Clustergram, and
-clicking a gene in Enrich zooms the Clustergram to it. Selections made in a
-Landscape do not change the Clustergram. See
+clicking a gene in Enrich zooms the Clustergram to it. Shift-clicked labels are blue
+too, until a plain click starts over. With `dega.viz.spatial_clustergram`, the clusters
+highlighted in the Landscape (from its cluster bars, a Clustergram click or a Clerk
+link) turn their column labels blue (`cgm.highlighted_cols`); other Landscape
+selections do not change the Clustergram. See
 [Landscape–Clustergram–Enrich](landscape-clustergram-enrich.md) for a complete
 linked example.
 

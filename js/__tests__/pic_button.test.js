@@ -8,10 +8,15 @@ describe('add_pic_button', () => {
   beforeEach(() => {
     const fs = require('fs');
     const path = require('path');
-    const source = fs
-      .readFileSync(path.join(__dirname, '../ui/pic_button.js'), 'utf8')
-      .replace(/^import .*;$/gm, '')
-      .replace(/^export const /gm, 'const ');
+    // The shared control-panel sizes, loaded the same way.
+    const source = ['../ui/control_style.js', '../ui/pic_button.js']
+      .map((file) =>
+        fs
+          .readFileSync(path.join(__dirname, file), 'utf8')
+          .replace(/^import .*;$/gm, '')
+          .replace(/^export const /gm, 'const ')
+      )
+      .join('\n');
     screenshot_png = jest.fn(() => new Blob(['PNG'], { type: 'image/png' }));
     add_pic_button = new Function(
       'screenshot_png',

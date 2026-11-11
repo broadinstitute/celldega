@@ -14,8 +14,7 @@ from tests.unit.test_viz.test_clerk_lookups import _clerk
 try:
     from ipywidgets import HBox, VBox
 
-    from celldega import clerk as clerk_llm
-    from celldega import viz
+    from celldega import clerk as clerk_llm, viz
     from celldega.clerk import lookups
     from celldega.clust import Matrix
     from celldega.viz import Clerk, Clustergram, Enrich, Landscape
@@ -86,13 +85,30 @@ def test_a_sidecar_keeps_a_width_the_caller_set():
 
 def _enrichr_question(monkeypatch, results):
     w, _cgm, _requests = _clerk(monkeypatch)
-    monkeypatch.setattr(lookups, "enrichr", lambda genes, libraries: results(genes))
+
+    def enrichr(genes, libraries, top=8):
+        # Like the real lookup: the top terms per library.
+        return {library: terms[:top] for library, terms in results(genes).items()}
+
+    monkeypatch.setattr(lookups, "enrichr", enrichr)
+    monkeypatch.setattr(
+        lookups, "enrichr_link", lambda genes: "https://maayanlab.cloud/Enrichr/enrich?dataset=ab12"
+    )
     monkeypatch.setattr(lookups, "pubmed", lambda query: [])
+    prompts = []
+    real_format = lookups.format_enrichr
+
+    def format_enrichr(label, found, **kwargs):
+        prompts.append(real_format(label, found, **kwargs))
+        return prompts[-1]
+
+    monkeypatch.setattr(lookups, "format_enrichr", format_enrichr)
     block = {"lookup": {"markers": {"clusters": ["4"], "n": 5}, "enrichr": [{"cluster": "4"}]}}
     replies = iter([f"```celldega-actions\n{json.dumps(block)}\n```", "Cluster 4 is goblet-like."])
     monkeypatch.setattr(clerk_llm, "ask", lambda question, **kwargs: next(replies))
     w.request = {"id": "1", "question": "What is cluster 4?"}
     assert w.wait(timeout=5)
+    w.enrichr_prompts = prompts
     return w
 
 
@@ -105,13 +121,20 @@ def test_enrichr_lookups_show_inline_like_the_enrich_panel(monkeypatch):
             "odds_ratio": 3,
             "genes": ["MUC2"],
         }
-        for i in range(12)
+        for i in range(30)
     ]
     w = _enrichr_question(monkeypatch, lambda genes: {"CellMarker_2024": terms, "Empty": []})
     cards = [m for m in w.messages if m["role"] == "enrichment"]
     assert len(cards) == 1
     card = cards[0]
     assert card["label"] == "cluster 4's top 1 markers" and card["genes"] == ["MUC2"]
+    # Folded under a title, with a link to the same results on the Enrichr site.
+    assert card["title"] == "Cluster 4 upregulated"
+    assert card["url"] == "https://maayanlab.cloud/Enrichr/enrich?dataset=ab12"
+    # Clerk reads the top few terms (and the link to cite); the chart scrolls through more.
+    (prompt,) = w.enrichr_prompts
+    assert "Term 7 " in prompt and "Term 8 " not in prompt
+    assert prompt.endswith("https://maayanlab.cloud/Enrichr/enrich?dataset=ab12")
     # The top terms per library, as the Enrich panel shows; empty libraries are left out.
     assert list(card["libraries"]) == ["CellMarker_2024"]
     shown = card["libraries"]["CellMarker_2024"]
@@ -143,19 +166,39 @@ def _strict_ask(question, **kwargs):
 
 def test_the_panels_own_enrichr_results_show_once_per_gene_list(monkeypatch):
     w, _cgm, _requests = _clerk(monkeypatch)
-    # Panel-only fields (enrichr_library) must not reach clerk.ask.
-    monkeypatch.setattr(clerk_llm, "ask", _strict_ask)
+    # Panel-only fields (enrichr_library, enrichr_short_id) must not reach clerk.ask.
+    asked = []
+
+    def strict_ask(question, **kwargs):
+        asked.append(kwargs)
+        return _strict_ask(question, **kwargs)
+
+    monkeypatch.setattr(clerk_llm, "ask", strict_ask)
     terms = [{"name": "Goblet cell", "score": 5, "genes": ["MUC2", "TFF3"]}]
     for i in range(2):
         w.request = {
             "id": str(i),
             "question": f"Question {i}",
             "gene_list": ["MUC2", "TFF3"],
-            "enrichr_terms": terms,
+            "enrichr_terms": terms * 12,
             "enrichr_library": "CellMarker_2024",
+            "enrichr_short_id": "x9Y8",
         }
         assert w.wait(timeout=5)
     cards = [m for m in w.messages if m["role"] == "enrichment"]
     assert len(cards) == 1
-    assert cards[0]["label"] == "2 selected genes"
+    assert cards[0]["label"] == "2 selected genes" and cards[0]["title"] == "2 selected genes"
     assert cards[0]["libraries"]["CellMarker_2024"][0]["name"] == "Goblet cell"
+    assert len(cards[0]["libraries"]["CellMarker_2024"]) == 12  # the chart scrolls
+    assert cards[0]["url"] == "https://maayanlab.cloud/Enrichr/enrich?dataset=x9Y8"
+    # Clerk reads the top terms, and the page to cite.
+    assert len(asked[0]["enrichr_terms"]) == w.ENRICHMENT_PROMPT_TERMS
+    assert any("dataset=x9Y8" in note for note in asked[0]["notes"])
+
+
+def test_only_enrichr_short_ids_become_links():
+    from celldega.viz.widget import _enrichr_page
+
+    assert _enrichr_page("x9Y8") == "https://maayanlab.cloud/Enrichr/enrich?dataset=x9Y8"
+    for bad in ("", None, "x9/../y", "a b", "javascript:alert(1)"):
+        assert _enrichr_page(bad) == ""

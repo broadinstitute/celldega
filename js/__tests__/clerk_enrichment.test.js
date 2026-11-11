@@ -96,24 +96,108 @@ describe('inline Enrichr results', () => {
     expect(handlers.on_genes).toHaveBeenLastCalledWith([]);
   });
 
-  test('one tab per library; switching clears the selection', () => {
-    const { card, bars } = setup();
-    const tabs = [...card.querySelectorAll('.clerk-enrichment-tabs button')];
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
-      'CellMarker 2024',
-      'PanglaoDB Augmented 2021',
+  test('a library picker; switching clears the selection', () => {
+    const { card, bars, handlers } = setup();
+    const picker = card.querySelector('select.clerk-enrichment-library');
+    expect([...picker.options].map((o) => o.value)).toEqual([
+      'CellMarker_2024',
+      'PanglaoDB_Augmented_2021',
     ]);
     bars()[0].click();
-    tabs[1].click();
+    picker.value = 'PanglaoDB_Augmented_2021';
+    picker.dispatchEvent(new Event('change'));
     expect(bars().map((bar) => bar.textContent)).toEqual(['Enterocytes']);
     expect(bars()[0].classList.contains('selected')).toBe(false);
+    // The term's genes are no longer shown in the views.
+    expect(handlers.on_genes).toHaveBeenLastCalledWith([]);
     const single = setup({
       ...MESSAGE,
       libraries: { CellMarker_2024: MESSAGE.libraries.CellMarker_2024 },
     });
+    expect(single.card.querySelector('select')).toBeNull();
+  });
+
+  test('other libraries are fetched from Enrichr when picked', async () => {
+    const fetch_terms = jest.fn(async () => ({
+      terms: [{ name: 'Colon', score: 4, genes: ['MUC2'] }],
+      url: 'https://maayanlab.cloud/Enrichr/enrich?dataset=Ab1',
+    }));
+    const handlers = {
+      on_gene: jest.fn(),
+      on_genes: jest.fn(),
+      tooltip: {
+        show: jest.fn(),
+        show_html: jest.fn(),
+        move: jest.fn(),
+        hide: jest.fn(),
+      },
+      esc,
+      fetch_terms,
+      libraries: ['CellMarker_2024', 'ARCHS4_Tissues'],
+      contain_scroll: jest.fn(),
+    };
+    const card = render_enrichment(
+      {
+        ...MESSAGE,
+        libraries: { CellMarker_2024: MESSAGE.libraries.CellMarker_2024 },
+      },
+      handlers
+    );
+    const picker = card.querySelector('select');
+    expect([...picker.options].map((o) => o.value)).toEqual([
+      'CellMarker_2024',
+      'ARCHS4_Tissues',
+    ]);
+    // The bars scroll on their own, like the Enrich panel's.
+    expect(handlers.contain_scroll).toHaveBeenCalledWith(
+      card.querySelector('.clerk-enrichment-bars')
+    );
+    const link = card.querySelector('a.clerk-enrichment-link');
+    expect(link.style.display).toBe('none'); // no Enrichr page yet
+    picker.value = 'ARCHS4_Tissues';
+    picker.dispatchEvent(new Event('change'));
+    expect(card.querySelector('.clerk-enrichment-bars').textContent).toBe(
+      'Loading…'
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetch_terms).toHaveBeenCalledWith(
+      ['Muc2', 'TFF3', 'JCHAIN'],
+      'ARCHS4_Tissues'
+    );
     expect(
-      single.card.querySelectorAll('.clerk-enrichment-tabs button')
-    ).toHaveLength(0);
+      [...card.querySelectorAll('.clerk-enrichment-term')].map(
+        (t) => t.textContent
+      )
+    ).toEqual(['Colon']);
+    expect(link.href).toBe(
+      'https://maayanlab.cloud/Enrichr/enrich?dataset=Ab1'
+    );
+    expect(link.style.display).toBe('');
+  });
+
+  test('only Enrichr pages are linked', () => {
+    const linked = setup({
+      ...MESSAGE,
+      url: 'https://maayanlab.cloud/Enrichr/enrich?dataset=Zz9',
+    });
+    const link = linked.card.querySelector('a.clerk-enrichment-link');
+    expect(link.textContent).toBe('View full results on Enrichr');
+    expect(link.target).toBe('_blank');
+    const other = setup({ ...MESSAGE, url: 'https://example.com/x' });
+    expect(
+      other.card.querySelector('a.clerk-enrichment-link').style.display
+    ).toBe('none');
+  });
+
+  test('genes are colored as in Enrich: in the term or not', () => {
+    const { bars, genes } = setup();
+    expect(genes().some((g) => g.classList.contains('out-term'))).toBe(false);
+    bars()[0].click();
+    expect(
+      genes()
+        .filter((g) => g.classList.contains('out-term'))
+        .map((g) => g.textContent)
+    ).toEqual(['JCHAIN']);
   });
 
   test('hovering shows term statistics and genes their UniProt summary and terms', () => {

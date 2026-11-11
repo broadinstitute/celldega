@@ -20,6 +20,7 @@ USER_AGENT = "celldega-clerk"
 _TIMEOUT = 30
 
 _enrichr_cache: dict[tuple, list[dict]] = {}
+_enrichr_links: dict[tuple, str] = {}
 _pubmed_cache: dict[tuple, list[dict]] = {}
 
 
@@ -61,7 +62,24 @@ def _post_gene_list(genes: list[str], timeout: float = _TIMEOUT) -> int:
         payload = json.loads(response.read().decode("utf-8"))
     if "userListId" not in payload:
         raise ClerkLookupError(f"Enrichr did not accept the gene list: {payload}")
+    short_id = str(payload.get("shortId") or "")
+    if short_id:
+        _enrichr_links[tuple(sorted(genes))] = enrichr_app_url(short_id)
     return payload["userListId"]
+
+
+def enrichr_app_url(short_id: str) -> str:
+    """The Enrichr web page for an uploaded gene list (its ``shortId``)."""
+    return f"{ENRICHR_URL}/enrich?" + urllib.parse.urlencode({"dataset": short_id})
+
+
+def enrichr_link(genes: list[str]) -> str:
+    """The Enrichr web page for a gene list uploaded this session, or ``""``.
+
+    The page shows the same list's results in every Enrichr library.
+    """
+    genes = [str(g) for g in dict.fromkeys(genes) if str(g)]
+    return _enrichr_links.get(tuple(sorted(genes)), "")
 
 
 def enrichr(
@@ -159,8 +177,10 @@ def pubmed(query: str, n: int = 5, abstract_chars: int = 600) -> list[dict]:
     return articles
 
 
-def format_enrichr(gene_label: str, results: dict[str, list[dict]], max_genes: int = 10) -> str:
-    """Short text for enrichment results."""
+def format_enrichr(
+    gene_label: str, results: dict[str, list[dict]], max_genes: int = 10, *, url: str = ""
+) -> str:
+    """Short text for enrichment results, ending with the Enrichr page when known."""
     lines = []
     for library, terms in results.items():
         lines.append(f"Enrichr {library} for {gene_label}:")
@@ -175,6 +195,8 @@ def format_enrichr(gene_label: str, results: dict[str, list[dict]], max_genes: i
                 f"  {rank}. {term['name']} (combined score {term['score']:.3g}; "
                 f"adj. p {term['adjusted_p']:.2g}): {shown}"
             )
+    if url and lines:
+        lines.append(f"Enrichr page for these results (cite it as a link): {url}")
     return "\n".join(lines)
 
 

@@ -1228,6 +1228,29 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  // The clusters highlighted here (while cells are colored by cluster), for
+  // linked widgets: a Clustergram turns their column labels blue.
+  const publish_selected_clusters = () => {
+    const { model } = viz_state;
+    if (typeof model?.set !== 'function') return;
+    const clusters =
+      viz_state.cats?.cat === 'cluster'
+        ? (viz_state.obs_store.selected_cats.get() || []).map(String)
+        : [];
+    const now = model.get('selected_clusters') || [];
+    if (JSON.stringify(now) === JSON.stringify(clusters)) return;
+    model.set('selected_clusters', clusters);
+    model.save_changes();
+  };
+  cleanup_callbacks.push(
+    viz_state.obs_store.selected_cats.subscribe(publish_selected_clusters, {
+      immediate: false,
+    }),
+    viz_state.obs_store.selected_genes.subscribe(publish_selected_clusters, {
+      immediate: false,
+    })
+  );
+
   // PIC: save a screenshot with a description; Python writes the PNG and the
   // state to recreate it (see ui/pic_button.js and Landscape.screenshot).
   const pic = add_pic_button(ui_container, {

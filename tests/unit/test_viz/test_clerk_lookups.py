@@ -70,6 +70,13 @@ def test_enrichr_uploads_once_and_ranks_terms(monkeypatch) -> None:
     text = lookups.format_enrichr("cluster 4's top 2 markers", found)
     assert "Enrichr CellMarker_2024 for cluster 4's top 2 markers:" in text
     assert "1. Goblet cell (combined score 800; adj. p 1e-08): MUC2, TFF3" in text
+    assert "Enrichr page" not in text
+    # The upload's shortId is the list's page on the Enrichr website, in any order.
+    page = "https://maayanlab.cloud/Enrichr/enrich?dataset=abc"
+    assert lookups.enrichr_link(["TFF3", "MUC2"]) == page
+    assert lookups.enrichr_link(["EPCAM"]) == ""
+    text = lookups.format_enrichr("cluster 4's top 2 markers", found, url=page)
+    assert text.endswith(f"Enrichr page for these results (cite it as a link): {page}")
 
 
 _EFETCH = """<?xml version="1.0"?>
@@ -190,7 +197,7 @@ def test_clerk_reads_markers_and_runs_enrichr_and_pubmed(monkeypatch) -> None:
     monkeypatch.setattr(
         lookups,
         "enrichr",
-        lambda genes, libraries: (
+        lambda genes, libraries, top=8: (
             enrichr_calls.append((genes, libraries)) or {"CellMarker_2024": []}
         ),
     )
@@ -256,8 +263,9 @@ def test_clerk_records_findings_and_writes_them_to_anndata(monkeypatch) -> None:
     assert w.wait(timeout=5)
 
     assert w.messages[1] == {"role": "assistant", "content": "4 is goblet, 5 is plasma."}
-    assert w.messages[2]["content"] == (
-        "Recorded tentative cell types: 4 → Goblet cells (high), 5 → Plasma cells (medium)"
+    assert w.messages[2]["content"] == "Recorded tentative cell types for 2 clusters"
+    assert w.messages[2]["detail"] == (
+        "Recorded cell types: 4 → Goblet cells (high), 5 → Plasma cells (medium)"
     )
     df = w.findings_df()
     assert list(df["label"]) == ["Goblet cells", "Plasma cells"]

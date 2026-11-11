@@ -1,11 +1,39 @@
 /**
- * Enrichr results drawn inside Clerk, like the Enrich panel: a bar graph of the top
- * terms (one tab per library) and a paragraph of the genes tested.
+ * Enrichr results drawn inside Clerk, like the Enrich panel: a library picker, a
+ * scrolling bar graph of the top terms, a paragraph of the genes tested and a link to
+ * the same results on the Enrichr website.
  *
- * Hovering a bar shows the term's statistics; clicking it highlights the term's
- * genes in the paragraph and shows them in the linked views. Genes in the paragraph
- * behave like Clerk's other gene links: hover for UniProt, click to show.
+ * Hovering a bar shows the term's statistics; clicking it colors the term's genes in
+ * the paragraph (blue, the rest dark gray, as in Enrich) and shows them in the linked
+ * views. Genes in the paragraph behave like Clerk's other gene links: hover for
+ * UniProt, click to show. Picking a library Clerk didn't look up asks Enrichr from the
+ * browser (`fetch_terms`).
+ *
+ * No imports: the panel passes everything in, so the module loads as is in tests.
  */
+
+/** Libraries offered in the picker (the Enrich panel's defaults, plus cell types). */
+export const ENRICHR_LIBRARIES = [
+  'CellMarker_2024',
+  'PanglaoDB_Augmented_2021',
+  'Azimuth_Cell_Types_2021',
+  'ARCHS4_Tissues',
+  'GO_Biological_Process_2025',
+  'GO_Cellular_Component_2025',
+  'GO_Molecular_Function_2025',
+  'GTEx_Tissue_Expression_Up',
+  'KEGG_2019_Human',
+  'ChEA_2022',
+  'MGI_Mammalian_Phenotype_Level_4_2024',
+  'Disease_Perturbations_from_GEO_up',
+  'Ligand_Perturbations_from_GEO_up',
+  'LINCS_L1000_Chem_Pert_down',
+  'Ligand_Perturbations_from_GEO_down',
+];
+
+// Only links to the Enrichr site itself are shown.
+const ENRICHR_PAGE =
+  /^https:\/\/maayanlab\.cloud\/Enrichr\/enrich\?dataset=[A-Za-z0-9]+$/;
 
 const format = (value, digits = 3) =>
   Number.isFinite(value) ? Number(value).toPrecision(digits) : '—';
@@ -29,55 +57,100 @@ export const term_html = (term, esc) =>
     .join('<br>');
 
 /**
- * @param {{label: string, genes: string[], libraries: Object<string,
- *   Array<{name: string, score: number, adjusted_p?: number, odds_ratio?: number,
- *   genes: string[]}>>}} message - An `enrichment` message from Python.
+ * @param {{title?: string, label: string, genes: string[], url?: string,
+ *   libraries: Object<string, Array<{name: string, score: number,
+ *   adjusted_p?: number, odds_ratio?: number, genes: string[]}>>}} message - An
+ *   `enrichment` message from Python.
  * @param {{on_gene: (gene: string, add: boolean) => void,
  *   on_genes: (genes: string[]) => void, tooltip: {show: Function,
  *   show_html: Function, move: Function, hide: Function},
- *   esc: (value: unknown) => string}} handlers
+ *   esc: (value: unknown) => string,
+ *   fetch_terms?: (genes: string[], library: string) =>
+ *     Promise<{terms: object[], url?: string}>,
+ *   libraries?: string[], contain_scroll?: (el: HTMLElement) => void,
+ *   show_title?: boolean}} handlers
  * @returns {HTMLElement}
  */
 export const render_enrichment = (
   message,
-  { on_gene, on_genes, tooltip, esc }
+  {
+    on_gene,
+    on_genes,
+    tooltip,
+    esc,
+    fetch_terms = null,
+    libraries: offered = ENRICHR_LIBRARIES,
+    contain_scroll = null,
+    show_title = true,
+  }
 ) => {
-  const libraries = Object.entries(message.libraries || {}).filter(
-    ([, terms]) => terms?.length
+  // Results per library: Clerk's own first, then any fetched here.
+  const results = new Map(
+    Object.entries(message.libraries || {}).filter(([, terms]) => terms?.length)
   );
+  const genes = (message.genes || []).map(String);
+  let url = ENRICHR_PAGE.test(message.url || '') ? message.url : '';
+
   const card = document.createElement('div');
   card.className = 'clerk-enrichment';
 
-  const title = document.createElement('div');
-  title.className = 'clerk-enrichment-title';
-  title.textContent = `Enrichr · ${message.label || 'genes'}`;
-  card.appendChild(title);
+  if (show_title) {
+    const title = document.createElement('div');
+    title.className = 'clerk-enrichment-title';
+    title.textContent = `Enrichr · ${message.title || message.label || 'genes'}`;
+    card.appendChild(title);
+  }
 
-  const tabs = document.createElement('div');
-  tabs.className = 'clerk-enrichment-tabs';
+  const picker = document.createElement('select');
+  picker.className = 'clerk-enrichment-library';
+  picker.title = 'Enrichr library';
+  const names = [
+    ...new Set([...results.keys(), ...(fetch_terms ? offered : [])]),
+  ];
+  names.forEach((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    picker.appendChild(option);
+  });
   const chart = document.createElement('div');
   chart.className = 'clerk-enrichment-bars';
   const paragraph = document.createElement('div');
   paragraph.className = 'clerk-enrichment-genes';
-  card.append(tabs, chart, paragraph);
+  const link = document.createElement('a');
+  link.className = 'clerk-enrichment-link';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = 'View full results on Enrichr';
+  if (names.length > 1) card.appendChild(picker);
+  card.append(chart, paragraph, link);
+  // Scrolling the bars stops at their ends instead of scrolling the conversation.
+  contain_scroll?.(chart);
 
-  let library = libraries[0]?.[0] ?? '';
+  let library = names[0] ?? '';
+  picker.value = library;
   let selected = null; // the selected term's name
-  const terms_now = () =>
-    libraries.find(([name]) => name === library)?.[1] || [];
+  let revision = 0;
+  const terms_now = () => results.get(library) || [];
   // Enrichr reports genes in upper case; match the tested genes case-insensitively.
   const in_term = () => {
     const term = terms_now().find((t) => t.name === selected);
     return new Set((term?.genes || []).map((g) => String(g).toUpperCase()));
   };
 
+  const sync_link = () => {
+    link.style.display = url ? '' : 'none';
+    if (url) link.href = url;
+    else link.removeAttribute('href');
+  };
+
+  // As in Enrich: with a term selected its genes are blue and the rest dark gray.
   const paint_genes = () => {
     const marked = in_term();
     paragraph.querySelectorAll('.clerk-gene').forEach((span) => {
-      span.classList.toggle(
-        'in-term',
-        marked.has(span.dataset.gene.toUpperCase())
-      );
+      const hit = marked.has(span.dataset.gene.toUpperCase());
+      span.classList.toggle('in-term', selected !== null && hit);
+      span.classList.toggle('out-term', selected !== null && !hit);
     });
   };
 
@@ -89,24 +162,12 @@ export const render_enrichment = (
       // Like an Enrich term click: the term's genes show in the linked views.
       on_genes(selected ? term.genes.map(String) : []);
     };
-    tabs.replaceChildren();
-    if (libraries.length > 1) {
-      libraries.forEach(([name]) => {
-        const tab = document.createElement('button');
-        tab.className = 'clerk-tool';
-        tab.textContent = name.replace(/_/g, ' ');
-        tab.classList.toggle('active', name === library);
-        tab.addEventListener('click', () => {
-          library = name;
-          selected = null;
-          draw();
-          paint_genes();
-        });
-        tabs.appendChild(tab);
-      });
-    }
     chart.replaceChildren();
     const terms = terms_now();
+    if (!terms.length) {
+      chart.textContent = 'No terms in this library.';
+      return;
+    }
     const max = Math.max(0, ...terms.map((t) => t.score)) || 1;
     terms.forEach((term) => {
       const bar = document.createElement('div');
@@ -148,8 +209,35 @@ export const render_enrichment = (
     });
   };
 
+  const show_library = async (name) => {
+    const had_term = selected !== null;
+    library = name;
+    selected = null;
+    if (had_term) on_genes([]);
+    const mine = (revision += 1);
+    if (!results.has(name) && fetch_terms) {
+      chart.replaceChildren();
+      chart.textContent = 'Loading…';
+      paint_genes();
+      try {
+        const found = await fetch_terms(genes, name);
+        if (mine !== revision) return;
+        results.set(name, found?.terms || []);
+        if (!url && ENRICHR_PAGE.test(found?.url || '')) ({ url } = found);
+        sync_link();
+      } catch (error) {
+        if (mine !== revision) return;
+        chart.textContent = `Couldn't reach Enrichr: ${error?.message || error}`;
+        return;
+      }
+    }
+    draw();
+    paint_genes();
+  };
+  picker.addEventListener('change', () => show_library(picker.value));
+
   // The gene paragraph: every gene tested, in order.
-  (message.genes || []).forEach((gene, index) => {
+  genes.forEach((gene, index) => {
     const span = document.createElement('span');
     span.className = 'clerk-gene';
     span.dataset.gene = gene;
@@ -163,10 +251,10 @@ export const render_enrichment = (
     // Which of this library's top terms the gene is in, under its UniProt summary.
     const terms_html = () => {
       const upper = gene.toUpperCase();
-      const names = terms_now()
+      const hits = terms_now()
         .filter((t) => t.genes.some((g) => String(g).toUpperCase() === upper))
         .map((t) => esc(t.name));
-      return names.length ? `In: ${names.join('; ')}` : '';
+      return hits.length ? `In: ${hits.join('; ')}` : '';
     };
     span.addEventListener('mouseenter', (event) =>
       tooltip.show(gene, event, terms_html())
@@ -184,10 +272,11 @@ export const render_enrichment = (
       }
     });
     paragraph.appendChild(span);
-    if (index < message.genes.length - 1)
+    if (index < genes.length - 1)
       paragraph.appendChild(document.createTextNode(', '));
   });
 
+  sync_link();
   draw();
   return card;
 };

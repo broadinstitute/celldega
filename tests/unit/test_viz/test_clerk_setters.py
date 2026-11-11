@@ -111,7 +111,7 @@ def test_clerk_drives_the_landscape_and_waits_for_it(monkeypatch) -> None:
     assert w.messages[-1]["content"] == "Cluster 4 lines the crypts."
 
 
-def test_clerk_labels_clustergram_but_keeps_scientist_labels(monkeypatch) -> None:
+def test_clerk_asks_before_labeling_and_keeps_scientist_labels(monkeypatch) -> None:
     cgm = _clustergram(manual_col_cat="cell_type")
     cgm.manual_cat = json.dumps(
         {"col": {"cell_type": {"values": {"5": "My plasma label"}, "colors": {}}}}
@@ -132,17 +132,74 @@ def test_clerk_labels_clustergram_but_keeps_scientist_labels(monkeypatch) -> Non
     w.request = {"id": "1", "question": "label 4 and 5"}
     assert w.wait(timeout=5)
 
+    # Nothing is labeled yet: the recorded types come with an offer to label.
+    assert not [m for m in sent if m.get("event") == "set_categories"]
+    recorded = w.messages[-1]
+    assert recorded["content"] == "Recorded tentative cell types for 2 clusters"
+    assert recorded["detail"] == (
+        "Recorded cell types: 4 → Goblet cells (high), 5 → Plasma cells (high)"
+    )
+    offer = recorded["label_offer"]
+    assert offer["status"] == "offered"
+    assert offer["attribute"] == "cell_type"  # the manual column category
+    assert [c["label"] for c in offer["cell_types"]] == ["Goblet cells", "Plasma cells"]
+
+    # The scientist clicks LABEL.
+    w._on_panel_msg(w, {"event": "label_clustergram", "id": offer["id"]}, [])
     labels = [m for m in sent if m.get("event") == "set_categories"]
     assert labels[-1]["values"] == {"4": "Goblet cells"}  # 5 was the scientist's
-    note = w.messages[-1]["content"]
-    assert "Labeled Clustergram columns (cell_type): 4 → Goblet cells" in note
-    assert "kept your labels for 5 (My plasma label)" in note
+    done = w.messages[-1]["label_offer"]
+    assert done["status"] == "done"
+    assert done["result"] == "Labeled 1 Clustergram column; kept your labels for 1"
+    assert "Clustergram columns (cell_type): 4 → Goblet cells" in done["result_detail"]
+    assert "Kept your labels for 5 (My plasma label)" in done["result_detail"]
+    # A second click (or a stale one) changes nothing.
+    count = len(sent)
+    w._on_panel_msg(w, {"event": "label_clustergram", "id": offer["id"]}, [])
+    w._on_panel_msg(w, {"event": "label_clustergram", "id": "nope"}, [])
+    assert len(sent) == count
+
+
+def test_clerk_labels_right_away_when_asked_to(monkeypatch) -> None:
+    cgm = _clustergram(manual_col_cat="cell_type")
+    w = Clerk(clustergram=cgm)
+    w.snapshot_timeout = 0.05
+    sent = []
+    monkeypatch.setattr(cgm, "send", sent.append)
+    findings = {"cell_types": [{"cluster": "4", "label": "Goblet cells"}], "label": True}
+    answer = f"4 goblet.\n```celldega-findings\n{json.dumps(findings)}\n```"
+    monkeypatch.setattr(clerk_llm, "ask", lambda question, **kw: answer)
+    w.request = {"id": "1", "question": "label cluster 4"}
+    assert w.wait(timeout=5)
+    labels = [m for m in sent if m.get("event") == "set_categories"]
+    assert labels[-1]["values"] == {"4": "Goblet cells"}
+    assert "label_offer" not in w.messages[-2]
+    assert w.messages[-1]["content"] == "Labeled 1 Clustergram column"
+
+
+def test_no_label_offer_without_a_clustergram_and_none_when_off(monkeypatch) -> None:
+    findings = {"cell_types": [{"cluster": "4", "label": "Goblet cells"}]}
+    answer = f"4 goblet.\n```celldega-findings\n{json.dumps(findings)}\n```"
+    monkeypatch.setattr(clerk_llm, "ask", lambda question, **kw: answer)
+    w = Clerk()
+    w.request = {"id": "1", "question": "what is 4?"}
+    assert w.wait(timeout=5)
+    assert "label_offer" not in w.messages[-1]
+
+    cgm = _clustergram(manual_col_cat="cell_type")
+    w = Clerk(clustergram=cgm)
+    w.snapshot_timeout = 0.05
+    w.label_clustergram = False
+    w.request = {"id": "1", "question": "what is 4?"}
+    assert w.wait(timeout=5)
+    assert "label_offer" not in w.messages[-1]
 
 
 def test_clerk_marks_marker_genes_in_the_clustergram_rows(monkeypatch) -> None:
     cgm = _clustergram(manual_col_cat="cell_type")
     w = Clerk(clustergram=cgm)
     w.snapshot_timeout = 0.05
+    w.label_clustergram = True  # label right away, without asking
     sent = []
     monkeypatch.setattr(cgm, "send", sent.append)
 
@@ -162,7 +219,8 @@ def test_clerk_marks_marker_genes_in_the_clustergram_rows(monkeypatch) -> None:
         ("row", "clerk_marker"),  # no manual row category: Clerk's own attribute
     ]
     assert labels[-1]["values"] == {"MUC2": "Goblet cells", "TFF3": "Goblet cells"}
-    assert "marked marker genes (clerk_marker): MUC2, TFF3" in w.messages[-1]["content"]
+    assert w.messages[-1]["content"] == "Labeled 1 Clustergram column; marked 2 marker genes"
+    assert "Marker genes (clerk_marker): MUC2, TFF3" in w.messages[-1]["detail"]
     assert w.findings[-1]["markers"] == ["MUC2", "tff3", "NOPE"]
 
     # The browser syncs the labels back; then Clerk relabels cluster 4. Its old marks

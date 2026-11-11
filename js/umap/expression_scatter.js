@@ -6,6 +6,7 @@ import {
 } from '../deck-gl/layers/cell_layer';
 import { calc_and_update_rgn_bar_graph } from '../deck-gl/layers/edit_layer';
 import { load_gene_expression } from '../global_variables/cell_exp_array';
+import { CONTROL_FONT_SIZE, control_width } from '../ui/control_style';
 
 import {
   fingerprint,
@@ -224,10 +225,10 @@ export const initialize_expression_scatter = (
     element.textContent = text;
     element.title = title;
     Object.assign(element.style, {
-      width: `${width}px`,
+      width: `${control_width(width)}px`,
       textAlign: 'left',
       cursor: 'pointer',
-      fontSize: '12px',
+      fontSize: CONTROL_FONT_SIZE,
       fontWeight: 'bold',
       color: 'gray',
       marginTop: '5px',

@@ -40,6 +40,7 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { CONTROL_FONT_SIZE, control_width } from './control_style';
 import { make_dataset_dropdown } from './dataset_dropdown';
 import { update_dendro_from_slider } from './dendro_slider';
 import { is_gene_axis, make_gene_info_box } from './gene_info';
@@ -276,7 +277,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .append('div')
       .text(text)
       .style('white-space', 'nowrap')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('font-weight', 'bold')
       .style('color', 'black')
       .style('user-select', 'none')
@@ -329,7 +330,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const readout = d3
       .select(grid)
       .append('div')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('white-space', 'nowrap')
       .style('color', '#47515b')
       .style('user-select', 'none')
@@ -422,7 +423,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .append('div')
       .text(text)
       .style('display', 'inline-flex')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('font-family', MATRIX_UI_FONT_FAMILY);
 
   const crop_button = action_text(d3.select(crop_container), 'CROP').on(
@@ -510,7 +511,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   // categories load (see matrix_viz's bootstrap_manual_categories).
   const cat_bars_slot = document.createElement('div');
   cat_bars_slot.className = 'matrix_cat_bars_slot';
-  cat_bars_slot.style.flexShrink = '0';
+  // The bars and the search column narrow (to a point) before the panel scrolls,
+  // so a narrow Clustergram keeps its controls within its own width.
+  cat_bars_slot.style.flex = '0 1 auto';
+  cat_bars_slot.style.minWidth = '0';
   viz_state.cat_bars_slot = cat_bars_slot;
   ui_container.appendChild(cat_bars_slot);
   init_matrix_cat_bars(viz_state, cat_bars_slot);
@@ -518,7 +522,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   // Search + gene info stack vertically in one column: ui_container is a flex
   // row, so appending them as siblings would widen the control panel instead.
   const search_container = flex_container('matrix_search_container', 'column');
-  search_container.style.flexShrink = '0';
+  // 136px search/info column (plus its 10px indent), narrowing to 90px.
+  search_container.style.flex = '0 1 146px';
+  search_container.style.minWidth = '100px';
   search_container.style.marginRight = '6px';
 
   const row_search = set_matrix_row_search(viz_state, (row_index) =>
@@ -536,7 +542,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const gene_info_box = make_gene_info_box({
       marginLeft: '10px',
       height: '68px',
-      width: '136px',
+      width: 'calc(100% - 10px)',
     });
     viz_state.gene_info_box = gene_info_box;
     search_container.appendChild(gene_info_box.element);
@@ -565,7 +571,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   }
 
   // The logo shares the search row, sized to the gene info box below it.
-  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '136px');
+  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '100%');
 
   return ui_container;
 };
@@ -1613,9 +1619,9 @@ export const make_ist_ui_container = (
     d3.select(slice_label_container)
       .append('div')
       .text('SLICE')
-      .style('width', '40px')
+      .style('width', `${control_width(40)}px`)
       .style('text-align', 'left')
-      .style('font-size', '12px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('font-weight', 'bold')
       .style('color', 'black');
 

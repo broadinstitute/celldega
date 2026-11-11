@@ -10,6 +10,8 @@
 
 import { screenshot_png } from '../viz/png';
 
+import { CONTROL_FONT_SIZE } from './control_style';
+
 const FONT =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
@@ -47,6 +49,8 @@ export const add_pic_button = (ui_container, { model, capture }) => {
     'PIC',
     'Save a screenshot with a description: a PNG plus what it takes to recreate it'
   );
+  // Sized like the rest of the control panel (its dialog keeps 12px text).
+  button.style.fontSize = CONTROL_FONT_SIZE;
   const row = ui_container.querySelector('.search_logo_row');
   const logo = (row || ui_container).querySelector('.logo_button');
   if (logo?.parentNode) logo.parentNode.insertBefore(button, logo);

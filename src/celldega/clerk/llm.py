@@ -544,10 +544,118 @@ VIEW_KEYS = {
         "sliders",
         "image_source",
     ),
-    "clustergram": ("marker_level", "mode", "size", "focus_gene", "view", "order", "crop"),
+    "clustergram": (
+        "marker_level",
+        "mode",
+        "size",
+        "focus_gene",
+        "view",
+        "order",
+        "crop",
+        "dendrogram_group",
+    ),
 }
+#: Settings a view holds once :func:`resolve_dendrogram_groups` has expanded a
+#: ``dendrogram_group`` (the cut it was seen at, and that group selected).
+RESOLVED_VIEW_KEYS = {"clustergram": ("dendrogram", "selection")}
 MAX_VIEWS = 12
+
+
+def resolve_dendrogram_groups(
+    views: dict | None, clustergram_state: dict | None
+) -> tuple[dict | None, list[str]]:
+    """Pin each view's ``dendrogram_group`` to the Clustergram state Clerk saw.
+
+    Clerk names a group as listed in the Clustergram snapshot, e.g.
+    ``{"dendrogram_group": {"axis": "col", "name": "39"}}``. Group names depend on
+    the dendrogram cut, so the view keeps that cut and selects the group by its
+    members (by name when the snapshot lists only some of them). Groups the
+    snapshot doesn't show are dropped from the view and reported.
+
+    Returns:
+        tuple: ``(views, problems)``.
+    """
+    if not views:
+        return views, []
+    problems: list[str] = []
+    resolved = {}
+    for view_id, view in views.items():
+        settings = (view or {}).get("clustergram")
+        if not isinstance(settings, dict) or "dendrogram_group" not in settings:
+            resolved[view_id] = view
+            continue
+        settings = dict(settings)
+        spec = settings.pop("dendrogram_group")
+        axis = str((spec or {}).get("axis") or "col") if isinstance(spec, dict) else ""
+        name = str((spec or {}).get("name") or "") if isinstance(spec, dict) else ""
+        name = re.sub(r"^\s*group\s+", "", name, flags=re.IGNORECASE).strip()
+        key = {"col": "cols", "row": "rows"}.get(axis)
+        groups = ((clustergram_state or {}).get(key) or {}).get("groups") or {} if key else {}
+        group = next((g for g in groups.get("groups") or [] if str(g.get("name")) == name), None)
+        if group is None:
+            problems.append(f"view {view_id}: no {axis or '?'} dendrogram group {name!r} in view")
+        else:
+            members = [str(m) for m in group.get("members") or []]
+            complete = members and len(members) >= int(group.get("size") or len(members))
+            selection = dict(settings.get("selection") or {})
+            selection["dendrogram"] = (
+                {"axis": axis, "members": members} if complete else {"axis": axis, "name": name}
+            )
+            settings["selection"] = selection
+            if groups.get("cut_percent") is not None:
+                settings["dendrogram"] = {
+                    **(settings.get("dendrogram") or {}),
+                    axis: float(groups["cut_percent"]),
+                }
+        view = {**view, "clustergram": settings}
+        if not settings:
+            view.pop("clustergram")
+        if any(widget in view for widget in VIEW_KEYS):
+            resolved[view_id] = view
+    return resolved or None, problems
+
+
 _VIEW_ID = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
+
+
+def _merge_into(target: dict, extra: dict) -> dict:
+    """Merge ``extra`` into ``target``, recursing into dicts both have."""
+    for key, value in extra.items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _merge_into(target[key], value)
+        else:
+            target[key] = value
+    return target
+
+
+def _load_block(text: str):
+    """The JSON in a fenced block, tolerating what models sometimes write.
+
+    Several objects one after another (e.g. one per cluster) are merged into one;
+    stray closing brackets after the last object are ignored. Anything else raises
+    the original :class:`json.JSONDecodeError`.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as first:
+        decoder = json.JSONDecoder()
+        objects, i, n = [], 0, len(text)
+        while True:
+            while i < n and text[i] in " \t\r\n,":
+                i += 1
+            if i >= n or not text[i:].strip(" \t\r\n}]"):
+                break
+            try:
+                value, i = decoder.raw_decode(text, i)
+            except json.JSONDecodeError:
+                raise first from None
+            objects.append(value)
+        if not objects or not all(isinstance(o, dict) for o in objects):
+            raise first from None
+        merged: dict = {}
+        for value in objects:
+            _merge_into(merged, value)
+        return merged
 
 
 def extract_findings(answer: str) -> tuple[str, dict | None, str | None]:
@@ -562,7 +670,7 @@ def extract_findings(answer: str) -> tuple[str, dict | None, str | None]:
         return (answer or "").strip(), None, None
     text = (answer[: match.start()] + answer[match.end() :]).strip()
     try:
-        findings = json.loads(match.group(1))
+        findings = _load_block(match.group(1))
     except json.JSONDecodeError as exc:
         return text, None, f"Could not read the recorded findings: {exc}"
     if not isinstance(findings, dict):
@@ -587,7 +695,7 @@ def extract_views(answer: str) -> tuple[str, dict | None, str | None]:
         return (answer or "").strip(), None, None
     text = (answer[: match.start()] + answer[match.end() :]).strip()
     try:
-        raw = json.loads(match.group(1))
+        raw = _load_block(match.group(1))
     except json.JSONDecodeError as exc:
         return text, None, f"Could not read the cited views: {exc}"
     if not isinstance(raw, dict):
@@ -631,7 +739,7 @@ def extract_actions(answer: str) -> tuple[str, dict | None, str | None]:
         return (answer or "").strip(), None, None
     text = (answer[: match.start()] + answer[match.end() :]).strip()
     try:
-        actions = json.loads(match.group(1))
+        actions = _load_block(match.group(1))
     except json.JSONDecodeError as exc:
         return text, None, f"Could not read the requested view change: {exc}"
     # Widget names map to settings; "continue" (bool) asks to see the result.

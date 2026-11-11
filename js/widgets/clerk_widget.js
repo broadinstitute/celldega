@@ -17,7 +17,8 @@ const FONT =
 
 // Library used to pre-gather Enrichr evidence that rides along in the prompt.
 const ENRICHR_LIB = 'CellMarker_2024';
-const ENRICHR_TERMS = 8;
+// Terms per library fetched for an Enrichr chart (Clerk itself reads the top few).
+const ENRICHR_CARD_TERMS = 20;
 
 // Most genes one click shows (the Landscape's gene search allows 20).
 const MAX_SHOWN_GENES = 20;
@@ -54,7 +55,7 @@ const MARKDOWN_CSS = `
   font-family: inherit; font-weight: bold; text-transform: uppercase; letter-spacing: 0.02em;
   background: none; border: none; cursor: pointer; user-select: none; }
 .${PANEL_CLASS} .clerk-button { font-size: 12px; color: #2c7fb8; margin: 4px 14px 0 0; padding: 2px 0; }
-.${PANEL_CLASS} .clerk-tool { font-size: 11px; color: gray; margin-left: 12px; padding: 0; }
+.${PANEL_CLASS} .clerk-tool { font-size: 9px; color: gray; margin-left: 9px; padding: 0; }
 .${PANEL_CLASS} .clerk-ask { font-size: 12px; color: #2c7fb8; margin-left: 8px; padding: 0 6px; }
 .${PANEL_CLASS} .clerk-button:hover, .${PANEL_CLASS} .clerk-tool:hover { color: #1a5a85; }
 .${PANEL_CLASS} .clerk-ask:disabled { color: gray; cursor: default; }
@@ -67,12 +68,14 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-cluster:hover, .${PANEL_CLASS} .clerk-genelist:hover,
 .${PANEL_CLASS} a.clerk-view:hover { border-bottom-style: solid; }
 .${PANEL_CLASS} .clerk-cluster.shown, .${PANEL_CLASS} a.clerk-view.shown { background: #e3eef7; border-radius: 2px; }
-.${PANEL_CLASS} .clerk-enrichment { margin: 6px 0; padding: 6px; border: 1px solid #e3e6e9; border-radius: 3px; }
+.${PANEL_CLASS} .clerk-enrichment { margin: 4px 0 6px; padding: 5px; border: 1px solid #d3d3d3; }
 .${PANEL_CLASS} .clerk-enrichment-title { font-size: 11px; font-weight: bold; letter-spacing: 0.04em;
   text-transform: uppercase; color: #47515b; margin-bottom: 3px; }
-.${PANEL_CLASS} .clerk-enrichment-tabs .clerk-tool { margin: 0 10px 3px 0; }
-.${PANEL_CLASS} .clerk-enrichment-tabs .clerk-tool.active { color: #2c7fb8; }
-.${PANEL_CLASS} .clerk-enrichment-bar { position: relative; height: 20px; margin-bottom: 1px; cursor: pointer;
+.${PANEL_CLASS} .clerk-enrichment-library { display: block; max-width: 100%; margin-bottom: 4px;
+  font-family: inherit; font-size: 12px; }
+.${PANEL_CLASS} .clerk-enrichment-bars { max-height: 176px; overflow-y: auto; border: 1px solid #d3d3d3;
+  font-size: 13px; }
+.${PANEL_CLASS} .clerk-enrichment-bar { position: relative; height: 21px; margin-bottom: 1px; cursor: pointer;
   user-select: none; }
 .${PANEL_CLASS} .clerk-enrichment-fill { position: absolute; top: 0; bottom: 0; left: 0;
   background: steelblue; opacity: 0.25; }
@@ -81,8 +84,23 @@ const MARKDOWN_CSS = `
   line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .${PANEL_CLASS} .clerk-enrichment-bar.dimmed .clerk-enrichment-term { color: gray; }
 .${PANEL_CLASS} .clerk-enrichment-bar.selected .clerk-enrichment-term { font-weight: bold; }
-.${PANEL_CLASS} .clerk-enrichment-genes { margin-top: 5px; font-size: 13px; line-height: 1.5; }
-.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene.in-term { font-weight: bold; color: #1a5a85; }
+.${PANEL_CLASS} .clerk-enrichment-genes { margin-top: 5px; padding: 3px; border: 1px solid #d3d3d3;
+  max-height: 96px; overflow-y: auto; font-size: 12px; line-height: 1.35; }
+/* Gene colors as in the Enrich panel: black, then blue (in the selected term) or
+   dark gray (not in it); the gene shown in the views is bold. */
+.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene { color: black; font-weight: 550; border-bottom: none; }
+.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene:hover { text-decoration: underline; }
+.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene.in-term { color: blue; }
+.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene.out-term { color: #2F4F4F; }
+.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene.shown { font-weight: bold; background: none; }
+.${PANEL_CLASS} .clerk-enrichment-link { display: block; margin-top: 4px; font-size: 12px; color: #2f74ff; }
+.${PANEL_CLASS} .clerk-figure > summary { color: #2c7fb8; }
+.${PANEL_CLASS} .clerk-selected { margin-top: 5px; border: 1px solid #d3d3d3; padding: 3px 6px; font-size: 13px; }
+.${PANEL_CLASS} .clerk-selected > summary { font-size: 12px; color: #47515b; }
+.${PANEL_CLASS} .clerk-selected-genes { max-height: 72px; overflow-y: auto; margin: 3px 0; line-height: 1.4; }
+.${PANEL_CLASS} .clerk-recorded { white-space: pre-wrap; font-size: 13px; color: #47515b; margin: 4px 0; }
+.${PANEL_CLASS} .clerk-offer { font-size: 12px; color: #47515b; margin: 2px 0 4px; }
+.${PANEL_CLASS} .clerk-offer .clerk-button { font-size: 11px; margin: 0 0 0 8px; }
 `;
 
 // Model picker: aliases the `claude` CLI understands; '' = the CLI's default model.
@@ -164,14 +182,13 @@ export const render_clerk = async ({ model, el }) => {
   container.style.flexDirection = 'column';
   container.style.fontFamily = FONT;
 
+  // Above the conversation: the genes selected in the linked views (sent with the
+  // next question), folded away, and a briefing Clerk started from, if any. Empty
+  // when there is neither.
   const evidence = document.createElement('div');
+  evidence.className = 'clerk-evidence';
   evidence.style.width = '100%';
-  evidence.style.marginTop = '5px';
-  evidence.style.padding = '6px';
   evidence.style.boxSizing = 'border-box';
-  evidence.style.border = '1px solid #d3d3d3';
-  evidence.style.maxHeight = '60px';
-  evidence.style.overflowY = 'auto';
 
   const messagesPane = document.createElement('div');
   messagesPane.style.flex = '1 1 auto';
@@ -256,33 +273,13 @@ export const render_clerk = async ({ model, el }) => {
   container.appendChild(inputRow);
   el.appendChild(container);
 
-  // Scrolling the conversation (or the gene strip) stops at its ends instead of
-  // carrying on to scroll the notebook page, as in the other widgets.
+  // Scrolling the conversation stops at its ends instead of carrying on to scroll
+  // the notebook page, as in the other widgets.
   contain_scroll(messagesPane);
-  contain_scroll(evidence);
 
   // ---- rendering helpers -------------------------------------------------
   // Screenshots appear in the conversation, under the question they were sent
-  // with; the strip only shows the selected genes.
-  const renderEvidence = () => {
-    const genes = model.get('gene_list') || [];
-    evidence.innerHTML = '';
-    evidence.style.fontSize = '13px';
-    evidence.textContent = genes.length
-      ? `Selected genes (${genes.length}): ${genes.join(', ')}`
-      : 'No genes selected. Each question also sends the linked views as they are.';
-    // Make it visible when Clerk starts from earlier work (load_briefing).
-    const briefing = model.get('briefing_label');
-    if (briefing) {
-      const line = document.createElement('div');
-      line.style.color = '#8a5a00';
-      line.title =
-        'Clerk receives this earlier work with every question, as conclusions to check';
-      line.textContent = briefing;
-      evidence.appendChild(line);
-    }
-  };
-
+  // with; above it is only the fold of selected genes.
   /** Screenshot + "Sent with: ..." line recorded on a question by Python. */
   const renderSentWith = (message, row) => {
     if (message.image) {
@@ -330,6 +327,64 @@ export const render_clerk = async ({ model, el }) => {
     who.style.color = color;
     who.textContent = text;
     return who;
+  };
+
+  const make_button = (text, title, onclick) => {
+    const button = document.createElement('button');
+    button.className = 'clerk-button';
+    button.textContent = text;
+    button.title = title;
+    button.addEventListener('click', onclick);
+    return button;
+  };
+
+  // ---- fetch Enrichr evidence (reuses the existing Enrichr API) -----------
+  // One upload per gene list, then one request per library, all cached.
+  const enrichr_list = (genes) => {
+    const key = genes.join(',');
+    if (!enrichrCache[key]) {
+      enrichrCache[key] = { list: postGeneList(genes, null), terms: {} };
+      enrichrCache[key].list.catch(() => delete enrichrCache[key]);
+    }
+    return enrichrCache[key];
+  };
+  /** Top terms of one library for a gene list, and its Enrichr web page. */
+  const fetch_terms = async (genes, library) => {
+    const entry = enrichr_list(genes);
+    const { userListId, shortId } = await entry.list;
+    if (!entry.terms[library]) {
+      entry.terms[library] = fetchEnrichment(userListId, library).then((data) =>
+        (data?.[library] || [])
+          .map((d) => ({
+            name: d[1],
+            score: d[4],
+            genes: d[5],
+            adjusted_p: d[6],
+            odds_ratio: d[3],
+          }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, ENRICHR_CARD_TERMS)
+      );
+      entry.terms[library].catch(() => delete entry.terms[library]);
+    }
+    const terms = await entry.terms[library];
+    return {
+      terms,
+      short_id: shortId || '',
+      url: shortId
+        ? `https://maayanlab.cloud/Enrichr/enrich?dataset=${shortId}`
+        : '',
+    };
+  };
+  const fetchEnrichrTerms = async (genes) => {
+    if (!genes || !genes.length) return { terms: [], short_id: '' };
+    try {
+      return await fetch_terms(genes, ENRICHR_LIB);
+    } catch (error) {
+      // Enrichr is best-effort evidence; proceed without it on failure.
+      handleAsyncError(error, { context: 'clerk fetchEnrichrTerms' });
+      return { terms: [], short_id: '' };
+    }
   };
 
   // ---- evidence links ------------------------------------------------------
@@ -404,6 +459,15 @@ export const render_clerk = async ({ model, el }) => {
     send_now({ show_clusters: shown_clusters });
     mark_shown();
   };
+  // What an Enrichr chart needs from the panel (see clerk_enrichment.js).
+  const enrichment_handlers = {
+    on_gene: show_gene,
+    on_genes: (genes) => show_genes(genes.slice(0, MAX_SHOWN_GENES), genes[0]),
+    tooltip: gene_tooltip,
+    esc,
+    fetch_terms,
+    contain_scroll,
+  };
 
   const cluster_html = (cluster) => {
     const label = (model.get('cluster_labels') || {})[cluster];
@@ -432,6 +496,15 @@ export const render_clerk = async ({ model, el }) => {
     }
     if (cg.mode) parts.push(`Clustergram ${cg.mode}`);
     if (cg.focus_gene) parts.push(`Clustergram row ${cg.focus_gene}`);
+    const group = cg.selection?.dendrogram;
+    if (group) {
+      const which = group.name
+        ? `group ${group.name}`
+        : `group of ${group.members?.length || 0}`;
+      parts.push(
+        `Clustergram ${group.axis === 'row' ? 'row' : 'column'} dendrogram ${which}`
+      );
+    }
     return parts.join(' · ');
   };
   const view_html = ([id, view]) =>
@@ -444,7 +517,8 @@ export const render_clerk = async ({ model, el }) => {
       const id = link.dataset.view;
       const view = views?.[id];
       if (!view) {
-        link.replaceWith(document.createTextNode(link.textContent));
+        // Keep its text, and any gene or cluster links inside it.
+        link.replaceWith(...link.childNodes);
         return;
       }
       link.dataset.key = `${scope}:${id}`;
@@ -520,22 +594,64 @@ export const render_clerk = async ({ model, el }) => {
 
   const action_line = (message) => {
     // A lookup or view change Clerk made (e.g. "Changed the Clustergram: ..."), or a
-    // note from the panel itself (e.g. where an export was saved).
+    // note from the panel itself (e.g. where an export was saved). A line's details
+    // (e.g. each cluster's recorded cell type) are in its turn's Evidence.
     const note = document.createElement('div');
     note.style.margin = '2px 0';
     note.style.fontSize = '12px';
     if (message.role === 'note') {
       note.style.color = '#6c757d';
       note.textContent = message.content || '';
-    } else {
-      note.style.fontStyle = 'italic';
-      note.style.color = '#2c7fb8';
-      note.textContent = `↻ ${message.content || ''}`;
-      link_gene_count(note, message.genes);
-      add_links(note, { genes: message.genes });
+      return note;
     }
-    return note;
+    note.style.fontStyle = 'italic';
+    note.style.color = '#2c7fb8';
+    note.textContent = `↻ ${message.content || ''}`;
+    if (message.detail) note.title = message.detail;
+    link_gene_count(note, message.genes);
+    add_links(note, { genes: message.genes });
+    const offer = message.label_offer;
+    if (!offer) return note;
+    // Recorded cell types: label the Clustergram with them only if the scientist
+    // says so.
+    const wrapper = document.createElement('div');
+    wrapper.appendChild(note);
+    if (offer.status === 'done') {
+      const done = document.createElement('div');
+      done.style.margin = '2px 0';
+      done.style.fontSize = '12px';
+      done.style.fontStyle = 'italic';
+      done.style.color = '#2c7fb8';
+      done.textContent = `↻ ${offer.result || 'Labeled the Clustergram'}`;
+      if (offer.result_detail) done.title = offer.result_detail;
+      wrapper.appendChild(done);
+    } else if (!model.get('pending')) {
+      const ask = document.createElement('div');
+      ask.className = 'clerk-offer';
+      // Names the manual column category the labels go in, e.g. "(cell_type)".
+      ask.textContent = `Label these clusters in the Clustergram${
+        offer.attribute ? ` (${offer.attribute})` : ''
+      }?`;
+      const yes = make_button(
+        'Label',
+        'Show these cell types as tentative Clustergram column labels, and mark ' +
+          'their marker genes on the rows (your own labels are kept)',
+        () => {
+          yes.disabled = true;
+          model.send?.({ event: 'label_clustergram', id: offer.id });
+        }
+      );
+      ask.appendChild(yes);
+      wrapper.appendChild(ask);
+    }
+    return wrapper;
   };
+  /** Details of a turn's lines (cell types recorded, labels applied), for Evidence. */
+  const line_details = (messages) =>
+    messages
+      .filter((m) => m.role === 'action')
+      .flatMap((m) => [m.detail, m.label_offer?.result_detail])
+      .filter(Boolean);
   const is_line = (message) =>
     message.role === 'action' || message.role === 'note';
 
@@ -556,15 +672,6 @@ export const render_clerk = async ({ model, el }) => {
     requestCounter += 1;
     model.set('request', { id: `${Date.now()}-${requestCounter}`, ...fields });
     model.save_changes();
-  };
-
-  const make_button = (text, title, onclick) => {
-    const button = document.createElement('button');
-    button.className = 'clerk-button';
-    button.textContent = text;
-    button.title = title;
-    button.addEventListener('click', onclick);
-    return button;
   };
 
   const renderTurn = (turn, index, is_last) => {
@@ -626,26 +733,39 @@ export const render_clerk = async ({ model, el }) => {
         scope: key,
       };
       if (main) answer.appendChild(markdown(main, links));
-      if (detail) {
+      const recorded = line_details([...turn.work, ...turn.results]);
+      if (detail || recorded.length) {
         const fold = make_fold(`${key}-evidence`, 'Evidence', false);
-        fold.appendChild(markdown(detail, links));
+        if (detail) fold.appendChild(markdown(detail, links));
+        recorded.forEach((text) => {
+          const line = document.createElement('div');
+          line.className = 'clerk-recorded';
+          line.textContent = text;
+          add_links(line, { genes: links.genes });
+          fold.appendChild(line);
+        });
         answer.appendChild(fold);
       }
       if (after) answer.appendChild(markdown(after, links));
       asked = asks_question(after || main || turn.answer.content);
       wrapper.appendChild(answer);
     }
-    // Enrichr results, under the answer (or as they arrive while Clerk works).
-    turn.figures.forEach((message) => {
-      wrapper.appendChild(
+    // Enrichr results, under the answer (or as they arrive while Clerk works), each
+    // folded under its title, e.g. "Enrichr · Cluster 4 upregulated".
+    turn.figures.forEach((message, figure) => {
+      const fold = make_fold(
+        `${key}-enrichr-${figure}`,
+        `Enrichr · ${message.title || message.label || 'genes'}`,
+        false,
+        'clerk-fold clerk-figure'
+      );
+      fold.appendChild(
         render_enrichment(message, {
-          on_gene: show_gene,
-          on_genes: (genes) =>
-            show_genes(genes.slice(0, MAX_SHOWN_GENES), genes[0]),
-          tooltip: gene_tooltip,
-          esc,
+          ...enrichment_handlers,
+          show_title: false,
         })
       );
+      wrapper.appendChild(fold);
     });
     turn.results.forEach((message) => {
       if (is_line(message)) wrapper.appendChild(action_line(message));
@@ -735,38 +855,24 @@ export const render_clerk = async ({ model, el }) => {
     messagesPane.querySelectorAll('details').forEach((details) => {
       details.open = open;
     });
-    group_turns(model.get('messages') || []).forEach((_turn, index) => {
-      ['', '-work', '-evidence'].forEach((suffix) =>
-        folds.set(`turn-${index}${suffix}`, open)
-      );
+    group_turns(model.get('messages') || []).forEach((turn, index) => {
+      [
+        '',
+        '-work',
+        '-evidence',
+        ...turn.figures.map((_figure, i) => `-enrichr-${i}`),
+      ].forEach((suffix) => folds.set(`turn-${index}${suffix}`, open));
     });
   };
 
+  // While Clerk works, the next question can be typed (Ask waits until it's done).
+  const IDLE_PLACEHOLDER = textarea.placeholder;
   const setBusy = (busy) => {
     sendBtn.disabled = busy;
-    textarea.disabled = busy;
     sendBtn.textContent = busy ? '…' : 'Ask';
-  };
-
-  // ---- fetch Enrichr evidence (reuses the existing Enrichr API) -----------
-  const fetchEnrichrTerms = async (genes) => {
-    if (!genes || !genes.length) return [];
-    const cacheKey = genes.join(',');
-    if (enrichrCache[cacheKey]) return enrichrCache[cacheKey];
-    try {
-      const { userListId } = await postGeneList(genes, null);
-      const data = await fetchEnrichment(userListId, ENRICHR_LIB);
-      const terms = (data[ENRICHR_LIB] || [])
-        .map((d) => ({ name: d[1], score: d[4], genes: d[5] }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, ENRICHR_TERMS);
-      enrichrCache[cacheKey] = terms;
-      return terms;
-    } catch (error) {
-      // Enrichr is best-effort evidence; proceed without it on failure.
-      handleAsyncError(error, { context: 'clerk fetchEnrichrTerms' });
-      return [];
-    }
+    textarea.placeholder = busy
+      ? 'Clerk is working; type your follow-up and ask when it is done'
+      : IDLE_PLACEHOLDER;
   };
 
   // ---- ask flow ----------------------------------------------------------
@@ -779,9 +885,9 @@ export const render_clerk = async ({ model, el }) => {
 
     const genes = model.get('gene_list') || [];
     // With an Enrich panel linked, Clerk reads that panel's results instead.
-    const enrichr_terms =
+    const { terms: enrichr_terms, short_id } =
       model.get('fetch_enrichr') === false
-        ? []
+        ? { terms: [], short_id: '' }
         : await fetchEnrichrTerms(genes);
 
     requestCounter += 1;
@@ -792,6 +898,7 @@ export const render_clerk = async ({ model, el }) => {
       gene_list: genes,
       enrichr_terms,
       enrichr_library: ENRICHR_LIB,
+      enrichr_short_id: short_id,
     });
     model.save_changes();
   };
@@ -817,10 +924,11 @@ export const render_clerk = async ({ model, el }) => {
   };
   toolbar.insertBefore(back, toolbar.firstChild);
 
-  tool('Expand all', 'Open every turn, work log and evidence section', () =>
+  // Short labels keep the toolbar on one row in a narrow sidecar.
+  tool('Expand', 'Open every turn, work log and evidence section', () =>
     set_all_folds(true)
   );
-  tool('Collapse all', 'Close every turn', () => set_all_folds(false));
+  tool('Collapse', 'Close every turn and section', () => set_all_folds(false));
   tool(
     'Save',
     'Save this conversation to reopen later with OPEN or clerk.load_conversation ' +
@@ -864,6 +972,87 @@ export const render_clerk = async ({ model, el }) => {
       submit();
     }
   });
+
+  // ---- selected genes ----------------------------------------------------
+  let selected_enrichment = null; // {key, message} for the selected genes' ENRICHR
+  const renderEvidence = () => {
+    const genes = (model.get('gene_list') || []).map(String);
+    evidence.replaceChildren();
+    if (genes.length) {
+      const fold = make_fold(
+        'selected-genes',
+        `Selected genes (${genes.length})`,
+        false,
+        'clerk-selected'
+      );
+      fold.querySelector('summary').title =
+        'Genes selected in the linked views; they go with your next question';
+      const list = document.createElement('div');
+      list.className = 'clerk-selected-genes';
+      list.textContent = genes.join(', ');
+      link_genes(list, genes, show_gene, gene_tooltip);
+      contain_scroll(list);
+      fold.appendChild(list);
+      const key = genes.join(',');
+      const run = make_button(
+        'Enrichr',
+        'Run Enrichr on the selected genes (shown here, not sent to Clerk)',
+        async () => {
+          run.disabled = true;
+          run.textContent = 'Enrichr…';
+          try {
+            const { terms, url } = await fetch_terms(genes, ENRICHR_LIB);
+            selected_enrichment = {
+              key,
+              message: {
+                title: `${genes.length} selected genes`,
+                genes,
+                url,
+                libraries: { [ENRICHR_LIB]: terms },
+              },
+            };
+          } catch (error) {
+            handleAsyncError(error, {
+              context: 'clerk selected-genes Enrichr',
+            });
+            selected_enrichment = {
+              key,
+              error: String(error?.message || error),
+            };
+          }
+          folds.set('selected-genes', true);
+          renderEvidence();
+        }
+      );
+      run.style.marginTop = '0';
+      fold.appendChild(run);
+      if (selected_enrichment?.key === key) {
+        fold.appendChild(
+          selected_enrichment.error
+            ? Object.assign(document.createElement('div'), {
+                textContent: `Couldn't reach Enrichr: ${selected_enrichment.error}`,
+              })
+            : render_enrichment(selected_enrichment.message, {
+                ...enrichment_handlers,
+                show_title: false,
+              })
+        );
+      }
+      evidence.appendChild(fold);
+    }
+    // Make it visible when Clerk starts from earlier work (load_briefing).
+    const briefing = model.get('briefing_label');
+    if (briefing) {
+      const line = document.createElement('div');
+      line.style.color = '#8a5a00';
+      line.style.fontSize = '13px';
+      line.style.marginTop = '5px';
+      line.title =
+        'Clerk receives this earlier work with every question, as conclusions to check';
+      line.textContent = briefing;
+      evidence.appendChild(line);
+    }
+  };
 
   // ---- traitlet listeners ------------------------------------------------
   const onPending = () => {

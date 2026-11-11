@@ -45,6 +45,7 @@ from .llm import (
     format_clustergram_state,
     format_enrich_state,
     format_landscape_state,
+    resolve_dendrogram_groups,
     run_claude,
 )
 from .prompts import SYSTEM_PROMPT, actions_help
@@ -72,6 +73,7 @@ __all__ = [
     "format_enrich_state",
     "format_landscape_state",
     "lookups",
+    "resolve_dendrogram_groups",
     "run_claude",
     "run_turn",
 ]

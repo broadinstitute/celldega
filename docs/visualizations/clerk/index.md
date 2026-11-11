@@ -267,10 +267,17 @@ Each question is a collapsible turn:
 - **Work · N steps** (collapsed): the lookups and view changes Clerk made and any interim
   replies; open while Clerk is working;
 - Clerk's answer, with its **Evidence** collapsed;
-- what Clerk recorded or changed alongside the answer (↻ lines), and any errors.
+- Enrichr results, each folded under a title such as "Enrichr · Cluster 4 upregulated";
+- what Clerk recorded or changed alongside the answer (one short ↻ line each, with the
+  details, such as each cluster's cell type, in the turn's Evidence), and any errors.
+
+Above the conversation, **Selected genes (N)** folds away the genes selected in the
+linked views, which go with your next question. Open it to click them like any other
+gene link, or press **Enrichr** to run them through Enrichr right there (not sent to
+Clerk).
 
 If the answer ends with a yes/no question ("Check cluster 7's top 25 markers?"),
-**Yes** and **No** buttons answer it. **Expand all** / **Collapse all** open or close every turn,
+**Yes** and **No** buttons answer it. **Expand** / **Collapse** open or close every turn,
 work log and evidence section at once (handy before searching the page), and the panel
 remembers the ones you opened or closed. **Export** saves the conversation as a report
 (see [Taking the record with you](#taking-the-record-with-you)).
@@ -290,9 +297,13 @@ it's still answering:
 - **Gene lists** in Clerk's work log ("Looked up 16 genes"): hover to list them, click
   to show them in the Landscape (up to 20).
 - **Cited views** ("[Fig 1A]"): for a point that needs a particular view (a zoom, genes
-  together, a marker level), Clerk defines the view and links it like a figure. Hover
-  for its caption and what it shows; click to apply it to the Landscape and
-  Clustergram. Nothing changes until you click.
+  together, a marker level, a dendrogram group), Clerk defines the view and links it
+  like a figure. Hover for its caption and what it shows; click to apply it to the
+  Landscape and Clustergram. Nothing changes until you click. Genes and clusters named
+  inside a cited view's link are still links of their own.
+- **Dendrogram groups**: when Clerk discusses a group ("group 39"), it can cite a view
+  that selects it again. The view keeps the dendrogram cut the group was seen at, so the
+  group's name and members still match when you click it later.
 
 Before the first link, Clerk saves the supported Landscape and Clustergram settings.
 **Back to your view** reapplies them, including Clustergram pan/zoom, crop and order,
@@ -331,24 +342,31 @@ run the web lookups.
 
 ### Enrichr results in the conversation
 
-Enrichr results are drawn in the conversation, under the answer, like the Enrich panel:
-a bar graph of the top terms by combined score (a tab per library) and a paragraph of
-the genes tested. Hover a bar for its statistics; click it to highlight its genes and
-show them on the Landscape and Clustergram, and click again to clear. Genes in the
-paragraph work like Clerk's other gene links. This covers both Clerk's own Enrichr
-lookups and the panel's Enrichr results for the selected genes, shown once per gene
-list. The model still receives the results as text; the drawing is for you.
+Enrichr results are drawn in the conversation, under the answer, like the Enrich panel
+and folded under a title ("Cluster 4 upregulated", "6 selected genes"): a library picker,
+a scrolling bar graph of the top 20 terms by combined score, a paragraph of the genes
+tested, and a **View full results on Enrichr** link to the same list on the Enrichr
+website. Hover a bar for its statistics; click it to color the paragraph as Enrich does
+(the term's genes blue, the rest dark gray) and show the term's genes on the Landscape
+and Clustergram, and click again to clear. Picking another library asks Enrichr from
+the browser. Genes in the paragraph work like Clerk's other gene links. This covers both
+Clerk's own Enrichr lookups and the panel's Enrichr results for the selected genes,
+shown once per gene list. The model reads the top 8 terms as text, with the Enrichr
+link, which it can cite; the drawing is for you.
 
 ## Recording cell types
 
-When Clerk proposes cell types, it records them ("↻ Recorded tentative cell types: 4 →
-Goblet cells (high), …"), together with the marker genes it relied on. In a linked
-Clustergram, the cell types become tentative column labels (the manual column
-category, or `clerk_cell_type` if none is set up), and the marker genes are labeled with
+When Clerk proposes cell types (for example when you ask what a cluster might be), it
+records them, together with the marker genes it relied on: "↻ Recorded tentative cell
+types for 3 clusters", with each cluster's cell type in the turn's Evidence. With a
+Clustergram linked, Clerk then asks **Label these clusters in the Clustergram
+(cell_type)?**; **Label** makes the cell types tentative column labels (in the manual
+column category, or `clerk_cell_type` if none is set up) and marks the marker genes with
 their cell type on the rows (the manual row category, or `clerk_marker`), in the same
-color as the column. Labels you set yourself are never overwritten, and when Clerk
-relabels a cluster it clears the marks it made for the old label.
-`clerk.label_clustergram = False` turns this off.
+color as the column. If you asked Clerk to label the clusters, it labels them right
+away. Labels you set yourself are never overwritten, and when Clerk relabels a cluster
+it clears the marks it made for the old label. `clerk.label_clustergram = True` always
+labels right away, and `False` never labels.
 
 Get the cell types as a table or write them to an AnnData (cell-level, or the
 cluster-level signature AnnData behind a Clustergram):
@@ -369,9 +387,10 @@ Landscape, color it by genes, zoom to a cluster, or move the Clustergram's DIM s
 It uses the same setters you can call yourself (`landscape.apply_state`,
 `cgm.apply_state`; see the [Landscape](../landscape/index.md) and
 [Clustergram](../clustergram.md) pages), and each change appears in the
-conversation as a "↻ Changed …" line. Cell types Clerk records are also written to the
-Clustergram's manual column category (`clerk.label_clustergram = False` turns this
-off); labels you set yourself are never overwritten.
+conversation as a "↻ Changed …" line. Cell types Clerk records can also be written to
+the Clustergram's manual column category, when you accept its offer to (see
+[Recording cell types](#recording-cell-types)); labels you set yourself are never
+overwritten.
 
 Reading and changing are separate. Clerk can look up any gene in the Clustergram (values
 and dot sizes across clusters) without changing what you see, even genes hidden by the

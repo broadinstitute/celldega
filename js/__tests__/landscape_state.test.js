@@ -140,11 +140,14 @@ describe('landscape state', () => {
     expect(viz_state.cats.selected_cats).toEqual(['4', '5']);
     expect(viz_state.obs_store.selected_cells.get()).toEqual([]);
     expect(shims.force_set_selected_genes).toHaveBeenCalled();
-    expect(shims.refresh_layer).toHaveBeenCalledWith(
-      viz_state,
-      {},
-      'cell_layer'
-    );
+    // Each layer marked not-ready is refreshed (marked ready again); otherwise
+    // deck.gl stops redrawing and zooming in shows no image or transcripts.
+    const refreshed = shims.refresh_layer.mock.calls.map(([, , name]) => name);
+    expect(refreshed).toEqual(['cell_layer', 'path_layer', 'trx_layer']);
+    const not_ready = Object.entries(viz_state.obs_store.deck_check.get())
+      .filter(([, ready]) => ready === false)
+      .map(([name]) => name);
+    expect(not_ready.every((name) => refreshed.includes(name))).toBe(true);
   });
 
   test('genes go through select_genes, like the gene search', async () => {

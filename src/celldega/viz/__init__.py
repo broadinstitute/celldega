@@ -43,15 +43,30 @@ def _pixel_height(value: str | int, fallback: int = 700) -> int:
     return pixels if pixels > 0 else fallback
 
 
-# Width that fits the compact Clustergram control panel: order/dendrogram grid
-# (~170px), ROW/COL category bars (~210px) and gene search (~160px). Narrower
-# clips the gene search.
-_CLUSTERGRAM_MIN_PANEL_WIDTH = 550
+# Narrowest panel that fits the Clustergram control panel: the order/dendrogram
+# grid (~170px), then the ROW/COL category bars and the search column, which
+# narrow from ~210px and ~150px to ~120px and ~100px. Narrower scrolls the
+# controls (the canvas itself sets the panel width above this).
+_CLUSTERGRAM_MIN_PANEL_WIDTH = 400
 
 
 # The front end draws the deck canvas at ``width + 100`` (room for labels; see
 # js/deck-gl/matrix/deck_mat.js), plus a 1px border on each side.
 _CLUSTERGRAM_CANVAS_PADDING = 102
+
+
+def _columns_are_clusters(mat: Clustergram) -> bool:
+    """Whether a Clustergram's columns are clusters of cells (not genes, single cells
+    or neighborhoods), so the Landscape's highlighted clusters name its columns."""
+    entity = getattr(mat, "col_entity", None) or {"entity": "cell", "attr": "leiden"}
+    if isinstance(entity, str):
+        try:
+            entity = json.loads(entity)
+        except ValueError:
+            entity = {"entity": entity}
+    if not isinstance(entity, dict):
+        return False
+    return entity.get("entity", "cell") == "cell" and entity.get("attr") != "name"
 
 
 def _clustergram_panel_width(mat: Clustergram) -> str:
@@ -146,6 +161,10 @@ def spatial_clustergram(
 
     # Link clustergram click_info to the spatial widget's update_trigger
     jslink((mat, "click_info"), (spatial, "update_trigger"))
+    # Clusters highlighted in the Landscape (by its bars, a Clustergram click or a
+    # Clerk link) show as blue column labels when the columns are those clusters.
+    if spatial.has_trait("selected_clusters") and _columns_are_clusters(mat):
+        jsdlink((spatial, "selected_clusters"), (mat, "highlighted_cols"))
 
     # Layouts
     mat.layout = Layout(width=_clustergram_panel_width(mat))

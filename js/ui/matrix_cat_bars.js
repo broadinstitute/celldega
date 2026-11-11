@@ -37,7 +37,10 @@ const make_axis_cat_bar = (axis, entity_name, _on_click) => {
   wrapper.className = `cat-bar-wrapper-${axis}`;
   wrapper.style.display = 'flex';
   wrapper.style.flexDirection = 'column';
-  wrapper.style.width = '95px';
+  // 95px wide, narrowing (bars clipped on the right) when the Clustergram is too
+  // narrow for its whole control panel.
+  wrapper.style.flex = '0 1 95px';
+  wrapper.style.minWidth = '50px';
 
   // Title - use entity name if available
   const title = document.createElement('div');
@@ -57,9 +60,11 @@ const make_axis_cat_bar = (axis, entity_name, _on_click) => {
   // Bar container
   const bar_container = document.createElement('div');
   bar_container.className = `cat-bar-graph-${axis}`;
-  bar_container.style.width = '95px';
+  bar_container.style.width = '100%';
+  bar_container.style.boxSizing = 'border-box';
   bar_container.style.height = '72px';
   bar_container.style.overflowY = 'auto';
+  bar_container.style.overflowX = 'hidden';
   bar_container.style.border = '1px solid #d3d3d3';
   wrapper.appendChild(bar_container);
 

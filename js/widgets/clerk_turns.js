@@ -119,12 +119,17 @@ export const asks_question = (text = '') => {
 
 const TOKEN = /[A-Za-z0-9][A-Za-z0-9._-]*/g;
 
+// Text never linked: ordinary links, code and existing gene links. A cited view's
+// link ([Fig 1A], or a phrase Clerk wrapped) still gets gene and cluster links
+// inside it, which handle their own clicks.
+const SKIP_LINKING = 'a:not(.clerk-view), pre, .clerk-gene';
+
 /**
  * Turn known gene names in rendered text into clickable links (in place).
  *
  * Matches like Python's Clerk._find_names: exactly, or case-insensitively when the
  * word is written in capitals or contains a digit, so ordinary words aren't linked.
- * Text inside links and code blocks is left alone.
+ * Text inside links (other than cited views) and code blocks is left alone.
  *
  * @param {HTMLElement} root - Rendered Markdown.
  * @param {string[]} genes - Gene names to link (canonical spelling).
@@ -160,8 +165,7 @@ export const link_genes = (
 
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */, {
-    acceptNode: (node) =>
-      node.parentElement?.closest('a, pre, .clerk-gene') ? 2 : 1, // reject : accept
+    acceptNode: (node) => (node.parentElement?.closest(SKIP_LINKING) ? 2 : 1), // reject : accept
   });
   const nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -187,6 +191,9 @@ export const link_genes = (
         `${name}: show on the Landscape and Clustergram (shift-click adds it)`
       );
       link.addEventListener('click', (event) => {
+        // Inside a cited view's link, the gene is its own link: don't apply the view.
+        event.preventDefault();
+        event.stopPropagation();
         hover.hide?.();
         on_click(name, event.shiftKey);
       });
@@ -218,7 +225,8 @@ const CLUSTER_ID = /[A-Za-z0-9_+-]+/g;
 
 /**
  * Turn cluster references ("cluster 4", "clusters 4, 5 and 12") into links, for the
- * cluster names given. Text inside links and code blocks is left alone.
+ * cluster names given. Text inside links (other than cited views) and code blocks is
+ * left alone.
  *
  * @param {HTMLElement} root
  * @param {string[]} clusters - Known cluster names.
@@ -238,9 +246,7 @@ export const link_clusters = (
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */, {
     acceptNode: (node) =>
-      node.parentElement?.closest('a, pre, .clerk-gene, .clerk-cluster')
-        ? 2
-        : 1,
+      node.parentElement?.closest(`${SKIP_LINKING}, .clerk-cluster`) ? 2 : 1,
   });
   const nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -268,6 +274,8 @@ export const link_clusters = (
           `cluster ${id}: highlight in the Landscape (shift-click adds it)`
         );
         link.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
           hover.hide?.();
           on_click(id, event.shiftKey);
         });

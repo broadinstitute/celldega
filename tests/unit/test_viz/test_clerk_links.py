@@ -198,3 +198,85 @@ def test_cluster_labels_for_hover(monkeypatch) -> None:
     cgm.manual_cat = json.dumps({"col": {"cell_type": {"values": {"5": "Mine"}, "colors": {}}}})
     w._links_for("cluster 4")
     assert w.cluster_labels == {"4": "Type A (Clerk, tentative)", "5": "Mine"}
+
+
+_GROUPS_STATE = {
+    "cols": {
+        "names": ["4", "5", "6", "7"],
+        "groups": {
+            "cut_percent": 40,
+            "groups": [
+                {"name": "39", "size": 2, "members": ["4", "5"]},
+                {"name": "41", "size": 40, "members": ["6", "7"]},  # listed in part
+            ],
+        },
+    }
+}
+
+
+def test_a_cited_dendrogram_group_is_pinned_to_the_cut_clerk_saw() -> None:
+    views = {
+        "2A": {
+            "caption": "Group 39",
+            "clustergram": {"dendrogram_group": {"axis": "col", "name": "group 39"}},
+        },
+        "2B": {
+            "clustergram": {"dendrogram_group": {"axis": "col", "name": "41"}, "marker_level": 5}
+        },
+        "2C": {"clustergram": {"dendrogram_group": {"axis": "row", "name": "7"}}},
+        "2D": {"landscape": {"clusters": ["4"]}},
+    }
+    resolved, problems = clerk_llm.resolve_dendrogram_groups(views, _GROUPS_STATE)
+    # Fully listed: selected by its members, at the cut the snapshot was taken at.
+    assert resolved["2A"]["clustergram"] == {
+        "selection": {"dendrogram": {"axis": "col", "members": ["4", "5"]}},
+        "dendrogram": {"col": 40.0},
+    }
+    # Listed in part: selected by name (at the same cut).
+    assert resolved["2B"]["clustergram"] == {
+        "marker_level": 5,
+        "selection": {"dendrogram": {"axis": "col", "name": "41"}},
+        "dendrogram": {"col": 40.0},
+    }
+    # A group the snapshot doesn't show is dropped, with a note; other views stay.
+    assert "2C" not in resolved and resolved["2D"] == views["2D"]
+    assert problems == ["view 2C: no row dendrogram group '7' in view"]
+    assert clerk_llm.resolve_dendrogram_groups(None, _GROUPS_STATE) == (None, [])
+
+
+def test_clicking_a_dendrogram_group_view_selects_it(monkeypatch) -> None:
+    w, _ls, _cgm, sent = _linked(monkeypatch)
+    resolved, _ = clerk_llm.resolve_dendrogram_groups(
+        {"2B": {"clustergram": {"dendrogram_group": {"axis": "col", "name": "41"}}}},
+        _GROUPS_STATE,
+    )
+    w.request = {"id": "v2", "apply_view": resolved["2B"]}
+    w._last_evidence.result(timeout=5)
+    assert w.error == ""
+    assert _applied(sent, "clustergram")[-1] == {
+        "selection": {"dendrogram": {"axis": "col", "name": "41"}},
+        "dendrogram": {"col": 40.0},
+    }
+    # Selecting a group by name is part of the Clustergram's setter, too.
+    with pytest.raises(ValueError, match="members"):
+        _cgm.apply_state({"selection": {"dendrogram": {"axis": "col", "name": ""}}})
+
+
+def test_blocks_with_several_objects_are_merged() -> None:
+    """Models sometimes write one object per change; those are read as one."""
+    answer = (
+        "Labeling.\n```celldega-actions\n"
+        '{"clustergram": {"categories": {"values": {"4": "A"}}}}\n'
+        '{"clustergram": {"categories": {"values": {"5": "B"}}, "marker_level": 5}}\n'
+        "}\n```"
+    )
+    text, actions, problem = clerk_llm.extract_actions(answer)
+    assert text == "Labeling." and problem is None
+    assert actions == {
+        "clustergram": {"categories": {"values": {"4": "A", "5": "B"}}, "marker_level": 5}
+    }
+    # Anything else is still refused, with the parser's message.
+    _text, actions, problem = clerk_llm.extract_actions(
+        '```celldega-actions\n{"clustergram": {}} and more\n```'
+    )
+    assert actions is None and "Extra data" in problem

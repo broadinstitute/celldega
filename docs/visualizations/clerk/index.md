@@ -15,10 +15,11 @@ name reads as both a *law clerk* (gathers evidence and drafts the reasoning; you
 and a *bodega clerk* (fetches what you ask for).
 
 Genes, clusters and cited views can be clicked to inspect the evidence in your widgets.
-The conversation can be exported with screenshots, observed evidence and supported
-replay settings. Full view restoration is not implemented yet. Clerk runs through your
-own Claude account, using the `claude` command-line tool on the machine running your
-notebook.
+The conversation can be exported with [Snapshots](../index.md#snapshots): screenshots
+of the linked views, memos and reproducibility metadata, including observed evidence
+and supported replay settings. Full view restoration is not implemented yet. Clerk
+runs through your own Claude account, using the `claude` command-line tool on the
+machine running your notebook.
 
 ## Requirements and logging in
 
@@ -113,8 +114,8 @@ the panel shows a "Briefing: …" line so it's always clear what Clerk was told:
 clerk.load_briefing("clerk_files/report_20261107-101500")  # an exported report folder
 clerk.load_briefing("case1/record.json", "notes.md")     # several sources
 clerk.load_briefing(other_clerk, append=True)            # another panel's conversation
-clerk.load_briefing("celldega_files/snapshots")        # manual saved views
-clerk.load_briefing("clerk_files/screenshots", append=True) # Clerk's saved views
+clerk.load_briefing("celldega_files/snapshots")        # manual Snapshots
+clerk.load_briefing("clerk_files/screenshots", append=True) # Clerk's Snapshots
 clerk.briefing = "Cluster 7 looked mixed last time."     # or plain text
 clerk.briefing = ""                                      # clear it
 ```
@@ -214,7 +215,7 @@ Once linked:
   "what's in this field of view?"
 
 Clerk only sees the widgets you link. In the conversation, each question shows the
-Landscape and Clustergram screenshots it was sent with, side by side, and a "Sent with"
+Landscape and Clustergram Snapshot previews, side by side, and a "Sent with"
 line listing the rest, so you can see exactly what Clerk received. If a linked widget doesn't reply (for example, it isn't
 displayed), Clerk is told so and says it rather than guessing.
 
@@ -223,7 +224,7 @@ the library, input genes and their source, the top terms with combined score, ad
 p-value, odds ratio and overlapping genes, the selected term, and the Enrichr link.
 Clerk then stops running its own Enrichr query.
 
-With a linked **Clustergram**, each question also carries a snapshot of what the
+With a linked **Clustergram**, each question also carries a state summary of what the
 Clustergram shows: the clusters and genes on screen (with their attributes, such as
 `leiden`, `cell_type` or `leiden_marker`), each axis's order, the marker level (DIM
 slider), the dendrogram groups at the current cut, the selection, and a capped table of
@@ -234,7 +235,7 @@ describes with
 `clerk.clustergram_options`, e.g. `{"rows": "ranked", "max_rows": 25}` for the top of the
 current order instead of what's on screen.
 
-The same snapshot is available on its own:
+The same state summary is available on its own:
 
 ```python
 cgm.request_state()                       # rows/cols on screen
@@ -244,7 +245,7 @@ cgm.latest_state                          # plain dict; never saved into the not
 ```
 
 In JavaScript (e.g. a web app embedding Celldega), the Clustergram instance returned by
-`matrix_viz` exposes the same snapshot synchronously as `matrix.get_state(options)`.
+`matrix_viz` exposes the same state summary synchronously as `matrix.get_state(options)`.
 
 ## How Clerk answers
 
@@ -263,7 +264,7 @@ without evidence specific to that, and says when a canonical marker isn't in the
 
 Each question is a collapsible turn:
 
-- the question, with the Landscape and Clustergram screenshots and a "Sent with" line;
+- the question, with Landscape and Clustergram Snapshot previews and a "Sent with" line;
 - **Work · N steps** (collapsed): the lookups and view changes Clerk made and any interim
   replies; open while Clerk is working;
 - Clerk's answer, with its **Evidence** collapsed;
@@ -285,7 +286,7 @@ remembers the ones you opened or closed. **Report** saves the conversation as a 
 Everything Clerk cites can be replayed in the linked widgets, right away and even while
 it's still answering:
 
-- **Conversation images**: **Show this view** below a screenshot returns that widget
+- **Snapshot previews**: **Show this view** below a preview returns that widget
   (the Landscape or the Clustergram) to the view Clerk was sent, and **Show both views**
   restores both. You can navigate elsewhere and use these links to revisit the
   images' state. **Return** returns to
@@ -320,7 +321,7 @@ Cited views do not yet get their own rendered images on export.
 Back now validates the saved view's data fingerprint and waits for browser completion.
 If a dataset has changed or restoration fails, Clerk keeps the saved view for retry.
 Within the same session it checks loaded data without re-downloading remote assets.
-Conversation captures include portable snapshot envelopes, so reports can use
+Conversation captures include portable Snapshot envelopes, so reports can use
 `restore_snapshot` when reopening evidence on compatible, freshly constructed widgets.
 The [host contract](hosting.md) describes the widget-independent loop and celldega-app
 integration points.
@@ -439,9 +440,9 @@ dega.viz.landscape_clerk(landscape, clerk)
 ## Landscape raster capture (a reusable feature)
 
 Clerk needed to see the view, so `Landscape` gained a general raster capture: the
-image alone, the first of the [three capture levels](../../javascript/saved-views.md#terms-and-scope)
-(raster, saved view, screenshot). Request a capture; when the browser replies, the
-image and the exact view state are set on the widget (in memory only — captures are
+screenshot component of a [Snapshot](../../javascript/saved-views.md#terms-and-scope).
+Request a capture; when the browser replies, the image and the exact view state are
+set on the widget (in memory only — captures are
 never saved into the notebook):
 
 ```python
@@ -455,22 +456,27 @@ landscape.raster_view_state     # {"target": [...], "zoom": ..., ...} for reprod
 The reply arrives asynchronously, so read these in a later cell or `observe` them; a
 cell that requests a capture can't wait for it.
 
-## Screenshots
+## Snapshots
 
-Ask Clerk to save evidence ("save a screenshot of this for the report") and it takes a
-[screenshot with provenance](../index.md#screenshots) of the linked views,
-after any change it makes for it, with its own description. They're written to
-`clerk_files/screenshots/` (or `clerk.screenshot_dir`), marked as made by Clerk, listed
+<span id="screenshots"></span>
+
+Ask Clerk to save evidence ("save a Snapshot of this for the report") and it takes a
+[Snapshot](../index.md#snapshots) of the linked views after any requested changes.
+The screenshot, Clerk's memo and reproducibility metadata are saved together.
+Snapshots are written to `clerk_files/screenshots/` (or `clerk.screenshot_dir`),
+marked as made by Clerk, listed
 in `clerk.screenshots`, and recorded in the conversation. Manual exports from
 **SNAP** or `widget.snapshot()` default to `celldega_files/snapshots/`. Either
-folder can be loaded as a briefing or configured to use a shared location.
+folder can be loaded as a briefing or configured to use a shared location. Clerk's
+`screenshot_dir` and `screenshots` attributes and its `screenshots/` folder retain
+their existing names.
 
 ## Taking the record with you
 
-Clerk writes exported reports to `clerk_files/report_<time>/` and screenshots to
+Clerk writes exported reports to `clerk_files/report_<time>/` and Snapshots to
 `clerk_files/screenshots/`; change the parent folder with `clerk.output_dir`.
 Manual visualization exports use `celldega_files/snapshots/` and the widget's
-`screenshot_dir`. Both default output directories are ignored by Git.
+`snapshot_dir`. Both default output directories are ignored by Git.
 
 A law clerk who brings evidence also says how it was found and how to check it.
 `clerk.export()` (or the panel's **Report** button) writes the conversation to a folder.
@@ -485,7 +491,7 @@ clerk.export(title="Kidney exploration")                 # named report under cl
 ```
 
 - `report.html`: the whole conversation as one self-contained page with static images.
-  Each Landscape and Clustergram screenshot sits under code to replay its supported
+  Each Landscape and Clustergram Snapshot sits under code to replay its supported
   settings on widgets with the same data loaded, e.g.
   `landscape.apply_state({"space": "spatial", "view": {...}, "clusters": ["4"]})` and
   `cgm.apply_state({"marker_level": 25})`; Clerk's work and evidence are collapsed.
@@ -494,8 +500,8 @@ clerk.export(title="Kidney exploration")                 # named report under cl
 - `record.json`: every question with its model, effort, what was sent, each step
   (lookups and their results, view changes, replies), each capture's observed evidence
   (`observations`), available widget sources and partial replay settings.
-- `screenshots/`: each capture as a Celldega
-  [screenshot](../../javascript/viz-api.md), one per widget (`q1_1.png` for the
+- `screenshots/`: each capture as a
+  [Snapshot](../index.md#snapshots), one per widget (`q1_1.png` for the
   Landscape, `q1_1_clustergram.png` for the Clustergram). Like SNAP's, each PNG carries
   the record to reopen its view, e.g. `dega.viz.from_png("report/screenshots/q1_1.png")`.
 - `findings.csv`: the cell types Clerk proposed.
@@ -517,7 +523,7 @@ reopen later, the way SNAP saves a view. It writes one JSON file to
 - Clerk's proposed cell types and the context;
 - links to the data the linked widgets show.
 
-Each question's screenshot preview is kept, but full-size captures are left out to keep
+Each question's Snapshot preview is kept, but full-size captures are left out to keep
 the file light; **Write report** keeps those.
 
 **Open** (or `clerk.load_conversation(path)`) puts a saved conversation back in the
@@ -536,14 +542,14 @@ widgets. A new question continues the conversation, with the loaded one as its h
 
 ## Saved views, evidence and reports
 
-The Viz API preserves an interactive observation as a versioned saved view. A saved
-view becomes an **evidence artifact** when Clerk cites it to support or contradict a
+The Viz API preserves an interactive observation as a Snapshot. A Snapshot becomes
+an **evidence artifact** when Clerk cites it to support or contradict a
 claim. The report collects those artifacts with questions, lookups, reasoning and
 findings; that organization belongs to Clerk, not the visualization API.
 
 Use `clerk.export(...)` and `clerk.load_briefing(...)` to save and reuse this record.
 Manual exports use the same underlying saved-view contract without constructing a
-Clerk. See [portable saved views](../../javascript/saved-views.md).
+Clerk. See [Portable Snapshots](../../javascript/saved-views.md).
 
 ## Roadmap
 

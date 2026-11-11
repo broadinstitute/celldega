@@ -160,11 +160,23 @@ as an image. The same keys work in Python (`widget.request_state()`,
 
 <span id="screenshots"></span>
 
-The goal is to **preserve an interactive observation as reproducible visual evidence**.
-A **Snapshot** is a screenshot plus a memo and metadata for reproducibility. Think of
-it as a postcard: a picture of a place in your data, with an explanation of why it
-matters and a way to return. The in-memory capture and its PNG export are both Snapshots.
-Celldega saves a PNG and a human-readable Markdown companion:
+**Snapshot** is Celldega's name for a captured visualization that combines three parts:
+
+- **Screenshot**: a raster image of what the visualization showed at capture time.
+- **Memo**: a description of what you noticed and why it matters, supplied through
+  `description`.
+- **Reproducibility metadata**: the data source and identity, supported view settings,
+  observed state, author, capture time and renderer version needed to interpret the
+  observation and revisit its view.
+
+The screenshot is the visual component of a Snapshot. The complete artifact keeps
+that image together with its explanation and context. Like **Landscape**, **Snapshot**
+names a specific Celldega concept. Its goal is to **preserve an interactive observation
+as reproducible visual evidence**.
+
+Think of a Snapshot as a postcard: a picture of a place in your data, with an
+explanation of why it matters and a way to return. The in-memory capture and its PNG
+export are both Snapshots. Python saves a PNG and a human-readable Markdown companion:
 
 - `<name>.png`: the image, with your description, who made it and when, the Celldega version, each
   widget's saved view (`snapshot`, with its replay settings in `snapshot.state`), its
@@ -199,10 +211,15 @@ something you can share instead of a narrated screen recording:
 The spatial evidence then sits beside the molecular annotations, such as cell type
 labels and marker genes, in a form a collaborator can open and check.
 
+The idea isn't limited to tissue. Pins also go on a UMAP, so a single-cell dataset
+(an AnnData Zarr in a Landscape) can be an annotated embedding. Snapshots of a
+Clustergram or a Yearbook have no map to pin to, but make the same cards: a heatmap
+view, or a page of cells, with your notes and a link back.
+
 The saved view records what data it shows (cell, gene and cluster names, or a
 Clustergram's row and column names). Image and state are captured together.
 `widget.restore_snapshot(...)` checks the schema, data identity and canvas size
-before changing the view; see [portable saved views](../javascript/saved-views.md)
+before changing the view; see [Portable Snapshots](../javascript/saved-views.md)
 for reopening exports and declaring an exact data revision.
 
 Records are marked `restoration: "partial"`. They preserve the image and provenance,
@@ -227,7 +244,7 @@ dega.viz.snapshot(linked, description="...", path="figures/fig2.png")
 ```
 
 The image arrives from the browser after the cell finishes, so the call's output shows
-"Capturing…" and then a preview with the saved path. Without a path, screenshots go to
+"Capturing…" and then a preview with the saved path. Without a path, Snapshots go to
 `celldega_files/snapshots/` (or `widget.snapshot_dir`). This export directory can be
 kept out of version control or shared as a collection of evidence. Areas the
 visualization leaves empty are white, so the image looks the same in light and dark
@@ -241,7 +258,7 @@ no path to record (`read_h5ad` keeps none). The PNG stores its shape and marks i
 needed again when reopening. The whole record is typically a few KB.
 
 Record what Python can't see, such as the AnnData file a widget was made from, once per
-widget; it's added to every screenshot of it, including SNAP ones. This is a note for
+widget; it's added to every Snapshot of it, including SNAP ones. This is a note for
 readers: reopening still needs the object passed back.
 
 ```python
@@ -259,13 +276,13 @@ view.get_apply_result(view.apply_request_id)
 
 The original data must still be available. Supply `matrix=mat` or `adata=adata`
 when the original view used an in-memory object; constructor options can point to
-a relocated source. For a composite screenshot, `panel=1` opens the second widget.
+a relocated source. For a composite Snapshot, `panel=1` opens the second widget.
 Use `widget.restore_png(path)` to restore into a widget that already has its data.
-See [portable saved views](../javascript/saved-views.md#reopen-a-png-as-an-interactive-visualization)
+See [Portable Snapshots](../javascript/saved-views.md#reopen-a-png-as-an-interactive-visualization)
 for browser usage, validation and restoration limits.
 
 Inspect the embedded record with `dega.viz.load_snapshot(path)` and discover a
-folder's PNG records with `dega.viz.load_snapshots(folder)`. A folder of screenshots
+folder's PNG records with `dega.viz.load_snapshots(folder)`. A folder of Snapshots
 works as a scrapbook of what you found along the way, reusable by people and
 application agents: [Clerk](clerk/index.md) can read it as a briefing or add
 its own.
@@ -338,12 +355,15 @@ landscape = dega.viz.Landscape(base_url=..., snapshots=poi, show_pins=True)
 `poi.add(path, name=...)`, and `poi.card("Glomerulus", landscape=landscape)` for a
 postcard chosen by name). While shown, the pins are also listed by name in place of
 the image controls; click one to open its view. Snapshots of other data than the
-Landscape's are skipped, with a warning. Only Snapshots of the tissue (the spatial view) become
-pins; Clustergram, Yearbook, UMAP and XY Snapshots have no place on it. Pins live in
+Landscape's are skipped, with a warning. A pin sits in the space its Snapshot shows,
+the tissue or the UMAP, and appears while the Landscape shows that space; the list
+names them all and marks those in the other space, which opening switches to. XY
+Snapshots aren't pinned (their axes depend on the genes chosen), and Clustergram and
+Yearbook Snapshots are shown as cards instead. Pins live in
 the widget's state, so opening one works in a saved notebook or static page without a
 kernel. In JavaScript, pass `pins` (or `pin_data`) and `show_pins` to
 `celldega.landscape(el, {...})`: each pin is `{name, description, target: [x, y],
-snapshot}`.
+space, snapshot}`, with `space` `"spatial"` (the default) or `"umap"`.
 
 The former `screenshot()`, `load_screenshot()`, `load_screenshots()`,
 `screenshot_dir` and `screenshot_metadata` spellings remain compatibility aliases.

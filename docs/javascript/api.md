@@ -49,7 +49,7 @@ callbacks, and `fetchOptions` for every request.
 
 ### `from_png(el, input, options)`
 
-Open a Celldega PNG as an interactive visualization. `input` is a PNG `File`,
+Open a Snapshot PNG as an interactive visualization. `input` is a PNG `File`,
 `Blob`, `ArrayBuffer`, or `Uint8Array`. Returns a promise of the visualization
 after its supported saved settings have been restored.
 
@@ -64,18 +64,21 @@ Source data must still be available. `options` accepts `panel` (zero-based, defa
 schema and canvas-size checks are the same as `restore_snapshot`. Reopening a
 composite's panels does not reconnect their cross-widget links.
 
-### `read_png(input)` and `screenshot_png(saved_view, options)`
+### `read_png(input)` and `snapshot_png(saved_view, options)`
 
-`await celldega.read_png(input)` extracts the embedded screenshot record without
+<span id="read_pnginput-and-screenshot_pngsaved_view-options"></span>
+
+`await celldega.read_png(input)` extracts the embedded Snapshot record without
 loading data or creating a visualization. It accepts the same binary inputs as
 `from_png`.
 
-`celldega.screenshot_png(saved_view, {title: ''})` makes a screenshot from a saved
-view (`await viz.snapshot(...)`): an `image/png` Blob of its image with the saved view
-embedded.
+`celldega.snapshot_png(saved_view, {title: ''})` exports a Snapshot captured with
+`await viz.snapshot(...)` as an `image/png` Blob: the screenshot (raster image),
+memo and reproducibility metadata travel together in the PNG.
 Standalone SNAP uses this export, and Python saves the same PNG metadata record
 alongside a human-readable Markdown companion. See
-[portable saved views](saved-views.md#reopen-a-png-as-an-interactive-visualization).
+[Portable Snapshots](saved-views.md#reopen-a-png-as-an-interactive-visualization).
+The earlier `celldega.screenshot_png()` spelling remains a compatibility alias.
 
 ### `link_models(source, source_key, target, target_key)`
 

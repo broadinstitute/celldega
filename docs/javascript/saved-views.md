@@ -1,19 +1,28 @@
 # Portable Snapshots
 
 Landscape and Clustergram expose `snapshot()` and `restore_snapshot()` independently
-of agent interfaces and notebook widgets. The goal is to **preserve an interactive observation as reproducible visual evidence**.
-A snapshot keeps the rendered image, semantic visualization state, bounded scientific
-observations, complete supported replay settings, and provenance together.
+of agent interfaces and notebook widgets. The goal is to **preserve an interactive
+observation as reproducible visual evidence**. A Snapshot keeps the rendered image,
+memo, semantic visualization state, bounded scientific observations, complete
+supported replay settings, and provenance together.
 
-The exported **PNG is the saved-view file**: it contains both the image and the
+The exported **PNG is the Snapshot file**: it contains both the image and the
 metadata needed to replay supported settings. Python also writes a human-readable
 Markdown companion. No separate JSON file is required.
 
 ## Terms and scope
 
-A **Snapshot** combines an image, a memo and reproducibility metadata. The same name
-covers the in-memory capture and its exported PNG. Python also writes a readable
-Markdown memo alongside the PNG. A raster is the lower-level image-only helper.
+A **Snapshot** combines a screenshot (raster image of the visualization), a memo
+(`description`) and reproducibility metadata. The screenshot is the visual component;
+Snapshot names the complete Celldega artifact. The same name covers the in-memory
+capture and its exported PNG. Python also writes a readable Markdown companion.
+See [Snapshots](../visualizations/index.md#snapshots) for the concept and notebook workflow.
+
+A **raster capture** provides the image component on its own. A **state query**
+reports what the visualization shows, and a **saved view** holds the settings and
+data identity used to restore the view. A Snapshot brings these together with the
+memo and provenance; neither an image-only capture nor a state query is a complete
+Snapshot.
 
 | Operation | JavaScript | Python |
 | --- | --- | --- |
@@ -78,7 +87,7 @@ high-density display restores on a standard one. Additive fields may be ignored 
 readers; incompatible schema changes require a new version (version 1 views, which
 hashed all loaded data, need recapturing). This is a data/view contract, not a
 promise of identical pixels across browser, GPU or Celldega renderer versions.
-Python screenshot/report records also record the installed Celldega version. The
+Python Snapshot and report records also record the installed Celldega version. The
 original PNG remains the visual evidence.
 
 ### What the identity checks
@@ -136,7 +145,7 @@ raises on failure or timeout.
 `latest_snapshot`, `snapshot_error` and `snapshot_capture_id` are Python-side traits,
 never synced into the notebook's saved widget state. Requests carry IDs and responses
 are matched individually, so concurrent captures cannot substitute a newer image for
-an older request. `widget.screenshot()` and the SNAP button use this same capture path.
+an older request. `widget.snapshot()` and the SNAP button use this same capture path.
 
 ## Reopen a PNG as an interactive visualization
 
@@ -181,7 +190,7 @@ data identity and canvas size. Pass `allow_resize=True` only when accepting the
 different field of view implied by a different canvas size. The original renderer
 version is recorded; exact pixel equality across versions or GPUs is not promised.
 
-Each call opens one panel. For a composite screenshot, use `panel=0`, `panel=1`,
+Each call opens one panel. For a composite Snapshot, use `panel=0`, `panel=1`,
 and so on to reopen its widgets separately; cross-widget links must be reconnected.
 An existing widget with its data already loaded can instead use
 `request_id = widget.restore_png("figure.png", panel=0)` and check that request's
@@ -204,37 +213,38 @@ const cgm = await celldega.from_png(otherContainer, file, { network });
 
 ### What the PNG stores
 
-The PNG's `celldega` iTXt metadata contains a versioned screenshot record
-(`celldega_screenshot: 3`). Each entry in `widgets` contains a compact saved-view
-envelope under `snapshot`, with replay settings in `snapshot.state`, observations
+The PNG's `celldega` iTXt metadata contains a versioned Snapshot record
+(the schema key remains `celldega_screenshot: 3` for compatibility). Each entry in
+`widgets` contains a compact saved-view envelope under `snapshot`, with replay
+settings in `snapshot.state`, observations
 under `observed_state`, and source/constructor information under `source`. Pixels
 live in the PNG image data and are not duplicated as base64 inside the metadata.
 Descriptions, authors, capture times, renderer version, canvas dimensions and data
 identity travel with the image.
 
-Inspect the record from Python with `dega.viz.load_screenshot("figure.png")`, or
-discover a folder's records with `dega.viz.load_screenshots("figures")`. Keep the
+Inspect the record from Python with `dega.viz.load_snapshot("figure.png")`, or
+discover a folder's records with `dega.viz.load_snapshots("figures")`. Keep the
 original exported PNG when passing it through tools that remove image metadata.
 
 Manual exports default to `celldega_files/snapshots/`; set `snapshot_dir` or
 pass `path` to choose a location. The notebook SNAP button writes a PNG and Markdown
 companion with a description, image preview, provenance and reopening code. The
-Markdown is for readers and is not required for replay. Without a kernel, PIC
+Markdown is for readers and is not required for replay. Without a kernel, SNAP
 downloads the PNG with its description and saved-view metadata embedded.
 
 For a programmatic browser export:
 
 ```javascript
 const saved_view = await viz.snapshot({ description: 'A marker-enriched boundary.' });
-const screenshot = celldega.screenshot_png(saved_view); // Blob with type image/png.
+const snapshot_png = celldega.snapshot_png(saved_view); // Blob with type image/png.
 ```
 
 An application can store this Blob or download it using
-`URL.createObjectURL(screenshot)`. The saved view itself is plain JSON, so an
-application can also keep it and restore it with `restore_snapshot()`; the screenshot
+`URL.createObjectURL(snapshot_png)`. The in-memory Snapshot is plain JSON, so an
+application can also keep it and restore it with `restore_snapshot()`; the PNG
 is the portable file, and needs no Clerk or notebook.
 
-Earlier screenshot records remain readable, but their plain `state` has no verified
+Earlier Snapshot records remain readable, but their plain `state` has no verified
 data binding. `apply_state` remains available for intentional edits; use
 `restore_snapshot` for compatibility-checked replay.
 

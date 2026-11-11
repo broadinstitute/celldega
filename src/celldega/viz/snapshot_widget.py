@@ -357,20 +357,28 @@ class Snapshots:
     def __repr__(self) -> str:
         return f"Snapshots({self.names()!r})"
 
-    def pins(self) -> list[dict]:
-        """One pin per spatial Landscape Snapshot: name, memo, position and view.
+    #: Views a pin can sit in: the tissue and the embedding. XY's axes depend on
+    #: the genes chosen, so its Snapshots aren't pinned.
+    PIN_SPACES = ("spatial", "umap")
 
-        A pin sits at the center of the Snapshot's view; Snapshots of other widgets,
-        or of the UMAP or XY spaces, have no place on the tissue and are skipped.
+    def pins(self) -> list[dict]:
+        """One pin per Landscape Snapshot of the tissue or the UMAP: name, memo,
+        position, space and view.
+
+        A pin sits at the center of its Snapshot's view, in the space the Snapshot
+        shows (``"spatial"`` or ``"umap"``), and appears while the Landscape shows
+        that space. Snapshots of other widgets (a Clustergram or Yearbook), or of
+        the XY view, are skipped: they are shown as cards instead.
         """
         out = []
         for name, record in self._items.items():
             view = _saved_view(record, "landscape")
             state = (view or {}).get("state") or {}
             target = (state.get("view") or {}).get("target")
+            space = str(state.get("space") or "spatial")
             if (
                 not view
-                or state.get("space", "spatial") != "spatial"
+                or space not in self.PIN_SPACES
                 or not isinstance(target, list | tuple)
                 or len(target) < 2
             ):
@@ -382,8 +390,11 @@ class Snapshots:
             out.append(
                 {
                     "name": name,
-                    "description": str(record.get("description") or view.get("description") or ""),
+                    "description": str(
+                        record.get("description") or view.get("description") or ""
+                    ),
                     "target": [x, y],
+                    "space": space,
                     "snapshot": restore_spec(view),
                 }
             )

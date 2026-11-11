@@ -8,15 +8,15 @@ code. Support varies by widget and control. Three kinds of methods cover this:
   and the values behind them.
 - **Setters** change what it shows, as its controls would: select clusters, color by
   genes, zoom to cells, move the Clustergram's marker level, label columns.
-- **Snapshots** capture an image, memo and metadata for reproducibility, in memory
-  or as a PNG. See [Snapshots](saved-views.md#terms-and-scope).
+- **Snapshots** combine a screenshot (raster image), memo and metadata for
+  reproducibility, in memory or as a PNG. See [Snapshots](saved-views.md#terms-and-scope).
 
 `get_state()` returns bounded scientific observations. `get_replay_state()` returns
 complete inputs for supported controls, without those observation caps. Only the
 latter can be passed directly to `apply_state()`; saved views use it automatically.
 Saved settings replay the supported parts of a view on widgets with the same data.
 `from_png` can construct a fresh visualization from an exported PNG's source
-references and restore those settings. Use [portable saved views](saved-views.md) to
+references and restore those settings. Use [Portable Snapshots](saved-views.md) to
 capture image and state together and validate data identity before restoring
 supported settings; some controls remain outside replay coverage.
 
@@ -60,7 +60,7 @@ Design rules the API follows:
 
 `celldega.landscape(el, options)` returns the Landscape object these methods are on
 (see the [API reference](api.md)). CellCloud and NeighborhoodCloud support
-the same state/snapshot API; their `view` also supports orbit rotation.
+the same state and Snapshot APIs; their `view` also supports orbit rotation.
 
 ### `get_state(options)`
 
@@ -132,7 +132,7 @@ When `xy_genes` is empty at construction, XY starts with the two genes with the
 highest whole-dataset mean expression (X first, Y second). Ties keep dataset gene
 order; genes without finite mean statistics follow those with statistics, in dataset
 order. A one-gene dataset initializes X only. Explicit constructor axes take
-precedence, and later edits or snapshot restores—including empty axes—are preserved.
+precedence, and later edits or Snapshot restores—including empty axes—are preserved.
 The default uses loaded metadata and fetches expression only when XY is entered.
 
 ### `capture_raster(options)`
@@ -347,5 +347,5 @@ transaction. Scientific state equality is the primary round-trip check; exact pi
 are only expected under matching canvas size, renderer, fonts, browser and GPU.
 
 Records remain marked `restoration: "partial"` because of these boundaries. Older
-saved views only restore the fields they contain. See [portable saved views](saved-views.md)
+saved views only restore the fields they contain. See [Portable Snapshots](saved-views.md)
 for identity checks, schema compatibility, and the explicit canvas-resize override.

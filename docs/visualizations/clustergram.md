@@ -313,7 +313,7 @@ As a notebook widget, a Clustergram also shares its state with Python:
   would; the strips, bars and `cgm.manual_cat` update. Pass `axis="row"` for rows,
   `attribute=...` to choose or create the category, `colors={...}` for colors, and
   `replace=True` to clear the axis's other labels first.
-- **Snapshots**: `cgm.request_state()` asks the browser what is shown (rows and
+- **State queries**: `cgm.request_state()` asks the browser what is shown (rows and
   columns on screen, order, marker level, dendrogram groups, attributes, selection,
   values); `cgm.request_state(markers={"clusters": ["4"], "n": 25})` also returns
   a cluster's ranked `rank_genes_groups` markers. Read `cgm.latest_state` in a
@@ -322,8 +322,9 @@ As a notebook widget, a Clustergram also shares its state with Python:
   category strips) as a PNG, like the Landscape's; read `cgm.raster_png` (and the
   `cgm.raster_thumb` preview) in a later cell. Captures stay in memory and are never
   saved into the notebook. In JavaScript, `matrix.capture_raster()` returns the same.
-  To save a PNG file that can be reopened, use `cgm.snapshot()` (see
-  [Screenshots](index.md#screenshots)).
+- **Snapshots**: `cgm.snapshot(description="...", name="...")` saves the screenshot
+  together with a memo and reproducibility metadata in a PNG that can be reopened.
+  See [Snapshots](index.md#snapshots).
 
 ```python
 cgm = dega.viz.Clustergram(matrix=mat, manual_col_cat="cell_type")

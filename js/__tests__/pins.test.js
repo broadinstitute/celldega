@@ -113,15 +113,27 @@ describe('PINS', () => {
     expect(restore).toHaveBeenCalledWith(PIN.snapshot);
   });
 
-  test('pins show on the tissue only, not in UMAP or XY', async () => {
-    const { viz_state, layers_obj } = setup([PIN], true);
+  test('each pin shows in its own space: the tissue or the UMAP, not XY', async () => {
+    const umap_pin = { ...PIN, name: 'Island', space: 'umap', target: [5, 6] };
+    const { viz_state, layers_obj, control } = setup([PIN, umap_pin], true);
     const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const drawn = () =>
+      layers_obj.pin_layer.props.visible
+        ? layers_obj.pin_layer.props.data.map((pin) => pin.name)
+        : [];
+    expect(drawn()).toEqual(['Glomerulus']);
     viz_state.obs_store.landscape_view.set('umap');
     await tick();
-    expect(layers_obj.pin_layer.props.visible).toBe(false);
-    viz_state.obs_store.landscape_view.set('spatial');
+    expect(drawn()).toEqual(['Island']);
+    // The list has them all; the one in the other space is marked.
+    expect(
+      [...control.list.querySelectorAll('.pins_list_item')].map(
+        (row) => row.textContent
+      )
+    ).toEqual(['Glomerulus (tissue)', 'Island']);
+    viz_state.obs_store.landscape_view.set('xy');
     await tick();
-    expect(layers_obj.pin_layer.props.visible).toBe(true);
+    expect(drawn()).toEqual([]);
   });
 
   test('while shown, a list of the pins replaces the image controls', async () => {

@@ -24,7 +24,7 @@ actions and stops on missing/failed completion before gathering further evidence
 | `error` | Display/store `text` | `None` |
 | `pause` | Store `actions`; offer explicit continuation with a fresh budget | `None` |
 | `apply` | Validate `actions`, execute supported API operations, await completion | `{changes: [...], reads: {...}}` or `{error: "..."}` |
-| `observe` | Capture coordinated snapshots, run requested reads, preserve evidence | A host-defined plain-data evidence envelope |
+| `observe` | Capture coordinated Snapshots, run requested reads, preserve evidence | A host-defined plain-data evidence envelope |
 | `follow_up` | Send that evidence to the chosen model backend | Next reply string |
 
 An asynchronous application adapter can drive the synchronous generator without

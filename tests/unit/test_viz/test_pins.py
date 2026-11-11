@@ -55,13 +55,17 @@ def test_snapshots_become_pins_at_their_view_centers(tmp_path):
     glom = _snapshot(tmp_path, "Glomerulus", "Podocytes ring the tuft.")
     medulla = _snapshot(tmp_path, "Medulla", "Collecting ducts.", target=(30, 40, 0))
     _snapshot(tmp_path, "Markers", "Clustergram view", kind="clustergram")
-    _snapshot(tmp_path, "UMAP island", "", space="umap")
+    _snapshot(tmp_path, "UMAP island", "", space="umap", target=(5, 6, 0))
+    _snapshot(tmp_path, "Two genes", "", space="xy")
 
     poi = Snapshots(tmp_path)  # every Snapshot PNG in the folder
-    assert poi.names() == ["Glomerulus", "Markers", "Medulla", "UMAP island"]
+    assert poi.names() == ["Glomerulus", "Markers", "Medulla", "Two genes", "UMAP island"]
     pins = poi.pins()
-    # Only spatial Landscape Snapshots have a place on the tissue.
-    assert [p["name"] for p in pins] == ["Glomerulus", "Medulla"]
+    # Landscape Snapshots of the tissue or the UMAP have a place there; a Clustergram's
+    # (shown as a card instead) or XY's (whose axes depend on the genes) don't.
+    assert [p["name"] for p in pins] == ["Glomerulus", "Medulla", "UMAP island"]
+    assert [p["space"] for p in pins] == ["spatial", "spatial", "umap"]
+    assert pins[2]["target"] == [5.0, 6.0]
     assert pins[0]["description"] == "Podocytes ring the tuft."
     assert pins[0]["target"] == [10.0, 20.0]
     assert pins[1]["target"] == [30.0, 40.0]

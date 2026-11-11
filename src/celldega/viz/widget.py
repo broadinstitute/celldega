@@ -1584,12 +1584,13 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
     @property
     def pins(self) -> list[dict]:
-        """Points of interest on the tissue, one per Snapshot (shown with **PINS**).
+        """Points of interest on the tissue or the UMAP, one per Snapshot (**PINS**).
 
         Set it to Snapshots to annotate the Landscape: a :class:`Snapshots`
         collection, PNG paths, a folder of Snapshot PNGs, or a viewer's ``snap``.
-        Each spatial Landscape Snapshot becomes a pin at the center of its view;
-        hovering shows its name and memo, and clicking opens its view::
+        Each Landscape Snapshot of the tissue or the UMAP becomes a pin at the center
+        of its view, shown while the Landscape shows that space; hovering shows its
+        name and memo, and clicking opens its view::
 
             landscape.pins = dega.viz.Snapshots(landscape.snap)
             landscape.show_pins = True  # or press PINS

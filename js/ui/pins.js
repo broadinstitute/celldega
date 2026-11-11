@@ -2,7 +2,8 @@
  * PINS: points of interest on the Landscape, from Snapshots (Python: `landscape.pins`).
  *
  * The button shows or hides the pins (`show_pins`); it appears only when there are
- * pins. Pins are drawn on the tissue (not in UMAP or XY). Hovering one shows its
+ * pins. Each pin is drawn in its Snapshot's space, the tissue or the UMAP (none in
+ * XY), while the Landscape shows that space. Hovering one shows its
  * Snapshot's name and memo; clicking opens the Snapshot's view.
  *
  * While the pins are shown, a scrolling list of them takes the place of the image
@@ -77,15 +78,23 @@ export const add_pins_control = ({
   let open = async () => {};
   const pins = () => valid_pins(model?.get?.('pin_data'));
   const shown = () => Boolean(model?.get?.('show_pins'));
-  const in_space = () =>
-    (viz_state.obs_store.landscape_view?.get?.() ?? 'spatial') === 'spatial';
+  // Pins sit on the tissue or in the UMAP, each shown in its own space (XY's axes
+  // depend on the genes chosen, so it has none).
+  const view = () => viz_state.obs_store.landscape_view?.get?.() ?? 'spatial';
+  const in_space = () => ['spatial', 'umap'].includes(view());
+  const here = () =>
+    pins().filter((pin) => (pin.space || 'spatial') === view());
 
   const draw_list = () => {
     list.replaceChildren();
     pins().forEach((pin) => {
       const row = document.createElement('div');
       row.className = 'pins_list_item';
-      row.textContent = pin.name || 'Snapshot';
+      // A pin in the other space (tissue or UMAP) is listed too, marked; opening
+      // it switches to that space.
+      const elsewhere = (pin.space || 'spatial') !== view();
+      const where = pin.space === 'umap' ? 'UMAP' : 'tissue';
+      row.textContent = `${pin.name || 'Snapshot'}${elsewhere ? ` (${where})` : ''}`;
       row.title = pin.description
         ? `${pin.name}\n${pin.description}`
         : pin.name || '';
@@ -101,7 +110,7 @@ export const add_pins_control = ({
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         userSelect: 'none',
-        color: is_active ? 'blue' : '#222',
+        color: is_active ? 'blue' : elsewhere ? '#8a929b' : '#222',
         fontWeight: is_active ? 'bold' : 'normal',
         background: is_active ? ACTIVE_BACKGROUND : '',
       });
@@ -157,7 +166,7 @@ export const add_pins_control = ({
     }
     list.style.display = on ? '' : 'none';
     draw_list();
-    layers_obj.pin_layer = make_pin_layer(pins(), open, on);
+    layers_obj.pin_layer = make_pin_layer(here(), open, on);
     refresh_layer(viz_state, layers_obj, 'pin_layer');
   };
 

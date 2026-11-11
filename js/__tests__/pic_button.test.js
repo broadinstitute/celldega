@@ -192,4 +192,19 @@ describe('add_pic_button', () => {
     pic.dispose();
     expect(ui.textContent).not.toContain('PIC');
   });
+  test('SNAP can sit in a row of the panel controls, away from the logo', () => {
+    const { ui, row } = panel();
+    const controls = document.createElement('div');
+    ui.appendChild(controls);
+    const { button } = add_pic_button(ui, {
+      model: {},
+      capture: () => null,
+      container: controls,
+      margin: '0',
+    });
+    expect(button.parentNode).toBe(controls);
+    expect(button.textContent).toBe('SNAP');
+    expect(button.style.margin).toBe('0px');
+    expect(row.contains(button)).toBe(false);
+  });
 });

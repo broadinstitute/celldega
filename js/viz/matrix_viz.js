@@ -142,6 +142,7 @@ import {
   names_signature,
 } from './snapshot';
 import { model_source } from './source';
+import { listen_for_view_requests } from './view_requests';
 
 export const matrix_viz = async (
   model,
@@ -424,6 +425,9 @@ export const matrix_viz = async (
   // Clustergram.screenshot); its replies arrive through the message handler below.
   const pic = add_pic_button(ui_container, {
     model,
+    // With CROP | UNDO, away from the logo.
+    container: ui_container.querySelector('.matrix_action_container'),
+    margin: '0',
     capture: async () => ({
       snapshot: await matrix.snapshot({
         max_size: 2048,
@@ -432,6 +436,11 @@ export const matrix_viz = async (
       }),
     }),
   });
+
+  // Snapshot cards linked to this Clustergram open their view here, in the browser.
+  const stop_view_requests = listen_for_view_requests(model, (snapshot) =>
+    matrix.restore_snapshot(snapshot, { allow_resize: true })
+  );
 
   initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);
 
@@ -929,6 +938,7 @@ export const matrix_viz = async (
       finalized = true;
       viz_state.finalized = true;
       pic.dispose();
+      stop_view_requests();
       viz_state.dendro.tree_overlay?.destroy();
       model_listeners.splice(0).forEach(([event, listener]) => {
         model.off?.(event, listener);

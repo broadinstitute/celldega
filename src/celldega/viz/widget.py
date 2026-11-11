@@ -859,6 +859,17 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
+    #: Pins shown with the PINS button (see :attr:`pins`): name, memo, position and
+    #: saved view of each Snapshot.
+    pin_data = traitlets.List(default_value=[]).tag(sync=True)
+    #: Whether the pins are shown (the PINS button toggles it).
+    show_pins = traitlets.Bool(False).tag(sync=True)
+    #: A Snapshot card asks to open its view (``{"id", "snapshot"}``) and the browser
+    #: answers in ``view_result``; linked in the browser, so cards work without a
+    #: kernel too (see :class:`Snapshot`).
+    view_request = traitlets.Dict({}).tag(sync=True)
+    view_result = traitlets.Dict({}).tag(sync=True)
+    _JS_VIEW_LINK = True
     selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     #: Clusters highlighted in the browser while cells are colored by cluster (set by
     #: the front end; a linked Clustergram shows them as blue column labels).
@@ -1127,6 +1138,7 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         return summary
 
     def __init__(self, **kwargs):
+        pins = kwargs.pop("pins", None)
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
@@ -1421,6 +1433,8 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         self._listen_for_raster()
         self._listen_for_pics()
         self._listen_for_state()
+        if pins is not None:
+            self.pins = pins
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr
@@ -1565,6 +1579,28 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             [list(ring.coords.xy[0]) for ring in rings],
             [list(ring.coords.xy[1]) for ring in rings],
         )
+
+    @property
+    def pins(self) -> list[dict]:
+        """Points of interest on the tissue, one per Snapshot (shown with **PINS**).
+
+        Set it to Snapshots to annotate the Landscape: a :class:`Snapshots`
+        collection, PNG paths, a folder of Snapshot PNGs, or a viewer's ``snap``.
+        Each spatial Landscape Snapshot becomes a pin at the center of its view;
+        hovering shows its name and memo, and clicking opens its view::
+
+            landscape.pins = dega.viz.Snapshots(landscape.snap)
+            landscape.show_pins = True  # or press PINS
+
+        Returns the pins (name, description, position and saved view).
+        """
+        return deepcopy(self.pin_data)
+
+    @pins.setter
+    def pins(self, snapshots) -> None:
+        from .snapshot_widget import Snapshots
+
+        self.pin_data = [] if snapshots is None else Snapshots(snapshots).pins()
 
     @property
     def nbhd_polygons(self):
@@ -5058,6 +5094,10 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     #: Columns drawn with blue labels: e.g. the clusters highlighted in a linked
     #: Landscape (see `spatial_clustergram`), or columns shift-clicked here.
     highlighted_cols = traitlets.List(default_value=[]).tag(sync=True)
+    #: Snapshot cards open their view through these, in the browser (see Landscape).
+    view_request = traitlets.Dict({}).tag(sync=True)
+    view_result = traitlets.Dict({}).tag(sync=True)
+    _JS_VIEW_LINK = True
     #: Upper bound on the gene set a column click sends to enrichment.
     top_n_genes = traitlets.Int(50).tag(sync=True)
 

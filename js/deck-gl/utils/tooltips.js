@@ -183,6 +183,18 @@ export const make_tooltip = (viz_state, info) => {
       inst_html = `<div>neighborhood: ${inst_name}</div>`;
     }
   }
+  // Pins: the Snapshot's name and memo (see ui/pins.js).
+  else if (info.layer.id.startsWith('pin-layer')) {
+    const pin = info.object;
+    if (pin) {
+      const memo = pin.description
+        ? `<div style="white-space: pre-wrap; margin-top: 2px;">${escape_html(
+            pin.description
+          )}</div>`
+        : '';
+      inst_html = `<div><b>${escape_html(pin.name || 'Snapshot')}</b></div>${memo}`;
+    }
+  }
   // Handle neighborhood-cloud shape tooltips -- GeoJsonLayer hands back the
   // picked feature directly as info.object (not indexed into a separate
   // array like the layers above), and properties differ by mode: gene-shapes

@@ -48,6 +48,13 @@ class Snapshot(anywidget.AnyWidget):
     target_label = traitlets.Unicode("").tag(sync=True)
     status = traitlets.Unicode("").tag(sync=True)
     busy = traitlets.Bool(False).tag(sync=True)
+    # With a Landscape or Clustergram, the card asks the viewer to open its view in
+    # the browser (view_request -> the viewer's view_request; its view_result back),
+    # so it works in saved notebooks and static pages too.
+    js_link = traitlets.Bool(False).tag(sync=True)
+    view = traitlets.Dict(default_value={}).tag(sync=True)
+    view_request = traitlets.Dict(default_value={}).tag(sync=True)
+    view_result = traitlets.Dict(default_value={}).tag(sync=True)
 
     def __init__(
         self,
@@ -154,6 +161,15 @@ class Snapshot(anywidget.AnyWidget):
             **kwargs,
         )
         self.on_msg(self._on_snapshot_action)
+        if self.can_restore and getattr(type(self._linked), "_JS_VIEW_LINK", False):
+            from ipywidgets import jsdlink
+
+            self.view = deepcopy(self._restore)
+            self._links = [
+                jsdlink((self, "view_request"), (self._linked, "view_request")),
+                jsdlink((self._linked, "view_result"), (self, "view_result")),
+            ]
+            self.js_link = True
 
     def _clear_pending(self):
         if getattr(self, "_timer", None):
@@ -218,4 +234,151 @@ class Snapshot(anywidget.AnyWidget):
     def close(self):
         self._closed = True
         self._clear_pending()
+        for link in getattr(self, "_links", []):
+            link.unlink()
         super().close()
+
+
+def _snapshot_record(item) -> dict:
+    """A Snapshot's record (the PNG's embedded record, or an in-memory capture).
+
+    Accepts a PNG path, a :class:`Screenshot`, a record dictionary (e.g. an entry of
+    ``widget.snap``) or an in-memory capture (``widget.latest_snapshot``).
+    """
+    if isinstance(item, Screenshot):
+        if not item.done or item.error:
+            raise ValueError(item.error or "Capture is pending; add it in a later cell")
+        item = item.path
+    if isinstance(item, str | Path):
+        path = Path(item).expanduser()
+        record = read_png_record(path)
+        if not record:
+            raise ValueError(f"{path} has no Celldega Snapshot record")
+        return {**record, "_path": str(path)}
+    if isinstance(item, dict):
+        return deepcopy(item)
+    raise ValueError("A Snapshot is a PNG path, a Screenshot, or a capture dictionary")
+
+
+def _saved_view(record: dict, kind: str) -> dict | None:
+    """The saved view for ``kind`` (e.g. ``"landscape"``) in a Snapshot record."""
+    if record.get("schema") == "celldega.view":
+        return record if record.get("kind") == kind else None
+    widgets = record.get("widgets") or []
+    panel = record.get("_panel")
+    candidates = (
+        [widgets[panel]] if isinstance(panel, int) and 0 <= panel < len(widgets) else widgets
+    )
+    for widget in candidates:
+        snapshot = widget.get("snapshot") or {}
+        if snapshot.get("kind") == kind:
+            return snapshot
+    return None
+
+
+class Snapshots:
+    """A named collection of Snapshots, e.g. points of interest to pin on a Landscape.
+
+    Give it PNG paths, a folder of Snapshot PNGs, a viewer's ``snap`` collection, or
+    add Snapshots one at a time. Passed to a Landscape (``Landscape(..., pins=...)``
+    or ``landscape.pins = ...``), each Landscape Snapshot becomes a pin at the center
+    of its view; the **PINS** button shows them, and clicking one opens its view.
+
+    Examples::
+
+        poi = dega.viz.Snapshots(["figures/glomerulus.png", "figures/medulla.png"])
+        poi = dega.viz.Snapshots("celldega_files/snapshots")   # every Snapshot PNG
+        poi = dega.viz.Snapshots(landscape.snap)
+        landscape.pins = poi
+    """
+
+    def __init__(self, items=None):
+        self._items: dict[str, dict] = {}
+        if items is None:
+            return
+        if isinstance(items, Snapshots):
+            items = dict(items._items)
+        if isinstance(items, dict) and not _looks_like_record(items):
+            for name, item in items.items():
+                self.add(item, name=str(name))
+        elif isinstance(items, str | Path) and Path(items).expanduser().is_dir():
+            for path in sorted(Path(items).expanduser().glob("*.png")):
+                if read_png_record(path):
+                    self.add(path)
+        elif isinstance(items, str | Path | dict | Screenshot):
+            self.add(items)
+        else:
+            for item in items:
+                self.add(item)
+
+    def add(self, snapshot, *, name: str | None = None) -> str:
+        """Add a Snapshot; returns its name (repeated names get `` (2)``, etc.)."""
+        record = _snapshot_record(snapshot)
+        base = str(
+            name
+            or record.get("title")
+            or (Path(record["_path"]).stem if record.get("_path") else "Snapshot")
+        )
+        key, suffix = base, 2
+        while key in self._items:
+            key = f"{base} ({suffix})"
+            suffix += 1
+        self._items[key] = record
+        return key
+
+    def __getitem__(self, name: str) -> dict:
+        return self._items[name]
+
+    def __iter__(self):
+        return iter(self._items)
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def __contains__(self, name) -> bool:
+        return name in self._items
+
+    def names(self) -> list[str]:
+        return list(self._items)
+
+    def __repr__(self) -> str:
+        return f"Snapshots({self.names()!r})"
+
+    def pins(self) -> list[dict]:
+        """One pin per spatial Landscape Snapshot: name, memo, position and view.
+
+        A pin sits at the center of the Snapshot's view; Snapshots of other widgets,
+        or of the UMAP or XY spaces, have no place on the tissue and are skipped.
+        """
+        out = []
+        for name, record in self._items.items():
+            view = _saved_view(record, "landscape")
+            state = (view or {}).get("state") or {}
+            target = (state.get("view") or {}).get("target")
+            if (
+                not view
+                or state.get("space", "spatial") != "spatial"
+                or not isinstance(target, list | tuple)
+                or len(target) < 2
+            ):
+                continue
+            try:
+                x, y = float(target[0]), float(target[1])
+            except (TypeError, ValueError):
+                continue
+            out.append(
+                {
+                    "name": name,
+                    "description": str(
+                        record.get("description") or view.get("description") or ""
+                    ),
+                    "target": [x, y],
+                    "snapshot": restore_spec(view),
+                }
+            )
+        return out
+
+
+def _looks_like_record(value: dict) -> bool:
+    """A single Snapshot record, rather than a ``{name: snapshot}`` collection."""
+    return any(key in value for key in ("celldega_screenshot", "schema", "widgets"))

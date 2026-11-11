@@ -60,11 +60,38 @@ export default {
       pending = false;
       clearTimeout(timer);
     };
+    // Linked in the browser (a Landscape or Clustergram): ask the viewer directly,
+    // so the card also works in a saved notebook or static page without a kernel.
+    let request_id = '';
+    const on_result = () => {
+      const result = model.get('view_result') || {};
+      if (!request_id || result.id !== request_id) return;
+      request_id = '';
+      clearTimeout(timer);
+      pending = false;
+      restore.disabled = false;
+      status.textContent = result.error
+        ? `Could not open view: ${result.error}`
+        : `View opened in ${model.get('target_label')}.`;
+    };
     const navigate = () => {
       if (pending || model.get('busy')) return;
       pending = true;
       restore.disabled = true;
       status.textContent = 'Opening this view…';
+      if (model.get('js_link')) {
+        request_id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        model.set('view_request', { id: request_id, snapshot: model.get('view') });
+        model.save_changes();
+        timer = setTimeout(() => {
+          request_id = '';
+          pending = false;
+          restore.disabled = false;
+          status.textContent =
+            'No reply from the viewer. Display it on this page and try again.';
+        }, 40000);
+        return;
+      }
       model.send({ event: 'restore' });
       // An exported notebook may have no kernel to answer the click.
       timer = setTimeout(() => {
@@ -75,6 +102,7 @@ export default {
       }, 40000);
     };
     restore.addEventListener('click', navigate);
+    model.on('change:view_result', on_result);
     const traits = [
       'image',
       'name',
@@ -90,6 +118,7 @@ export default {
     return () => {
       clearTimeout(timer);
       traits.forEach((name) => model.off(`change:${name}`, update));
+      model.off('change:view_result', on_result);
       restore.removeEventListener('click', navigate);
       card.remove();
       style.remove();

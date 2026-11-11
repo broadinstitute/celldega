@@ -75,5 +75,8 @@ export const landscape_model_values = (options = {}) => {
     technology,
     cluster_attr,
     cell_attr: [...new Set([...cell_attr, cluster_attr])],
+    // Pins (points of interest from Snapshots): `pins` or the model's `pin_data`.
+    pin_data: options.pin_data ?? options.pins ?? [],
+    show_pins: Boolean(options.show_pins),
   };
 };

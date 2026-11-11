@@ -107,10 +107,12 @@ import {
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { add_pic_button } from '../ui/pic_button';
+import { add_pins_control } from '../ui/pins';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import { collapse_view_modes } from '../ui/view_mode_menu';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
 import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
@@ -142,6 +144,7 @@ import {
   landscape_identity,
   landscape_source,
 } from './snapshot';
+import { listen_for_view_requests } from './view_requests';
 
 // Row group reading support
 
@@ -1253,8 +1256,10 @@ export const landscape_ist = async (
 
   // PIC: save a screenshot with a description; Python writes the PNG and the
   // state to recreate it (see ui/pic_button.js and Landscape.screenshot).
+  // SNAP sits with the view controls (IMG, the image source), not by the logo.
   const pic = add_pic_button(ui_container, {
     model: viz_state.model,
+    container: viz_state.containers.view_modes || null,
     capture: async () => ({
       snapshot: await landscape.snapshot({ max_size: 2048, thumb_size: 64 }),
     }),
@@ -1265,6 +1270,25 @@ export const landscape_ist = async (
     viz_state.model.off?.('msg:custom', on_pic_message);
     pic.dispose();
   });
+
+  // Snapshot cards linked to this Landscape open their view here, in the browser.
+  cleanup_callbacks.push(
+    listen_for_view_requests(viz_state.model, (snapshot) =>
+      landscape.restore_snapshot(snapshot, { allow_resize: true })
+    )
+  );
+
+  // PINS: Snapshots pinned on the tissue (landscape.pins); a pin opens its view.
+  if (viz_state.containers.view_modes) {
+    const pins = add_pins_control({
+      viz_state,
+      layers_obj,
+      container: viz_state.containers.view_modes,
+      restore: (snapshot) =>
+        landscape.restore_snapshot(snapshot, { allow_resize: true }),
+    });
+    cleanup_callbacks.push(() => pins.dispose());
+  }
 
   // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
   // Done after the UI is built so the viz_nbhd_layer subscription can update the
@@ -1397,6 +1421,10 @@ export const landscape_ist = async (
         () => refresh_layer(viz_state, layers_obj, 'cell_layer'),
         deck_ist
       )
+    );
+    // SPATIAL / UMAP / XY as one small menu, now that XY's button exists.
+    cleanup_callbacks.push(
+      collapse_view_modes(viz_state, viz_state.containers.view_modes)
     );
     viz_state.refresh_viewport = () =>
       calc_viewport(

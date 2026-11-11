@@ -20,7 +20,7 @@ from .screenshots import (
     screenshot,
     snapshot,
 )
-from .snapshot_widget import Snapshot
+from .snapshot_widget import Snapshot, Snapshots
 from .snapshots import fingerprint_dataset
 from .widget import Clerk, Clustergram, Composition, Enrich, Landscape, Yearbook
 
@@ -663,6 +663,7 @@ __all__ = [
     "NeighborhoodCloud",
     "Screenshot",
     "Snapshot",
+    "Snapshots",
     "Yearbook",
     "clustergram_enrich",
     "from_png",

@@ -86,12 +86,12 @@ RNA image channels.*
 
 | | Control | What it does |
 | --- | --- | --- |
-| 1 | View and image | **SPATIAL**, **UMAP**, and **XY** switch between tissue, embedding, and two-gene views (UMAP appears when the data include an embedding). **IMG** shows or hides the image; each channel button toggles that channel, and its slider sets the channel's brightness. |
+| 1 | View and image | The view menu switches between tissue (**SPATIAL**), embedding (**UMAP**, when the data include one), and two-gene (**XY**) views: it shows the current view, and its **▾** lists the others. **IMG** shows or hides the image; each channel button toggles that channel, and its slider sets the channel's brightness. **SNAP** saves a [Snapshot with a memo](#snapshots), and **PINS** shows [pinned Snapshots](#pins-points-of-interest) on the tissue (it appears when there are pins). |
 | 2 | **CELL** | Shows or hides the cells; the slider sets their size. The bars rank cell clusters by count: click a bar to select that cluster, and shift-click to add more. |
 | 3 | **TRX** | Transcripts and gene expression. Zoomed in, TRX shows or hides individual transcripts and the slider sets their size; zoomed out, the slider sets how strongly cells are colored by a selected gene. The bars rank genes: click one to color cells by its expression. |
 | 4 | **NBHD** | Neighborhoods: shows supplied tissue regions, or lets you draw your own. Appears only when neighborhoods are supplied or drawing is turned on. |
 | 5 | Gene search | Type one or more gene names, separated by commas, to color cells by expression; clear the box to return to cluster colors. The box below describes the selected gene, from UniProt. |
-| 6 | Celldega logo | Opens this visualization's documentation page. **SNAP**, next to it, saves a [Snapshot with a memo](#snapshots). |
+| 6 | Celldega logo | Opens this visualization's documentation page. |
 | 7 | The view | Scroll to zoom, drag to pan, hover over cells and transcripts for details, and click a cell to select its cluster. |
 
 Conventions shared across visualizations:
@@ -289,6 +289,35 @@ Navigation accepts a different viewer size by default (`allow_resize=False` requ
 the original size), but always checks data identity. Yearbook Snapshots preserve the
 actual ordered cells, page, zoom, checked cells, colors and supported layer controls;
 the grid layout must match. The original data must remain available.
+
+### Pins: points of interest
+
+Snapshots can also annotate the tissue itself, like pins on a map of places you've
+been, each with a photo and a postcard about it. Give a Landscape a collection of
+Snapshots and each one becomes a pin at the center of its view. **PINS** shows or
+hides them; hovering a pin shows its Snapshot's name and memo, and clicking it opens
+its view. Where drawn neighborhoods outline regions, pins mark points of interest
+with whatever explanation you write, for your future self or a collaborator.
+
+```python
+poi = dega.viz.Snapshots(landscape.snap)          # the Snapshots you saved with SNAP
+poi = dega.viz.Snapshots("celldega_files/snapshots")  # or every Snapshot PNG in a folder
+poi = dega.viz.Snapshots(["glomerulus.png", "medulla.png"])  # or chosen files
+
+landscape.pins = poi
+landscape.show_pins = True  # or press PINS
+
+# Pins can also be pre-loaded when the Landscape is created:
+landscape = dega.viz.Landscape(base_url=..., pins=poi, show_pins=True)
+```
+
+`Snapshots` is a small named collection (`poi.names()`, `poi["Glomerulus"]`,
+`poi.add(path, name=...)`). Only Snapshots of the tissue (the spatial view) become
+pins; Clustergram, Yearbook, UMAP and XY Snapshots have no place on it. Pins live in
+the widget's state, so opening one works in a saved notebook or static page without a
+kernel. In JavaScript, pass `pins` (or `pin_data`) and `show_pins` to
+`celldega.landscape(el, {...})`: each pin is `{name, description, target: [x, y],
+snapshot}`.
 
 The former `screenshot()`, `load_screenshot()`, `load_screenshots()`,
 `screenshot_dir` and `screenshot_metadata` spellings remain compatibility aliases.

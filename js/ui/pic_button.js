@@ -34,7 +34,8 @@ const text_button = (label, title, color = 'gray') => {
 };
 
 /**
- * Add a SNAP button next to the widget's logo (in its search row when there is one).
+ * Add a SNAP button: in `container` when given (a row of the panel's controls),
+ * otherwise next to the widget's logo (in its search row when there is one).
  *
  * @param {HTMLElement} ui_container - The widget's control panel.
  * @param {{model: object, capture: () => ({snapshot: object}|null|
@@ -44,18 +45,29 @@ const text_button = (label, title, color = 'gray') => {
  *   dispose: () => void}} Route custom messages to `on_message` (it returns true
  *   for the ones it handled); call `dispose` on finalize.
  */
-export const add_pic_button = (ui_container, { model, capture }) => {
+export const add_pic_button = (
+  ui_container,
+  { model, capture, container = null, margin = '5px 0 0 5px' }
+) => {
   const button = text_button(
     'SNAP',
     'Save a Snapshot with a memo: a PNG plus what it takes to recreate it'
   );
   // Sized like the rest of the control panel (its dialog keeps 12px text).
   button.style.fontSize = CONTROL_FONT_SIZE;
-  const row = ui_container.querySelector('.search_logo_row');
-  const logo = (row || ui_container).querySelector('.logo_button');
-  if (logo?.parentNode) logo.parentNode.insertBefore(button, logo);
-  else ui_container.appendChild(button);
-  if (!row) button.style.margin = '5px 6px 0 auto';
+  button.classList.add('snap_button');
+  if (container) {
+    // Among the panel's own controls (e.g. the Landscape's IMG row, or the
+    // Clustergram's CROP row), so the logo keeps its room.
+    button.style.margin = margin;
+    container.appendChild(button);
+  } else {
+    const row = ui_container.querySelector('.search_logo_row');
+    const logo = (row || ui_container).querySelector('.logo_button');
+    if (logo?.parentNode) logo.parentNode.insertBefore(button, logo);
+    else ui_container.appendChild(button);
+    if (!row) button.style.margin = '5px 6px 0 auto';
+  }
 
   let dialog = null;
   let shot = null;

@@ -411,7 +411,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const action_container = flex_container('matrix_action_container', 'row');
   action_container.style.gridColumn = '1 / -1';
   action_container.style.alignItems = 'center';
-  action_container.style.gap = '16px';
+  // Spread across the grid's width: CROP | UNDO, the mode toggles, then SNAP
+  // (added by matrix_viz) at the right.
+  action_container.style.justifyContent = 'space-between';
+  action_container.style.gap = '6px';
   // Sit a little closer to the DIM/COL row above.
   action_container.style.marginTop = '-2px';
 

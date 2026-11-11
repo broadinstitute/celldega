@@ -83,6 +83,7 @@ describe('Matrix lifecycle', () => {
       },
       make_matrix_ui_container: () => document.createElement('div'),
       add_pic_button: () => ({ on_message: () => false, dispose: jest.fn() }),
+      listen_for_view_requests: () => jest.fn(),
       buildCellSlice: (row, col, value) => ({ row, col, value }),
     });
     matrix_viz = new Function(

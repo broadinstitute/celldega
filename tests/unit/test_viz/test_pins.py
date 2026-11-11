@@ -20,7 +20,13 @@ def _view(kind="landscape", space="spatial", target=(10.0, 20.0, 0)):
     state = {"view": {"target": list(target), "zoom": -2}, "clusters": ["4"]}
     if space:
         state["space"] = space
-    return {"schema": "celldega.view", "version": 2, "kind": kind, "state": state}
+    return {
+        "schema": "celldega.view",
+        "version": 2,
+        "kind": kind,
+        "state": state,
+        "identity": {"cells": {"count": 3, "names": "abc"}},
+    }
 
 
 def _snapshot(folder, name, memo, **view):
@@ -91,3 +97,37 @@ def test_bad_pins_are_refused(tmp_path):
         Snapshots([plain])
     with pytest.raises(ValueError, match="PNG path"):
         Snapshots([42])
+
+
+def test_snapshots_of_other_data_are_not_pinned(tmp_path):
+    mine = _snapshot(tmp_path, "Mine", "")
+    other = write_screenshot(
+        tmp_path / "Other.png",
+        [
+            {
+                "image": PNG,
+                "source": {"widget": "Landscape", "base_url": "https://example.com/other"},
+                "snapshot": {**_view(), "source": {"base_url": "https://example.com/other"}},
+            }
+        ],
+        title="Other",
+    )
+    ls = _landscape()
+    with pytest.warns(UserWarning, match="other data than this Landscape: Other"):
+        ls.pins = [mine, other]
+    assert [p["name"] for p in ls.pins] == ["Mine"]
+    # snapshots= at creation (pins= is an alias).
+    assert [p["name"] for p in _landscape(snapshots=[mine]).pins] == ["Mine"]
+
+
+def test_a_card_is_chosen_by_name_and_opens_its_view_in_the_browser(tmp_path):
+    poi = Snapshots([_snapshot(tmp_path, "Glomerulus", "Podocytes ring the tuft.")])
+    ls = _landscape()
+    card = poi.card("Glomerulus", landscape=ls)
+    assert card.name == "Glomerulus" and card.description == "Podocytes ring the tuft."
+    # Linked in the browser, so the card's link works without a kernel too.
+    assert card.can_restore and card.js_link
+    assert card.view["state"]["clusters"] == ["4"]
+    card.view_request = {"id": "1", "snapshot": card.view}
+    with pytest.raises(KeyError, match="No Snapshot named"):
+        poi.card("Nope")

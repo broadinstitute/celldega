@@ -113,12 +113,68 @@ describe('PINS', () => {
     expect(restore).toHaveBeenCalledWith(PIN.snapshot);
   });
 
-  test('pins show on the tissue only, not in UMAP or XY', () => {
+  test('pins show on the tissue only, not in UMAP or XY', async () => {
     const { viz_state, layers_obj } = setup([PIN], true);
+    const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
     viz_state.obs_store.landscape_view.set('umap');
+    await tick();
     expect(layers_obj.pin_layer.props.visible).toBe(false);
     viz_state.obs_store.landscape_view.set('spatial');
+    await tick();
     expect(layers_obj.pin_layer.props.visible).toBe(true);
+  });
+
+  test('while shown, a list of the pins replaces the image controls', async () => {
+    const image = document.createElement('div');
+    const image_controls = document.createElement('div');
+    image.appendChild(image_controls);
+    const refresh_layer = jest.fn();
+    const api = load()(IconLayer, refresh_layer);
+    const state = {
+      pin_data: [PIN, { ...PIN, name: 'Medulla', target: [3, 4] }],
+      show_pins: false,
+    };
+    const model = {
+      get: (key) => state[key],
+      set: (key, value) => {
+        state[key] = value;
+      },
+      save_changes: jest.fn(),
+      on: jest.fn(),
+      off: jest.fn(),
+    };
+    const restore = jest.fn(async () => []);
+    const control = api.add_pins_control({
+      viz_state: {
+        model,
+        obs_store: { landscape_view: observable('spatial') },
+        containers: { image, image_controls },
+      },
+      layers_obj: {},
+      container: document.createElement('div'),
+      restore,
+    });
+    expect(control.list.parentNode).toBe(image);
+    expect(control.list.style.display).toBe('none');
+    control.button.click();
+    expect(control.list.style.display).toBe('');
+    expect(image_controls.style.display).toBe('none');
+    const rows = [...control.list.querySelectorAll('.pins_list_item')];
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Glomerulus',
+      'Medulla',
+    ]);
+    expect(rows[0].title).toBe('Glomerulus\nPodocytes around the tuft.');
+    rows[1].click();
+    await Promise.resolve();
+    expect(restore).toHaveBeenCalledWith(PIN.snapshot);
+    // The opened pin is marked; hiding the pins gives the image controls back.
+    expect(
+      control.list.querySelectorAll('.pins_list_item')[1].style.color
+    ).toBe('blue');
+    control.button.click();
+    expect(control.list.style.display).toBe('none');
+    expect(image_controls.style.display).toBe('');
   });
 
   test('pins without a position are left out', () => {

@@ -348,6 +348,30 @@ def notebook_to_html(notebook) -> str:
     return body
 
 
+def record_with_images(questions: list[dict], folder: Path | None) -> list[dict]:
+    """A record read from ``record.json``, with its ``images/`` files back inline.
+
+    The reverse of how :func:`write_report` stores screenshots; image paths that can't
+    be read (or with no ``folder``) are dropped.
+    """
+    out = []
+    for entry in questions or []:
+        steps = []
+        for step in entry.get("steps") or []:
+            step = dict(step)
+            for key in ("image", "clustergram_image"):
+                value = step.get(key)
+                if isinstance(value, str) and value.startswith("images/"):
+                    path = Path(folder) / value if folder is not None else None
+                    if path is not None and path.is_file():
+                        step[key] = base64.b64encode(path.read_bytes()).decode()
+                    else:
+                        step.pop(key)
+            steps.append(step)
+        out.append({**entry, "steps": steps})
+    return out
+
+
 def _record_without_images(record: list[dict], folder: Path) -> list[dict]:
     """The record with screenshots written to ``images/`` and referenced by path."""
     images = folder / "images"
@@ -360,7 +384,8 @@ def _record_without_images(record: list[dict], folder: Path) -> list[dict]:
             if step.get("image") or step.get("clustergram_image"):
                 shot += 1
             for key, suffix in (("image", ""), ("clustergram_image", "_clustergram")):
-                if step.get(key):
+                # A record reopened from another report may already point at a file.
+                if step.get(key) and not str(step[key]).startswith("images/"):
                     images.mkdir(parents=True, exist_ok=True)
                     name = f"q{number}_{shot}{suffix}.png"
                     (images / name).write_bytes(base64.b64decode(step[key]))
@@ -378,8 +403,12 @@ def write_report(
     *,
     names: dict | None = None,
     html_report: bool = True,
+    messages: list[dict] | None = None,
 ) -> dict[str, Path]:
     """Write the report files into ``folder`` (created if needed).
+
+    ``messages`` (the Clerk panel's conversation) go into ``record.json`` too, so
+    ``Clerk.load_conversation`` can reopen the report as it was shown.
 
     Returns:
         dict: The paths written, by kind (``html``, ``notebook``, ``record``,
@@ -398,6 +427,8 @@ def write_report(
         "questions": _record_without_images(record, folder),
         "findings": findings,
     }
+    if messages is not None:
+        payload["messages"] = messages
     written["record"] = folder / "record.json"
     written["record"].write_text(json.dumps(payload, indent=2, default=str))
 

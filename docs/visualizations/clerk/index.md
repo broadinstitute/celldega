@@ -1,20 +1,24 @@
-# Clerk AI
+# Clerk
 
 !!! note "Experimental"
-    Clerk AI is a proof of concept: its features and API may change between releases.
+    Clerk is a proof of concept: its features and API may change between releases.
 
-**Clerk AI** is an AI assistant built into Celldega's widgets, powered by Anthropic's
-**Claude**. It reads what your linked Landscape, Clustergram and Enrich panels show,
-gathers the evidence (marker genes, enrichment, literature, the tissue image), and makes
-a case for a cell-type label, or answers your question, that **you** rule on. The name
-reads as both a *law clerk* (gathers evidence and drafts the reasoning; you decide) and a
-*bodega clerk* (fetches what you ask for).
+**Clerk** is Celldega's AI tool for exploring and interpreting its visualizations. It
+isn't a separate service or an MCP server. It's a set of prompts, actions and light
+interface components that let Anthropic's **Claude** read and drive the visualizations
+you link to it (a Landscape, Clustergram or Enrich panel) and consult outside tools:
+Enrichr for gene-set enrichment and PubMed for the literature.
+
+Clerk gathers the evidence (marker genes, enrichment, literature, the tissue image) and
+makes a case for a cell-type label, or answers your question, that **you** rule on. The
+name reads as both a *law clerk* (gathers evidence and drafts the reasoning; you decide)
+and a *bodega clerk* (fetches what you ask for).
 
 Genes, clusters and cited views can be clicked to inspect the evidence in your widgets.
 The conversation can be exported with screenshots, observed evidence and supported
-replay settings. Full view restoration is not implemented yet. Clerk AI runs through
-your own Claude account, using the `claude` command-line tool
-on the machine running your notebook.
+replay settings. Full view restoration is not implemented yet. Clerk runs through your
+own Claude account, using the `claude` command-line tool on the machine running your
+notebook.
 
 ## Requirements and logging in
 
@@ -181,6 +185,26 @@ clerk = dega.viz.Clerk()
 dega.viz.link_clerk(clerk, landscape=landscape, clustergram=cgm)
 ```
 
+### Sidecar or wide
+
+To lay Clerk out with the views, linked, pass it to `spatial_clustergram`. By default it
+becomes a **sidecar**: a narrow column at the end of the row, the row's height, the way
+an Enrich panel sits beside the Clustergram. `clerk_layout="wide"` puts it full width
+under the row instead.
+
+```python
+dega.viz.spatial_clustergram(landscape, cgm, clerk=True)                 # sidecar
+dega.viz.spatial_clustergram(landscape, cgm, enrich=True, clerk=True)    # with Enrich
+dega.viz.spatial_clustergram(landscape, cgm, clerk=clerk, clerk_layout="wide")
+```
+
+`clerk=True` creates a Clerk (pass its options as `clerk_kwargs`), or pass one you made.
+A sidecar sizes itself: it takes the room the row leaves, between 240 and 300 px, and
+the Landscape, Clustergram and Enrich keep their full widths. A row wider than the
+notebook scrolls sideways, with room under it for the scrollbar. A Clerk with its own
+`width` keeps it. When the panel is narrow, the question box takes its own line, with
+the model and effort pickers below.
+
 Once linked:
 
 - selecting a cluster/gene set in the **Clustergram** flows the genes into
@@ -273,7 +297,7 @@ it's still answering:
 Before the first link, Clerk saves the supported Landscape and Clustergram settings.
 **Back to your view** reapplies them, including Clustergram pan/zoom, crop and order,
 and Landscape layers, channels and sliders. See the remaining
-[replay limitations](../javascript/viz-api.md#replaying-supported-settings). In an exported
+[replay limitations](../../javascript/viz-api.md#replaying-supported-settings). In an exported
 report, each cited view becomes a numbered figure under the answer with the
 `apply_state` code that applies its settings, and the "[Fig 1A]" link jumps to it.
 Cited views do not yet get their own rendered images on export.
@@ -305,6 +329,16 @@ From Python, `cgm.request_state(markers={"clusters": ["4"], "n": 25})` reads the
 ranked markers, and `dega.clerk.lookups.enrichr(...)` / `dega.clerk.lookups.pubmed(...)`
 run the web lookups.
 
+### Enrichr results in the conversation
+
+Enrichr results are drawn in the conversation, under the answer, like the Enrich panel:
+a bar graph of the top terms by combined score (a tab per library) and a paragraph of
+the genes tested. Hover a bar for its statistics; click it to highlight its genes and
+show them on the Landscape and Clustergram, and click again to clear. Genes in the
+paragraph work like Clerk's other gene links. This covers both Clerk's own Enrichr
+lookups and the panel's Enrichr results for the selected genes, shown once per gene
+list. The model still receives the results as text; the drawing is for you.
+
 ## Recording cell types
 
 When Clerk proposes cell types, it records them ("↻ Recorded tentative cell types: 4 →
@@ -333,8 +367,8 @@ clusters without a proposal with `Unassigned`, and records the labels used in
 Clerk can show you its evidence: highlight the clusters it is discussing in the
 Landscape, color it by genes, zoom to a cluster, or move the Clustergram's DIM slider.
 It uses the same setters you can call yourself (`landscape.apply_state`,
-`cgm.apply_state`; see the [Landscape](../visualizations/landscape/index.md) and
-[Clustergram](../visualizations/clustergram.md) pages), and each change appears in the
+`cgm.apply_state`; see the [Landscape](../landscape/index.md) and
+[Clustergram](../clustergram.md) pages), and each change appears in the
 conversation as a "↻ Changed …" line. Cell types Clerk records are also written to the
 Clustergram's manual column category (`clerk.label_clustergram = False` turns this
 off); labels you set yourself are never overwritten.
@@ -370,7 +404,7 @@ landscape.apply_state({"layers": {"image": True, "cells": False}})
 ```
 
 Landscape also exposes image channels, layer sliders and the image source selector.
-See [Viz API](../javascript/viz-api.md) for the complete shapes. Dendrogram cut and
+See [Viz API](../../javascript/viz-api.md) for the complete shapes. Dendrogram cut and
 linked selections remain future controls.
 
 For a simple side-by-side layout of one Landscape + Clerk:
@@ -382,7 +416,7 @@ dega.viz.landscape_clerk(landscape, clerk)
 ## Landscape raster capture (a reusable feature)
 
 Clerk needed to see the view, so `Landscape` gained a general raster capture: the
-image alone, the first of the [three capture levels](../javascript/saved-views.md#terms-and-scope)
+image alone, the first of the [three capture levels](../../javascript/saved-views.md#terms-and-scope)
 (raster, saved view, screenshot). Request a capture; when the browser replies, the
 image and the exact view state are set on the widget (in memory only — captures are
 never saved into the notebook):
@@ -401,7 +435,7 @@ cell that requests a capture can't wait for it.
 ## Screenshots
 
 Ask Clerk to save evidence ("save a screenshot of this for the report") and it takes a
-[screenshot with provenance](../visualizations/index.md#screenshots) of the linked views,
+[screenshot with provenance](../index.md#screenshots) of the linked views,
 after any change it makes for it, with its own description. They're written to
 `clerk_files/screenshots/` (or `clerk.screenshot_dir`), marked as made by Clerk, listed
 in `clerk.screenshots`, and recorded in the conversation. Manual exports from
@@ -441,6 +475,34 @@ clerk.export("hcrc_clerk", adata=adata, groupby="leiden")  # also annotate an An
 The record is also available as `clerk.record` (a list of dicts, one per question). The
 HTML needs `nbconvert`; without it the other files are still written.
 
+### Saving and reopening a conversation
+
+The panel's **Save** button (or `clerk.save_conversation()`) saves the conversation to
+reopen later, the way PIC saves a view. It writes one JSON file to
+`clerk_files/conversations/`, holding:
+
+- the messages, with their gene, cluster and view links and Enrichr results;
+- the record of each question, with the replay settings of its captures;
+- Clerk's proposed cell types and the context;
+- links to the data the linked widgets show.
+
+Each question's screenshot preview is kept, but full-size captures are left out to keep
+the file light; **Export** keeps those.
+
+**Open** (or `clerk.load_conversation(path)`) puts a saved conversation back in the
+panel, replacing the current one. It also opens an exported report folder.
+
+```python
+saved = clerk.save_conversation(title="kidney walkthrough")
+# ...later, in a notebook with the same data linked:
+clerk.load_conversation(saved)          # or the panel's Open button
+```
+
+Reading a saved conversation needs no Claude, so it shows what a session looked like:
+click through the genes, clusters and cited views (`[Fig 1A]`) and they change the linked
+widgets, as they did when Clerk answered. The links need the same data loaded in those
+widgets. A new question continues the conversation, with the loaded one as its history.
+
 ## Saved views, evidence and reports
 
 The Viz API preserves an interactive observation as a versioned saved view. A saved
@@ -450,7 +512,7 @@ findings; that organization belongs to Clerk, not the visualization API.
 
 Use `clerk.export(...)` and `clerk.load_briefing(...)` to save and reuse this record.
 Manual exports use the same underlying saved-view contract without constructing a
-Clerk. See [portable saved views](../javascript/saved-views.md).
+Clerk. See [portable saved views](../../javascript/saved-views.md).
 
 ## Roadmap
 

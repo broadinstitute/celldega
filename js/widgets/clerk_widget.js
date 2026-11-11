@@ -3,6 +3,7 @@ import { handleAsyncError } from '../temp_utils/errorHandler';
 import { contain_scroll, make_gene_hover_tooltip } from '../ui/gene_info';
 import { render_markdown } from '../ui/markdown';
 
+import { render_enrichment } from './clerk_enrichment';
 import {
   asks_question,
   group_turns,
@@ -23,6 +24,9 @@ const MAX_SHOWN_GENES = 20;
 
 // A full-width panel is capped here so chat text stays readable.
 const MAX_PANEL_WIDTH = 900;
+
+// Below this width (px) the question box takes its own line.
+const NARROW_PANEL_WIDTH = 480;
 
 // Styles for rendered Markdown, scoped to the panel's class so they can't leak into
 // the rest of the notebook.
@@ -63,6 +67,22 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-cluster:hover, .${PANEL_CLASS} .clerk-genelist:hover,
 .${PANEL_CLASS} a.clerk-view:hover { border-bottom-style: solid; }
 .${PANEL_CLASS} .clerk-cluster.shown, .${PANEL_CLASS} a.clerk-view.shown { background: #e3eef7; border-radius: 2px; }
+.${PANEL_CLASS} .clerk-enrichment { margin: 6px 0; padding: 6px; border: 1px solid #e3e6e9; border-radius: 3px; }
+.${PANEL_CLASS} .clerk-enrichment-title { font-size: 11px; font-weight: bold; letter-spacing: 0.04em;
+  text-transform: uppercase; color: #47515b; margin-bottom: 3px; }
+.${PANEL_CLASS} .clerk-enrichment-tabs .clerk-tool { margin: 0 10px 3px 0; }
+.${PANEL_CLASS} .clerk-enrichment-tabs .clerk-tool.active { color: #2c7fb8; }
+.${PANEL_CLASS} .clerk-enrichment-bar { position: relative; height: 20px; margin-bottom: 1px; cursor: pointer;
+  user-select: none; }
+.${PANEL_CLASS} .clerk-enrichment-fill { position: absolute; top: 0; bottom: 0; left: 0;
+  background: steelblue; opacity: 0.25; }
+.${PANEL_CLASS} .clerk-enrichment-bar:hover .clerk-enrichment-fill { opacity: 0.45; }
+.${PANEL_CLASS} .clerk-enrichment-term { position: relative; display: block; padding: 0 5px; font-size: 13px;
+  line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.${PANEL_CLASS} .clerk-enrichment-bar.dimmed .clerk-enrichment-term { color: gray; }
+.${PANEL_CLASS} .clerk-enrichment-bar.selected .clerk-enrichment-term { font-weight: bold; }
+.${PANEL_CLASS} .clerk-enrichment-genes { margin-top: 5px; font-size: 13px; line-height: 1.5; }
+.${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene.in-term { font-weight: bold; color: #1a5a85; }
 `;
 
 // Model picker: aliases the `claude` CLI understands; '' = the CLI's default model.
@@ -163,6 +183,10 @@ export const render_clerk = async ({ model, el }) => {
 
   const inputRow = document.createElement('div');
   inputRow.style.display = 'flex';
+  // In a narrow sidecar the pickers and Ask wrap under the question box.
+  inputRow.style.flexWrap = 'wrap';
+  inputRow.style.alignItems = 'center';
+  inputRow.style.rowGap = '4px';
   inputRow.style.marginTop = '5px';
   inputRow.style.marginBottom = '5px';
 
@@ -171,6 +195,18 @@ export const render_clerk = async ({ model, el }) => {
     'Ask about what you see (e.g. "What\'s in this field of view?")';
   textarea.rows = 2;
   textarea.style.flex = '1 1 auto';
+  textarea.style.minWidth = '220px';
+  // A narrow panel (a sidecar) gives the question its own line, pickers below. A
+  // sidecar sizes itself to the row, so this follows the panel's actual width.
+  const fit_input = (panel_width) => {
+    textarea.style.flexBasis =
+      panel_width > 0 && panel_width < NARROW_PANEL_WIDTH ? '100%' : '';
+  };
+  fit_input(fullWidth ? 0 : width);
+  const resize_observer =
+    typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(([entry]) => fit_input(entry.contentRect.width));
   textarea.style.fontFamily = FONT;
   textarea.style.fontSize = '14px';
   textarea.style.padding = '5px';
@@ -201,6 +237,7 @@ export const render_clerk = async ({ model, el }) => {
 
   const toolbar = document.createElement('div');
   toolbar.style.display = 'flex';
+  toolbar.style.flexWrap = 'wrap';
   toolbar.style.justifyContent = 'flex-end';
   toolbar.style.marginTop = '4px';
   const tool = (text, title, onclick) => {
@@ -598,6 +635,18 @@ export const render_clerk = async ({ model, el }) => {
       asked = asks_question(after || main || turn.answer.content);
       wrapper.appendChild(answer);
     }
+    // Enrichr results, under the answer (or as they arrive while Clerk works).
+    turn.figures.forEach((message) => {
+      wrapper.appendChild(
+        render_enrichment(message, {
+          on_gene: show_gene,
+          on_genes: (genes) =>
+            show_genes(genes.slice(0, MAX_SHOWN_GENES), genes[0]),
+          tooltip: gene_tooltip,
+          esc,
+        })
+      );
+    });
     turn.results.forEach((message) => {
       if (is_line(message)) wrapper.appendChild(action_line(message));
       else
@@ -742,6 +791,7 @@ export const render_clerk = async ({ model, el }) => {
       question,
       gene_list: genes,
       enrichr_terms,
+      enrichr_library: ENRICHR_LIB,
     });
     model.save_changes();
   };
@@ -771,6 +821,34 @@ export const render_clerk = async ({ model, el }) => {
     set_all_folds(true)
   );
   tool('Collapse all', 'Close every turn', () => set_all_folds(false));
+  tool(
+    'Save',
+    'Save this conversation to reopen later with OPEN or clerk.load_conversation ' +
+      '(reading it needs no Claude; its links need the same data)',
+    () => send_request({ save_conversation: true })
+  );
+  // OPEN reads a saved conversation in the browser and hands it to Python as a
+  // one-off message, so it never becomes part of the notebook's widget state.
+  const opener = document.createElement('input');
+  opener.type = 'file';
+  opener.accept = '.json,application/json';
+  opener.style.display = 'none';
+  opener.addEventListener('change', async () => {
+    const file = opener.files?.[0];
+    opener.value = '';
+    if (!file || model.get('pending')) return;
+    model.send?.({
+      event: 'load_conversation',
+      name: file.name,
+      text: await file.text(),
+    });
+  });
+  container.appendChild(opener);
+  tool(
+    'Open',
+    'Open a conversation saved with SAVE (it replaces this one)',
+    () => opener.click()
+  );
   tool(
     'Export',
     'Save this conversation as an HTML report with its screenshots, the state to ' +
@@ -810,9 +888,11 @@ export const render_clerk = async ({ model, el }) => {
   sync_back();
   renderEvidence();
   renderMessages();
+  resize_observer?.observe(container);
 
   return {
     finalize: () => {
+      resize_observer?.disconnect();
       gene_tooltip.destroy();
       listeners.forEach(([event, handler]) => model.off?.(event, handler));
       el.innerHTML = '';

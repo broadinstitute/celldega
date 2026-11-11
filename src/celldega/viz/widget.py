@@ -1715,7 +1715,7 @@ class Enrich(_StateGetter, CelldegaWidget):
 
 
 class Clerk(CelldegaWidget):
-    """Clerk AI -- an AI assistant for interpreting a cluster or region.
+    """Clerk -- Celldega's AI tool for exploring and interpreting its visualizations.
 
     Works like :class:`Enrich`, but instead of the Enrichr API it talks to Claude via
     the local ``claude`` CLI (kernel-side, no API key). The scientist asks free-form
@@ -1730,6 +1730,15 @@ class Clerk(CelldegaWidget):
     other notebook cells) either from the constructor or via ``dega.viz.link_clerk``::
 
         clerk = dega.viz.Clerk(landscape=ls, clustergram=cgm, enrich=en)
+
+    Or lay it out with them, linked: as a narrow sidecar column at the end of the row,
+    like Enrich, or full width underneath::
+
+        dega.viz.spatial_clustergram(ls, cgm, clerk=True)                     # sidecar
+        dega.viz.spatial_clustergram(ls, cgm, clerk=True, clerk_layout="wide")
+
+    Enrichr results Clerk gets are drawn in the conversation, like the Enrich panel: a
+    bar graph of the top terms and a paragraph of the genes tested.
 
     Args:
         landscape (Landscape): Optional. Link a Landscape; its raster + zoom/pan flow in
@@ -1845,6 +1854,8 @@ class Clerk(CelldegaWidget):
         self.briefing_sources: list[str] = []
         self._briefing_from: list[str] = []
         self.observe(self._on_briefing, names="briefing")
+        # The panel's OPEN button sends a saved conversation as a one-off message.
+        self.on_msg(self._on_panel_msg)
 
         if any(w is not None for w in link_targets.values()):
             from . import link_clerk
@@ -1945,6 +1956,9 @@ class Clerk(CelldegaWidget):
         if req.get("export"):
             self._export_from_panel()
             return
+        if req.get("save_conversation"):
+            self._save_from_panel()
+            return
 
         # Evidence clicked in the conversation (works while Clerk is still answering):
         # genes, clusters and cited views, shown right away in the linked widgets.
@@ -1989,6 +2003,7 @@ class Clerk(CelldegaWidget):
             "history": [dict(m) for m in self.messages],
             "gene_list": req.get("gene_list") or list(self.gene_list),
             "enrichr_terms": req.get("enrichr_terms") or [],
+            "enrichr_library": str(req.get("enrichr_library") or ""),
             "info": self.context_info,
             "image_b64": self.image_b64 or None,
             "model": self.model,
@@ -2544,6 +2559,59 @@ class Clerk(CelldegaWidget):
         if self.pending and message.get("role") in ("error", "pause"):
             self._log_step(message["role"], str(message.get("content", "")))
 
+    #: Terms per library in an inline Enrichr result (as in the Enrich panel).
+    ENRICHMENT_TERMS = 8
+
+    def _append_enrichment(
+        self, label: str, genes: list, results: dict, *, once: bool = False
+    ) -> None:
+        """Show Enrichr results in the conversation, like the Enrich panel.
+
+        The panel draws an ``enrichment`` message as a bar graph of the top terms per
+        library and a paragraph of the genes tested, linked to the views. The
+        results already reach the model as text, so these messages are left out of
+        its history. ``once`` skips results identical to the last ones shown.
+        """
+
+        def number(value):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        libraries = {}
+        for library, terms in (results or {}).items():
+            rows = []
+            for term in list(terms or [])[: self.ENRICHMENT_TERMS]:
+                row = {
+                    "name": str(term.get("name", "")),
+                    "score": number(term.get("score")) or 0.0,
+                    "genes": [str(g) for g in term.get("genes") or []],
+                }
+                for key in ("adjusted_p", "odds_ratio"):
+                    if number(term.get(key)) is not None:
+                        row[key] = number(term.get(key))
+                rows.append(row)
+            if rows:
+                libraries[str(library)] = rows
+        if not libraries:
+            return
+        genes = [str(g) for g in dict.fromkeys(genes or []) if str(g)]
+        if once:
+            key = (tuple(genes), json.dumps(libraries, sort_keys=True))
+            if key == getattr(self, "_last_enrichment", None):
+                return
+            self._last_enrichment = key
+        self._append(
+            {
+                "role": "enrichment",
+                "content": f"Enrichr results for {label}",
+                "label": label,
+                "genes": genes,
+                "libraries": libraries,
+            }
+        )
+
     # -- The case record: what was asked, what Clerk did, and how to reproduce it --
 
     def _start_record(self, question: str, call: dict, question_index: int, summary) -> None:
@@ -2868,6 +2936,8 @@ class Clerk(CelldegaWidget):
                 results.append(lookups.format_enrichr(label, found))
             except Exception as exc:  # network or service problems become a note
                 results.append(f"Enrichr for {label} failed: {exc}")
+                continue
+            self._append_enrichment(label, genes, found)
         for query in reads.get("pubmed") or []:
             try:
                 results.append(lookups.format_pubmed(query, lookups.pubmed(query)))
@@ -2898,6 +2968,15 @@ class Clerk(CelldegaWidget):
             if call.get("info"):
                 summary.append("context")
             self._record_evidence(summary, views["image_fresh"])
+            if call.get("enrichr_terms"):
+                # The panel's own Enrichr results for the selected genes, shown once
+                # per gene list rather than with every question about it.
+                self._append_enrichment(
+                    f"{len(call.get('gene_list') or [])} selected genes",
+                    call.get("gene_list") or [],
+                    {call.get("enrichr_library") or "CellMarker_2024": call["enrichr_terms"]},
+                    once=True,
+                )
             cgm = self._linked_widgets.get("clustergram")
             # Lookups (Enrichr, PubMed) work without widgets; Clustergram / Landscape
             # lookups and changes only when those are linked.
@@ -3129,7 +3208,13 @@ class Clerk(CelldegaWidget):
             "briefing_sources": list(self.briefing_sources),
         }
         written = report.write_report(
-            folder, self.record, self.findings, meta, names=names, html_report=html
+            folder,
+            self.record,
+            self.findings,
+            meta,
+            names=names,
+            html_report=html,
+            messages=[dict(m) for m in self.messages],
         )
         if adata is not None:
             if not groupby:
@@ -3328,6 +3413,198 @@ class Clerk(CelldegaWidget):
             }
         )
 
+    # -- Saved conversations: SAVE / OPEN, save_conversation / load_conversation --
+
+    #: Format version of a saved conversation file.
+    CONVERSATION_VERSION = 1
+
+    def save_conversation(self, path: str | Path | None = None, *, title: str = "") -> Path:
+        """Save the conversation to reopen later with :meth:`load_conversation`.
+
+        Writes one JSON file: the panel's messages (with their gene, cluster and view
+        links and Enrichr results), the record of each question with the replay settings
+        of its captures, Clerk's proposed cell types, the context, and links to the data
+        the linked widgets show. Each question's screenshot preview is kept; full-size
+        captures are left out to keep the file light (:meth:`export` keeps those).
+
+        Reading a saved conversation needs no Claude. Its links change the linked
+        widgets, so they need the same data loaded.
+
+        Args:
+            path: A ``.json`` file, or a folder for an auto-named one (default
+                ``<output_dir>/conversations``, i.e. ``clerk_files/conversations``).
+            title: Optional name, also used in the file name.
+
+        Returns:
+            Path: The file written.
+        """
+        from .screenshots import widget_source
+
+        location = Path(path) if path else Path(self.output_dir) / "conversations"
+        if location.suffix.lower() == ".json":
+            target = location
+        else:
+            stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").lower()[:50] or "conversation"
+            target = location / f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            celldega_version = importlib.metadata.version("celldega")
+        except importlib.metadata.PackageNotFoundError:
+            celldega_version = ""
+        record = [
+            {
+                **entry,
+                "steps": [
+                    {k: v for k, v in step.items() if k not in ("image", "clustergram_image")}
+                    for step in entry.get("steps") or []
+                ],
+            }
+            for entry in deepcopy(self.record)
+        ]
+        payload = {
+            "celldega_clerk_conversation": self.CONVERSATION_VERSION,
+            "title": title,
+            "saved": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "celldega": celldega_version,
+            "context_info": self.context_info,
+            "model": self.model,
+            "effort": self.effort,
+            "cluster_names": list(self.cluster_names),
+            "cluster_labels": dict(self.cluster_labels),
+            "sources": {name: widget_source(w) for name, w in self._linked_widgets.items()},
+            "messages": [dict(m) for m in self.messages],
+            "record": record,
+            "findings": [dict(f) for f in self.findings],
+        }
+        target.write_text(json.dumps(payload, default=str), encoding="utf-8")
+        return target
+
+    def load_conversation(self, path: str | Path) -> dict:
+        """Reopen a saved conversation in the panel, without Claude.
+
+        Opens a file from :meth:`save_conversation` (or the panel's SAVE button), or a
+        report folder from :meth:`export` (or its ``record.json``). The panel shows the
+        conversation as it was: its genes, clusters and cited views stay clickable and
+        change the linked widgets, which need the same data loaded. A new question
+        continues the conversation, with the loaded one as its history.
+
+        Replaces the current conversation, record and proposed cell types.
+
+        Args:
+            path: The conversation ``.json``, or an export folder or its ``record.json``.
+
+        Returns:
+            dict: What was saved: ``title``, ``saved``, ``celldega``, ``context_info``
+            and ``sources`` (the data the original widgets showed).
+        """
+        path = Path(path)
+        if path.is_dir():
+            path = path / "record.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return self._load_conversation_data(data, path.parent)
+
+    def _load_conversation_data(self, data, folder: Path | None) -> dict:
+        from ..clerk import report
+
+        if not isinstance(data, dict):
+            raise ValueError("Not a saved Clerk conversation or exported report")
+        if "celldega_clerk_conversation" in data:
+            if data["celldega_clerk_conversation"] != self.CONVERSATION_VERSION:
+                raise ValueError(
+                    "Unsupported saved conversation version "
+                    f"{data['celldega_clerk_conversation']!r}"
+                )
+            saved = data
+        elif isinstance(data.get("questions"), list):  # an export's record.json
+            meta = data.get("meta") or {}
+            record = report.record_with_images(data["questions"], folder)
+            saved = {
+                "saved": meta.get("exported", ""),
+                "celldega": meta.get("celldega", ""),
+                "context_info": meta.get("context", ""),
+                "messages": data.get("messages") or self._messages_from_record(record),
+                "record": record,
+                "findings": data.get("findings") or [],
+            }
+        else:
+            raise ValueError("Not a saved Clerk conversation or exported report")
+        if self.pending:
+            raise RuntimeError("Clerk is answering; open the conversation once it's done")
+        if not isinstance(saved.get("messages"), list):
+            raise ValueError("The saved conversation has no messages")
+
+        if self._paused is not None:  # a loaded conversation replaces a paused question
+            session = self._paused["call"].pop("session", None)
+            if session is not None:
+                session.close()
+            self._paused = None
+        self.record = list(saved.get("record") or [])
+        self.findings = list(saved.get("findings") or [])
+        # Keep what this session already knows; fill in what it doesn't.
+        if saved.get("context_info") and not self.context_info:
+            self.context_info = saved["context_info"]
+        if saved.get("cluster_names") and not self.cluster_names:
+            self.cluster_names = list(saved["cluster_names"])
+        if saved.get("cluster_labels") and not self.cluster_labels:
+            self.cluster_labels = dict(saved["cluster_labels"])
+        self._last_enrichment = None
+        self.error = ""
+        self.messages = [dict(m) for m in saved["messages"] if isinstance(m, dict)]
+        return {
+            key: saved.get(key) for key in ("title", "saved", "celldega", "context_info", "sources")
+        }
+
+    def _messages_from_record(self, record: list[dict]) -> list[dict]:
+        """The panel's messages, rebuilt from a record (reports exported before 0.29)."""
+        messages = []
+        for entry in record:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": entry.get("question", ""),
+                    "evidence": list(entry.get("sent_with") or []),
+                }
+            )
+            for step in entry.get("steps") or []:
+                kind, text = step.get("kind"), str(step.get("text") or "")
+                if kind == "answer":
+                    message = {"role": "assistant", "content": text, **self._links_for(text)}
+                    if step.get("views"):
+                        message["views"] = step["views"]
+                    messages.append(message)
+                elif kind in ("action", "findings", "screenshot") and text:
+                    messages.append({"role": "action", "content": text})
+                elif kind == "error" and text:
+                    messages.append({"role": "error", "content": text})
+        return messages
+
+    def _save_from_panel(self) -> None:
+        """The panel's SAVE button: save the conversation and say where it went."""
+        try:
+            target = self.save_conversation()
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't save the conversation: {exc}"})
+            return
+        self._append(
+            {
+                "role": "note",
+                "content": f"Saved this conversation to {target}. Reopen it with OPEN or "
+                f"clerk.load_conversation({str(target)!r}).",
+            }
+        )
+
+    def _on_panel_msg(self, _widget, content, _buffers) -> None:
+        """The panel's OPEN button: a saved conversation, read in the browser."""
+        if not isinstance(content, dict) or content.get("event") != "load_conversation":
+            return
+        name = str(content.get("name") or "the file")
+        try:
+            self._load_conversation_data(json.loads(content.get("text") or ""), None)
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't open {name}: {exc}"})
+            return
+        self._append({"role": "note", "content": f"Opened the conversation saved in {name}."})
+
     def wait(self, timeout: float | None = None) -> bool:
         """Block until the question in flight (if any) has been answered.
 
@@ -3388,11 +3665,15 @@ def _is_screenshot_record(path: Path) -> bool:
         return False
 
 
+#: A question's call fields that are Clerk's own bookkeeping, not ``clerk.ask`` options.
+_CLERK_CALL_ONLY = frozenset({"done", "enrichr_library"})
+
+
 def _ask(question: str, call: dict) -> str:
     """``clerk.ask`` with a question's call settings (minus Clerk's own bookkeeping)."""
     from .. import clerk
 
-    return clerk.ask(question, **{k: v for k, v in call.items() if k != "done"})
+    return clerk.ask(question, **{k: v for k, v in call.items() if k not in _CLERK_CALL_ONLY})
 
 
 def _changed_views(call: dict, views: dict, image_b64: str) -> dict:

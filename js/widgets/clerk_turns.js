@@ -41,13 +41,16 @@ export const group_turns = (messages = [], pending = false) => {
       work: [],
       answer: answer_at >= 0 ? items[answer_at] : null,
       results: [],
+      // Enrichr results drawn like the Enrich panel, in view rather than in Work.
+      figures: [],
       errors: [],
       pause: null,
       pending: is_pending,
     };
     items.forEach((message, i) => {
       const role = message?.role;
-      if (role === 'error') turn.errors.push(message);
+      if (role === 'enrichment') turn.figures.push(message);
+      else if (role === 'error') turn.errors.push(message);
       else if (role === 'pause') turn.pause = message;
       else if (i === answer_at) {
         // the answer itself

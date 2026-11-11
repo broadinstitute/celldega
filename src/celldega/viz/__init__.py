@@ -71,7 +71,10 @@ def spatial_clustergram(
     col_enrich: bool = False,
     enrich_kwargs: dict | None = None,
     cluster_attr: str | None = None,
-) -> HBox:
+    clerk: "bool | Clerk" = False,
+    clerk_layout: str = "sidecar",
+    clerk_kwargs: dict | None = None,
+) -> "HBox | VBox":
     """
     Display a spatial widget and a `Clustergram` widget side by side, linked
     so that clicking a Clustergram row/column updates the spatial widget.
@@ -110,10 +113,25 @@ def spatial_clustergram(
             a clicked cluster refers to. Only used when `spatial` is a
             `Yearbook`; defaults to the Clustergram's own ``col_entity``
             attribute (see `_clustergram_col_attr`).
+        clerk (bool | Clerk): If True, create a `Clerk`; if a `Clerk` is given,
+            use it. Either way it is linked (:func:`link_clerk`) to the spatial
+            widget, the Clustergram and any `Enrich` here. If False, no Clerk.
+        clerk_layout (str): ``"sidecar"`` (default) adds Clerk to the end of the
+            row as a narrow column the row's height, like `Enrich`: it takes the
+            room the row leaves (240-300 px), and the views keep their widths. A row
+            wider than the notebook scrolls sideways. ``"wide"`` puts Clerk full
+            width under the row.
+        clerk_kwargs (dict | None): Optional kwargs passed to `Clerk` when
+            `clerk=True`, e.g. ``{"context_info": "..."}``.
 
     Returns:
-        HBox: Visualization display containing the widgets.
+        HBox: The widgets side by side; with ``clerk_layout="wide"``, a VBox with
+        that row above the Clerk.
     """
+    if clerk_layout not in ("sidecar", "wide"):
+        raise ValueError("clerk_layout must be 'sidecar' or 'wide'")
+    clerk_widget = _clerk_for_layout(clerk, clerk_layout, height, clerk_kwargs)
+
     if isinstance(spatial, Yearbook):
         attr = cluster_attr or _clustergram_col_attr(mat)
         _link_clustergram_to_yearbook(mat, spatial, attr)
@@ -121,7 +139,10 @@ def spatial_clustergram(
         mat.layout = Layout(width=width)
         spatial.layout = Layout(width="100%", height=height)
 
-        return HBox([spatial, mat])
+        if clerk_widget is not None:
+            # A Yearbook has no raster for Clerk; it still reads the Clustergram.
+            _link_clerk_once(clerk_widget, clustergram=mat)
+        return _with_clerk([spatial, mat], clerk_widget, clerk_layout)
 
     # Link clustergram click_info to the spatial widget's update_trigger
     jslink((mat, "click_info"), (spatial, "update_trigger"))
@@ -155,7 +176,79 @@ def spatial_clustergram(
     if enrich_widget is not None:
         children.append(enrich_widget)
 
-    return HBox(children)
+    if clerk_widget is not None:
+        _link_clerk_once(clerk_widget, landscape=spatial, clustergram=mat, enrich=enrich_widget)
+        if clerk_layout == "sidecar":
+            _fit_row_beside_clerk([spatial, mat, enrich_widget])
+    return _with_clerk(children, clerk_widget, clerk_layout)
+
+
+#: A sidecar Clerk fills the room the row leaves, between these widths (px).
+CLERK_SIDECAR_MIN_WIDTH = 240
+CLERK_SIDECAR_MAX_WIDTH = 300
+#: Room under a sidecar row for its horizontal scrollbar, when it's wider than the notebook.
+ROW_SCROLLBAR_PADDING = "0 0 14px 0"
+
+
+def _clerk_for_layout(
+    clerk: "bool | Clerk", layout: str, height: str, kwargs: dict | None
+) -> "Clerk | None":
+    """The Clerk to show (created if asked for), sized for its layout."""
+    if isinstance(clerk, Clerk):
+        widget = clerk
+    elif clerk:
+        widget = Clerk(**dict(kwargs or {}))
+    else:
+        return None
+    if layout == "sidecar":
+        widget.height = _pixel_height(height)  # the row's height
+        if widget.width:
+            # A width the caller set is kept as is.
+            widget.layout = Layout(flex="0 0 auto")
+        else:
+            # Fill the room the row leaves, within a narrow column's bounds.
+            widget.layout = Layout(
+                flex=f"1 1 {CLERK_SIDECAR_MAX_WIDTH}px",
+                min_width=f"{CLERK_SIDECAR_MIN_WIDTH}px",
+                max_width=f"{CLERK_SIDECAR_MAX_WIDTH}px",
+            )
+    else:
+        widget.width = 0  # the full width of the notebook
+    return widget
+
+
+def _fit_row_beside_clerk(widgets: list) -> None:
+    """Beside a sidecar Clerk, the views keep their full widths; only Clerk flexes.
+
+    A row wider than the notebook scrolls sideways (see :func:`_with_clerk`) rather
+    than squeezing the views.
+    """
+    for widget in widgets:
+        if widget is not None:
+            layout = widget.layout
+            widget.layout = Layout(width=layout.width, height=layout.height, flex="0 0 auto")
+
+
+def _link_clerk_once(clerk: "Clerk", **widgets) -> None:
+    """Link only what this Clerk isn't linked to yet (it may come pre-linked)."""
+    linked = getattr(clerk, "_linked_widgets", None) or {}
+    fresh = {k: w for k, w in widgets.items() if w is not None and linked.get(k) is not w}
+    if fresh:
+        link_clerk(clerk, **fresh)
+
+
+def _with_clerk(children: list, clerk: "Clerk | None", layout: str) -> "HBox | VBox":
+    if clerk is None:
+        return HBox(children)
+    if layout == "sidecar":
+        # Wider than the notebook, the row scrolls sideways, with room for the
+        # scrollbar under it, rather than squeezing the views.
+        return HBox(
+            [*children, clerk],
+            # Exactly the output's width, so this row (not the output) scrolls.
+            layout=Layout(width="100%", overflow="auto hidden", padding=ROW_SCROLLBAR_PADDING),
+        )
+    return VBox([HBox(children), clerk])
 
 
 def landscape_clustergram(

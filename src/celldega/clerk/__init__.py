@@ -1,4 +1,7 @@
-"""Clerk AI -- AI-assisted interpretation of clusters and regions.
+"""Clerk -- Celldega's AI tool for exploring and interpreting its visualizations.
+
+Not an MCP server: the prompts, actions and lookups that let Claude read and drive
+linked Celldega widgets and consult outside tools (Enrichr, PubMed).
 
 This is the *backend* module (analysis, prompt building, data structures). The paired
 visualization lives at :class:`celldega.viz.Clerk`. Keeping the two separate mirrors the

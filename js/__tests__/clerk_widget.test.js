@@ -74,6 +74,7 @@ describe('Clerk panel', () => {
       'link_clusters',
       'link_genes',
       'split_evidence',
+      'render_enrichment',
       `${source}\nreturn render_clerk;`
     );
     render_clerk = factory(
@@ -87,7 +88,15 @@ describe('Clerk panel', () => {
       turns.group_turns,
       turns.link_clusters,
       turns.link_genes,
-      turns.split_evidence
+      turns.split_evidence,
+      new Function(
+        `${fs
+          .readFileSync(
+            path.join(__dirname, '../widgets/clerk_enrichment.js'),
+            'utf8'
+          )
+          .replace(/^export const /gm, 'const ')}\nreturn render_enrichment;`
+      )()
     );
   });
 
@@ -341,6 +350,51 @@ describe('Clerk panel', () => {
     expect(el.querySelector('details.clerk-turn').open).toBe(false);
     button('Export').click();
     expect(model.get('request')).toMatchObject({ export: true });
+    button('Save').click();
+    expect(model.get('request')).toMatchObject({ save_conversation: true });
+  });
+
+  test('Open reads a saved conversation and sends it to Python once', async () => {
+    const { el, model } = await render();
+    model.send = jest.fn();
+    const opener = el.querySelector('input[type="file"]');
+    const clicked = jest.spyOn(opener, 'click').mockImplementation(() => {});
+    [...el.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Open')
+      .click();
+    expect(clicked).toHaveBeenCalled();
+    const file = new File(['{"celldega_clerk_conversation": 1}'], 'talk.json');
+    file.text = async () => '{"celldega_clerk_conversation": 1}';
+    Object.defineProperty(opener, 'files', { value: [file] });
+    opener.dispatchEvent(new Event('change'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(model.send).toHaveBeenCalledWith({
+      event: 'load_conversation',
+      name: 'talk.json',
+      text: '{"celldega_clerk_conversation": 1}',
+    });
+  });
+
+  test('Enrichr results render under the answer, linked to the views', async () => {
+    const { el, model } = await render({
+      messages: [
+        { role: 'user', content: 'q' },
+        {
+          role: 'enrichment',
+          label: '2 selected genes',
+          genes: ['MUC2', 'TFF3'],
+          libraries: {
+            CellMarker_2024: [{ name: 'Goblet', score: 3, genes: ['MUC2'] }],
+          },
+        },
+        { role: 'assistant', content: 'Goblet-like.' },
+      ],
+    });
+    expect(
+      el.querySelector('.clerk-enrichment .clerk-enrichment-term').textContent
+    ).toBe('Goblet');
+    el.querySelector('.clerk-enrichment-bar').click();
+    expect(model.get('request')).toMatchObject({ show_genes: ['MUC2'] });
   });
 
   test('group_turns, split_evidence and asks_question', () => {

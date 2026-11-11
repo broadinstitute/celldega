@@ -240,5 +240,5 @@ for browser usage, validation and restoration limits.
 Inspect the embedded record with `dega.viz.load_screenshot(path)` and discover a
 folder's PNG records with `dega.viz.load_screenshots(folder)`. A folder of screenshots
 works as a scrapbook of what you found along the way, reusable by people and
-application agents: [Clerk AI](../clerk/index.md) can read it as a briefing or add
+application agents: [Clerk](clerk/index.md) can read it as a briefing or add
 its own.

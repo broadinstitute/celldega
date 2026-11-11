@@ -22,7 +22,7 @@ capture image and state together and validate data identity before restoring
 supported settings; some controls remain outside replay coverage.
 
 The API uses corresponding operations in a web page (JavaScript) and a notebook (Python). It was built
-for [Clerk AI](../clerk/index.md), Celldega's AI assistant, but it doesn't depend on it:
+for [Clerk](../visualizations/clerk/index.md), Celldega's AI assistant, but it doesn't depend on it:
 any web app, script or AI agent can use it to read a view, reason about it, show the
 evidence it finds, and save it.
 

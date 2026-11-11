@@ -491,9 +491,13 @@ clerk.export(title="Kidney exploration")                 # named report under cl
   `cgm.apply_state({"marker_level": 25})`; Clerk's work and evidence are collapsed.
 - `report.ipynb`: the same as a notebook, to re-run the reproduction code against your
   own widgets.
-- `record.json` and `images/`: every question with its model, effort, what was sent,
-  each step (lookups and their results, view changes, replies), each capture's observed
-  evidence (`observations`), available widget sources and partial replay settings.
+- `record.json`: every question with its model, effort, what was sent, each step
+  (lookups and their results, view changes, replies), each capture's observed evidence
+  (`observations`), available widget sources and partial replay settings.
+- `screenshots/`: each capture as a Celldega
+  [screenshot](../../javascript/viz-api.md), one per widget (`q1_1.png` for the
+  Landscape, `q1_1_clustergram.png` for the Clustergram). Like PIC's, each PNG carries
+  the record to reopen its view, e.g. `dega.viz.from_png("report/screenshots/q1_1.png")`.
 - `findings.csv`: the cell types Clerk proposed.
 - With `adata=` and `groupby=`: the latest cell types written into
   `adata.obs["clerk_cell_type"]` (a column Clerk wrote earlier is replaced) and

@@ -7,7 +7,9 @@ A law clerk who brings evidence also says where it came from and how to check it
   under code to replay supported settings; Clerk's work and evidence are collapsed.
 - ``report.ipynb``: the same as a notebook, so the reproduction code can be re-run
   against your own widgets.
-- ``record.json`` plus ``images/``: everything, machine-readable.
+- ``record.json`` plus ``screenshots/``: everything, machine-readable. Each capture is a
+  Celldega screenshot: a PNG carrying the record to reopen its view
+  (``dega.viz.from_png``).
 - ``findings.csv``: the cell types Clerk proposed.
 
 Widget-independent: the record is plain JSON-like data (see ``Clerk.record``).
@@ -352,8 +354,13 @@ def notebook_to_html(notebook) -> str:
     return body
 
 
+# Where a report keeps its screenshots (older reports used ``images/``).
+SCREENSHOT_DIR = "screenshots"
+_IMAGE_DIRS = (f"{SCREENSHOT_DIR}/", "images/")
+
+
 def record_with_images(questions: list[dict], folder: Path | None) -> list[dict]:
-    """A record read from ``record.json``, with its ``images/`` files back inline.
+    """A record read from ``record.json``, with its screenshot files back inline.
 
     The reverse of how :func:`write_report` stores screenshots; image paths that can't
     be read (or with no ``folder``) are dropped.
@@ -365,7 +372,7 @@ def record_with_images(questions: list[dict], folder: Path | None) -> list[dict]
             step = dict(step)
             for key in ("image", "clustergram_image"):
                 value = step.get(key)
-                if isinstance(value, str) and value.startswith("images/"):
+                if isinstance(value, str) and value.startswith(_IMAGE_DIRS):
                     path = Path(folder) / value if folder is not None else None
                     if path is not None and path.is_file():
                         step[key] = base64.b64encode(path.read_bytes()).decode()
@@ -376,9 +383,53 @@ def record_with_images(questions: list[dict], folder: Path | None) -> list[dict]
     return out
 
 
+def _screenshot_shot(step: dict, widget: str) -> dict | None:
+    """One widget's capture in a step, as :func:`write_screenshot` takes it."""
+    source = (step.get("sources") or {}).get(widget)
+    if not source:
+        return None
+    key = "image" if widget == "landscape" else "clustergram_image"
+    shot = {
+        "image": step[key],
+        "source": source,
+        "snapshot": (step.get("snapshots") or {}).get(widget),
+        "observed_state": (step.get("observations") or {}).get(f"{widget}_state"),
+    }
+    if widget == "landscape" and step.get("view_state"):
+        shot["view_state"] = step["view_state"]
+    return shot
+
+
+def _write_capture(path: Path, step: dict, widget: str, question: str) -> None:
+    """Write one capture as a Celldega screenshot (PNG + its reopening record).
+
+    Captures without the widget's source (older records), or that aren't PNGs, are
+    written as they are.
+    """
+    from ..viz.screenshots import write_screenshot
+
+    shot = _screenshot_shot(step, widget)
+    if shot is not None:
+        try:
+            write_screenshot(
+                path,
+                [shot],
+                description=question,
+                author="Clerk",
+                metadata={"clerk_report": True, "label": step.get("text", "")},
+                markdown=False,
+            )
+            return
+        except Exception:  # not a decodable PNG, or a record too large to embed
+            pass
+    path.write_bytes(
+        base64.b64decode(step["image" if widget == "landscape" else "clustergram_image"])
+    )
+
+
 def _record_without_images(record: list[dict], folder: Path) -> list[dict]:
-    """The record with screenshots written to ``images/`` and referenced by path."""
-    images = folder / "images"
+    """The record with captures written to ``screenshots/`` and referenced by path."""
+    screenshots = folder / SCREENSHOT_DIR
     out = []
     for number, entry in enumerate(record, start=1):
         steps = []
@@ -387,13 +438,16 @@ def _record_without_images(record: list[dict], folder: Path) -> list[dict]:
             step = dict(step)
             if step.get("image") or step.get("clustergram_image"):
                 shot += 1
-            for key, suffix in (("image", ""), ("clustergram_image", "_clustergram")):
+            for key, widget, suffix in (
+                ("image", "landscape", ""),
+                ("clustergram_image", "clustergram", "_clustergram"),
+            ):
                 # A record reopened from another report may already point at a file.
-                if step.get(key) and not str(step[key]).startswith("images/"):
-                    images.mkdir(parents=True, exist_ok=True)
+                if step.get(key) and not str(step[key]).startswith(_IMAGE_DIRS):
+                    screenshots.mkdir(parents=True, exist_ok=True)
                     name = f"q{number}_{shot}{suffix}.png"
-                    (images / name).write_bytes(base64.b64decode(step[key]))
-                    step[key] = f"images/{name}"
+                    _write_capture(screenshots / name, step, widget, str(entry.get("question", "")))
+                    step[key] = f"{SCREENSHOT_DIR}/{name}"
             steps.append(step)
         out.append({**entry, "steps": steps})
     return out

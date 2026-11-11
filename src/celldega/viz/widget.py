@@ -3338,7 +3338,9 @@ class Clerk(CelldegaWidget):
           under the code that recreates that view (``landscape.apply_state(...)``,
           ``cgm.apply_state(...)``); Clerk's work and evidence are collapsed.
         - ``report.ipynb``: the same as a notebook, to re-run the code.
-        - ``record.json`` and ``images/``: everything, machine-readable.
+        - ``record.json``: everything, machine-readable.
+        - ``screenshots/``: each capture as a Celldega screenshot (a PNG carrying the
+          record to reopen its view with ``dega.viz.from_png``).
         - ``findings.csv``: the cell types Clerk proposed.
 
         With ``adata`` and ``groupby``, the latest cell types are also written into

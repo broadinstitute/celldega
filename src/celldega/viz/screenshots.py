@@ -428,6 +428,7 @@ def write_screenshot(
     author: str = "you",
     metadata: dict | None = None,
     background: str | None = "white",
+    markdown: bool = True,
 ) -> Path:
     """Write a screenshot's self-contained PNG record and readable ``.md`` companion.
 
@@ -440,6 +441,7 @@ def write_screenshot(
             settings) is kept only when there is no saved view.
         background: Color behind transparent areas and between widgets (white
             by default); ``None`` keeps transparency.
+        markdown: Also write the ``.md`` companion (a report has its own text).
 
     Returns:
         Path: The PNG written.
@@ -490,7 +492,8 @@ def write_screenshot(
     info = PngInfo()
     info.add_itxt(PNG_KEY, text, zip=True)
     image.save(target, pnginfo=info)
-    target.with_suffix(".md").write_text(_markdown(record, target.name))
+    if markdown:
+        target.with_suffix(".md").write_text(_markdown(record, target.name))
     return target
 
 

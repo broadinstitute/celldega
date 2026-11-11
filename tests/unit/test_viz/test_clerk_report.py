@@ -145,7 +145,8 @@ def test_export_writes_html_notebook_record_and_findings(tmp_path) -> None:
 
     saved = json.loads(written["record"].read_text())
     shot = saved["questions"][0]["steps"][0]["image"]
-    assert shot == "images/q1_1.png"
+    assert shot == "screenshots/q1_1.png"
+    # A capture without its widget's source (older records) is written as it was.
     assert (tmp_path / "out" / shot).read_bytes() == base64.b64decode(PNG)
     assert saved["findings"][0]["label"] == "Goblet cells"
 
@@ -154,6 +155,54 @@ def test_export_writes_html_notebook_record_and_findings(tmp_path) -> None:
     assert list(adata.obs["clerk_cell_type"]) == ["Goblet cells", "Unassigned", "Goblet cells"]
     # Exporting again replaces Clerk's own column instead of failing.
     w.export(tmp_path / "again", adata=adata, groupby="leiden")
+
+
+def test_report_captures_are_screenshots_that_reopen_their_views(tmp_path) -> None:
+    from celldega.viz.screenshots import load_screenshot
+
+    record, findings = _record()
+    capture = record[0]["steps"][0]
+    capture["clustergram_image"] = PNG
+    capture["sources"] = {
+        "landscape": {"widget": "landscape", "base_url": "https://example.com/data"},
+        "clustergram": {"widget": "clustergram", "name": "kidney"},
+    }
+    capture["snapshots"] = {
+        "landscape": {"state": {"view": {"target": [1, 2, 0], "zoom": -1}}},
+        "clustergram": {"state": {"marker_level": 25}},
+    }
+    capture["observations"] = {"landscape_state": {"space": "spatial"}}
+    written = report.write_report(tmp_path / "out", record, findings, html_report=False)
+
+    steps = json.loads(written["record"].read_text())["questions"][0]["steps"]
+    assert steps[0]["image"] == "screenshots/q1_1.png"
+    assert steps[0]["clustergram_image"] == "screenshots/q1_1_clustergram.png"
+    for path, widget in [
+        (steps[0]["image"], "landscape"),
+        (steps[0]["clustergram_image"], "clustergram"),
+    ]:
+        saved = load_screenshot(tmp_path / "out" / path)
+        assert saved["celldega_screenshot"] and saved["author"] == "Clerk"
+        assert saved["description"] == "What is cluster 4?"
+        (shot,) = saved["widgets"]
+        assert shot["source"] == capture["sources"][widget]
+        assert shot["snapshot"]["state"] == capture["snapshots"][widget]["state"]
+    # No .md companions: the report is the readable version.
+    assert not list((tmp_path / "out" / "screenshots").glob("*.md"))
+    # Reopening the report reads the screenshots back.
+    back = report.record_with_images(
+        json.loads(written["record"].read_text())["questions"], tmp_path / "out"
+    )
+    assert back[0]["steps"][0]["image"] and back[0]["steps"][0]["clustergram_image"]
+
+
+def test_older_reports_with_an_images_folder_still_reopen(tmp_path) -> None:
+    (tmp_path / "images").mkdir()
+    (tmp_path / "images" / "q1_1.png").write_bytes(base64.b64decode(PNG))
+    back = report.record_with_images(
+        [{"question": "q", "steps": [{"kind": "capture", "image": "images/q1_1.png"}]}], tmp_path
+    )
+    assert back[0]["steps"][0]["image"] == PNG
 
 
 def test_export_needs_groupby_with_adata(tmp_path) -> None:

@@ -295,7 +295,7 @@ default; runs only after the view settles; caches answers per view.
       sent-with, steps, each capture's full PNG + `apply_state` reproduction for Landscape
       and Clustergram); `clerk.export(folder, adata=, groupby=)` → `report.html` (nbconvert,
       screenshots under their reproduction code, Work/Evidence collapsed), `report.ipynb`,
-      `record.json` + `images/`, `findings.csv`, annotated AnnData. Builder is
+      `record.json` + `screenshots/`, `findings.csv`, annotated AnnData. Builder is
       widget-independent (`clerk/report.py`) for celldega-app.
 - [x] Panel turns (2026-11-07): collapsible turn per question, "Work · N steps" folded,
       Evidence folded, Yes button for a closing yes/no question, Continue button at the

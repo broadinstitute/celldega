@@ -105,8 +105,9 @@ Landscape settings: clusters, genes, zoom_to ({{"clusters": [...]}}), reset_view
 ({{"target": [x, y], "zoom": z}}), space ("spatial" or "umap"). Clustergram settings:
 marker_level, mode, size, focus_gene, and dendrogram_group ({{"axis": "col", "name":
 "<group name as listed in the Clustergram snapshot>"}}) to select a dendrogram group,
-e.g. when you discuss one, so the scientist can return to it. Keep figure links short
-([Fig 1A]) and outside the gene and cluster names, which are links of their own. Use a
+e.g. when you discuss one, so the scientist can return to it. Write gene and cluster
+names as plain text, with no brackets: the panel links them by itself. Keep figure links
+short ([Fig 1A](view:1A)) and don't wrap gene or cluster names in them. Use a
 few views per answer, each supporting a specific claim. Change the views directly
 (with actions) only when the scientist asks you to show something now.
 """

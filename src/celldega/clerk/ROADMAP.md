@@ -334,7 +334,7 @@ default; runs only after the view settles; caches answers per view.
       click → Landscape highlight), "N genes" in work lines (hover lists; click shows),
       cited views (`celldega-views` block + `[Fig 1A](view:1A)`; validated against
       `VIEW_KEYS`; hover caption; click applies). Clicks work while Clerk answers; the
-      scientist's view is saved on the first click and "Back to your view" restores it.
+      scientist's view is saved on the first click and RETURN restores it.
       Reports: cited views → numbered figures with reproduction code (no images yet).
       Prompt: Clerk cites views instead of changing them. Yes/No buttons; widget-style
       all-caps text buttons.

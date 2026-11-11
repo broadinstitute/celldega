@@ -1488,13 +1488,13 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
+      // Repaint: each refresh toggles its layer's readiness false→true. Leaving a
+      // layer marked not-ready (as a bare reset here once did) blocks every later
+      // repaint, so zooming in would show no transcripts.
       viz_state.layers_obj = layers_obj;
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      refresh_layer(viz_state, layers_obj, 'path_layer');
+      refresh_layer(viz_state, layers_obj, 'trx_layer');
 
       // Notify listeners
       callbacks.on_cluster_select.forEach((cb) => cb(inst_col));
@@ -1508,13 +1508,13 @@ export const landscape_ist = async (
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
+      // Repaint: each refresh toggles its layer's readiness false→true. Leaving a
+      // layer marked not-ready (as a bare reset here once did) blocks every later
+      // repaint, so zooming in would show no transcripts.
       viz_state.layers_obj = layers_obj;
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      refresh_layer(viz_state, layers_obj, 'path_layer');
+      refresh_layer(viz_state, layers_obj, 'trx_layer');
 
       // Notify listeners
       callbacks.on_clusters_select.forEach((cb) => cb(selected_cols));
@@ -1529,13 +1529,9 @@ export const landscape_ist = async (
         viz_state,
         viz_state.obs_store
       );
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
 
+      // calc_viewport owns layer readiness. Resetting it after the load leaves
+      // cell_layer pending indefinitely and blocks transcript redraws on later zooms.
       deck_ist.setProps({
         controller: { doubleClickZoom: false },
         initialViewState: new_view_state,

@@ -97,6 +97,13 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-enrichment-link { display: block; margin-top: 4px; font-size: 12px; color: #2f74ff; }
 .${PANEL_CLASS} .clerk-figure > summary { color: #2c7fb8; }
 .${PANEL_CLASS} .clerk-image-view { display: block; width: fit-content; margin-top: 3px; font-size: 11px; color: #2c7fb8; }
+.${PANEL_CLASS} .clerk-sent-images { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.${PANEL_CLASS} .clerk-sent-image { flex: 0 1 auto; min-width: 100px; max-width: 240px; }
+.${PANEL_CLASS} .clerk-sent-images > .clerk-sent-image:nth-last-child(2),
+.${PANEL_CLASS} .clerk-sent-images > .clerk-sent-image:nth-last-child(2) ~ .clerk-sent-image {
+  max-width: calc(50% - 3px); }
+.${PANEL_CLASS} .clerk-sent-image img { display: block; max-width: 100%; max-height: 160px;
+  border: 1px solid #d3d3d3; }
 .${PANEL_CLASS} .clerk-report-form { margin-top: 5px; padding: 6px; border: 1px solid #d3d3d3; }
 .${PANEL_CLASS} .clerk-report-form label { display: block; font-size: 12px; color: #47515b; }
 .${PANEL_CLASS} .clerk-report-form input { width: 100%; box-sizing: border-box; margin-top: 3px; padding: 4px; font: inherit; font-size: 13px; }
@@ -280,30 +287,60 @@ export const render_clerk = async ({ model, el }) => {
   // ---- rendering helpers -------------------------------------------------
   // Screenshots appear under the question they were sent with. Their saved views
   // let the scientist revisit the evidence after navigating elsewhere.
-  /** Screenshot + "Sent with: ..." line recorded on a question by Python. */
+  /**
+   * Screenshots + "Sent with: ..." line recorded on a question by Python: the
+   * Landscape and Clustergram as Clerk saw them, side by side, each with a link
+   * back to that view (and one to both).
+   */
   const renderSentWith = (message, row, on_snapshot) => {
-    if (message.image) {
-      const img = document.createElement('img');
-      img.src = `data:image/png;base64,${message.image}`;
-      img.style.display = 'block';
-      img.style.maxWidth = '240px';
-      img.style.maxHeight = '160px';
-      img.style.marginTop = '4px';
-      img.style.border = '1px solid #d3d3d3';
-      img.title = 'Landscape view sent with this question';
-      row.appendChild(img);
-      if (message.snapshots?.landscape) {
-        const link = document.createElement('a');
-        link.className = 'clerk-image-view';
-        link.href = '#';
-        link.textContent = 'Show this view';
-        link.title =
-          'Restore the views captured with this image; Back to your view returns you here';
-        link.addEventListener('click', (event) => {
-          event.preventDefault();
-          on_snapshot(message.snapshots);
-        });
-        row.appendChild(link);
+    const shots = [
+      ['landscape', message.image, 'Landscape'],
+      ['clustergram', message.clustergram_image, 'Clustergram'],
+    ].filter(([, image]) => image);
+    const snapshots = message.snapshots || {};
+    const view_link = (text, title, which) => {
+      const link = document.createElement('a');
+      link.className = 'clerk-image-view';
+      link.href = '#';
+      link.textContent = text;
+      link.title = title;
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        on_snapshot(which);
+      });
+      return link;
+    };
+    if (shots.length) {
+      const strip = document.createElement('div');
+      strip.className = 'clerk-sent-images';
+      shots.forEach(([name, image, label]) => {
+        const figure = document.createElement('div');
+        figure.className = 'clerk-sent-image';
+        const img = document.createElement('img');
+        img.src = `data:image/png;base64,${image}`;
+        img.title = `${label} view sent with this question`;
+        figure.appendChild(img);
+        if (snapshots[name]) {
+          figure.appendChild(
+            view_link(
+              'Show this view',
+              `Return the ${label} to this view; RETURN takes you back`,
+              { [name]: snapshots[name] }
+            )
+          );
+        }
+        strip.appendChild(figure);
+      });
+      row.appendChild(strip);
+      const saved = Object.keys(snapshots).filter((name) => snapshots[name]);
+      if (saved.length > 1) {
+        row.appendChild(
+          view_link(
+            'Show both views',
+            'Return the Landscape and Clustergram to the views sent with this question',
+            snapshots
+          )
+        );
       }
     }
     if (Array.isArray(message.evidence) && message.evidence.length) {
@@ -404,7 +441,7 @@ export const render_clerk = async ({ model, el }) => {
   // Everything Clerk cites can be clicked to replay it in the linked widgets right
   // away: genes (Landscape colors + Clustergram row), clusters (Landscape
   // highlight), gene lists in its work log, and views it defined ([Fig 1A]). The
-  // scientist's own view is saved on the first click; "Back to your view" restores
+  // scientist's own view is saved on the first click; RETURN restores
   // it. These requests aren't blocked while Clerk is answering.
   const send_now = (fields) => {
     requestCounter += 1;
@@ -670,12 +707,26 @@ export const render_clerk = async ({ model, el }) => {
 
   // Answers are Markdown; render_markdown escapes all text before adding its own
   // markup, so model output can't inject HTML.
+  // "[MYH11]" without a link target: the brackets would show. Gene and cluster
+  // names are linked anyway, so drop them (figure links, "[Fig 1A](view:1A)", stay).
+  const unbracket = (text, genes = []) => {
+    const known = new Set(
+      [...genes, ...(model.get('cluster_names') || [])].map((name) =>
+        String(name).toUpperCase()
+      )
+    );
+    return String(text || '').replace(
+      /\[([A-Za-z0-9][A-Za-z0-9._/-]*)\](?!\()/g,
+      (whole, name) => (known.has(name.toUpperCase()) ? name : whole)
+    );
+  };
+
   const markdown = (text, links = {}) => {
     const body = document.createElement('div');
     body.className = 'clerk-md';
     body.style.fontSize = '14px';
     body.style.lineHeight = '1.35';
-    body.innerHTML = render_markdown(text || '');
+    body.innerHTML = render_markdown(unbracket(text, links.genes));
     add_links(body, { views: null, ...links });
     return body;
   };
@@ -922,11 +973,11 @@ export const render_clerk = async ({ model, el }) => {
     model.save_changes();
   };
 
-  // Shown once evidence links have changed the views; restores the view the
-  // scientist had before following them.
+  // RETURN: shown once evidence links have changed the views; restores the view
+  // the scientist had before following them.
   const back = tool(
-    'Back to your view',
-    'Restore the Landscape and Clustergram as they were before you followed links',
+    'Return',
+    'Return the Landscape and Clustergram to your view before you followed links',
     () => {
       shown_genes = [];
       shown_clusters = [];
@@ -936,18 +987,23 @@ export const render_clerk = async ({ model, el }) => {
     }
   );
   back.style.color = '#2c7fb8';
-  back.style.marginRight = 'auto';
-  back.style.marginLeft = '0';
   const sync_back = () => {
     back.style.display = model.get('can_restore') ? '' : 'none';
   };
   toolbar.insertBefore(back, toolbar.firstChild);
 
-  // Short labels keep the toolbar on one row in a narrow sidecar.
-  tool('Expand', 'Open every turn, work log and evidence section', () =>
-    set_all_folds(true)
-  );
-  tool('Collapse', 'Close every turn and section', () => set_all_folds(false));
+  // One Expand / Collapse button (and short labels) keep the toolbar on one row
+  // in a narrow sidecar, RETURN included.
+  const EXPAND_TITLE = 'Open every turn, work log and evidence section';
+  let expanded = false;
+  const fold_toggle = tool('Expand', EXPAND_TITLE, () => {
+    expanded = !expanded;
+    set_all_folds(expanded);
+    fold_toggle.textContent = expanded ? 'Collapse' : 'Expand';
+    fold_toggle.title = expanded
+      ? 'Close every turn and section'
+      : EXPAND_TITLE;
+  });
   tool(
     'Save',
     'Save this conversation to reopen later with OPEN or clerk.load_conversation ' +
@@ -1009,7 +1065,7 @@ export const render_clerk = async ({ model, el }) => {
   });
   container.insertBefore(reportForm, messagesPane);
   tool(
-    'Write report',
+    'Report',
     'Save this conversation as an HTML report with its screenshots, the state to ' +
       'reproduce them, and the recorded cell types (written next to the notebook)',
     () => {

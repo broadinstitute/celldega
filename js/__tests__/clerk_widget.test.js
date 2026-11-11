@@ -185,7 +185,7 @@ describe('Clerk panel', () => {
     expect(el.textContent).toContain('**not bold** <b>raw</b>');
   });
 
-  test('a question shows the screenshot and evidence it was sent with', async () => {
+  test('a question shows both views it was sent with, and links back to them', async () => {
     const snapshots = {
       landscape: { state: { view: { zoom: 2, target: [10, 20, 0] } } },
       clustergram: { state: { focus_gene: 'MUC2' } },
@@ -197,24 +197,54 @@ describe('Clerk panel', () => {
           role: 'user',
           content: "What's in view?",
           image: 'VEhN',
+          clustergram_image: 'Q0dN',
           snapshots,
           evidence: ['Landscape view', 'Clustergram: 25 rows x 15 columns'],
         },
         { role: 'assistant', content: 'Goblet cells.' },
       ],
     });
-    const img = el.querySelector('img');
-    expect(img.src).toContain('VEhN');
+    const images = [...el.querySelectorAll('.clerk-sent-image img')];
+    expect(images.map((img) => img.src.slice(-4))).toEqual(['VEhN', 'Q0dN']);
+    expect(images.map((img) => img.title)).toEqual([
+      'Landscape view sent with this question',
+      'Clustergram view sent with this question',
+    ]);
     expect(el.textContent).toContain(
       'Sent with: Landscape view · Clustergram: 25 rows x 15 columns'
     );
-    // The image link works while Clerk is answering and restores this capture,
-    // not the widgets' current state.
-    const link = el.querySelector('a.clerk-image-view');
-    expect(link.textContent).toBe('Show this view');
-    link.click();
-    expect(model.get('request')).toMatchObject({ show_snapshot: snapshots });
-    expect(el.querySelectorAll('img')).toHaveLength(1);
+    // Each link works while Clerk is answering and restores that capture, not the
+    // widgets' current state; the last one restores both.
+    const links = [...el.querySelectorAll('a.clerk-image-view')];
+    expect(links.map((link) => link.textContent)).toEqual([
+      'Show this view',
+      'Show this view',
+      'Show both views',
+    ]);
+    links[1].click();
+    expect(model.get('request').show_snapshot).toEqual({
+      clustergram: snapshots.clustergram,
+    });
+    links[0].click();
+    expect(model.get('request').show_snapshot).toEqual({
+      landscape: snapshots.landscape,
+    });
+    links[2].click();
+    expect(model.get('request').show_snapshot).toEqual(snapshots);
+
+    // A question about the Clustergram alone shows its image only.
+    model.set('messages', [
+      {
+        role: 'user',
+        content: 'q',
+        clustergram_image: 'Q0dN',
+        snapshots: { clustergram: snapshots.clustergram },
+      },
+    ]);
+    expect(el.querySelectorAll('.clerk-sent-image img')).toHaveLength(1);
+    expect(
+      [...el.querySelectorAll('a.clerk-image-view')].map((l) => l.textContent)
+    ).toEqual(['Show this view']);
     // Older screenshots without replay state are still shown without a dead link.
     model.set('messages', [{ role: 'user', content: 'old', image: 'VEhN' }]);
     expect(el.querySelector('img')).not.toBeNull();
@@ -354,7 +384,7 @@ describe('Clerk panel', () => {
     expect(model.get('request')).toMatchObject({ continue: true });
   });
 
-  test('Expand opens every fold; Write report asks Python for a report', async () => {
+  test('Expand opens every fold; Report asks Python for a report', async () => {
     const { el, model } = await render({
       messages: [
         { role: 'user', content: 'q' },
@@ -373,7 +403,7 @@ describe('Clerk panel', () => {
     // Re-rendering keeps them collapsed.
     model.set('messages', [...model.get('messages')]);
     expect(el.querySelector('details.clerk-turn').open).toBe(false);
-    button('Write report').click();
+    button('Report').click();
     const reportForm = el.querySelector('.clerk-report-form');
     expect(reportForm.hidden).toBe(false);
     expect(model.get('request')).toBeUndefined();
@@ -387,10 +417,10 @@ describe('Clerk panel', () => {
     expect(model.get('request')).toMatchObject({ save_conversation: true });
   });
 
-  test('Write report accepts a name and Cancel writes nothing', async () => {
+  test('Report accepts a name and Cancel writes nothing', async () => {
     const { el, model } = await render();
     const open = [...el.querySelectorAll('.clerk-tool')].find(
-      (button) => button.textContent === 'Write report'
+      (button) => button.textContent === 'Report'
     );
     const form = el.querySelector('.clerk-report-form');
     const name = form.querySelector('input');
@@ -610,7 +640,7 @@ describe('Clerk panel', () => {
   test('Back appears once links changed the views and restores them', async () => {
     const { el, model } = await render({ can_restore: false });
     const back = [...el.querySelectorAll('button')].find(
-      (b) => b.textContent === 'Back to your view'
+      (b) => b.textContent === 'Return'
     );
     expect(back.style.display).toBe('none');
     model.set('can_restore', true);
@@ -790,5 +820,22 @@ describe('Clerk panel', () => {
     expect(tooltip.show_html.mock.calls.at(-1)[0]).toContain(
       'Clustergram column dendrogram group of 2'
     );
+  });
+  test('brackets around gene and cluster names are dropped', async () => {
+    const { el } = await render({
+      cluster_names: ['27'],
+      messages: answer_with(
+        'Cluster [27] carries ([MYH11], [ACTA2]), not [Fig 9] or [n=3].',
+        { genes: ['MYH11', 'ACTA2'] }
+      ),
+    });
+    const body = el.querySelector('.clerk-md');
+    expect(body.textContent).toBe(
+      'Cluster 27 carries (MYH11, ACTA2), not [Fig 9] or [n=3].'
+    );
+    expect(
+      [...body.querySelectorAll('.clerk-gene')].map((g) => g.textContent)
+    ).toEqual(['MYH11', 'ACTA2']);
+    expect(body.querySelector('.clerk-cluster').textContent).toBe('27');
   });
 });

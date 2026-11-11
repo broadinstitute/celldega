@@ -214,8 +214,8 @@ Once linked:
   "what's in this field of view?"
 
 Clerk only sees the widgets you link. In the conversation, each question shows the
-Landscape screenshot it was sent with and a "Sent with" line listing the rest, so you can
-see exactly what Clerk received. If a linked widget doesn't reply (for example, it isn't
+Landscape and Clustergram screenshots it was sent with, side by side, and a "Sent with"
+line listing the rest, so you can see exactly what Clerk received. If a linked widget doesn't reply (for example, it isn't
 displayed), Clerk is told so and says it rather than guessing.
 
 With a linked **Enrich** panel, each question carries the enrichment results on screen:
@@ -263,7 +263,7 @@ without evidence specific to that, and says when a canonical marker isn't in the
 
 Each question is a collapsible turn:
 
-- the question, with the Landscape screenshot and a "Sent with" line;
+- the question, with the Landscape and Clustergram screenshots and a "Sent with" line;
 - **Work · N steps** (collapsed): the lookups and view changes Clerk made and any interim
   replies; open while Clerk is working;
 - Clerk's answer, with its **Evidence** collapsed;
@@ -277,7 +277,7 @@ appear in the conversation alongside Clerk's answer.
 If the answer ends with a yes/no question ("Check cluster 7's top 25 markers?"),
 **Yes** and **No** buttons answer it. **Expand** / **Collapse** open or close every turn,
 work log and evidence section at once (handy before searching the page), and the panel
-remembers the ones you opened or closed. **Write report** saves the conversation as a report
+remembers the ones you opened or closed. **Report** saves the conversation as a report
 (see [Taking the record with you](#taking-the-record-with-you)).
 
 ## Evidence you can click
@@ -285,9 +285,10 @@ remembers the ones you opened or closed. **Write report** saves the conversation
 Everything Clerk cites can be replayed in the linked widgets, right away and even while
 it's still answering:
 
-- **Conversation images**: **Show this view** below a screenshot restores the
-  Landscape and any Clustergram view captured with it. You can navigate elsewhere
-  and use this link to revisit the image's state. **Back to your view** returns to
+- **Conversation images**: **Show this view** below a screenshot returns that widget
+  (the Landscape or the Clustergram) to the view Clerk was sent, and **Show both views**
+  restores both. You can navigate elsewhere and use these links to revisit the
+  images' state. **Return** returns to
   where you were before following the link. These links are kept when saving and
   reopening the conversation; older images without a saved state have no link.
 - **Genes** (blue, dotted underline): hover for the UniProt name and description, as in
@@ -309,7 +310,7 @@ it's still answering:
   group's name and members still match when you click it later.
 
 Before the first link, Clerk saves the supported Landscape and Clustergram settings.
-**Back to your view** reapplies them, including Clustergram pan/zoom, crop and order,
+**Return** reapplies them, including Clustergram pan/zoom, crop and order,
 and Landscape layers, channels and sliders. See the remaining
 [replay limitations](../../javascript/viz-api.md#replaying-supported-settings). In an exported
 report, each cited view becomes a numbered figure under the answer with the
@@ -472,7 +473,7 @@ Manual visualization exports use `celldega_files/screenshots/` and the widget's
 `screenshot_dir`. Both default output directories are ignored by Git.
 
 A law clerk who brings evidence also says how it was found and how to check it.
-`clerk.export()` (or the panel's **Write report** button) writes the conversation to a folder.
+`clerk.export()` (or the panel's **Report** button) writes the conversation to a folder.
 The button opens an optional **Report name** field. The name becomes the report's
 heading and its folder name, followed by a timestamp. Leave it blank to use
 `report_<time>`.

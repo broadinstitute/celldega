@@ -81,3 +81,57 @@ test('a superseded gene read does not rebuild or repaint stale data', async () =
   expect(fixture.rebuild).toHaveBeenCalledTimes(1); // selection, before the read
   expect(fixture.repaintRows).toEqual([]);
 });
+
+// Cluster selections from an embedding app (update_matrix_col and
+// update_matrix_dendro_col) must leave every layer ready: deck_ready repaints only
+// when all of them are, so a layer left not-ready blocks every later zoom.
+test.each([
+  ['update_matrix_col', '    update_matrix_dendro_col:', '4'],
+  ['update_matrix_dendro_col', '    update_view_state:', ['4', '5']],
+])('%s leaves the deck ready to repaint', async (name, next, arg) => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '../viz/landscape_ist.js'),
+    'utf8'
+  );
+  const start = source.indexOf(`    ${name}: async`);
+  const end = source.indexOf(next, start);
+  const handlerSource = source.slice(start, end).trim().replace(/,$/, '');
+  const storeSource = fs
+    .readFileSync(path.join(__dirname, '../obs_store/obs_store.js'), 'utf8')
+    .replace(/^export const /gm, 'const ');
+  const obs_store = new Function(
+    `${storeSource}\nreturn create_obs_store();`
+  )();
+  const refreshSource = fs
+    .readFileSync(path.join(__dirname, '../utils/refresh_layer.js'), 'utf8')
+    .replace(/^export const /gm, 'const ');
+  const refresh_layer = new Function(
+    `${refreshSource}\nreturn refresh_layer;`
+  )();
+  const viz = { cats: {}, genes: {}, obs_store };
+  const repaints = [];
+  obs_store.deck_ready.subscribe((ready) => ready && repaints.push(ready), {
+    immediate: false,
+  });
+  const handler = new Function(
+    'viz_state',
+    'layers_obj',
+    'callbacks',
+    'update_cat',
+    'update_selected_genes',
+    'update_selected_cats',
+    'refresh_layer',
+    `return ({${handlerSource}})[${JSON.stringify(name)}];`
+  )(
+    viz,
+    {},
+    { on_cluster_select: [], on_clusters_select: [] },
+    () => {},
+    () => {},
+    () => {},
+    refresh_layer
+  );
+  await handler(arg);
+  expect(obs_store.deck_ready.get()).toBe(true);
+  expect(repaints.length).toBeGreaterThan(0);
+});

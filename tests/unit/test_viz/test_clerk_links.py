@@ -175,11 +175,14 @@ def test_image_link_restores_its_capture_and_back_returns_to_the_current_view(
 ) -> None:
     w, ls, cgm, _sent = _linked(monkeypatch)
     w.capture_clustergram = True
+    cgm.raster_thumb = "CG"  # the Clustergram's capture preview
     monkeypatch.setattr(clerk_llm, "ask", lambda q, **kw: "Here is the tissue.")
     w.request = {"id": "question", "question": "What's in view?"}
     assert w.wait(timeout=5)
     captured = deepcopy(w.messages[0]["snapshots"])
+    # Both views Clerk saw are shown with the question.
     assert w.messages[0]["image"] == "T"
+    assert w.messages[0]["clustergram_image"] == "CG"
     assert set(captured) == {"landscape", "clustergram"}
     assert all("image" not in s and "observed_state" not in s for s in captured.values())
 
@@ -226,6 +229,13 @@ def test_image_link_restores_its_capture_and_back_returns_to_the_current_view(
     assert restored[-2:] == [(name, current[name]) for name in ("clustergram", "landscape")]
     assert cgm.highlighted_genes == ["TFF3"]
     assert not w.can_restore and w._saved_view is None
+
+    # Each image can return its own widget to the view Clerk saw.
+    count = len(restored)
+    w.request = {"id": "cgm-only", "show_snapshot": {"clustergram": captured["clustergram"]}}
+    w._last_evidence.result(timeout=5)
+    assert restored[count:] == [("clustergram", captured["clustergram"])]
+    assert w.error == ""
 
 
 def test_evidence_clicks_work_while_clerk_is_answering(monkeypatch) -> None:
@@ -341,3 +351,20 @@ def test_blocks_with_several_objects_are_merged() -> None:
         '```celldega-actions\n{"clustergram": {}} and more\n```'
     )
     assert actions is None and "Extra data" in problem
+
+
+def test_brackets_around_gene_and_cluster_names_are_dropped(monkeypatch) -> None:
+    w, _ls, _cgm, _sent = _linked(monkeypatch)
+    w.capture_clustergram = False
+    views = {"1A": {"landscape": {"genes": ["MUC2"]}}}
+    answer = (
+        "Cluster [4] carries [MUC2] and [tff3] [Fig 1A](view:1A), not [CAT] or [n=3].\n"
+        f"```celldega-views\n{json.dumps(views)}\n```"
+    )
+    monkeypatch.setattr(clerk_llm, "ask", lambda q, **kw: answer)
+    w.request = {"id": "1", "question": "q"}
+    assert w.wait(timeout=5)
+    # Names the panel links lose their brackets; figure links and the rest stay.
+    assert w.messages[-1]["content"] == (
+        "Cluster 4 carries MUC2 and tff3 [Fig 1A](view:1A), not [CAT] or [n=3]."
+    )

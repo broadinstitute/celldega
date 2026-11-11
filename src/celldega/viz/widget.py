@@ -1810,7 +1810,7 @@ class Clerk(CelldegaWidget):
     cluster_names = traitlets.List(default_value=[]).tag(sync=True)
     cluster_labels = traitlets.Dict(default_value={}).tag(sync=True)
     # True while the scientist's view is saved (evidence links were followed); the
-    # panel then offers "Back to your view".
+    # panel then offers RETURN.
     can_restore = traitlets.Bool(False).tag(sync=True)
 
     def __init__(self, **kwargs):
@@ -2151,6 +2151,25 @@ class Clerk(CelldegaWidget):
             self.cluster_labels = labels
         return {"genes": found} if found else {}
 
+    # "[MYH11]" (brackets without a link target): Markdown leaves the brackets.
+    _BRACKETED = re.compile(r"\[([A-Za-z0-9][A-Za-z0-9._/-]*)\](?!\()")
+
+    def _unbracket_names(self, text: str, genes: Sequence[str] = ()) -> str:
+        """Drop brackets Clerk put around gene or cluster names ("[MYH11]").
+
+        The panel links those names by itself; in brackets they would show as
+        "[MYH11]". Figure links ("[Fig 1A](view:1A)") and other brackets are kept.
+        """
+        known = {str(g).upper() for g in genes} | {str(c).upper() for c in self.cluster_names}
+        if not known or "[" not in (text or ""):
+            return text
+
+        def plain(match):
+            name = match.group(1)
+            return name if name.upper() in known else match.group(0)
+
+        return self._BRACKETED.sub(plain, text)
+
     def _find_names(self, texts, names: list[str], limit: int) -> list[str]:
         """Names from ``names`` mentioned in ``texts`` (see :meth:`_mentioned_rows`)."""
         if not names:
@@ -2191,6 +2210,7 @@ class Clerk(CelldegaWidget):
         """
         result = {
             "clustergram_image": "",
+            "clustergram_thumb": "",
             "snapshots": {},
             "clustergram_state": None,
             "enrich_state": None,
@@ -2289,6 +2309,7 @@ class Clerk(CelldegaWidget):
         if has_cgm:
             if "clustergram" in captured:
                 result["clustergram_image"] = captured["clustergram"]["image"].get("png", "")
+                result["clustergram_thumb"] = captured["clustergram"]["image"].get("thumb", "")
             state = (
                 captured["clustergram"]["observed_state"]
                 if "clustergram" in captured
@@ -2333,18 +2354,27 @@ class Clerk(CelldegaWidget):
         return result
 
     def _record_evidence(
-        self, summary: list[str], image_fresh: bool, snapshots: dict | None = None
+        self,
+        summary: list[str],
+        image_fresh: bool,
+        snapshots: dict | None = None,
+        clustergram_thumb: str = "",
     ) -> None:
-        """Attach what was sent (screenshot preview + summary) to the latest question."""
+        """Attach what was sent to the latest question: previews of the Landscape and
+        Clustergram screenshots, the views to return to, and a summary line."""
         from .snapshots import restore_spec
 
-        if not summary and not (image_fresh and self.image_thumb_b64):
+        landscape_thumb = self.image_thumb_b64 if image_fresh else ""
+        if not summary and not landscape_thumb and not clustergram_thumb:
             return
         messages = [dict(m) for m in self.messages]
         for message in reversed(messages):
             if message.get("role") == "user":
-                if image_fresh and self.image_thumb_b64:
-                    message["image"] = self.image_thumb_b64
+                if landscape_thumb:
+                    message["image"] = landscape_thumb
+                if clustergram_thumb:
+                    message["clustergram_image"] = clustergram_thumb
+                if landscape_thumb or clustergram_thumb:
                     message["snapshots"] = {
                         name: restore_spec(snapshot) for name, snapshot in (snapshots or {}).items()
                     }
@@ -3071,7 +3101,12 @@ class Clerk(CelldegaWidget):
                 summary.append(f"{len(call['enrichr_terms'])} Enrichr terms")
             if call.get("info"):
                 summary.append("context")
-            self._record_evidence(summary, views["image_fresh"], views.get("snapshots"))
+            self._record_evidence(
+                summary,
+                views["image_fresh"],
+                views.get("snapshots"),
+                views.get("clustergram_thumb", ""),
+            )
             if call.get("enrichr_terms"):
                 # The panel's own Enrichr results for the selected genes, shown once
                 # per gene list rather than with every question about it.
@@ -3203,7 +3238,9 @@ class Clerk(CelldegaWidget):
                             "content": "Some cited views were changed: " + "; ".join(problems),
                         }
                     )
-                message = {"role": "assistant", "content": text, **self._links_for(text)}
+                links = self._links_for(text)
+                text = self._unbracket_names(text, links.get("genes", ()))
+                message = {"role": "assistant", "content": text, **links}
                 if views:
                     message["views"] = views
                 self._append(message)
@@ -3434,8 +3471,11 @@ class Clerk(CelldegaWidget):
             raise ValueError(reply.get("error") or "browser did not confirm restoration")
 
     def _show_snapshot(self, snapshots) -> None:
-        """Revisit a conversation image, keeping the pre-click view for Back."""
-        if not isinstance(snapshots, dict) or not snapshots.get("landscape"):
+        """Revisit the views a question was sent with (one or both widgets), keeping
+        the pre-click view for Back."""
+        if not isinstance(snapshots, dict) or not (
+            snapshots.get("landscape") or snapshots.get("clustergram")
+        ):
             self.error = "This image has no saved view."
             self._append({"role": "error", "content": self.error})
             return

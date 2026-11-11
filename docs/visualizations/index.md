@@ -176,6 +176,29 @@ Celldega saves a PNG and a human-readable Markdown companion:
 The PNG alone carries the saved view; the Markdown companion is for readers and is
 not needed for replay.
 
+### Why Snapshots: annotating what you find
+
+Celldega already lets you annotate a dataset's molecular side: label clusters with
+cell types, group genes, and draw neighborhoods around regions of tissue. Much of
+what you notice while exploring is a particular view, though: a ring of cells around
+a structure, two genes that meet at a boundary, an odd patch at one zoom level. A
+drawn region doesn't capture that well, and an ordinary screenshot loses it: the
+image keeps no record of the dataset, the settings, or how to get back to it.
+
+Snapshots are annotations of that kind. Each one keeps the view's spatial evidence,
+your explanation, and the settings to reopen it, inside the PNG itself, so the context
+travels with the image. You can take them yourself with **SNAP**, and
+[Clerk](clerk/index.md) takes them while it explores. Put together, they make
+something you can share instead of a narrated screen recording:
+
+- a notebook of free text and Snapshot cards, each card linked to a live
+  visualization so clicking it opens that view;
+- a Landscape with [pins](#pins-points-of-interest) marking points of interest, each
+  pin opening the Snapshot behind it.
+
+The spatial evidence then sits beside the molecular annotations, such as cell type
+labels and marker genes, in a form a collaborator can open and check.
+
 The saved view records what data it shows (cell, gene and cluster names, or a
 Clustergram's row and column names). Image and state are captured together.
 `widget.restore_snapshot(...)` checks the schema, data identity and canvas size
@@ -308,11 +331,14 @@ landscape.pins = poi
 landscape.show_pins = True  # or press PINS
 
 # Pins can also be pre-loaded when the Landscape is created:
-landscape = dega.viz.Landscape(base_url=..., pins=poi, show_pins=True)
+landscape = dega.viz.Landscape(base_url=..., snapshots=poi, show_pins=True)
 ```
 
 `Snapshots` is a small named collection (`poi.names()`, `poi["Glomerulus"]`,
-`poi.add(path, name=...)`). Only Snapshots of the tissue (the spatial view) become
+`poi.add(path, name=...)`, and `poi.card("Glomerulus", landscape=landscape)` for a
+postcard chosen by name). While shown, the pins are also listed by name in place of
+the image controls; click one to open its view. Snapshots of other data than the
+Landscape's are skipped, with a warning. Only Snapshots of the tissue (the spatial view) become
 pins; Clustergram, Yearbook, UMAP and XY Snapshots have no place on it. Pins live in
 the widget's state, so opening one works in a saved notebook or static page without a
 kernel. In JavaScript, pass `pins` (or `pin_data`) and `show_pins` to

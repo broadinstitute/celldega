@@ -113,6 +113,20 @@ def test_an_exported_report_reopens_with_its_images(tmp_path, monkeypatch):
     assert fresh.record[0]["steps"][0]["image"] == IMAGE  # read back from images/
 
 
+@pytest.mark.parametrize("capture_label", ["When asked", "Changed the Landscape"])
+def test_older_image_links_use_only_the_original_capture(tmp_path, capture_label):
+    w = _talked()
+    capture = w.record[0]["steps"][0]
+    capture["text"] = capture_label
+    saved = w.save_conversation(tmp_path / "conversation.json")
+    fresh = Clerk(name="fresh")
+    fresh.load_conversation(saved)
+    if capture_label == "When asked":
+        assert fresh.messages[0]["snapshots"] == capture["snapshots"]
+    else:
+        assert "snapshots" not in fresh.messages[0]
+
+
 def test_an_older_report_without_messages_is_rebuilt_from_its_record(tmp_path):
     folder = tmp_path / "old"
     folder.mkdir()

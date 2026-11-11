@@ -1,5 +1,6 @@
 """Evidence links: genes, clusters and cited views in Clerk's answers replay in the views."""
 
+from copy import deepcopy
 import json
 import warnings
 
@@ -53,7 +54,9 @@ def _linked(monkeypatch):
     def ls_send(content):
         sent["landscape"].append(content)
         if content.get("event") == "capture_raster":
-            ls._on_custom_msg(ls, {"event": "raster", "id": content["id"], "png": "P"}, [])
+            ls._on_custom_msg(
+                ls, {"event": "raster", "id": content["id"], "png": "P", "thumb": "T"}, []
+            )
         if content.get("event") == "get_state":
             ls._on_state_msg(ls, {"event": "state", "id": content["id"], "state": ls_state}, [])
 
@@ -165,6 +168,64 @@ def test_clicking_clusters_and_views(monkeypatch) -> None:
     assert _applied(sent, "landscape")[-1] == {"zoom_to": {"clusters": ["4"]}, "genes": ["MUC2"]}
     assert cgm.rank_dim == 10
     assert w.error == ""
+
+
+def test_image_link_restores_its_capture_and_back_returns_to_the_current_view(
+    monkeypatch, tmp_path
+) -> None:
+    w, ls, cgm, _sent = _linked(monkeypatch)
+    w.capture_clustergram = True
+    monkeypatch.setattr(clerk_llm, "ask", lambda q, **kw: "Here is the tissue.")
+    w.request = {"id": "question", "question": "What's in view?"}
+    assert w.wait(timeout=5)
+    captured = deepcopy(w.messages[0]["snapshots"])
+    assert w.messages[0]["image"] == "T"
+    assert set(captured) == {"landscape", "clustergram"}
+    assert all("image" not in s and "observed_state" not in s for s in captured.values())
+
+    # The image's link survives saving and opening the conversation.
+    path = w.save_conversation(tmp_path / "conversation.json")
+    w.load_conversation(path)
+    assert w.messages[0]["snapshots"] == captured
+
+    # The scientist has since moved to a different position and gene.
+    current = deepcopy(captured)
+    current["landscape"]["state"]["view"] = {"target": [20, 30, 0], "zoom": 2}
+    current["clustergram"]["state"]["focus_gene"] = "TFF3"
+    cgm.highlighted_genes = ["TFF3"]
+    restored = []
+
+    def browser(name, widget):
+        def send(content):
+            if content["event"] == "capture_snapshot":
+                widget._on_snapshot_msg(
+                    widget,
+                    {"event": "snapshot", "id": content["id"], "snapshot": current[name]},
+                    [],
+                )
+            elif content["event"] == "restore_snapshot":
+                restored.append((name, content["snapshot"]))
+                widget._on_apply_msg(widget, {"event": "applied", "id": content["id"]}, [])
+
+        return send
+
+    monkeypatch.setattr(ls, "send", browser("landscape", ls))
+    monkeypatch.setattr(cgm, "send", browser("clustergram", cgm))
+    w.request = {"id": "image", "show_snapshot": w.messages[0]["snapshots"]}
+    w._last_evidence.result(timeout=5)
+    assert restored == [(name, captured[name]) for name in ("clustergram", "landscape")]
+    assert w.can_restore and w.error == ""
+    assert w._saved_view["snapshots"] == current
+
+    # Repeated image clicks preserve the pre-click view for Back.
+    w.request = {"id": "image-again", "show_snapshot": captured}
+    w._last_evidence.result(timeout=5)
+    assert w._saved_view["snapshots"] == current
+    w.request = {"id": "back", "restore_view": True}
+    w._last_evidence.result(timeout=5)
+    assert restored[-2:] == [(name, current[name]) for name in ("clustergram", "landscape")]
+    assert cgm.highlighted_genes == ["TFF3"]
+    assert not w.can_restore and w._saved_view is None
 
 
 def test_evidence_clicks_work_while_clerk_is_answering(monkeypatch) -> None:

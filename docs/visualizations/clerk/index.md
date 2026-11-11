@@ -271,15 +271,13 @@ Each question is a collapsible turn:
 - what Clerk recorded or changed alongside the answer (one short ↻ line each, with the
   details, such as each cluster's cell type, in the turn's Evidence), and any errors.
 
-Above the conversation, **Selected genes (N)** folds away the genes selected in the
-linked views, which go with your next question. Open it to click them like any other
-gene link, or press **Enrichr** to run them through Enrichr right there (not sent to
-Clerk).
+Genes selected in the linked views still go with your next question. Enrichr results
+appear in the conversation alongside Clerk's answer.
 
 If the answer ends with a yes/no question ("Check cluster 7's top 25 markers?"),
 **Yes** and **No** buttons answer it. **Expand** / **Collapse** open or close every turn,
 work log and evidence section at once (handy before searching the page), and the panel
-remembers the ones you opened or closed. **Export** saves the conversation as a report
+remembers the ones you opened or closed. **Write report** saves the conversation as a report
 (see [Taking the record with you](#taking-the-record-with-you)).
 
 ## Evidence you can click
@@ -287,6 +285,11 @@ remembers the ones you opened or closed. **Export** saves the conversation as a 
 Everything Clerk cites can be replayed in the linked widgets, right away and even while
 it's still answering:
 
+- **Conversation images**: **Show this view** below a screenshot restores the
+  Landscape and any Clustergram view captured with it. You can navigate elsewhere
+  and use this link to revisit the image's state. **Back to your view** returns to
+  where you were before following the link. These links are kept when saving and
+  reopening the conversation; older images without a saved state have no link.
 - **Genes** (blue, dotted underline): hover for the UniProt name and description, as in
   the other widgets; click to color the Landscape by the gene, mark it in the
   Clustergram (blue row label) and zoom the Clustergram to it. Shift-click adds or
@@ -469,11 +472,15 @@ Manual visualization exports use `celldega_files/screenshots/` and the widget's
 `screenshot_dir`. Both default output directories are ignored by Git.
 
 A law clerk who brings evidence also says how it was found and how to check it.
-`clerk.export()` (or the panel's **Export** button) writes the conversation to a folder:
+`clerk.export()` (or the panel's **Write report** button) writes the conversation to a folder.
+The button opens an optional **Report name** field. The name becomes the report's
+heading and its folder name, followed by a timestamp. Leave it blank to use
+`report_<time>`.
 
 ```python
 clerk.export("hcrc_clerk")                               # default: clerk_files/report_<time>
 clerk.export("hcrc_clerk", adata=adata, groupby="leiden")  # also annotate an AnnData
+clerk.export(title="Kidney exploration")                 # named report under clerk_files/
 ```
 
 - `report.html`: the whole conversation as one self-contained page with static images.
@@ -506,7 +513,7 @@ reopen later, the way PIC saves a view. It writes one JSON file to
 - links to the data the linked widgets show.
 
 Each question's screenshot preview is kept, but full-size captures are left out to keep
-the file light; **Export** keeps those.
+the file light; **Write report** keeps those.
 
 **Open** (or `clerk.load_conversation(path)`) puts a saved conversation back in the
 panel, replacing the current one. It also opens an exported report folder.

@@ -186,12 +186,18 @@ describe('Clerk panel', () => {
   });
 
   test('a question shows the screenshot and evidence it was sent with', async () => {
-    const { el } = await render({
+    const snapshots = {
+      landscape: { state: { view: { zoom: 2, target: [10, 20, 0] } } },
+      clustergram: { state: { focus_gene: 'MUC2' } },
+    };
+    const { el, model } = await render({
+      pending: true,
       messages: [
         {
           role: 'user',
           content: "What's in view?",
           image: 'VEhN',
+          snapshots,
           evidence: ['Landscape view', 'Clustergram: 25 rows x 15 columns'],
         },
         { role: 'assistant', content: 'Goblet cells.' },
@@ -202,8 +208,17 @@ describe('Clerk panel', () => {
     expect(el.textContent).toContain(
       'Sent with: Landscape view · Clustergram: 25 rows x 15 columns'
     );
-    // Only the one screenshot; the evidence strip has none.
+    // The image link works while Clerk is answering and restores this capture,
+    // not the widgets' current state.
+    const link = el.querySelector('a.clerk-image-view');
+    expect(link.textContent).toBe('Show this view');
+    link.click();
+    expect(model.get('request')).toMatchObject({ show_snapshot: snapshots });
     expect(el.querySelectorAll('img')).toHaveLength(1);
+    // Older screenshots without replay state are still shown without a dead link.
+    model.set('messages', [{ role: 'user', content: 'old', image: 'VEhN' }]);
+    expect(el.querySelector('img')).not.toBeNull();
+    expect(el.querySelector('a.clerk-image-view')).toBeNull();
   });
 
   test('view changes Clerk made appear as their own line', async () => {
@@ -339,7 +354,7 @@ describe('Clerk panel', () => {
     expect(model.get('request')).toMatchObject({ continue: true });
   });
 
-  test('Expand opens every fold; Export asks Python for a report', async () => {
+  test('Expand opens every fold; Write report asks Python for a report', async () => {
     const { el, model } = await render({
       messages: [
         { role: 'user', content: 'q' },
@@ -358,10 +373,42 @@ describe('Clerk panel', () => {
     // Re-rendering keeps them collapsed.
     model.set('messages', [...model.get('messages')]);
     expect(el.querySelector('details.clerk-turn').open).toBe(false);
-    button('Export').click();
-    expect(model.get('request')).toMatchObject({ export: true });
+    button('Write report').click();
+    const reportForm = el.querySelector('.clerk-report-form');
+    expect(reportForm.hidden).toBe(false);
+    expect(model.get('request')).toBeUndefined();
+    reportForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(model.get('request')).toMatchObject({
+      export: true,
+      report_title: '',
+    });
+    expect(reportForm.hidden).toBe(true);
     button('Save').click();
     expect(model.get('request')).toMatchObject({ save_conversation: true });
+  });
+
+  test('Write report accepts a name and Cancel writes nothing', async () => {
+    const { el, model } = await render();
+    const open = [...el.querySelectorAll('.clerk-tool')].find(
+      (button) => button.textContent === 'Write report'
+    );
+    const form = el.querySelector('.clerk-report-form');
+    const name = form.querySelector('input');
+    expect(form.hidden).toBe(true);
+    open.click();
+    name.value = ' Kidney exploration ';
+    [...form.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Cancel')
+      .click();
+    expect(form.hidden).toBe(true);
+    expect(model.get('request')).toBeUndefined();
+    open.click();
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(model.get('request')).toMatchObject({
+      export: true,
+      report_title: 'Kidney exploration',
+    });
+    expect(form.hidden).toBe(true);
   });
 
   test('Open reads a saved conversation and sends it to Python once', async () => {
@@ -576,7 +623,7 @@ describe('Clerk panel', () => {
     const { el, model } = await render({
       messages: answer_with('Check cluster 7?'),
     });
-    const buttons = [...el.querySelectorAll('button.clerk-button')];
+    const buttons = [...el.querySelectorAll('.clerk-turn button.clerk-button')];
     expect(buttons.map((b) => b.textContent)).toEqual(['Yes', 'No']);
     buttons[1].click();
     expect(model.get('request')).toMatchObject({ question: 'No' });
@@ -595,39 +642,6 @@ describe('Clerk panel', () => {
     expect(contained.every((element) => el.contains(element))).toBe(true);
     expect(contained[0].style.overflowY).toBe('auto');
   });
-  test('selected genes fold away above the conversation, with Enrichr', async () => {
-    const { el, model } = await render();
-    expect(el.querySelector('details.clerk-selected')).toBeNull();
-    model.set('gene_list', ['MUC2', 'TFF3']);
-    const fold = el.querySelector('details.clerk-selected');
-    expect(fold.open).toBe(false);
-    expect(fold.querySelector('summary').textContent).toBe(
-      'Selected genes (2)'
-    );
-    // The genes are links, like those in answers.
-    const genes = [...fold.querySelectorAll('.clerk-gene')];
-    expect(genes.map((g) => g.textContent)).toEqual(['MUC2', 'TFF3']);
-    genes[1].click();
-    expect(model.get('request')).toMatchObject({ show_genes: ['TFF3'] });
-    // ENRICHR runs them through Enrichr in the browser and draws the results here.
-    [...fold.querySelectorAll('button')]
-      .find((b) => b.textContent === 'Enrichr')
-      .click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    const opened = el.querySelector('details.clerk-selected');
-    expect(opened.open).toBe(true);
-    expect(
-      [...opened.querySelectorAll('.clerk-enrichment-term')].map(
-        (t) => t.textContent
-      )
-    ).toEqual(['Goblet', 'Paneth']);
-    expect(opened.querySelector('a.clerk-enrichment-link').href).toBe(
-      'https://maayanlab.cloud/Enrichr/enrich?dataset=Sh0rt'
-    );
-    expect(enrichr.post).toHaveBeenCalledTimes(1);
-  });
-
   test('a question sends the Enrichr page of the selected genes', async () => {
     const { el, model } = await render({ gene_list: ['MUC2'] });
     el.querySelector('textarea').value = 'What is this?';

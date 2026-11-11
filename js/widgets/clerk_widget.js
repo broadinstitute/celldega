@@ -34,6 +34,7 @@ const NARROW_PANEL_WIDTH = 480;
 const PANEL_CLASS = 'celldega-clerk';
 const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-md p { margin: 4px 0; }
+.${PANEL_CLASS} .clerk-md a { color: #2c7fb8; }
 .${PANEL_CLASS} .clerk-md h1, .${PANEL_CLASS} .clerk-md h2 { font-size: 15px; margin: 10px 0 4px; }
 .${PANEL_CLASS} .clerk-md h3, .${PANEL_CLASS} .clerk-md h4,
 .${PANEL_CLASS} .clerk-md h5, .${PANEL_CLASS} .clerk-md h6 { font-size: 14px; margin: 8px 0 3px; }
@@ -95,9 +96,10 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-enrichment-genes .clerk-gene.shown { font-weight: bold; background: none; }
 .${PANEL_CLASS} .clerk-enrichment-link { display: block; margin-top: 4px; font-size: 12px; color: #2f74ff; }
 .${PANEL_CLASS} .clerk-figure > summary { color: #2c7fb8; }
-.${PANEL_CLASS} .clerk-selected { margin-top: 5px; border: 1px solid #d3d3d3; padding: 3px 6px; font-size: 13px; }
-.${PANEL_CLASS} .clerk-selected > summary { font-size: 12px; color: #47515b; }
-.${PANEL_CLASS} .clerk-selected-genes { max-height: 72px; overflow-y: auto; margin: 3px 0; line-height: 1.4; }
+.${PANEL_CLASS} .clerk-image-view { display: block; width: fit-content; margin-top: 3px; font-size: 11px; color: #2c7fb8; }
+.${PANEL_CLASS} .clerk-report-form { margin-top: 5px; padding: 6px; border: 1px solid #d3d3d3; }
+.${PANEL_CLASS} .clerk-report-form label { display: block; font-size: 12px; color: #47515b; }
+.${PANEL_CLASS} .clerk-report-form input { width: 100%; box-sizing: border-box; margin-top: 3px; padding: 4px; font: inherit; font-size: 13px; }
 .${PANEL_CLASS} .clerk-recorded { white-space: pre-wrap; font-size: 13px; color: #47515b; margin: 4px 0; }
 .${PANEL_CLASS} .clerk-offer { font-size: 12px; color: #47515b; margin: 2px 0 4px; }
 .${PANEL_CLASS} .clerk-offer .clerk-button { font-size: 11px; margin: 0 0 0 8px; }
@@ -182,9 +184,7 @@ export const render_clerk = async ({ model, el }) => {
   container.style.flexDirection = 'column';
   container.style.fontFamily = FONT;
 
-  // Above the conversation: the genes selected in the linked views (sent with the
-  // next question), folded away, and a briefing Clerk started from, if any. Empty
-  // when there is neither.
+  // A briefing Clerk started from, if any, stays visible above the conversation.
   const evidence = document.createElement('div');
   evidence.className = 'clerk-evidence';
   evidence.style.width = '100%';
@@ -278,10 +278,10 @@ export const render_clerk = async ({ model, el }) => {
   contain_scroll(messagesPane);
 
   // ---- rendering helpers -------------------------------------------------
-  // Screenshots appear in the conversation, under the question they were sent
-  // with; above it is only the fold of selected genes.
+  // Screenshots appear under the question they were sent with. Their saved views
+  // let the scientist revisit the evidence after navigating elsewhere.
   /** Screenshot + "Sent with: ..." line recorded on a question by Python. */
-  const renderSentWith = (message, row) => {
+  const renderSentWith = (message, row, on_snapshot) => {
     if (message.image) {
       const img = document.createElement('img');
       img.src = `data:image/png;base64,${message.image}`;
@@ -292,6 +292,19 @@ export const render_clerk = async ({ model, el }) => {
       img.style.border = '1px solid #d3d3d3';
       img.title = 'Landscape view sent with this question';
       row.appendChild(img);
+      if (message.snapshots?.landscape) {
+        const link = document.createElement('a');
+        link.className = 'clerk-image-view';
+        link.href = '#';
+        link.textContent = 'Show this view';
+        link.title =
+          'Restore the views captured with this image; Back to your view returns you here';
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          on_snapshot(message.snapshots);
+        });
+        row.appendChild(link);
+      }
     }
     if (Array.isArray(message.evidence) && message.evidence.length) {
       const sent = document.createElement('div');
@@ -688,7 +701,13 @@ export const render_clerk = async ({ model, el }) => {
       label.appendChild(you);
       label.appendChild(document.createTextNode(turn.question.content || ''));
       wrapper = make_fold(key, label, true, 'clerk-turn');
-      renderSentWith(turn.question, wrapper);
+      renderSentWith(turn.question, wrapper, (snapshots) => {
+        shown_genes = [];
+        shown_clusters = [];
+        shown_view = '';
+        send_now({ show_snapshot: snapshots });
+        mark_shown();
+      });
     } else {
       wrapper = document.createElement('div');
       wrapper.className = 'clerk-turn';
@@ -957,11 +976,47 @@ export const render_clerk = async ({ model, el }) => {
     'Open a conversation saved with SAVE (it replaces this one)',
     () => opener.click()
   );
+  const reportForm = document.createElement('form');
+  reportForm.className = 'clerk-report-form';
+  reportForm.hidden = true;
+  const reportLabel = document.createElement('label');
+  reportLabel.textContent = 'Report name (optional)';
+  const reportName = document.createElement('input');
+  reportName.type = 'text';
+  reportName.name = 'report_title';
+  reportName.maxLength = 120;
+  reportName.placeholder = 'e.g. Kidney exploration';
+  reportLabel.appendChild(reportName);
+  const writeReport = document.createElement('button');
+  writeReport.type = 'submit';
+  writeReport.className = 'clerk-button';
+  writeReport.textContent = 'Write report';
+  const cancelReport = make_button(
+    'Cancel',
+    'Close without writing a report',
+    () => {
+      reportForm.hidden = true;
+      textarea.focus();
+    }
+  );
+  cancelReport.type = 'button';
+  reportForm.append(reportLabel, writeReport, cancelReport);
+  reportForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (model.get('pending')) return;
+    send_request({ export: true, report_title: reportName.value.trim() });
+    reportForm.hidden = true;
+  });
+  container.insertBefore(reportForm, messagesPane);
   tool(
-    'Export',
+    'Write report',
     'Save this conversation as an HTML report with its screenshots, the state to ' +
       'reproduce them, and the recorded cell types (written next to the notebook)',
-    () => send_request({ export: true })
+    () => {
+      if (model.get('pending')) return;
+      reportForm.hidden = false;
+      reportName.focus();
+    }
   );
 
   sendBtn.addEventListener('click', submit);
@@ -973,73 +1028,9 @@ export const render_clerk = async ({ model, el }) => {
     }
   });
 
-  // ---- selected genes ----------------------------------------------------
-  let selected_enrichment = null; // {key, message} for the selected genes' ENRICHR
+  // ---- briefing ----------------------------------------------------------
   const renderEvidence = () => {
-    const genes = (model.get('gene_list') || []).map(String);
     evidence.replaceChildren();
-    if (genes.length) {
-      const fold = make_fold(
-        'selected-genes',
-        `Selected genes (${genes.length})`,
-        false,
-        'clerk-selected'
-      );
-      fold.querySelector('summary').title =
-        'Genes selected in the linked views; they go with your next question';
-      const list = document.createElement('div');
-      list.className = 'clerk-selected-genes';
-      list.textContent = genes.join(', ');
-      link_genes(list, genes, show_gene, gene_tooltip);
-      contain_scroll(list);
-      fold.appendChild(list);
-      const key = genes.join(',');
-      const run = make_button(
-        'Enrichr',
-        'Run Enrichr on the selected genes (shown here, not sent to Clerk)',
-        async () => {
-          run.disabled = true;
-          run.textContent = 'Enrichr…';
-          try {
-            const { terms, url } = await fetch_terms(genes, ENRICHR_LIB);
-            selected_enrichment = {
-              key,
-              message: {
-                title: `${genes.length} selected genes`,
-                genes,
-                url,
-                libraries: { [ENRICHR_LIB]: terms },
-              },
-            };
-          } catch (error) {
-            handleAsyncError(error, {
-              context: 'clerk selected-genes Enrichr',
-            });
-            selected_enrichment = {
-              key,
-              error: String(error?.message || error),
-            };
-          }
-          folds.set('selected-genes', true);
-          renderEvidence();
-        }
-      );
-      run.style.marginTop = '0';
-      fold.appendChild(run);
-      if (selected_enrichment?.key === key) {
-        fold.appendChild(
-          selected_enrichment.error
-            ? Object.assign(document.createElement('div'), {
-                textContent: `Couldn't reach Enrichr: ${selected_enrichment.error}`,
-              })
-            : render_enrichment(selected_enrichment.message, {
-                ...enrichment_handlers,
-                show_title: false,
-              })
-        );
-      }
-      evidence.appendChild(fold);
-    }
     // Make it visible when Clerk starts from earlier work (load_briefing).
     const briefing = model.get('briefing_label');
     if (briefing) {
@@ -1060,7 +1051,6 @@ export const render_clerk = async ({ model, el }) => {
     setBusy(!!model.get('pending'));
   };
   const listeners = [
-    ['change:gene_list', renderEvidence],
     ['change:briefing_label', renderEvidence],
     ['change:cluster_names', renderMessages],
     ['change:cluster_labels', renderMessages],

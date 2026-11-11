@@ -219,9 +219,10 @@ def build_notebook(
     import nbformat
 
     meta = dict(meta or {})
+    title = str(meta.get("title") or "Clerk report")
     cells = []
     header = [
-        "# Clerk report",
+        f"# {html.escape(title)}",
         "",
         f"Exported {meta.get('exported') or time.strftime('%Y-%m-%d %H:%M:%S')}"
         + (f" · Celldega {meta['celldega']}" if meta.get("celldega") else ""),
@@ -344,7 +345,10 @@ def notebook_to_html(notebook) -> str:
     exporter = HTMLExporter()
     exporter.exclude_input_prompt = True
     exporter.exclude_output_prompt = True
-    body, _resources = exporter.from_notebook_node(notebook)
+    title = notebook.metadata.get("clerk_report", {}).get("title") or "Clerk report"
+    body, _resources = exporter.from_notebook_node(
+        notebook, resources={"metadata": {"name": title}}
+    )
     return body
 
 

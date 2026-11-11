@@ -163,17 +163,36 @@ def test_export_needs_groupby_with_adata(tmp_path) -> None:
         w.export(tmp_path / "x", adata=adata, html=False)
 
 
-def test_panel_export_button_writes_a_report(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("title", "stem"), [("", "report"), ("Kidney exploration", "kidney-exploration")]
+)
+def test_panel_export_button_writes_a_report(tmp_path, monkeypatch, title, stem) -> None:
     monkeypatch.chdir(tmp_path)
     w = Clerk()
     w.record, w.findings = _record()
-    w.request = {"id": "e1", "export": True}
+    w.request = {"id": "e1", "export": True, "report_title": title}
     note = w.messages[-1]
     assert note["role"] == "note"
-    assert "Saved this conversation to clerk_files/report_" in note["content"]
-    assert list(tmp_path.glob("clerk_files/report_*/record.json"))
+    assert f"Saved this conversation to clerk_files/{stem}_" in note["content"]
+    saved = next(tmp_path.glob(f"clerk_files/{stem}_*/record.json"))
+    assert json.loads(saved.read_text())["meta"]["title"] == title
+    notebook = json.loads((saved.parent / "report.ipynb").read_text())
+    assert "".join(notebook["cells"][0]["source"]).startswith(f"# {title or 'Clerk report'}\n")
+    if (saved.parent / "report.html").exists():
+        page = (saved.parent / "report.html").read_text()
+        assert f"<title>{title or 'Clerk report'}</title>" in page
+        assert (title or "Clerk report") in page
     # Notes are for the scientist, not the model.
     assert "Saved this" not in clerk_llm.build_prompt("q", history=w.messages)
+
+
+def test_report_name_cannot_change_the_output_directory(tmp_path) -> None:
+    w = Clerk()
+    w.output_dir = tmp_path / "reports"
+    written = w.export(title="../../Kidney / comparison", html=False)
+    assert written["record"].parent.parent == tmp_path / "reports"
+    assert written["record"].parent.name.startswith("kidney-comparison_")
+    assert json.loads(written["record"].read_text())["meta"]["title"] == "../../Kidney / comparison"
 
 
 def test_briefing_from_an_exported_record(tmp_path, monkeypatch) -> None:

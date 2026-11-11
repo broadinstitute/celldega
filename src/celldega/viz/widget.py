@@ -1957,7 +1957,7 @@ class Clerk(CelldegaWidget):
         self._last_request_id = req_id
 
         if req.get("export"):
-            self._export_from_panel()
+            self._export_from_panel(title=str(req.get("report_title") or ""))
             return
         if req.get("save_conversation"):
             self._save_from_panel()
@@ -1974,6 +1974,9 @@ class Clerk(CelldegaWidget):
             return
         if req.get("apply_view") is not None:
             self._follow_evidence(self._apply_view, req["apply_view"])
+            return
+        if req.get("show_snapshot") is not None:
+            self._follow_evidence(self._show_snapshot, req["show_snapshot"])
             return
         if req.get("restore_view"):
             self._queue_evidence(self._restore_view)
@@ -2329,8 +2332,12 @@ class Clerk(CelldegaWidget):
                 result["summary"].append("Enrich: no snapshot")
         return result
 
-    def _record_evidence(self, summary: list[str], image_fresh: bool) -> None:
+    def _record_evidence(
+        self, summary: list[str], image_fresh: bool, snapshots: dict | None = None
+    ) -> None:
         """Attach what was sent (screenshot preview + summary) to the latest question."""
+        from .snapshots import restore_spec
+
         if not summary and not (image_fresh and self.image_thumb_b64):
             return
         messages = [dict(m) for m in self.messages]
@@ -2338,6 +2345,9 @@ class Clerk(CelldegaWidget):
             if message.get("role") == "user":
                 if image_fresh and self.image_thumb_b64:
                     message["image"] = self.image_thumb_b64
+                    message["snapshots"] = {
+                        name: restore_spec(snapshot) for name, snapshot in (snapshots or {}).items()
+                    }
                 message["evidence"] = list(summary)
                 break
         self.messages = messages
@@ -3061,7 +3071,7 @@ class Clerk(CelldegaWidget):
                 summary.append(f"{len(call['enrichr_terms'])} Enrichr terms")
             if call.get("info"):
                 summary.append("context")
-            self._record_evidence(summary, views["image_fresh"])
+            self._record_evidence(summary, views["image_fresh"], views.get("snapshots"))
             if call.get("enrichr_terms"):
                 # The panel's own Enrichr results for the selected genes, shown once
                 # per gene list rather than with every question about it.
@@ -3274,6 +3284,7 @@ class Clerk(CelldegaWidget):
         self,
         folder: str | Path | None = None,
         *,
+        title: str = "",
         adata=None,
         groupby: str | None = None,
         key: str = "clerk_cell_type",
@@ -3299,6 +3310,8 @@ class Clerk(CelldegaWidget):
         ``write_h5ad=True``.
 
         Args:
+            title: Optional report name, shown as its heading and used in the
+                default folder name (followed by a timestamp).
             names: Variable names for the reproduction code, default
                 ``{"landscape": "landscape", "clustergram": "cgm"}``.
             html: Also render ``report.html`` (needs ``nbconvert``).
@@ -3308,12 +3321,15 @@ class Clerk(CelldegaWidget):
         """
         from ..clerk import report
 
-        folder = Path(folder or Path(self.output_dir) / time.strftime("report_%Y%m%d-%H%M%S"))
+        title = " ".join(title.split())
+        stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").lower()[:50] or "report"
+        folder = Path(folder or Path(self.output_dir) / f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}")
         try:
             celldega_version = importlib.metadata.version("celldega")
         except importlib.metadata.PackageNotFoundError:
             celldega_version = ""
         meta = {
+            "title": title,
             "context": self.context_info,
             "widgets": sorted(self._linked_widgets),
             "celldega": celldega_version,
@@ -3362,6 +3378,8 @@ class Clerk(CelldegaWidget):
             if self._saved_view is None:
                 self._save_view()
                 if self._saved_view is None:
+                    if self.error:
+                        self._append({"role": "error", "content": self.error})
                     return
             show(*args, **kwargs)
 
@@ -3404,6 +3422,35 @@ class Clerk(CelldegaWidget):
         self._saved_view = saved
         self.can_restore = bool(saved["snapshots"])
 
+    def _restore_captured_widget(self, name: str, snapshot: dict) -> None:
+        """Restore one identified capture and wait for its exact browser reply."""
+        widget = self._linked_widgets.get(name)
+        if not hasattr(widget, "restore_snapshot"):
+            raise ValueError(f"no {name.title()} is linked")
+        rid = widget.restore_snapshot(snapshot)
+        answered = self._request_and_wait([(widget, "apply_capture_id", lambda: rid)])[0]
+        reply = widget._apply_replies.get(rid, {})
+        if not answered or reply.get("event") == "apply_error":
+            raise ValueError(reply.get("error") or "browser did not confirm restoration")
+
+    def _show_snapshot(self, snapshots) -> None:
+        """Revisit a conversation image, keeping the pre-click view for Back."""
+        if not isinstance(snapshots, dict) or not snapshots.get("landscape"):
+            self.error = "This image has no saved view."
+            self._append({"role": "error", "content": self.error})
+            return
+        # Clustergram focus can change the Landscape; restore the image's view last.
+        for name in ("clustergram", "landscape"):
+            if name not in snapshots:
+                continue
+            try:
+                self._restore_captured_widget(name, snapshots[name])
+            except ValueError as exc:
+                self.error = f"Couldn't show the captured view: {name}: {exc}"
+                self._append({"role": "error", "content": self.error})
+                return
+        self.error = ""
+
     def _restore_view(self) -> None:
         """Back: verify saved data and acknowledge restoration before clearing history."""
         saved = self._saved_view
@@ -3418,17 +3465,12 @@ class Clerk(CelldegaWidget):
             try:
                 # Same-session undo: the restore still checks the saved view matches
                 # the loaded data (e.g. after a dataset switch).
-                rid = widget.restore_snapshot(snapshot)
-                answered = self._request_and_wait(
-                    [(widget, "apply_capture_id", lambda rid=rid: rid)]
-                )[0]
-                reply = widget._apply_replies.get(rid, {})
-                if not answered or reply.get("event") == "apply_error":
-                    raise ValueError(reply.get("error") or "browser did not confirm restoration")
+                self._restore_captured_widget(name, snapshot)
                 if name == "clustergram":
                     widget.highlighted_genes = saved.get("highlighted_genes") or []
             except ValueError as exc:
                 self.error = f"Couldn't fully restore your view: {name}: {exc}"
+                self._append({"role": "error", "content": self.error})
                 return  # keep the saved view available to retry
         self._saved_view = None
         self.can_restore = False
@@ -3515,12 +3557,12 @@ class Clerk(CelldegaWidget):
         if problems:
             self.error = "Couldn't show that view: " + "; ".join(problems)
 
-    def _export_from_panel(self) -> None:
-        """The panel's Export button: write a report and say where it went."""
+    def _export_from_panel(self, *, title: str = "") -> None:
+        """The panel's Write report button: write a report and say where it went."""
         try:
-            written = self.export()
+            written = self.export(title=title)
         except Exception as exc:
-            self._append({"role": "error", "content": f"Couldn't export: {exc}"})
+            self._append({"role": "error", "content": f"Couldn't write the report: {exc}"})
             return
         main = written.get("html") or written.get("notebook") or written["record"]
         self._append(
@@ -3623,6 +3665,7 @@ class Clerk(CelldegaWidget):
 
     def _load_conversation_data(self, data, folder: Path | None) -> dict:
         from ..clerk import report
+        from .snapshots import restore_spec
 
         if not isinstance(data, dict):
             raise ValueError("Not a saved Clerk conversation or exported report")
@@ -3637,6 +3680,7 @@ class Clerk(CelldegaWidget):
             meta = data.get("meta") or {}
             record = report.record_with_images(data["questions"], folder)
             saved = {
+                "title": meta.get("title", ""),
                 "saved": meta.get("exported", ""),
                 "celldega": meta.get("celldega", ""),
                 "context_info": meta.get("context", ""),
@@ -3667,7 +3711,30 @@ class Clerk(CelldegaWidget):
             self.cluster_labels = dict(saved["cluster_labels"])
         self._last_enrichment = None
         self.error = ""
-        self.messages = [dict(m) for m in saved["messages"] if isinstance(m, dict)]
+        messages = [dict(m) for m in saved["messages"] if isinstance(m, dict)]
+        # Earlier conversations kept replay state only in the record. Recover it
+        # from the initial capture, never from a view Clerk changed to later.
+        questions = (m for m in messages if m.get("role") == "user")
+        for message, entry in zip(questions, self.record, strict=False):
+            if (
+                not message.get("image")
+                or message.get("snapshots")
+                or message.get("content") != entry.get("question")
+            ):
+                continue
+            capture = next(
+                (
+                    step
+                    for step in entry.get("steps") or []
+                    if step.get("kind") == "capture" and step.get("text") == "When asked"
+                ),
+                {},
+            )
+            if (capture.get("snapshots") or {}).get("landscape"):
+                message["snapshots"] = {
+                    name: restore_spec(snapshot) for name, snapshot in capture["snapshots"].items()
+                }
+        self.messages = messages
         return {
             key: saved.get(key) for key in ("title", "saved", "celldega", "context_info", "sources")
         }

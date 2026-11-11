@@ -113,7 +113,7 @@ the panel shows a "Briefing: …" line so it's always clear what Clerk was told:
 clerk.load_briefing("clerk_files/report_20261107-101500")  # an exported report folder
 clerk.load_briefing("case1/record.json", "notes.md")     # several sources
 clerk.load_briefing(other_clerk, append=True)            # another panel's conversation
-clerk.load_briefing("celldega_files/screenshots")        # manual saved views
+clerk.load_briefing("celldega_files/snapshots")        # manual saved views
 clerk.load_briefing("clerk_files/screenshots", append=True) # Clerk's saved views
 clerk.briefing = "Cluster 7 looked mixed last time."     # or plain text
 clerk.briefing = ""                                      # clear it
@@ -462,14 +462,14 @@ Ask Clerk to save evidence ("save a screenshot of this for the report") and it t
 after any change it makes for it, with its own description. They're written to
 `clerk_files/screenshots/` (or `clerk.screenshot_dir`), marked as made by Clerk, listed
 in `clerk.screenshots`, and recorded in the conversation. Manual exports from
-**PIC** or `widget.screenshot()` default to `celldega_files/screenshots/`. Either
+**SNAP** or `widget.snapshot()` default to `celldega_files/snapshots/`. Either
 folder can be loaded as a briefing or configured to use a shared location.
 
 ## Taking the record with you
 
 Clerk writes exported reports to `clerk_files/report_<time>/` and screenshots to
 `clerk_files/screenshots/`; change the parent folder with `clerk.output_dir`.
-Manual visualization exports use `celldega_files/screenshots/` and the widget's
+Manual visualization exports use `celldega_files/snapshots/` and the widget's
 `screenshot_dir`. Both default output directories are ignored by Git.
 
 A law clerk who brings evidence also says how it was found and how to check it.
@@ -496,7 +496,7 @@ clerk.export(title="Kidney exploration")                 # named report under cl
   (`observations`), available widget sources and partial replay settings.
 - `screenshots/`: each capture as a Celldega
   [screenshot](../../javascript/viz-api.md), one per widget (`q1_1.png` for the
-  Landscape, `q1_1_clustergram.png` for the Clustergram). Like PIC's, each PNG carries
+  Landscape, `q1_1_clustergram.png` for the Clustergram). Like SNAP's, each PNG carries
   the record to reopen its view, e.g. `dega.viz.from_png("report/screenshots/q1_1.png")`.
 - `findings.csv`: the cell types Clerk proposed.
 - With `adata=` and `groupby=`: the latest cell types written into
@@ -509,7 +509,7 @@ HTML needs `nbconvert`; without it the other files are still written.
 ### Saving and reopening a conversation
 
 The panel's **Save** button (or `clerk.save_conversation()`) saves the conversation to
-reopen later, the way PIC saves a view. It writes one JSON file to
+reopen later, the way SNAP saves a view. It writes one JSON file to
 `clerk_files/conversations/`, holding:
 
 - the messages, with their gene, cluster and view links and Enrichr results;

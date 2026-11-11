@@ -91,7 +91,7 @@ RNA image channels.*
 | 3 | **TRX** | Transcripts and gene expression. Zoomed in, TRX shows or hides individual transcripts and the slider sets their size; zoomed out, the slider sets how strongly cells are colored by a selected gene. The bars rank genes: click one to color cells by its expression. |
 | 4 | **NBHD** | Neighborhoods: shows supplied tissue regions, or lets you draw your own. Appears only when neighborhoods are supplied or drawing is turned on. |
 | 5 | Gene search | Type one or more gene names, separated by commas, to color cells by expression; clear the box to return to cluster colors. The box below describes the selected gene, from UniProt. |
-| 6 | Celldega logo | Opens this visualization's documentation page. **PIC**, next to it, saves a [screenshot with a description](#screenshots). |
+| 6 | Celldega logo | Opens this visualization's documentation page. **SNAP**, next to it, saves a [Snapshot with a memo](#snapshots). |
 | 7 | The view | Scroll to zoom, drag to pan, hover over cells and transcripts for details, and click a cell to select its cluster. |
 
 Conventions shared across visualizations:
@@ -153,14 +153,17 @@ both cases, and then what the widget's Python back-end adds.
 Every visualization can be read and changed from code as well as by clicking: getters
 report what it shows, setters change it as its controls would, and exporters capture it
 as an image. The same keys work in Python (`widget.request_state()`,
-`widget.apply_state()`, `widget.screenshot()`) and JavaScript; see the
+`widget.apply_state()`, `widget.snapshot()`) and JavaScript; see the
 [Viz API](../javascript/viz-api.md).
 
-## Screenshots with provenance {#screenshots}
+## Snapshots {#snapshots}
+
+<span id="screenshots"></span>
 
 The goal is to **preserve an interactive observation as reproducible visual evidence**.
-A screenshot is the image export; its saved-view record preserves the scientific
-context and supported replay settings.
+A **Snapshot** is a screenshot plus a memo and metadata for reproducibility. Think of
+it as a postcard: a picture of a place in your data, with an explanation of why it
+matters and a way to return. The in-memory capture and its PNG export are both Snapshots.
 Celldega saves a PNG and a human-readable Markdown companion:
 
 - `<name>.png`: the image, with your description, who made it and when, the Celldega version, each
@@ -184,24 +187,25 @@ and `from_png` can load a recorded source into a fresh widget, but not every con
 is restored. See
 [replay coverage and limitations](../javascript/viz-api.md#replaying-supported-settings).
 
-Save one from a widget's control panel with **PIC**: it captures the view, then asks
-for a title and a description of what you're looking at and why it's interesting. Or
-from Python, on a Landscape, Clustergram, CellCloud or NeighborhoodCloud. In a web
-page without a notebook kernel, PIC downloads a PNG with the replay state and
+Save one from a widget's control panel with **SNAP**: it captures the view, then asks
+for a name and a memo of what you're looking at and why it's interesting. Or
+from Python, on a Landscape, Clustergram, Yearbook, CellCloud or NeighborhoodCloud. In a web
+page without a notebook kernel, SNAP downloads a PNG with the replay state and
 description embedded:
 
 ```python
-landscape.screenshot(
+landscape.snapshot(
+    name="Glomerulus",
     description="Podocyte-like cells ring each glomerulus; the ring breaks where ...",
     path="figures/",            # a folder, or a file like "figures/fig2a.png"
 )
 # A linked row (or several widgets) becomes one image, side by side:
-dega.viz.screenshot(linked, description="...", path="figures/fig2.png")
+dega.viz.snapshot(linked, description="...", path="figures/fig2.png")
 ```
 
 The image arrives from the browser after the cell finishes, so the call's output shows
 "Capturing…" and then a preview with the saved path. Without a path, screenshots go to
-`celldega_files/screenshots/` (or `widget.screenshot_dir`). This export directory can be
+`celldega_files/snapshots/` (or `widget.snapshot_dir`). This export directory can be
 kept out of version control or shared as a collection of evidence. Areas the
 visualization leaves empty are white, so the image looks the same in light and dark
 viewers; pass `background="black"` (any CSS color) or `background=None` for
@@ -214,11 +218,11 @@ no path to record (`read_h5ad` keeps none). The PNG stores its shape and marks i
 needed again when reopening. The whole record is typically a few KB.
 
 Record what Python can't see, such as the AnnData file a widget was made from, once per
-widget; it's added to every screenshot of it, including PIC ones. This is a note for
+widget; it's added to every screenshot of it, including SNAP ones. This is a note for
 readers: reopening still needs the object passed back.
 
 ```python
-landscape.screenshot_metadata = {"adata": "data/kidney.h5ad", "notebook": "review.ipynb"}
+landscape.snapshot_metadata = {"adata": "data/kidney.h5ad", "notebook": "review.ipynb"}
 ```
 
 Reopen the image as an interactive visualization:
@@ -237,8 +241,54 @@ Use `widget.restore_png(path)` to restore into a widget that already has its dat
 See [portable saved views](../javascript/saved-views.md#reopen-a-png-as-an-interactive-visualization)
 for browser usage, validation and restoration limits.
 
-Inspect the embedded record with `dega.viz.load_screenshot(path)` and discover a
-folder's PNG records with `dega.viz.load_screenshots(folder)`. A folder of screenshots
+Inspect the embedded record with `dega.viz.load_snapshot(path)` and discover a
+folder's PNG records with `dega.viz.load_snapshots(folder)`. A folder of screenshots
 works as a scrapbook of what you found along the way, reusable by people and
 application agents: [Clerk](clerk/index.md) can read it as a briefing or add
 its own.
+
+### Postcards in a notebook
+
+Saving with **SNAP** or `widget.snapshot(name="...")` also adds the capture to the
+viewer's `snap` dictionary. Names are preserved exactly; repeated names receive
+` (2)`, ` (3)`, etc. Use `list(landscape.snap)` to see them. The collection is local
+to that Python instance; the PNG and Markdown files persist on disk.
+
+After the capture finishes, display a postcard in a later notebook cell:
+
+```python
+from celldega.viz import Snapshot
+
+Snapshot(landscape=landscape, snapshot="Glomerulus")
+```
+
+The card shows a static PNG, its name and memo. **Snapshot metadata** expands the
+provenance and replay settings. The blue **Show this view** link restores the linked
+viewer and reports any failure. Several cards can point to the same viewer; place
+them between Markdown cells to explain an analysis step by step.
+
+```python
+# A file is also usable after restarting the kernel; link the newly displayed viewer.
+Snapshot("figures/glomerulus.png", landscape=landscape)
+Snapshot(clustergram=cgm, snapshot="Markers")
+Snapshot(yearbook=yb, snapshot="Interesting cells")
+
+# An unlinked postcard, including an ordinary PNG with your own caption:
+Snapshot("figures/overview.png", name="Overview", description="Start here.")
+# Or the in-memory image and state from request_snapshot():
+Snapshot(landscape.latest_snapshot, landscape=landscape)
+```
+
+Cards embed their PNG and text in notebook widget state and do not load the dataset
+or visualization renderer. Save notebook widget state to keep them when sharing a
+notebook. Navigation needs a live kernel and the linked viewer displayed. Ordinary
+PNGs have no replay metadata, so they show no navigation link. For a composite PNG,
+`panel=1` chooses the second viewer's state; the card still displays the composite.
+
+Navigation accepts a different viewer size by default (`allow_resize=False` requires
+the original size), but always checks data identity. Yearbook Snapshots preserve the
+actual ordered cells, page, zoom, checked cells, colors and supported layer controls;
+the grid layout must match. The original data must remain available.
+
+The former `screenshot()`, `load_screenshot()`, `load_screenshots()`,
+`screenshot_dir` and `screenshot_metadata` spellings remain compatibility aliases.

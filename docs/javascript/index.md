@@ -40,7 +40,7 @@ For a saved clustered Matrix, use `clustergram(element, {url})`.
 | `landscape(element, options)` | Spatial tissue and low dimensional embedding landscapes |
 | `clustergram(element, options)` | Heatmap or dot plot from a network, DegaFiles, or a saved Matrix Zarr |
 | `from_png(element, file, options)` | Reopen an exported PNG as an interactive visualization using its saved source and state |
-| `read_png(file)` / `screenshot_png(snapshot)` | Read embedded PNG metadata / export a saved view as a PNG |
+| `read_png(file)` / `snapshot_png(snapshot)` | Read embedded PNG metadata / export a saved view as a PNG |
 | `link_models(source, key, target, key)` | Link selections between visualizations |
 | `anndata_zarr_source(url, options)` | Cell-level Zarr metadata and per-gene expression reader |
 | `network_from_zarr(url)` | Restore a saved Matrix's browser visualization network |

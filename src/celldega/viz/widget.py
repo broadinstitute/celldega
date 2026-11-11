@@ -4373,7 +4373,7 @@ def _composition_matrix_inputs(
     }
 
 
-class Yearbook(CelldegaWidget):
+class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
 
@@ -4652,6 +4652,10 @@ class Yearbook(CelldegaWidget):
         self.meta_cell = meta_cell_df
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
+
+        self._listen_for_raster()
+        self._listen_for_state()
+        self._listen_for_pics()
 
     def get_selected_cells(self, adata=None):
         """Return checked IDs, or a copied AnnData subset in its original row order."""

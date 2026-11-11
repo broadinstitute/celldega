@@ -56,6 +56,7 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { add_pic_button } from '../ui/pic_button';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_selection } from '../ui/yearbook_selection';
 import { make_yearbook_ui_container } from '../ui/yearbook_ui';
@@ -69,7 +70,9 @@ import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
 import { run_ui_cleanups } from '../utils/ui_cleanup';
 
+import { handle_snapshot_message, consume_initial_snapshot } from './snapshot';
 import { compute_portrait_centers } from './yearbook_portrait_centers';
+import { create_yearbook_snapshot_api } from './yearbook_snapshot';
 
 // Row group reading support
 
@@ -216,6 +219,18 @@ export const yearbook = async (
   }
 
   const viz_state = {};
+  const pending_updates = new Set();
+  const tracked =
+    (operation) =>
+    async (...args) => {
+      const promise = operation(...args);
+      pending_updates.add(promise);
+      try {
+        return await promise;
+      } finally {
+        pending_updates.delete(promise);
+      }
+    };
 
   viz_state.obs_store = create_obs_store();
   viz_state.highlighted_cells = new Set();
@@ -759,7 +774,7 @@ export const yearbook = async (
   };
 
   // Update initial view states for all portraits
-  const update_all_portraits = async () => {
+  const update_all_portraits = tracked(async () => {
     const centers = await update_portrait_centers();
     const { zoom_level, portrait_data_size } = viz_state.yearbook;
     const { tile_size } = viz_state.img.landscape_parameters;
@@ -856,7 +871,7 @@ export const yearbook = async (
     if (viz_state.scale_bar) {
       viz_state.scale_bar.update({ zoom: zoom_level });
     }
-  };
+  });
 
   // Set up onclick handlers
   set_cell_layer_onclick(deck_yearbook, layers_obj, viz_state);
@@ -1037,7 +1052,7 @@ export const yearbook = async (
   });
 
   // Handle query changes from UI
-  const handle_query_change = async (new_query) => {
+  const handle_query_change = tracked(async (new_query) => {
     viz_state.yearbook.query = new_query;
 
     // Update status in UI
@@ -1131,7 +1146,7 @@ export const yearbook = async (
         viz_state.yearbook.query_ui.update_status('Query failed');
       }
     }
-  };
+  });
 
   // Create UI container
   const ui_container = make_yearbook_ui_container(
@@ -1146,6 +1161,7 @@ export const yearbook = async (
   // Listen for model changes
   if (Object.keys(viz_state.model).length > 0) {
     viz_state.model.on('change:current_page', () => {
+      if (viz_state.yearbook.restoring) return;
       const new_page = viz_state.model.get('current_page');
       if (new_page !== viz_state.yearbook.current_page) {
         handle_page_change(new_page);
@@ -1153,126 +1169,133 @@ export const yearbook = async (
     });
 
     viz_state.model.on('change:cells', async () => {
+      if (viz_state.yearbook.restoring) return;
       viz_state.yearbook.cells = viz_state.model.get('cells');
       await update_all_portraits();
       initViewStates();
     });
 
     viz_state.model.on('change:zoom_level', () => {
+      if (viz_state.yearbook.restoring) return;
       const new_zoom = viz_state.model.get('zoom_level');
       if (Math.abs(new_zoom - viz_state.yearbook.zoom_level) > 0.01) {
         syncZoomToAllPortraits(new_zoom);
       }
     });
 
-    viz_state.model.on('change:front_end_query', async () => {
-      const new_query = viz_state.model.get('front_end_query') || {};
-      viz_state.yearbook.query = new_query;
+    viz_state.model.on(
+      'change:front_end_query',
+      tracked(async () => {
+        if (viz_state.yearbook.restoring) return;
+        const new_query = viz_state.model.get('front_end_query') || {};
+        viz_state.yearbook.query = new_query;
 
-      // Update query UI inputs to reflect the new query
-      if (viz_state.yearbook.query_ui) {
-        const { cluster_input, gene_input, update_status } =
-          viz_state.yearbook.query_ui;
-        if (new_query.cluster) {
-          cluster_input.value = new_query.cluster.value || '';
-        } else {
-          cluster_input.value = '';
+        // Update query UI inputs to reflect the new query
+        if (viz_state.yearbook.query_ui) {
+          const { cluster_input, gene_input, update_status } =
+            viz_state.yearbook.query_ui;
+          if (new_query.cluster) {
+            cluster_input.value = new_query.cluster.value || '';
+          } else {
+            cluster_input.value = '';
+          }
+          if (new_query.gene) {
+            gene_input.value = new_query.gene || '';
+          } else {
+            gene_input.value = '';
+          }
+          update_status('Searching...');
         }
-        if (new_query.gene) {
-          gene_input.value = new_query.gene || '';
-        } else {
-          gene_input.value = '';
-        }
-        update_status('Searching...');
-      }
 
-      // Execute the new query
-      if (Object.keys(new_query).length > 0) {
-        // Update gene state if query includes a gene
-        if (new_query.gene) {
-          const inst_gene = new_query.gene;
+        // Execute the new query
+        if (Object.keys(new_query).length > 0) {
+          // Update gene state if query includes a gene
+          if (new_query.gene) {
+            const inst_gene = new_query.gene;
 
-          // Update category to gene mode
-          update_cat(viz_state.cats, inst_gene);
+            // Update category to gene mode
+            update_cat(viz_state.cats, inst_gene);
 
-          // Force-set selected genes (bypass toggle behavior). Uses
-          // force_set_selected_genes so genes.selected_gene_ids stays in sync and
-          // the trx layer focuses the queried gene's transcripts.
-          force_set_selected_genes(
-            viz_state.genes,
-            [inst_gene],
-            viz_state.obs_store
-          );
+            // Force-set selected genes (bypass toggle behavior). Uses
+            // force_set_selected_genes so genes.selected_gene_ids stays in sync and
+            // the trx layer focuses the queried gene's transcripts.
+            force_set_selected_genes(
+              viz_state.genes,
+              [inst_gene],
+              viz_state.obs_store
+            );
 
-          // Load gene expression data for cell coloring
-          const applied = await update_cell_exp_array(
-            viz_state.cats,
-            viz_state.genes,
-            viz_state.global_base_url,
-            inst_gene,
-            viz_state.seg.version,
-            viz_state.vector_name_integer,
-            viz_state.aws
-          );
+            // Load gene expression data for cell coloring
+            const applied = await update_cell_exp_array(
+              viz_state.cats,
+              viz_state.genes,
+              viz_state.global_base_url,
+              inst_gene,
+              viz_state.seg.version,
+              viz_state.vector_name_integer,
+              viz_state.aws
+            );
 
-          // Unless a newer selection replaced this one while its expression
-          // loaded (the query's cells below still update).
-          if (is_current_gene_load(viz_state.cats, applied, inst_gene)) {
-            // Force-set selected_cats (bypass toggle behavior)
-            viz_state.cats.selected_cats = [inst_gene];
-            viz_state.obs_store.selected_cats.set([inst_gene]);
+            // Unless a newer selection replaced this one while its expression
+            // loaded (the query's cells below still update).
+            if (is_current_gene_load(viz_state.cats, applied, inst_gene)) {
+              // Force-set selected_cats (bypass toggle behavior)
+              viz_state.cats.selected_cats = [inst_gene];
+              viz_state.obs_store.selected_cats.set([inst_gene]);
 
-            // Refresh layers to apply gene filtering/coloring
+              // Refresh layers to apply gene filtering/coloring
+              refresh_layer(viz_state, layers_obj, 'cell_layer');
+              refresh_layer(viz_state, layers_obj, 'trx_layer');
+            }
+          } else {
+            // No gene - reset to cluster mode
+            update_cat(viz_state.cats, 'cluster');
+
+            // Force-clear selections
+            // Force-clear selections (also clears genes.selected_gene_ids).
+            force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
+            viz_state.cats.selected_cats = [];
+            viz_state.obs_store.selected_cats.set([]);
+
+            // Refresh layers to reset to cluster mode
             refresh_layer(viz_state, layers_obj, 'cell_layer');
             refresh_layer(viz_state, layers_obj, 'trx_layer');
           }
-        } else {
-          // No gene - reset to cluster mode
-          update_cat(viz_state.cats, 'cluster');
 
-          // Force-clear selections
-          // Force-clear selections (also clears genes.selected_gene_ids).
-          force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
-          viz_state.cats.selected_cats = [];
-          viz_state.obs_store.selected_cats.set([]);
+          const queried_cells = await process_query(new_query);
+          viz_state.yearbook.cells = queried_cells;
 
-          // Refresh layers to reset to cluster mode
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
+          // Update status
+          if (viz_state.yearbook.query_ui) {
+            viz_state.yearbook.query_ui.update_status(
+              `Found ${queried_cells.length} cells`
+            );
+          }
+
+          // Sync cells back to model
+          viz_state.model.set('cells', queried_cells);
+          viz_state.model.save_changes();
+
+          // Reset to first page and update portraits
+          viz_state.yearbook.current_page = 0;
+          viz_state.model.set('current_page', 0);
+
+          await update_all_portraits();
+          initViewStates();
+
+          if (viz_state.yearbook.update_pagination_ui) {
+            viz_state.yearbook.update_pagination_ui();
+          }
         }
-
-        const queried_cells = await process_query(new_query);
-        viz_state.yearbook.cells = queried_cells;
-
-        // Update status
-        if (viz_state.yearbook.query_ui) {
-          viz_state.yearbook.query_ui.update_status(
-            `Found ${queried_cells.length} cells`
-          );
-        }
-
-        // Sync cells back to model
-        viz_state.model.set('cells', queried_cells);
-        viz_state.model.save_changes();
-
-        // Reset to first page and update portraits
-        viz_state.yearbook.current_page = 0;
-        viz_state.model.set('current_page', 0);
-
-        await update_all_portraits();
-        initViewStates();
-
-        if (viz_state.yearbook.update_pagination_ui) {
-          viz_state.yearbook.update_pagination_ui();
-        }
-      }
-    });
+      })
+    );
   }
 
   // UI and Viz Container
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  const snapshot_cleanups = [];
   const yearbook_api = {
     update_page: handle_page_change,
     get_selected_cells: review_selection.get_selected_cells,
@@ -1325,6 +1348,7 @@ export const yearbook = async (
     },
     finalize: () => {
       viz_state.disposed = true;
+      snapshot_cleanups.splice(0).forEach((cleanup) => cleanup());
       review_selection.dispose();
       run_ui_cleanups(viz_state);
       viz_state.cache?.cell?.clear?.();
@@ -1344,5 +1368,53 @@ export const yearbook = async (
     },
   };
 
+  Object.assign(
+    yearbook_api,
+    create_yearbook_snapshot_api({
+      state: viz_state,
+      deck: deck_yearbook,
+      root,
+      layers: layers_obj,
+      refresh: yearbook_api.refresh,
+      selection: review_selection,
+      ready: async () => {
+        while (pending_updates.size) {
+          // Follow query/portrait loads before pairing their state with the image.
+          // eslint-disable-next-line no-await-in-loop
+          await Promise.all([...pending_updates]);
+        }
+      },
+    })
+  );
+  const pic = add_pic_button(ui_container, {
+    model: viz_state.model,
+    capture: async () => ({
+      snapshot: await yearbook_api.snapshot({ max_size: 2048, thumb_size: 64 }),
+    }),
+  });
+  const snapshot_message = async (msg) => {
+    if (pic.on_message(msg)) return;
+    if (msg?.event === 'capture_raster') {
+      try {
+        const saved = await yearbook_api.snapshot({
+          max_size: msg.max_size,
+          thumb_size: msg.thumb_size,
+        });
+        viz_state.model.send({ event: 'raster', id: msg.id, ...saved.image });
+      } catch (error) {
+        viz_state.model.send({
+          event: 'raster_error',
+          id: msg.id,
+          error: error.message,
+        });
+      }
+    } else await handle_snapshot_message(viz_state.model, yearbook_api, msg);
+  };
+  viz_state.model?.on?.('msg:custom', snapshot_message);
+  snapshot_cleanups.push(() => {
+    pic.dispose();
+    viz_state.model?.off?.('msg:custom', snapshot_message);
+  });
+  await consume_initial_snapshot(viz_state.model, yearbook_api, el);
   return yearbook_api;
 };

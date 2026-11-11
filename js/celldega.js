@@ -687,6 +687,7 @@ export default {
   clustergram,
   link_models,
   read_png,
+  snapshot_png: screenshot_png,
   screenshot_png,
   from_png,
   // Lower-level renderers and readers.

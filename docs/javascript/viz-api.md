@@ -8,9 +8,8 @@ code. Support varies by widget and control. Three kinds of methods cover this:
   and the values behind them.
 - **Setters** change what it shows, as its controls would: select clusters, color by
   genes, zoom to cells, move the Clustergram's marker level, label columns.
-- **Exporters** capture what it shows at three levels: a raster (the image alone), a
-  saved view (the image with its state, in memory), and a screenshot (a PNG file with
-  the saved view embedded). See [the three levels](saved-views.md#terms-and-scope).
+- **Snapshots** capture an image, memo and metadata for reproducibility, in memory
+  or as a PNG. See [Snapshots](saved-views.md#terms-and-scope).
 
 `get_state()` returns bounded scientific observations. `get_replay_state()` returns
 complete inputs for supported controls, without those observation caps. Only the
@@ -32,16 +31,17 @@ evidence it finds, and save it.
 | Replay inputs | `viz.get_replay_state()` | `widget.latest_snapshot["state"]` after capture |
 | Set | `await viz.apply_state(changes)` | `widget.apply_state(changes)`, then `widget.get_apply_result(widget.apply_request_id)` |
 | Raster | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png` |
-| Save view | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
-| Screenshot | `celldega.screenshot_png(saved_view)` returns a PNG Blob | `widget.screenshot(description, path)` writes the PNG |
+| Capture Snapshot | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
+| Save Snapshot | `celldega.snapshot_png(snapshot)` returns a PNG Blob | `widget.snapshot(description, path, name="...")` writes PNG + Markdown |
+| Notebook postcard | — | `dega.viz.Snapshot(landscape=landscape, snapshot="name")` |
 | Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then `widget.get_apply_result(request_id)` |
 | Open PNG | `await celldega.from_png(el, file, options)` | `dega.viz.from_png(path, **options)`, then display the widget |
-| Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_screenshot(path)` |
+| Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_snapshot(path)` |
 
 In Python, every request is answered asynchronously: the browser's reply reaches
 Python only after the calling cell finishes. Read `latest_state`, `raster_png` or
-`get_apply_result(...)` in a later cell, or `observe` the traits. Nothing is ever
-saved into the notebook's widget state.
+`get_apply_result(...)` in a later cell, or `observe` the traits. Live-view capture traits are not synced into notebook widget state. A displayed
+`Snapshot` postcard embeds its PNG, memo and metadata so the card can be shared.
 
 Design rules the API follows:
 

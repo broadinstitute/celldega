@@ -241,7 +241,7 @@ def build_notebook(
         ]
     header += [
         "",
-        "Each screenshot is shown under code to replay supported settings with the "
+        "Each Snapshot is shown under code to replay supported settings with the "
         "widgets' `restore_snapshot` API (or `apply_state` for older records): load the "
         "same data in your linked widgets (named "
         f"`{(names or {}).get('landscape', 'landscape')}` and "

@@ -61,7 +61,7 @@ describe('add_pic_button', () => {
 
   test('sits in the search row, just before the logo, as an all-caps text button', () => {
     const { row, logo, pic } = setup();
-    expect(pic.button.textContent).toBe('PIC');
+    expect(pic.button.textContent).toBe('SNAP');
     expect(pic.button.nextSibling).toBe(logo);
     expect(pic.button.parentNode).toBe(row);
   });
@@ -134,7 +134,7 @@ describe('add_pic_button', () => {
     expect(dialog()).toBeNull();
   });
 
-  test('standalone PIC downloads a complete saved view without a kernel', async () => {
+  test('standalone SNAP downloads a complete saved view without a kernel', async () => {
     jest.useFakeTimers();
     const click = jest
       .spyOn(HTMLAnchorElement.prototype, 'click')
@@ -168,7 +168,7 @@ describe('add_pic_button', () => {
         { title: '' }
       );
       expect(click).toHaveBeenCalledTimes(1);
-      expect(dialog().textContent).toContain('Downloaded saved view');
+      expect(dialog().textContent).toContain('Downloaded Snapshot');
       jest.advanceTimersByTime(1000);
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:saved-view');
     } finally {

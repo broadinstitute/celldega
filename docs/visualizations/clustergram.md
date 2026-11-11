@@ -322,7 +322,7 @@ As a notebook widget, a Clustergram also shares its state with Python:
   category strips) as a PNG, like the Landscape's; read `cgm.raster_png` (and the
   `cgm.raster_thumb` preview) in a later cell. Captures stay in memory and are never
   saved into the notebook. In JavaScript, `matrix.capture_raster()` returns the same.
-  To save a PNG file that can be reopened, use `cgm.screenshot()` (see
+  To save a PNG file that can be reopened, use `cgm.snapshot()` (see
   [Screenshots](index.md#screenshots)).
 
 ```python

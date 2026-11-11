@@ -11,7 +11,16 @@ from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
 from .reopen import from_png
-from .screenshots import Screenshot, load_screenshot, load_screenshots, screenshot
+from .screenshots import (
+    Screenshot,
+    load_screenshot,
+    load_screenshots,
+    load_snapshot,
+    load_snapshots,
+    screenshot,
+    snapshot,
+)
+from .snapshot_widget import Snapshot
 from .snapshots import fingerprint_dataset
 from .widget import Clerk, Clustergram, Composition, Enrich, Landscape, Yearbook
 
@@ -653,6 +662,7 @@ __all__ = [
     "Landscape",
     "NeighborhoodCloud",
     "Screenshot",
+    "Snapshot",
     "Yearbook",
     "clustergram_enrich",
     "from_png",
@@ -665,6 +675,9 @@ __all__ = [
     "link_clerk",
     "load_screenshot",
     "load_screenshots",
+    "load_snapshot",
+    "load_snapshots",
     "screenshot",
+    "snapshot",
     "spatial_clustergram",
 ]

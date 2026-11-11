@@ -1066,7 +1066,7 @@ export const render_clerk = async ({ model, el }) => {
   container.insertBefore(reportForm, messagesPane);
   tool(
     'Report',
-    'Save this conversation as an HTML report with its screenshots, the state to ' +
+    'Save this conversation as an HTML report with its snapshots, the state to ' +
       'reproduce them, and the recorded cell types (written next to the notebook)',
     () => {
       if (model.get('pending')) return;

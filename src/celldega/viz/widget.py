@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Sequence
 import colorsys
 import concurrent.futures
+import contextlib
 from copy import deepcopy
 import importlib.metadata
 import json
@@ -1618,11 +1619,8 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             )
         self.pin_data = kept
 
-    # Constructor options that say which data a Landscape shows.
+    # Constructor options that say which data a Landscape shows (besides its URLs).
     _DATA_KEYS = (
-        "base_url",
-        "base_urls",
-        "zarr_url",
         "zarr_layer",
         "technology",
         "segmentation",
@@ -1637,6 +1635,19 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
         Opening a pin checks the data itself (its cell, gene and cluster names) too.
         """
+
+        def urls(values) -> set[str]:
+            out = {str(values(key) or "") for key in ("base_url", "zarr_url")}
+            for entry in values("base_urls") or []:
+                out.add(str(entry.get("url", "") if isinstance(entry, dict) else entry))
+            return {url.rstrip("/") for url in out if url}
+
+        # Where the data lives: DegaFiles (base_url) and an AnnData Zarr are different
+        # data, even though neither side names the other's location.
+        mine = urls(lambda k: getattr(self, k, None) if self.has_trait(k) else None)
+        theirs = urls(source.get)
+        if mine and theirs and not mine & theirs:
+            return False
         for key in self._DATA_KEYS:
             theirs = source.get(key)
             mine = getattr(self, key, None) if self.has_trait(key) else None
@@ -2700,6 +2711,55 @@ class Clerk(CelldegaWidget):
                 if name:
                     rows[name] = label
         return rows
+
+    @property
+    def snapshots(self):
+        """The views Clerk was shown in this conversation, as :class:`Snapshots`.
+
+        One per widget per capture, named by question: ``"Q1 Landscape"``,
+        ``"Q1 Clustergram"`` (a later capture for the same question is ``"Q1.2
+        Landscape"``), with the question as the memo; plus the Snapshots Clerk saved
+        with its screenshot action. They're kept in memory (and written as Snapshot
+        PNGs when you export a report); ``clerk.snapshots.save(folder)`` writes them::
+
+            clerk.snapshots.card("Q1 Landscape", landscape=landscape)
+            landscape.pins = clerk.snapshots
+        """
+        from .snapshot_widget import Snapshots
+
+        out = Snapshots()
+        for number, entry in enumerate(self.record, start=1):
+            captures = 0
+            question = str(entry.get("question") or "")
+            for step in entry.get("steps") or []:
+                if step.get("kind") == "screenshot":
+                    path = Path(str(step.get("text") or ""))
+                    if path.suffix.lower() == ".png" and path.is_file():
+                        # A PNG without a Snapshot record is skipped.
+                        with contextlib.suppress(ValueError):
+                            out.add(path)
+                    continue
+                if step.get("kind") != "capture" or not (
+                    step.get("image") or step.get("clustergram_image")
+                ):
+                    continue
+                captures += 1
+                label = f"Q{number}" if captures == 1 else f"Q{number}.{captures}"
+                for key, widget in (("image", "landscape"), ("clustergram_image", "clustergram")):
+                    view = (step.get("snapshots") or {}).get(widget)
+                    if not step.get(key) or not view:
+                        continue
+                    name = f"{label} {widget.title()}"
+                    out.add(
+                        {
+                            **deepcopy(view),
+                            "image": {"png": step[key]},
+                            "title": name,
+                            "description": question,
+                        },
+                        name=name,
+                    )
+        return out
 
     def findings_df(self) -> pd.DataFrame:
         """Cell types Clerk has proposed, one row per proposal (latest last).

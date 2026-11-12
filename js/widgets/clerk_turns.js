@@ -222,6 +222,12 @@ export const link_genes = (
 const CLUSTER_PHRASE =
   /\b(clusters?)(\s+)([A-Za-z0-9_+-]+(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+|\s*&\s*|\s*\/\s*)[A-Za-z0-9_+-]+)*)/gi;
 const CLUSTER_ID = /[A-Za-z0-9_+-]+/g;
+// Two or more names joined by commas, slashes, "and" or "&" ("20, 5, 16", "13/25").
+const CLUSTER_RUN =
+  /(?<![\w.%-])[A-Za-z0-9_+]+(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+|\s*&\s*|\s*\/\s*)[A-Za-z0-9_+]+)+(?![\w.%])/g;
+// A run followed by a unit is a quantity, not clusters ("10, 25 markers").
+const UNIT_AFTER =
+  /^\s*(?:%|percent|markers?|genes?|cells?|rows?|columns?|reads?|counts?|terms?|px|µm|um|mm|x\b)/i;
 
 /**
  * Turn cluster references ("cluster 4", "clusters 4, 5 and 12") into links, for the
@@ -244,59 +250,91 @@ export const link_clusters = (
   if (!clusters.length) return 0;
   const known = new Set(clusters.map(String));
   const doc = root.ownerDocument;
-  const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */, {
-    acceptNode: (node) =>
-      node.parentElement?.closest(`${SKIP_LINKING}, .clerk-cluster`) ? 2 : 1,
-  });
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
 
-  let linked = 0;
-  nodes.forEach((node) => {
+  const make_link = (id) => {
+    const link = doc.createElement('span');
+    link.className = 'clerk-cluster';
+    link.dataset.cluster = id;
+    link.textContent = id;
+    link.tabIndex = 0;
+    link.setAttribute('role', 'button');
+    link.setAttribute(
+      'aria-label',
+      `cluster ${id}: highlight in the Landscape (shift-click adds it)`
+    );
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      hover.hide?.();
+      on_click(id, event.shiftKey);
+    });
+    link.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        on_click(id, event.shiftKey);
+      }
+    });
+    link.addEventListener('mouseenter', (event) => hover.show?.(id, event));
+    link.addEventListener('mousemove', (event) => hover.move?.(event));
+    link.addEventListener('mouseleave', () => hover.hide?.());
+    return link;
+  };
+
+  const text_nodes = () => {
+    const walker = doc.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */, {
+      acceptNode: (node) =>
+        node.parentElement?.closest(`${SKIP_LINKING}, .clerk-cluster`) ? 2 : 1,
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    return nodes;
+  };
+
+  // Replace the ids found in a text node (`[start, id]` pairs, in order).
+  const link_in = (node, found) => {
+    if (!found.length) return 0;
     const text = node.nodeValue;
     const fragment = doc.createDocumentFragment();
     let last = 0;
-    [...text.matchAll(CLUSTER_PHRASE)].forEach((phrase) => {
+    found.forEach(([start, id]) => {
+      fragment.append(text.slice(last, start));
+      fragment.append(make_link(id));
+      last = start + id.length;
+    });
+    fragment.append(text.slice(last));
+    node.replaceWith(fragment);
+    return found.length;
+  };
+
+  let linked = 0;
+  // "cluster 4", "clusters 4, 5 and 12".
+  text_nodes().forEach((node) => {
+    const found = [];
+    [...node.nodeValue.matchAll(CLUSTER_PHRASE)].forEach((phrase) => {
       const ids_start = phrase.index + phrase[1].length + phrase[2].length;
       [...phrase[3].matchAll(CLUSTER_ID)].forEach((id_match) => {
-        const id = id_match[0];
-        if (!known.has(id)) return;
-        const start = ids_start + id_match.index;
-        fragment.append(text.slice(last, start));
-        const link = doc.createElement('span');
-        link.className = 'clerk-cluster';
-        link.dataset.cluster = id;
-        link.textContent = id;
-        link.tabIndex = 0;
-        link.setAttribute('role', 'button');
-        link.setAttribute(
-          'aria-label',
-          `cluster ${id}: highlight in the Landscape (shift-click adds it)`
-        );
-        link.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          hover.hide?.();
-          on_click(id, event.shiftKey);
-        });
-        link.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            on_click(id, event.shiftKey);
-          }
-        });
-        link.addEventListener('mouseenter', (event) => hover.show?.(id, event));
-        link.addEventListener('mousemove', (event) => hover.move?.(event));
-        link.addEventListener('mouseleave', () => hover.hide?.());
-        fragment.append(link);
-        last = start + id.length;
-        linked += 1;
+        if (known.has(id_match[0]))
+          found.push([ids_start + id_match.index, id_match[0]]);
       });
     });
-    if (last > 0) {
-      fragment.append(text.slice(last));
-      node.replaceWith(fragment);
-    }
+    linked += link_in(node, found);
+  });
+
+  // Lists of clusters without the word right before them, in a sentence or list
+  // item that is about clusters: "high for 20, 5, 16; medium for 13/25; cluster 7
+  // is ...". Only runs of two or more known names, not followed by a unit.
+  text_nodes().forEach((node) => {
+    const block = node.parentElement?.closest('p, li, td, th, div');
+    if (!block || !/\bclusters?\b/i.test(block.textContent || '')) return;
+    const found = [];
+    [...node.nodeValue.matchAll(CLUSTER_RUN)].forEach((run) => {
+      const ids = [...run[0].matchAll(CLUSTER_ID)];
+      if (ids.length < 2 || !ids.every((m) => known.has(m[0]))) return;
+      const after = node.nodeValue.slice(run.index + run[0].length);
+      if (UNIT_AFTER.test(after)) return;
+      ids.forEach((m) => found.push([run.index + m.index, m[0]]));
+    });
+    linked += link_in(node, found);
   });
   return linked;
 };

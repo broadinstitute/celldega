@@ -14,6 +14,10 @@ import {
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
+// Clerk's own words (answers, interim replies, evidence) in a serif, set apart from
+// the scientist's questions and the panel's controls.
+const CLERK_SERIF =
+  'ui-serif, "Iowan Old Style", Charter, Georgia, Cambria, "Times New Roman", serif';
 
 // Library used to pre-gather Enrichr evidence that rides along in the prompt.
 const ENRICHR_LIB = 'CellMarker_2024';
@@ -33,7 +37,9 @@ const NARROW_PANEL_WIDTH = 480;
 // the rest of the notebook.
 const PANEL_CLASS = 'celldega-clerk';
 const MARKDOWN_CSS = `
-.${PANEL_CLASS} .clerk-md p { margin: 4px 0; }
+.${PANEL_CLASS} .clerk-md { font-family: ${CLERK_SERIF}; }
+.${PANEL_CLASS} .clerk-md code, .${PANEL_CLASS} .clerk-md pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.${PANEL_CLASS} .clerk-md p { margin: 5px 0; }
 .${PANEL_CLASS} .clerk-md a { color: #2c7fb8; }
 .${PANEL_CLASS} .clerk-md h1, .${PANEL_CLASS} .clerk-md h2 { font-size: 15px; margin: 10px 0 4px; }
 .${PANEL_CLASS} .clerk-md h3, .${PANEL_CLASS} .clerk-md h4,
@@ -48,7 +54,7 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-md blockquote { border-left: 3px solid #d3d3d3; margin: 4px 0; padding-left: 8px; color: #555; }
 .${PANEL_CLASS} .clerk-md hr { border: none; border-top: 1px solid #d3d3d3; margin: 8px 0; }
 .${PANEL_CLASS} details > summary { cursor: pointer; }
-.${PANEL_CLASS} .clerk-turn { margin-bottom: 10px; border-bottom: 1px solid #eef0f2; padding-bottom: 6px; }
+.${PANEL_CLASS} .clerk-turn { margin-bottom: 16px; border-bottom: 1px solid #eef0f2; padding-bottom: 10px; }
 .${PANEL_CLASS} .clerk-turn > summary { font-size: 14px; line-height: 1.35; white-space: pre-wrap; }
 .${PANEL_CLASS} .clerk-fold > summary { font-size: 12px; color: #6c757d; margin: 4px 0 2px; }
 .${PANEL_CLASS} .clerk-fold[open] { border-left: 2px solid #e3e6e9; padding-left: 8px; }
@@ -509,14 +515,15 @@ export const render_clerk = async ({ model, el }) => {
     send_now({ show_clusters: shown_clusters });
     mark_shown();
   };
-  // What an Enrichr chart needs from the panel (see clerk_enrichment.js).
+  // What an Enrichr chart needs from the panel (see clerk_enrichment.js). Its bars
+  // scroll under the conversation's own containment, which passes the gesture on
+  // to the conversation at their ends.
   const enrichment_handlers = {
     on_gene: show_gene,
     on_genes: (genes) => show_genes(genes.slice(0, MAX_SHOWN_GENES), genes[0]),
     tooltip: gene_tooltip,
     esc,
     fetch_terms,
-    contain_scroll,
   };
 
   const cluster_html = (cluster) => {
@@ -724,8 +731,8 @@ export const render_clerk = async ({ model, el }) => {
   const markdown = (text, links = {}) => {
     const body = document.createElement('div');
     body.className = 'clerk-md';
-    body.style.fontSize = '14px';
-    body.style.lineHeight = '1.35';
+    body.style.fontSize = '15px';
+    body.style.lineHeight = '1.45';
     body.innerHTML = render_markdown(unbracket(text, links.genes));
     add_links(body, { views: null, ...links });
     return body;
@@ -790,7 +797,8 @@ export const render_clerk = async ({ model, el }) => {
     let asked = false;
     if (turn.answer) {
       const answer = document.createElement('div');
-      answer.style.marginTop = '4px';
+      // Room between the question (and its work) and Clerk's answer.
+      answer.style.marginTop = '12px';
       answer.appendChild(make_label('Clerk', '#2c7fb8'));
       const {
         main,

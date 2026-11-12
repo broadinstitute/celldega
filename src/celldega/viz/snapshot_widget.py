@@ -272,6 +272,10 @@ def _saved_view(record: dict, kind: str) -> dict | None:
     for widget in candidates:
         snapshot = widget.get("snapshot") or {}
         if snapshot.get("kind") == kind:
+            # Where the data came from: the saved view's own record, else the
+            # widget's (both are written by Celldega; older files may lack one).
+            if not snapshot.get("source") and widget.get("source"):
+                snapshot = {**snapshot, "source": widget["source"]}
             return snapshot
     return None
 
@@ -343,6 +347,39 @@ class Snapshots:
     def names(self) -> list[str]:
         return list(self._items)
 
+    def save(self, folder) -> list[Path]:
+        """Write the Snapshots kept only in memory (e.g. ``clerk.snapshots``) to
+        ``folder`` as Snapshot PNGs; returns the files written.
+
+        Snapshots already on disk are left where they are. Each written file reopens
+        as before, e.g. ``Snapshots(folder)`` in a later session.
+        """
+        from .screenshots import write_screenshot
+
+        folder = Path(folder).expanduser()
+        folder.mkdir(parents=True, exist_ok=True)
+        written = []
+        for name, record in self._items.items():
+            if record.get("_path") or record.get("schema") != "celldega.view":
+                continue
+            png = (record.get("image") or {}).get("png")
+            if not png:
+                continue
+            kind = str(record.get("kind") or "landscape")
+            source = {"widget": kind.title(), **(record.get("source") or {})}
+            stem = "".join(c if c.isalnum() or c in "-_." else "_" for c in name).strip("_")
+            path = write_screenshot(
+                folder / f"{stem or 'snapshot'}.png",
+                [{"image": png, "source": source, "snapshot": restore_spec(record)}],
+                title=name,
+                description=str(record.get("description") or ""),
+                author=str(record.get("author") or ""),
+                markdown=False,
+            )
+            record["_path"] = str(path)
+            written.append(path)
+        return written
+
     def card(self, name: str, **kwargs) -> Snapshot:
         """A postcard for one of these Snapshots, chosen by name.
 
@@ -390,9 +427,7 @@ class Snapshots:
             out.append(
                 {
                     "name": name,
-                    "description": str(
-                        record.get("description") or view.get("description") or ""
-                    ),
+                    "description": str(record.get("description") or view.get("description") or ""),
                     "target": [x, y],
                     "space": space,
                     "snapshot": restore_spec(view),

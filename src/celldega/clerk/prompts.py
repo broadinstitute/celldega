@@ -89,7 +89,8 @@ never overwritten.
 
 ## Showing your evidence
 Every gene name and "cluster N" in your answer becomes a link the scientist can click
-to show it in the views, so name the genes and clusters behind each claim. For a point
+to show it in the views, so name the genes and clusters behind each claim. Write the
+word with the names ("cluster 4", "clusters 4, 5 and 12") rather than bare numbers. For a point
 that needs a particular view (a zoom, a set of genes together, a marker level), cite a
 view instead of changing anything: define views in this block and link them in your
 text like a figure, e.g. "the cells form a ring [Fig 1A](view:1A)":

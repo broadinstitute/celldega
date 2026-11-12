@@ -838,4 +838,34 @@ describe('Clerk panel', () => {
     ).toEqual(['MYH11', 'ACTA2']);
     expect(body.querySelector('.clerk-cluster').textContent).toBe('27');
   });
+  test('cluster lists are links in sentences about clusters', async () => {
+    const { el, model } = await render({
+      cluster_names: ['5', '7', '12', '13', '16', '20', '25', '26'],
+      messages: answer_with(
+        'Confidence high for 20, 5, 16, 26, 12; medium for 13/25; cluster 7 is ' +
+          'uncertain (SLC4A11, ITGB3).\n\nThe top 12, 25 markers were checked.\n\n' +
+          'Values 5, 7 and 12 are rounded.',
+        { genes: ['SLC4A11', 'ITGB3'] }
+      ),
+    });
+    const paragraphs = [...el.querySelectorAll('.clerk-md p')];
+    const linked = (p) =>
+      [...p.querySelectorAll('.clerk-cluster')].map((l) => l.textContent);
+    expect(linked(paragraphs[0])).toEqual([
+      '20',
+      '5',
+      '16',
+      '26',
+      '12',
+      '13',
+      '25',
+      '7',
+    ]);
+    // A list followed by a unit is a quantity; a sentence not about clusters is left
+    // alone.
+    expect(linked(paragraphs[1])).toEqual([]);
+    expect(linked(paragraphs[2])).toEqual([]);
+    paragraphs[0].querySelectorAll('.clerk-cluster')[1].click();
+    expect(model.get('request')).toMatchObject({ show_clusters: ['5'] });
+  });
 });

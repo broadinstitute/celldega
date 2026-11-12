@@ -18,6 +18,7 @@ dist
 !docs/examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb
 !notebooks/clerk/Snapshots_and_Pins.ipynb
+!notebooks/clerk/Snapshots_and_Pins_PBMC3k.ipynb
 !docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb
 !docs/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz.ipynb
 !docs/examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb

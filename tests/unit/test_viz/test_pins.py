@@ -135,3 +135,54 @@ def test_a_card_is_chosen_by_name_and_opens_its_view_in_the_browser(tmp_path):
     card.view_request = {"id": "1", "snapshot": card.view}
     with pytest.raises(KeyError, match="No Snapshot named"):
         poi.card("Nope")
+
+
+def test_clerk_keeps_the_views_it_was_shown_as_snapshots(tmp_path):
+    from celldega.viz import Clerk
+
+    w = Clerk()
+    capture = {
+        "kind": "capture",
+        "image": PNG,
+        "clustergram_image": PNG,
+        "snapshots": {"landscape": _view(), "clustergram": _view(kind="clustergram")},
+    }
+    w.record = [
+        {"question": "What is cluster 4?", "steps": [capture, {"kind": "answer", "text": "x"}]},
+        {"question": "And here?", "steps": [capture, dict(capture, clustergram_image="")]},
+    ]
+    snaps = w.snapshots
+    assert snaps.names() == [
+        "Q1 Landscape",
+        "Q1 Clustergram",
+        "Q2 Landscape",
+        "Q2 Clustergram",
+        "Q2.2 Landscape",
+    ]
+    assert snaps["Q1 Landscape"]["description"] == "What is cluster 4?"
+    # Pinned on a Landscape (only the Landscape views have a place there) ...
+    ls = _landscape()
+    ls.pins = snaps
+    assert [p["name"] for p in ls.pins] == ["Q1 Landscape", "Q2 Landscape", "Q2.2 Landscape"]
+    # ... shown as cards, and written to disk to reopen in a later session.
+    card = snaps.card("Q1 Clustergram")
+    assert card.name == "Q1 Clustergram" and card.description == "What is cluster 4?"
+    written = snaps.save(tmp_path / "clerk_snapshots")
+    assert [p.name for p in written][:2] == ["Q1_Landscape.png", "Q1_Clustergram.png"]
+    again = Snapshots(tmp_path / "clerk_snapshots")
+    assert (
+        "Q2.2 Landscape" in again and again["Q1 Landscape"]["description"] == "What is cluster 4?"
+    )
+    assert {p["name"] for p in again.pins()} == {"Q1 Landscape", "Q2 Landscape", "Q2.2 Landscape"}
+
+
+def test_degafiles_snapshots_are_not_pinned_on_a_zarr_landscape(tmp_path):
+    glom = _snapshot(tmp_path, "Glomerulus", "")  # from https://example.com/data
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        zarr = Landscape(zarr_url="https://example.com/cells.zarr")
+    with pytest.warns(UserWarning, match="other data than this Landscape: Glomerulus"):
+        zarr.pins = [glom]
+    assert zarr.pins == []
+    # The Landscape normalizes base_url into base_urls; the same URL still matches.
+    assert [p["name"] for p in _landscape(snapshots=[glom]).pins] == ["Glomerulus"]

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import stat
 import sys
+import time
 
 import pytest
 
@@ -22,6 +23,7 @@ BLOCK = """Cluster A looks like B cells; a signature score would settle it.
 
 ```celldega-notebook
 title: B cell signature score
+requested: no
 # %% [markdown]
 # Score a <cell type> signature across the clusters.
 # %%
@@ -37,6 +39,11 @@ def test_a_drafted_notebook_is_split_into_cells():
     assert problem is None
     assert text == "Cluster A looks like B cells; a signature score would settle it."
     assert notebook["title"] == "B cell signature score"
+    assert notebook["requested"] is False  # Clerk's own suggestion
+    assert analysis.extract_notebook(BLOCK.replace("requested: no", "requested: yes"))[1][
+        "requested"
+    ]
+    assert analysis.purpose(notebook) == "Score a <cell type> signature across the clusters."
     assert [c["type"] for c in notebook["cells"]] == ["markdown", "code", "code"]
     assert notebook["cells"][0]["source"] == "Score a <cell type> signature across the clusters."
     assert notebook["cells"][1]["source"].startswith("import scanpy as sc")
@@ -114,44 +121,67 @@ def test_the_runner_reports_claude_codes_summary(tmp_path, monkeypatch):
     assert analysis.run_with_claude_code(tmp_path / "missing.ipynb")["ok"] is False
 
 
-def test_clerk_drafts_a_notebook_and_runs_it_only_when_asked(tmp_path, monkeypatch):
+def _clerk(tmp_path, monkeypatch, answer):
     asked = []
 
     def fake_ask(question, **kwargs):
         asked.append(kwargs)
-        return BLOCK
+        return answer
 
     monkeypatch.setattr(clerk_llm, "ask", fake_ask)
+    w = Clerk()
+    w.output_dir = str(tmp_path)
+    w.analysis_data = {"adata": "data/cells.h5ad"}
+    return w, asked
+
+
+def test_a_suggested_notebook_is_written_only_when_the_scientist_says_so(tmp_path, monkeypatch):
+    w, asked = _clerk(tmp_path, monkeypatch, BLOCK)
+    w.request = {"id": "1", "question": "Is cluster A B cells?"}
+    assert w.wait(timeout=5)
+    # Clerk was told where the data lives; it suggested a notebook, wrote nothing.
+    assert any(
+        "Data for analysis notebooks: adata: data/cells.h5ad" in n for n in asked[0]["notes"]
+    )
+    assert w.analyses == [] and not (tmp_path / "analyses").exists()
+    line = next(m for m in w.messages if m.get("notebook_offer"))
+    assert line["content"] == "Suggested an analysis notebook: B cell signature score"
+    offer = line["notebook_offer"]
+    assert offer["status"] == "offered"
+    assert offer["purpose"] == "Score a <cell type> signature across the clusters."
+
+    # Draft notebook: the same line becomes the drafted notebook's.
+    w._on_panel_msg(w, {"event": "draft_notebook", "id": offer["id"]}, [])
+    (entry,) = w.analyses
+    assert entry["status"] == "drafted" and Path(entry["path"]).is_file()
+    assert Path(entry["path"]).parent == tmp_path / "analyses"
+    line = next(m for m in w.messages if m.get("analysis"))
+    assert line["content"] == "Drafted an analysis notebook: B cell signature score"
+    assert "notebook_offer" not in line
+    assert not [m for m in w.messages if m.get("notebook_offer")]
+    assert w.draft_notebook() is None  # nothing left to draft
+
+
+def test_a_requested_notebook_is_drafted_and_run_only_when_asked(tmp_path, monkeypatch):
+    w, _asked = _clerk(tmp_path, monkeypatch, BLOCK.replace("requested: no", "requested: yes"))
     ran = []
     monkeypatch.setattr(
         analysis,
         "run_with_claude_code",
         lambda path, **kw: ran.append(path) or {"ok": True, "summary": "Scored.", "log": ""},
     )
-    w = Clerk()
-    w.output_dir = str(tmp_path)
-    w.analysis_data = {"adata": "data/cells.h5ad"}
-    w.request = {"id": "1", "question": "Is cluster A B cells?"}
+    w.request = {"id": "1", "question": "Write me a notebook scoring B cell markers."}
     assert w.wait(timeout=5)
-
-    # Clerk was told where the data lives, and drafted (not ran) a notebook.
-    assert any(
-        "Data for analysis notebooks: adata: data/cells.h5ad" in n for n in asked[0]["notes"]
-    )
     (entry,) = w.analyses
-    assert entry["status"] == "drafted" and Path(entry["path"]).is_file()
-    assert Path(entry["path"]).parent == tmp_path / "analyses"
+    assert entry["status"] == "drafted" and Path(entry["path"]).is_file() and not ran
     line = next(m for m in w.messages if m.get("analysis"))
-    assert line["content"] == "Drafted an analysis notebook: B cell signature score"
-    assert line["analysis"]["id"] == entry["id"] and not ran
+    assert line["analysis"]["id"] == entry["id"]
 
     # The panel's Run with Claude Code button.
     w._on_panel_msg(w, {"event": "run_analysis", "id": entry["id"]}, [])
     for _ in range(100):
         if entry["status"] == "done":
             break
-        import time
-
         time.sleep(0.02)
     assert ran == [entry["path"]] and entry["summary"] == "Scored."
     line = next(m for m in w.messages if m.get("analysis"))
@@ -163,3 +193,17 @@ def test_clerk_drafts_a_notebook_and_runs_it_only_when_asked(tmp_path, monkeypat
     with pytest.raises(ValueError, match="No analysis notebook"):
         w.run_analysis("nope")
     assert json.loads(json.dumps(w.messages))  # still plain data for the panel
+
+
+def test_drafting_can_be_always_or_never(tmp_path, monkeypatch):
+    w, _ = _clerk(tmp_path, monkeypatch, BLOCK)
+    w.draft_notebooks = True
+    w.request = {"id": "1", "question": "q"}
+    assert w.wait(timeout=5)
+    assert len(w.analyses) == 1
+
+    w, _ = _clerk(tmp_path / "off", monkeypatch, BLOCK.replace("requested: no", "requested: yes"))
+    w.draft_notebooks = False
+    w.request = {"id": "1", "question": "q"}
+    assert w.wait(timeout=5)
+    assert w.analyses == [] and "drafting notebooks is turned off" in w.messages[-1]["content"]

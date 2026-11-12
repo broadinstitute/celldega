@@ -27,7 +27,7 @@ _NOTEBOOK_BLOCK = re.compile(
     rf"```{re.escape(NOTEBOOK_FENCE)}[ \t]*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE
 )
 _CELL_MARK = re.compile(r"^#\s?%%(?P<markdown>\s*\[markdown\])?.*$")
-_TITLE = re.compile(r"^\s*title\s*:\s*(?P<title>.+?)\s*$", re.IGNORECASE)
+_HEADER = re.compile(r"^\s*(?P<key>title|requested)\s*:\s*(?P<value>.+?)\s*$", re.IGNORECASE)
 
 #: Longest a Claude Code run may take (it may re-run a notebook after a small fix).
 RUN_TIMEOUT = 3 * 60 * 60
@@ -36,22 +36,26 @@ RUN_TIMEOUT = 3 * 60 * 60
 def extract_notebook(answer: str) -> tuple[str, dict | None, str | None]:
     """Split an answer into its text and a drafted notebook, if it has one.
 
-    The block holds an optional ``title:`` line, then cells in Jupytext's percent
-    format: ``# %%`` starts a code cell, ``# %% [markdown]`` a text cell whose lines
-    start with ``# ``.
+    The block opens with ``title:`` and ``requested:`` lines (``requested: yes`` when
+    the scientist asked for the analysis; otherwise it is only suggested), then cells
+    in Jupytext's percent format: ``# %%`` starts a code cell, ``# %% [markdown]`` a
+    text cell whose lines start with ``# ``.
 
     Returns:
-        tuple: ``(text, notebook, error)``; ``notebook`` is ``{"title", "cells":
-        [{"type": "code"|"markdown", "source"}]}`` or ``None``.
+        tuple: ``(text, notebook, error)``; ``notebook`` is ``{"title", "requested",
+        "cells": [{"type": "code"|"markdown", "source"}]}`` or ``None``.
     """
     match = _NOTEBOOK_BLOCK.search(answer or "")
     if not match:
         return (answer or "").strip(), None, None
     text = (answer[: match.start()] + answer[match.end() :]).strip()
     lines = match.group(1).splitlines()
-    title = ""
-    if lines and (found := _TITLE.match(lines[0])):
-        title, lines = found.group("title"), lines[1:]
+    header: dict[str, str] = {}
+    while lines and (found := _HEADER.match(lines[0])):
+        header[found.group("key").lower()] = found.group("value")
+        lines = lines[1:]
+    title = header.get("title", "")
+    requested = header.get("requested", "").strip().lower() in ("yes", "y", "true")
     cells: list[dict] = []
     kind, body = "code", []
 
@@ -72,7 +76,15 @@ def extract_notebook(answer: str) -> tuple[str, dict | None, str | None]:
     flush()
     if not any(cell["type"] == "code" for cell in cells):
         return text, None, "The drafted notebook has no code cells."
-    return text, {"title": title or "Analysis", "cells": cells}, None
+    return text, {"title": title or "Analysis", "requested": requested, "cells": cells}, None
+
+
+def purpose(notebook: dict) -> str:
+    """The notebook's first text cell, as a short description of what it does."""
+    for cell in notebook.get("cells") or []:
+        if cell.get("type") == "markdown" and cell.get("source", "").strip():
+            return cell["source"].strip()
+    return ""
 
 
 def _slug(text: str) -> str:

@@ -710,6 +710,38 @@ export const render_clerk = async ({ model, el }) => {
     return wrapper;
   };
 
+  // A notebook Clerk suggested (rather than one the scientist asked for): written
+  // only when the scientist clicks Draft notebook.
+  const notebook_offer_line = (note, offer) => {
+    const wrapper = document.createElement('div');
+    wrapper.appendChild(note);
+    const box = document.createElement('div');
+    box.className = 'clerk-analysis';
+    if (offer.purpose) {
+      const what = document.createElement('div');
+      what.className = 'clerk-recorded';
+      what.textContent = offer.purpose;
+      box.appendChild(what);
+    }
+    if (!model.get('pending')) {
+      const ask = document.createElement('div');
+      ask.className = 'clerk-offer';
+      ask.textContent = 'Draft this notebook for you to inspect?';
+      const yes = make_button(
+        'Draft notebook',
+        'Write the notebook under clerk_files/analyses; nothing runs until you choose to',
+        () => {
+          yes.disabled = true;
+          model.send?.({ event: 'draft_notebook', id: offer.id });
+        }
+      );
+      ask.appendChild(yes);
+      box.appendChild(ask);
+    }
+    wrapper.appendChild(box);
+    return wrapper;
+  };
+
   const action_line = (message) => {
     // A lookup or view change Clerk made (e.g. "Changed the Clustergram: ..."), or a
     // note from the panel itself (e.g. where an export was saved). A line's details
@@ -729,6 +761,8 @@ export const render_clerk = async ({ model, el }) => {
     link_gene_count(note, message.genes);
     add_links(note, { genes: message.genes });
     if (message.analysis) return analysis_line(note, message.analysis);
+    if (message.notebook_offer?.status === 'offered')
+      return notebook_offer_line(note, message.notebook_offer);
     const offer = message.label_offer;
     if (!offer) return note;
     // Recorded cell types: label the Clustergram with them only if the scientist

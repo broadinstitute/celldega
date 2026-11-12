@@ -928,4 +928,42 @@ describe('Clerk panel', () => {
       'Scored 3 clusters.'
     );
   });
+  test('a notebook Clerk suggests is drafted only when the scientist says so', async () => {
+    const messages = [
+      { role: 'user', content: 'q' },
+      { role: 'assistant', content: 'A signature score would settle it.' },
+      {
+        role: 'action',
+        content: 'Suggested an analysis notebook: Signature score',
+        detail: 'Score a signature across the clusters.',
+        notebook_offer: {
+          id: 'n1',
+          status: 'offered',
+          title: 'Signature score',
+          purpose: 'Score a signature across the clusters.',
+        },
+      },
+    ];
+    const { el, model } = await render({ messages });
+    model.send = jest.fn();
+    const box = el.querySelector('.clerk-analysis');
+    expect(box.textContent).toContain('Score a signature across the clusters.');
+    expect(box.textContent).toContain(
+      'Draft this notebook for you to inspect?'
+    );
+    // No path and no Run button before it's drafted.
+    expect(el.querySelector('.clerk-analysis-path')).toBeNull();
+    expect(
+      [...el.querySelectorAll('button')].some((b) =>
+        b.textContent.includes('Claude Code')
+      )
+    ).toBe(false);
+    [...el.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Draft notebook')
+      .click();
+    expect(model.send).toHaveBeenCalledWith({
+      event: 'draft_notebook',
+      id: 'n1',
+    });
+  });
 });

@@ -37,8 +37,9 @@ machine running your notebook.
 - **Annotate.** It records tentative cell types, offers to label the Clustergram with
   them, and keeps the views it was shown as [Snapshots](../index.md#snapshots)
   (`clerk.snapshots`): images with the state to return to them.
-- **Draft analysis notebooks.** When a question needs new analysis, Clerk writes a
-  Jupyter notebook for it (Scanpy, Squidpy, Celldega). You inspect and run it, or have
+- **Draft analysis notebooks.** When you ask for new analysis, Clerk writes a Jupyter
+  notebook for it (Scanpy, Squidpy, Celldega); when it thinks one would help, it
+  suggests one and drafts it if you agree. You inspect and run it, or have
   Claude Code run it in a separate process; its results come back to Clerk to interpret.
   See [Analysis notebooks](#analysis-notebooks).
 - **Keep the record.** Save and reopen a conversation, export it as a report, and start
@@ -471,9 +472,13 @@ a cell-type signature, a differential expression test, a neighborhood statistic)
 can draft a Jupyter notebook for it instead of guessing. The notebook is the analysis
 counterpart of a Snapshot: an artifact you can inspect, change, rerun and share.
 
-1. **Clerk drafts it.** The conversation shows "↻ Drafted an analysis notebook", with
-   the file's path (under `clerk_files/analyses/`). The notebook opens with who drafted
-   it, the question it answers, where its data lives, and a reminder to inspect it.
+1. **Clerk drafts it, when you want it.** If you asked for the analysis ("write a
+   notebook that scores…"), Clerk drafts it right away. Otherwise Clerk only suggests
+   one: "↻ Suggested an analysis notebook", with what it would do and a **Draft
+   notebook** button; nothing is written until you click it. Once drafted, the line
+   shows the file's path (under `clerk_files/analyses/`). The notebook opens with who
+   drafted it, the question it answers, where its data lives, and a reminder to inspect
+   it.
    Its cells use Scanpy, Squidpy or Celldega; they read the inputs and write any new
    results (for example an AnnData with new columns) as new files next to the notebook.
 2. **You inspect it**, in Jupyter like any notebook, and edit it if you like.
@@ -492,13 +497,17 @@ AnnData file behind an in-memory Landscape):
 ```python
 clerk.analysis_data = {"adata": "data/cells.h5ad"}
 
+clerk.draft_notebook()        # draft the latest suggestion (the panel's Draft notebook)
 clerk.analyses                # the notebooks Clerk drafted: title, path, status, summary
 clerk.run_analysis()          # the latest, with Claude Code (in the background)
 clerk.run_analysis(path, wait=True)  # one in particular; wait for its result
+
+clerk.draft_notebooks = True   # draft suggestions too, without asking ("ask" by default)
+clerk.draft_notebooks = False  # never draft notebooks
 ```
 
-Clerk drafts a notebook only when you ask a question that needs one, and never runs
-it: running is always your choice.
+Clerk never runs a notebook: drafting one you didn't ask for, and running any, is
+always your choice.
 
 ## Landscape raster capture (a reusable feature)
 

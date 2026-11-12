@@ -2754,8 +2754,77 @@ class Clerk(CelldegaWidget):
                 lines.append(f"{source['widget']}: " + ", ".join(parts))
         return lines
 
+    # Analysis notebooks are written only when the scientist asks for the analysis
+    # (Clerk marks those "requested: yes"); a notebook Clerk suggests on its own waits
+    # for a click on Draft notebook. True drafts every one; False none.
+    draft_notebooks: "bool | Literal['ask']" = "ask"
+
     def _draft_notebook(self, notebook: dict, question: str) -> None:
-        """Write a notebook Clerk drafted and offer to run it (never run here)."""
+        """Write a notebook Clerk drafted, or offer it first (never run here)."""
+        from ..clerk.analysis import purpose
+
+        title = str(notebook.get("title") or "Analysis")
+        if self.draft_notebooks is False:
+            self._append(
+                {
+                    "role": "note",
+                    "content": f"Clerk suggested an analysis notebook ({title}); "
+                    "drafting notebooks is turned off.",
+                }
+            )
+            return
+        if self.draft_notebooks is True or notebook.get("requested"):
+            self._write_notebook(notebook, question)
+            return
+        self._append(
+            {
+                "role": "action",
+                "content": f"Suggested an analysis notebook: {title}",
+                "detail": purpose(notebook),
+                "notebook_offer": {
+                    "id": uuid.uuid4().hex[:12],
+                    "status": "offered",
+                    "title": title,
+                    "purpose": purpose(notebook),
+                    "question": question,
+                    "notebook": deepcopy(notebook),
+                },
+            }
+        )
+
+    def draft_notebook(self, offer_id: str | None = None) -> Path | None:
+        """Write a notebook Clerk suggested (as the panel's Draft notebook button does).
+
+        ``offer_id`` picks the suggestion; by default the latest one not yet drafted.
+        Returns the notebook's path, or ``None`` if there was nothing to draft.
+        """
+        with self._messages_lock:
+            messages = [dict(m) for m in self.messages]
+            offers = [
+                m
+                for m in messages
+                if (m.get("notebook_offer") or {}).get("status") == "offered"
+                and offer_id in (None, m["notebook_offer"]["id"])
+            ]
+            if not offers:
+                return None
+            message = offers[-1]
+            offer = message["notebook_offer"]
+            entry = self._write_notebook(offer["notebook"], offer["question"], append=False)
+            if entry is None:
+                return None
+            # The suggestion's line becomes the drafted notebook's (path, Run button).
+            message.pop("notebook_offer")
+            message.update(
+                content=f"Drafted an analysis notebook: {entry['title']}",
+                detail=f"Analysis notebook: {entry['path']}",
+                analysis=dict(entry),
+            )
+            self.messages = messages
+        return Path(entry["path"])
+
+    def _write_notebook(self, notebook: dict, question: str, *, append: bool = True):
+        """Write a drafted notebook to disk and add it to :attr:`analyses`."""
         from ..clerk.analysis import write_notebook
 
         try:
@@ -2767,7 +2836,7 @@ class Clerk(CelldegaWidget):
             )
         except Exception as exc:
             self._append({"role": "error", "content": f"Couldn't write the notebook: {exc}"})
-            return
+            return None
         entry = {
             "id": uuid.uuid4().hex[:12],
             "title": str(notebook.get("title") or "Analysis"),
@@ -2777,15 +2846,17 @@ class Clerk(CelldegaWidget):
             "question": question,
         }
         self.analyses.append(entry)
-        self._append(
-            {
-                "role": "action",
-                "content": f"Drafted an analysis notebook: {entry['title']}",
-                "detail": f"Analysis notebook: {path}",
-                "analysis": dict(entry),
-            }
-        )
+        if append:
+            self._append(
+                {
+                    "role": "action",
+                    "content": f"Drafted an analysis notebook: {entry['title']}",
+                    "detail": f"Analysis notebook: {path}",
+                    "analysis": dict(entry),
+                }
+            )
         self._log_step("notebook", str(path), title=entry["title"])
+        return entry
 
     def _update_analysis(self, entry: dict) -> None:
         """Show an analysis notebook's new status on its line in the panel."""
@@ -4120,6 +4191,9 @@ class Clerk(CelldegaWidget):
             return
         if content.get("event") == "run_analysis":
             self.run_analysis(str(content.get("id") or ""))
+            return
+        if content.get("event") == "draft_notebook":
+            self.draft_notebook(str(content.get("id") or "") or None)
             return
         if content.get("event") != "load_conversation":
             return

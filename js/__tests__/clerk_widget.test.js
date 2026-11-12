@@ -868,4 +868,64 @@ describe('Clerk panel', () => {
     paragraphs[0].querySelectorAll('.clerk-cluster')[1].click();
     expect(model.get('request')).toMatchObject({ show_clusters: ['5'] });
   });
+  test('a drafted analysis notebook can be run with Claude Code from its line', async () => {
+    const analysis = {
+      id: 'a1',
+      title: 'Signature score',
+      path: '/work/clerk_files/analyses/signature_score.ipynb',
+      status: 'drafted',
+      summary: '',
+    };
+    const messages = [
+      { role: 'user', content: 'q' },
+      { role: 'assistant', content: 'A signature score would settle it.' },
+      {
+        role: 'action',
+        content: 'Drafted an analysis notebook: Signature score',
+        detail: `Analysis notebook: ${analysis.path}`,
+        analysis,
+      },
+    ];
+    const { el, model } = await render({ messages });
+    model.send = jest.fn();
+    expect(el.querySelector('.clerk-analysis-path').textContent).toBe(
+      analysis.path
+    );
+    expect(el.querySelector('.clerk-analysis').textContent).toContain(
+      'Inspect it before running it.'
+    );
+    const run = [...el.querySelectorAll('button')].find(
+      (b) => b.textContent === 'Run with Claude Code'
+    );
+    run.click();
+    expect(model.send).toHaveBeenCalledWith({
+      event: 'run_analysis',
+      id: 'a1',
+    });
+
+    messages[2] = {
+      ...messages[2],
+      analysis: { ...analysis, status: 'running' },
+    };
+    model.set('messages', [...messages]);
+    expect(el.querySelector('.clerk-analysis').textContent).toContain(
+      'Claude Code is running it…'
+    );
+    expect(
+      [...el.querySelectorAll('button')].some((b) =>
+        b.textContent.includes('Claude Code')
+      )
+    ).toBe(false);
+
+    messages[2] = {
+      ...messages[2],
+      analysis: { ...analysis, status: 'done', summary: 'Scored 3 clusters.' },
+    };
+    model.set('messages', [...messages]);
+    const box = el.querySelector('.clerk-analysis');
+    expect(box.textContent).toContain('Claude Code ran it');
+    expect(box.querySelector('details .clerk-recorded').textContent).toBe(
+      'Scored 3 clusters.'
+    );
+  });
 });

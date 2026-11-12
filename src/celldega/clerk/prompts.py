@@ -15,6 +15,7 @@ from __future__ import annotations
 ACTIONS_FENCE = "celldega-actions"
 FINDINGS_FENCE = "celldega-findings"
 VIEWS_FENCE = "celldega-views"
+NOTEBOOK_FENCE = "celldega-notebook"
 
 DEFAULT_ENRICHR_LIBRARIES = ("CellMarker_2024", "PanglaoDB_Augmented_2021")
 
@@ -69,6 +70,28 @@ dendrogram groups, the selection, and values with dot sizes; genes named in the
 conversation are added); the Enrich panel's results; genes the scientist selected;
 free-text context; the conversation so far; and sometimes notes from earlier work the
 scientist chose to share, which are earlier conclusions to check, not evidence.
+
+## Drafting an analysis notebook
+Your role is interpreting what the scientist sees; you can't run analysis yourself.
+When a question needs new analysis (scoring a signature, a differential expression
+test, a neighborhood statistic), you can draft a Jupyter notebook for it instead of
+guessing. It is saved for the scientist to inspect, edit and run, themselves or with
+Claude Code, and its results come back to you to interpret. Draft one only when it
+answers the question better than the evidence you have, and say so in your answer:
+
+```{NOTEBOOK_FENCE}
+title: <short title>
+# %% [markdown]
+# What this notebook tests and why.
+# %%
+import scanpy as sc
+# load the data from the "Data for analysis notebooks" note, then the analysis
+```
+Cells start with "# %%" (code) or "# %% [markdown]" (text, each line starting with
+"# "). Load data only from the sources in the "Data for analysis notebooks" note,
+never change those inputs, write any new results (e.g. an AnnData with new columns)
+as new files next to the notebook, keep it short, and end with a cell that prints the
+key results. Don't use ``` inside the block.
 
 ## Recording cell types
 When you propose cell types for clusters, also add this block; it is hidden from the

@@ -1934,6 +1934,12 @@ class Clerk(CelldegaWidget):
         self._saved_view: dict | None = None
         # Screenshots Clerk saved (paths), newest last.
         self.screenshots: list[str] = []
+        # Analysis notebooks Clerk drafted (see run_analysis), newest last.
+        self.analyses: list[dict] = []
+        # Where the data for analysis notebooks lives, e.g. {"adata": "data/x.h5ad"}.
+        self.analysis_data: dict = {}
+        # Messages change from Clerk's worker and from analysis runs, in other threads.
+        self._messages_lock = threading.RLock()
         self._evidence_executor = None
         self._last_evidence: concurrent.futures.Future | None = None
         # Which Clustergram rows/columns to describe with each question: on screen by
@@ -2712,6 +2718,141 @@ class Clerk(CelldegaWidget):
                     rows[name] = label
         return rows
 
+    # -- Analysis notebooks: drafted by Clerk, run by the scientist or Claude Code --
+
+    def _analysis_sources(self) -> list[str]:
+        """Where the data for an analysis notebook lives, as lines for the notebook
+        and the prompt: the linked widgets' sources and :attr:`analysis_data`."""
+        from .screenshots import widget_source
+
+        lines = [f"{key}: {value}" for key, value in (self.analysis_data or {}).items()]
+        for name, widget in self._linked_widgets.items():
+            if name == "enrich":
+                continue
+            source = widget_source(widget)
+            parts = [
+                f"{key} {source[key]}"
+                for key in ("dataset_name", "base_url", "zarr_url", "technology", "cluster_attr")
+                if source.get(key)
+            ]
+            matrix = source.get("matrix")
+            if isinstance(matrix, dict) and matrix.get("source"):
+                parts.append(f"matrix source {matrix['source']}")
+            adata = source.get("adata")
+            if isinstance(adata, dict) and adata.get("filename"):
+                parts.append(f"AnnData file {adata['filename']}")
+            elif isinstance(adata, dict) and adata.get("n_obs") is not None:
+                parts.append(
+                    f"an in-memory AnnData ({adata['n_obs']} x {adata.get('n_vars')}, no "
+                    "file path: ask the scientist for clerk.analysis_data)"
+                )
+            elif isinstance(adata, str) and adata:
+                parts.append(f"AnnData {adata}")
+            for key, value in (getattr(widget, "screenshot_metadata", None) or {}).items():
+                parts.append(f"{key} {value}")
+            if parts:
+                lines.append(f"{source['widget']}: " + ", ".join(parts))
+        return lines
+
+    def _draft_notebook(self, notebook: dict, question: str) -> None:
+        """Write a notebook Clerk drafted and offer to run it (never run here)."""
+        from ..clerk.analysis import write_notebook
+
+        try:
+            path = write_notebook(
+                notebook,
+                Path(self.output_dir) / "analyses",
+                question=question,
+                sources=self._analysis_sources(),
+            )
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't write the notebook: {exc}"})
+            return
+        entry = {
+            "id": uuid.uuid4().hex[:12],
+            "title": str(notebook.get("title") or "Analysis"),
+            "path": str(path),
+            "status": "drafted",
+            "summary": "",
+            "question": question,
+        }
+        self.analyses.append(entry)
+        self._append(
+            {
+                "role": "action",
+                "content": f"Drafted an analysis notebook: {entry['title']}",
+                "detail": f"Analysis notebook: {path}",
+                "analysis": dict(entry),
+            }
+        )
+        self._log_step("notebook", str(path), title=entry["title"])
+
+    def _update_analysis(self, entry: dict) -> None:
+        """Show an analysis notebook's new status on its line in the panel."""
+        with self._messages_lock:
+            messages = [dict(m) for m in self.messages]
+            for message in messages:
+                if (message.get("analysis") or {}).get("id") == entry["id"]:
+                    message["analysis"] = dict(entry)
+            self.messages = messages
+
+    def run_analysis(self, which: str | int = -1, *, wait: bool = False):
+        """Have Claude Code run an analysis notebook Clerk drafted, in a separate process.
+
+        Claude Code may run the notebook (``jupyter nbconvert``) and fix small errors
+        in it, and nothing else. Its summary appears in the conversation, so Clerk can
+        interpret the results with the next question. Inspect the notebook first: its
+        path is in :attr:`analyses` and on its line in the panel. You can also run it
+        yourself instead.
+
+        Args:
+            which: An entry of :attr:`analyses` by id, path or index (default: the
+                latest).
+            wait: Block until the run finishes and return its result; otherwise the
+                run continues in the background and its thread is returned.
+        """
+        from ..clerk.analysis import run_with_claude_code
+
+        entry = None
+        if isinstance(which, int) and self.analyses:
+            entry = self.analyses[which]
+        else:
+            entry = next(
+                (a for a in self.analyses if which in (a["id"], a["path"], Path(a["path"]).name)),
+                None,
+            )
+        if entry is None:
+            raise ValueError(f"No analysis notebook {which!r}; see clerk.analyses")
+        if entry["status"] == "running":
+            return None
+
+        def task():
+            entry.update(status="running", summary="")
+            self._update_analysis(entry)
+            result = run_with_claude_code(entry["path"])
+            entry.update(
+                status="done" if result["ok"] else "failed",
+                summary=result["summary"],
+                log=result["log"],
+            )
+            self._update_analysis(entry)
+            verb = "ran" if result["ok"] else "couldn't run"
+            # In the conversation, so Clerk reads the results with the next question.
+            self._append(
+                {
+                    "role": "action",
+                    "content": f"Claude Code {verb} the analysis notebook {entry['title']}",
+                    "detail": f"{entry['path']}\n\n{result['summary']}",
+                }
+            )
+            return result
+
+        if wait:
+            return task()
+        thread = threading.Thread(target=task, name="celldega-clerk-analysis", daemon=True)
+        thread.start()
+        return thread
+
     @property
     def snapshots(self):
         """The views Clerk was shown in this conversation, as :class:`Snapshots`.
@@ -2809,7 +2950,8 @@ class Clerk(CelldegaWidget):
         return adata.obs[key]
 
     def _append(self, message: dict) -> None:
-        self.messages = [*self.messages, message]
+        with self._messages_lock:
+            self.messages = [*self.messages, message]
         if self.pending and message.get("role") in ("error", "pause"):
             self._log_step(message["role"], str(message.get("content", "")))
 
@@ -3237,6 +3379,10 @@ class Clerk(CelldegaWidget):
         try:
             views = self._refresh_views(question)
             self._use_views(call, views)
+            # Where a notebook Clerk drafts should load its data from.
+            sources = self._analysis_sources()
+            if sources:
+                call["notes"].append("Data for analysis notebooks: " + "; ".join(sources))
             summary = list(views["summary"])
             if call.get("gene_list"):
                 summary.append(f"{len(call['gene_list'])} selected genes")
@@ -3390,6 +3536,8 @@ class Clerk(CelldegaWidget):
                 self._log_step("answer", text, views=views)
             elif kind == "findings":
                 self._record_findings(event["findings"], question)
+            elif kind == "notebook":
+                self._draft_notebook(event["notebook"], question)
             elif kind == "error":
                 self._append({"role": "error", "content": event["text"]})
                 if not self.pending:
@@ -3969,6 +4117,9 @@ class Clerk(CelldegaWidget):
             return
         if content.get("event") == "label_clustergram":
             self._label_from_offer(str(content.get("id") or ""))
+            return
+        if content.get("event") == "run_analysis":
+            self.run_analysis(str(content.get("id") or ""))
             return
         if content.get("event") != "load_conversation":
             return

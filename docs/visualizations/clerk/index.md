@@ -21,6 +21,33 @@ and supported replay settings. Full view restoration is not implemented yet. Cle
 runs through your own Claude account, using the `claude` command-line tool on the
 machine running your notebook.
 
+## What Clerk can do
+
+- **Read the visualizations.** With each question, Clerk receives what the linked
+  widgets show: the Landscape's image and state (camera, selection, cells and genes in
+  view), the Clustergram's rows, columns, values and dendrogram groups, and the Enrich
+  panel's results.
+- **Drive the visualizations.** It can highlight clusters, color cells by genes, zoom,
+  move the Clustergram's marker level, and cite views you open with a click, returning
+  to your own view with **Return**.
+- **Look things up.** Ranked marker genes and expression values from the Clustergram,
+  enrichment from Enrichr, and the literature from PubMed.
+- **Answer questions from several kinds of evidence at once**: the tissue image, gene
+  expression, enrichment and papers, with the evidence behind each claim.
+- **Annotate.** It records tentative cell types, offers to label the Clustergram with
+  them, and keeps the views it was shown as [Snapshots](../index.md#snapshots)
+  (`clerk.snapshots`): images with the state to return to them.
+- **Draft analysis notebooks.** When a question needs new analysis, Clerk writes a
+  Jupyter notebook for it (Scanpy, Squidpy, Celldega). You inspect and run it, or have
+  Claude Code run it in a separate process; its results come back to Clerk to interpret.
+  See [Analysis notebooks](#analysis-notebooks).
+- **Keep the record.** Save and reopen a conversation, export it as a report, and start
+  later work from an earlier one with a briefing.
+
+So you and Clerk work on the same data with the same tools and leave the same kinds of
+artifacts: Snapshots for what you saw, notebooks for what you computed. Clerk's own role
+stays interpretation; it never runs code in your notebook, and you decide what to keep.
+
 ## Requirements and logging in
 
 Clerk sends your questions to Claude through the `claude` command-line tool (Claude
@@ -436,6 +463,42 @@ For a simple side-by-side layout of one Landscape + Clerk:
 ```python
 dega.viz.landscape_clerk(landscape, clerk)
 ```
+
+## Analysis notebooks
+
+Clerk interprets; it doesn't run analysis. When a question needs new analysis (scoring
+a cell-type signature, a differential expression test, a neighborhood statistic), Clerk
+can draft a Jupyter notebook for it instead of guessing. The notebook is the analysis
+counterpart of a Snapshot: an artifact you can inspect, change, rerun and share.
+
+1. **Clerk drafts it.** The conversation shows "↻ Drafted an analysis notebook", with
+   the file's path (under `clerk_files/analyses/`). The notebook opens with who drafted
+   it, the question it answers, where its data lives, and a reminder to inspect it.
+   Its cells use Scanpy, Squidpy or Celldega; they read the inputs and write any new
+   results (for example an AnnData with new columns) as new files next to the notebook.
+2. **You inspect it**, in Jupyter like any notebook, and edit it if you like.
+3. **You run it**, yourself, or with **Run with Claude Code** on its line. Claude Code
+   runs it in a separate process with `jupyter nbconvert`, saving the outputs in the
+   notebook. It may fix a small, clear error (a typo, a misspelled column) and rerun,
+   and it writes a short summary next to the notebook. It can do nothing else: other
+   tools and commands are refused, and your Claude Code settings, hooks and MCP
+   servers aren't loaded.
+4. **Clerk interprets the results.** Claude Code's summary appears in the
+   conversation, so your next question can ask what it means.
+
+Tell Clerk where the data lives when the linked widgets don't say (for example an
+AnnData file behind an in-memory Landscape):
+
+```python
+clerk.analysis_data = {"adata": "data/cells.h5ad"}
+
+clerk.analyses                # the notebooks Clerk drafted: title, path, status, summary
+clerk.run_analysis()          # the latest, with Claude Code (in the background)
+clerk.run_analysis(path, wait=True)  # one in particular; wait for its result
+```
+
+Clerk drafts a notebook only when you ask a question that needs one, and never runs
+it: running is always your choice.
 
 ## Landscape raster capture (a reusable feature)
 

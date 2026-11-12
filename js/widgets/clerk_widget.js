@@ -116,6 +116,9 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-recorded { white-space: pre-wrap; font-size: 13px; color: #47515b; margin: 4px 0; }
 .${PANEL_CLASS} .clerk-offer { font-size: 12px; color: #47515b; margin: 2px 0 4px; }
 .${PANEL_CLASS} .clerk-offer .clerk-button { font-size: 11px; margin: 0 0 0 8px; }
+.${PANEL_CLASS} .clerk-analysis { margin: 2px 0 6px 14px; }
+.${PANEL_CLASS} .clerk-analysis-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; color: #47515b; overflow-wrap: anywhere; user-select: all; }
 `;
 
 // Model picker: aliases the `claude` CLI understands; '' = the CLI's default model.
@@ -649,6 +652,64 @@ export const render_clerk = async ({ model, el }) => {
     });
   };
 
+  // An analysis notebook Clerk drafted: where it is, and running it with Claude
+  // Code (in a separate process) once the scientist has had a look. Clerk never
+  // runs it.
+  const analysis_line = (note, analysis) => {
+    const wrapper = document.createElement('div');
+    wrapper.appendChild(note);
+    const box = document.createElement('div');
+    box.className = 'clerk-analysis';
+    const where = document.createElement('div');
+    where.className = 'clerk-analysis-path';
+    where.textContent = analysis.path || '';
+    where.title = 'Open it in Jupyter to inspect, edit or run it yourself';
+    box.appendChild(where);
+    const status = document.createElement('div');
+    status.className = 'clerk-offer';
+    const { status: state = 'drafted' } = analysis;
+    if (state === 'running') {
+      status.textContent = 'Claude Code is running it…';
+    } else if (state === 'done' || state === 'failed') {
+      status.textContent =
+        state === 'done'
+          ? 'Claude Code ran it; the notebook now has its outputs.'
+          : "Claude Code couldn't run it.";
+      if (analysis.summary) {
+        const fold = document.createElement('details');
+        fold.className = 'clerk-fold';
+        const summary = document.createElement('summary');
+        summary.textContent = "Claude Code's summary";
+        const text = document.createElement('div');
+        text.className = 'clerk-recorded';
+        text.textContent = analysis.summary;
+        fold.append(summary, text);
+        box.appendChild(status);
+        box.appendChild(fold);
+        status.dataset.done = '1';
+      }
+    } else {
+      status.textContent = 'Inspect it before running it.';
+    }
+    if (!status.dataset.done) box.appendChild(status);
+    if (state === 'drafted' || state === 'failed') {
+      const run = make_button(
+        state === 'failed'
+          ? 'Run again with Claude Code'
+          : 'Run with Claude Code',
+        'Claude Code runs the notebook in a separate process (and may fix small ' +
+          'errors in it); its summary comes back here for Clerk to interpret',
+        () => {
+          run.disabled = true;
+          model.send?.({ event: 'run_analysis', id: analysis.id });
+        }
+      );
+      status.appendChild(run);
+    }
+    wrapper.appendChild(box);
+    return wrapper;
+  };
+
   const action_line = (message) => {
     // A lookup or view change Clerk made (e.g. "Changed the Clustergram: ..."), or a
     // note from the panel itself (e.g. where an export was saved). A line's details
@@ -667,6 +728,7 @@ export const render_clerk = async ({ model, el }) => {
     if (message.detail) note.title = message.detail;
     link_gene_count(note, message.genes);
     add_links(note, { genes: message.genes });
+    if (message.analysis) return analysis_line(note, message.analysis);
     const offer = message.label_offer;
     if (!offer) return note;
     // Recorded cell types: label the Clustergram with them only if the scientist

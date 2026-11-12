@@ -12,6 +12,7 @@ from __future__ import annotations
 from copy import deepcopy
 import json
 
+from .analysis import extract_notebook
 from .llm import extract_actions, extract_findings, extract_views
 
 
@@ -38,11 +39,15 @@ def run_turn(
             text, actions, problem = extract_actions(answer or "")
             text, findings, findings_problem = extract_findings(text)
             text, views, views_problem = extract_views(text)
+            text, notebook, notebook_problem = extract_notebook(text)
             if text:
                 yield {"kind": "answer", "text": text, "views": views or {}}
             if findings:
                 yield {"kind": "findings", "findings": findings}
-            for issue in (problem, findings_problem, views_problem):
+            if notebook:
+                # A drafted analysis notebook: written for the scientist, never run here.
+                yield {"kind": "notebook", "notebook": notebook}
+            for issue in (problem, findings_problem, views_problem, notebook_problem):
                 if issue:
                     yield {"kind": "error", "text": issue}
         if problem or not actions:

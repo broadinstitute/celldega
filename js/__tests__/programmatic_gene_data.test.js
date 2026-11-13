@@ -135,3 +135,39 @@ test.each([
   expect(obs_store.deck_ready.get()).toBe(true);
   expect(repaints.length).toBeGreaterThan(0);
 });
+
+// A programmatic camera move (apply_state, a restored Snapshot, a pin) updates the
+// scale bar too, as a user's zoom does; otherwise it keeps the old view's length.
+test('a programmatic move updates the scale bar', async () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '../viz/landscape_ist.js'),
+    'utf8'
+  );
+  const start = source.indexOf('    update_view_state: async');
+  const end = source.indexOf('    update_layers:', start);
+  let scale_view = null;
+  const viz = {
+    scale_bar: true,
+    obs_store: {
+      scale_bar_view_state: {
+        set: (value) => {
+          scale_view = value;
+        },
+      },
+    },
+  };
+  const deck = { setProps: jest.fn() };
+  const handler = new Function(
+    'viz_state',
+    'deck_ist',
+    'layers_obj',
+    'calc_viewport',
+    `return ({${source.slice(start, end)}}).update_view_state;`
+  )(viz, deck, {}, async () => {});
+  const view = { target: [1, 2, 0], zoom: -5.4 };
+  await handler(view, false);
+  expect(deck.setProps).toHaveBeenCalledWith(
+    expect.objectContaining({ initialViewState: view })
+  );
+  expect(scale_view).toBe(view);
+});

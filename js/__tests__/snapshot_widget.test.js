@@ -91,4 +91,43 @@ describe('Snapshot postcard', () => {
     expect(el.querySelector('button').hidden).toBe(true);
     cleanup();
   });
+  test('linked cards hear which Snapshot the viewer shows', () => {
+    const state = model({
+      js_link: true,
+      view: { kind: 'landscape', state: {} },
+    });
+    state.set = (key, value) => state.change(key, value);
+    state.save_changes = jest.fn();
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    widget.render({ model: state, el });
+    const card = el.querySelector('.celldega-snapshot');
+    const status = el.querySelector('.status');
+
+    el.querySelector('button').click();
+    const request = state.get('view_request');
+    expect(request).toMatchObject({
+      name: 'Glomerulus',
+      snapshot: state.get('view'),
+    });
+    expect(Number.isFinite(request.at)).toBe(true);
+    // Opening a view first clears every card's mark; this one keeps waiting.
+    state.change('view_result', { id: null, shown: '' });
+    expect(status.textContent).toBe('Opening this view…');
+    state.change('view_result', { id: request.id, shown: 'Glomerulus' });
+    expect(status.textContent).toBe('View opened in Landscape.');
+    expect(card.classList.contains('shown')).toBe(true);
+
+    // Another card (or a pin) opens its view: this one clears.
+    state.change('view_result', { id: 'other', shown: 'Medulla' });
+    expect(status.textContent).toBe('');
+    expect(card.classList.contains('shown')).toBe(false);
+    // A pin of the same name opens this view: marked again.
+    state.change('view_result', { id: null, shown: 'Glomerulus' });
+    expect(status.textContent).toBe('Shown in the Landscape.');
+    expect(card.classList.contains('shown')).toBe(true);
+    // The scientist moves the view: cleared.
+    state.change('view_result', { id: null, shown: '' });
+    expect(card.classList.contains('shown')).toBe(false);
+  });
 });

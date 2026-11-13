@@ -13,6 +13,7 @@
 
 import { make_pin_layer, valid_pins } from '../deck-gl/layers/pin_layer';
 import { refresh_layer } from '../utils/refresh_layer';
+import { announce_view } from '../viz/view_requests';
 
 import { CONTROL_FONT_SIZE } from './control_style';
 
@@ -131,8 +132,11 @@ export const add_pins_control = ({
     button.title = `Opening ${pin.name}…`;
     draw_list();
     try {
+      viz_state.programmatic_view_at = Date.now();
       await restore(pin.snapshot);
       button.title = `Opened ${pin.name}`;
+      // Linked Snapshot cards of the same name are marked shown.
+      announce_view(model, String(pin.name || ''));
     } catch (error) {
       button.title = `Couldn't open ${pin.name}: ${error?.message || error}`;
     }

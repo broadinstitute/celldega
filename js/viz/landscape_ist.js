@@ -144,7 +144,7 @@ import {
   landscape_identity,
   landscape_source,
 } from './snapshot';
-import { listen_for_view_requests } from './view_requests';
+import { announce_view, listen_for_view_requests } from './view_requests';
 
 // Row group reading support
 
@@ -1273,9 +1273,11 @@ export const landscape_ist = async (
 
   // Snapshot cards linked to this Landscape open their view here, in the browser.
   cleanup_callbacks.push(
-    listen_for_view_requests(viz_state.model, (snapshot) =>
-      landscape.restore_snapshot(snapshot, { allow_resize: true })
-    )
+    listen_for_view_requests(viz_state.model, (snapshot) => {
+      // A move of ours, not the scientist's (see on_view_state_change).
+      viz_state.programmatic_view_at = Date.now();
+      return landscape.restore_snapshot(snapshot, { allow_resize: true });
+    })
   );
 
   // PINS: Snapshots pinned on the tissue (landscape.pins); a pin opens its view.
@@ -1565,6 +1567,11 @@ export const landscape_ist = async (
         initialViewState: new_view_state,
         views: viz_state.views,
       });
+      // The scale bar follows the camera on user gestures (on_view_state_change);
+      // a programmatic move (apply_state, a restored Snapshot, a pin) updates it here.
+      if (viz_state.scale_bar) {
+        viz_state.obs_store.scale_bar_view_state.set(new_view_state);
+      }
 
       viz_state.layers_obj = layers_obj;
     },
@@ -1595,6 +1602,10 @@ export const landscape_ist = async (
     get_replay_state: () => get_landscape_replay_state(viz_state),
     apply_state: (changes = {}, { timeout_ms = 30000 } = {}) => {
       const canvas = deck_ist.getCanvas?.();
+      // The view changes: linked Snapshot cards drop their "shown" mark (a
+      // Snapshot or pin being opened marks its own once it is shown).
+      announce_view(viz_state.model, '');
+      viz_state.programmatic_view_at = Date.now();
       return wait_for_operation(
         () =>
           apply_landscape_state(

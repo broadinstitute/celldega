@@ -49,7 +49,11 @@ import {
   createEmptyCellCompact,
 } from '../utils/compact_data';
 
-import { set_image_layer_sliders } from './sliders';
+import {
+  restore_image_slider_values,
+  save_image_slider_values,
+  set_image_layer_sliders,
+} from './sliders';
 
 /**
  * Save the current visualization state before switching datasets
@@ -180,6 +184,11 @@ export const switch_dataset = async (
 
   // Save current state before switching (for persistence across datasets)
   const saved_state = save_persistent_state(viz_state);
+  // Image intensities are per dataset: remember the one being left.
+  save_image_slider_values(
+    viz_state,
+    viz_state.obs_store.current_dataset_index.get()
+  );
 
   // Mark that we're switching datasets
   viz_state.obs_store.dataset_switching.set(true);
@@ -420,6 +429,8 @@ export const switch_dataset = async (
     // Create completely new image layers with unique IDs to force fresh tile fetching
     const new_image_layers = await make_image_layers(viz_state, new_index);
     layers_obj.image_layers = new_image_layers;
+    // Each dataset keeps its own intensities: show this dataset's saved values.
+    restore_image_slider_values(viz_state, layers_obj, new_index);
     viz_state.update_image_source_control?.();
 
     // Update background layer extent if needed

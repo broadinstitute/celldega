@@ -209,9 +209,26 @@ export const make_slider = () => {
   return document.createElement('input');
 };
 
+/**
+ * Build the image-channel slider elements for `img.image_info`.
+ *
+ * Sliders that already exist for a channel are reused, not recreated: the
+ * controls on the page (and their listeners and values) belong to those
+ * elements, and the intensity callback finds its slider in this array. A
+ * replacement element would be detached from the page with no value, which
+ * reads as intensity 0 and hides the channel (e.g. after a dataset switch).
+ *
+ * @param {Object} img - Image state; `image_layer_sliders` is replaced.
+ */
 export const set_image_layer_sliders = (img) => {
+  const existing = Array.isArray(img.image_layer_sliders)
+    ? img.image_layer_sliders
+    : [];
+
   img.image_layer_sliders = img.image_info.map((info) => {
-    const input = document.createElement('input');
+    const input =
+      existing.find((slider) => slider.name === info.button_name) ||
+      document.createElement('input');
     input.name = info.button_name;
     set_slider_accent_color(input, info.color);
     return input;
@@ -351,6 +368,63 @@ export const set_slider_value = (slider, value) => {
 
   slider.value = String(value);
   update_slider_fill_percent(slider);
+};
+
+/** Starting intensity of every image-channel slider (0-100). */
+export const DEFAULT_IMG_SLIDER_VALUE = 50;
+
+/**
+ * Remember the image-channel slider values for one dataset, so they can be
+ * put back when the user returns to it.
+ *
+ * @param {Object} viz_state - Visualization state.
+ * @param {number} dataset_index - Dataset whose slider values are saved.
+ */
+export const save_image_slider_values = (viz_state, dataset_index) => {
+  const sliders = viz_state.img.image_layer_sliders;
+  if (!Array.isArray(sliders)) return;
+
+  if (!viz_state.img.slider_values_by_dataset) {
+    viz_state.img.slider_values_by_dataset = {};
+  }
+  viz_state.img.slider_values_by_dataset[dataset_index] = Object.fromEntries(
+    sliders.map((slider) => [slider.name, slider.value])
+  );
+};
+
+/**
+ * Move the image-channel sliders to the values saved for a dataset (the
+ * default for one not visited yet) and apply them to its image layers, so the
+ * controls and the image agree after a dataset switch.
+ *
+ * @param {Object} viz_state - Visualization state.
+ * @param {Object} layers_obj - Layers object whose `image_layers` are updated.
+ * @param {number} dataset_index - Dataset being shown.
+ */
+export const restore_image_slider_values = (
+  viz_state,
+  layers_obj,
+  dataset_index
+) => {
+  const sliders = viz_state.img.image_layer_sliders;
+  if (!Array.isArray(sliders)) return;
+
+  const saved = viz_state.img.slider_values_by_dataset?.[dataset_index] || {};
+
+  sliders.forEach((slider) => {
+    const value = Number(saved[slider.name] ?? DEFAULT_IMG_SLIDER_VALUE);
+    set_slider_value(
+      slider,
+      Number.isNaN(value) ? DEFAULT_IMG_SLIDER_VALUE : value
+    );
+    update_opacity_single_image_layer(
+      viz_state,
+      layers_obj,
+      slider.name,
+      Number(slider.value) / 10,
+      viz_state.img.image_layer_colors
+    );
+  });
 };
 
 export const ini_slider_params = (slider, ini_value, callback) => {

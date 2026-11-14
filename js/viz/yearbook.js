@@ -1168,12 +1168,17 @@ export const yearbook = async (
       }
     });
 
-    viz_state.model.on('change:cells', async () => {
-      if (viz_state.yearbook.restoring) return;
-      viz_state.yearbook.cells = viz_state.model.get('cells');
-      await update_all_portraits();
-      initViewStates();
-    });
+    // Tracked so a snapshot taken right after new cells arrive (e.g. Clerk's
+    // selection) waits for their portraits.
+    viz_state.model.on(
+      'change:cells',
+      tracked(async () => {
+        if (viz_state.yearbook.restoring) return;
+        viz_state.yearbook.cells = viz_state.model.get('cells');
+        await update_all_portraits();
+        initViewStates();
+      })
+    );
 
     viz_state.model.on('change:zoom_level', () => {
       if (viz_state.yearbook.restoring) return;

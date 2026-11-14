@@ -1708,3 +1708,129 @@ class Selector:
             matrix = self.adata[:, name].layers[layer]
 
         return pd.Series(_as_1d_array(matrix), index=self.ids, name=name)
+
+
+_PREDICATE_OPS = frozenset(QueryOp.__args__)
+_BOOLEAN_OPS = frozenset(BooleanOp.__args__)
+_MAX_QUERY_DEPTH = 8
+
+
+def _attribute_from_dict(data: Any) -> Attribute:
+    if (
+        not isinstance(data, dict)
+        or data.get("type") not in ("obs", "gene")
+        or not data.get("name")
+    ):
+        raise ValueError('an attribute must be like {"type": "obs"|"gene", "name": ...}')
+    return Attribute(
+        kind=data["type"],
+        name=str(data["name"]),
+        layer=None if data.get("layer") is None else str(data["layer"]),
+        raw=bool(data.get("raw", False)),
+    )
+
+
+def query_from_dict(data: dict[str, Any], *, _depth: int = 0) -> Query:
+    """Build a query from its :meth:`Query.to_dict` form (the inverse of ``to_dict``).
+
+    A leaf is ``{"op": "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"isin"|"notin"|"isna"|"notna"
+    |"between", "attr": {"type": "obs"|"gene", "name": ...}, "value": ...}``; a
+    combination is ``{"op": "and"|"or"|"not", "queries": [...]}``. Only these
+    operators are accepted, so a saved or generated query can be re-run without
+    running any code.
+
+    Examples
+    --------
+    >>> query = query_from_dict(
+    ...     {"op": "and", "queries": [
+    ...         {"op": "eq", "attr": {"type": "obs", "name": "cluster"}, "value": "4"},
+    ...         {"op": "gt", "attr": {"type": "gene", "name": "GENE1"}, "value": 1},
+    ...     ]}
+    ... )
+    >>> selector.select(query=query, sampler=24)
+    """
+    if _depth > _MAX_QUERY_DEPTH:
+        raise ValueError(f"queries can nest at most {_MAX_QUERY_DEPTH} levels")
+    if not isinstance(data, dict):
+        raise ValueError("a query must be an object")
+    op = data.get("op")
+    if op in _BOOLEAN_OPS:
+        children = data.get("queries")
+        if not isinstance(children, list | tuple):
+            raise ValueError(f'a "{op}" query needs a "queries" list')
+        return BooleanQuery(
+            op, tuple(query_from_dict(child, _depth=_depth + 1) for child in children)
+        )
+    if op not in _PREDICATE_OPS:
+        raise ValueError(f"unknown query op {op!r}")
+    attr = _attribute_from_dict(data.get("attr"))
+    value = data.get("value")
+    if op in ("isin", "notin"):
+        if isinstance(value, str) or not isinstance(value, list | tuple):
+            raise ValueError(f'"{op}" needs a list of values')
+        value = tuple(value)
+    elif op == "between":
+        if not isinstance(value, list | tuple) or len(value) != 2:
+            raise ValueError('"between" needs [low, high]')
+        value = tuple(value)
+    elif op in ("isna", "notna"):
+        value = None
+    options = data.get("options")
+    return PredicateQuery(op, attr, value, dict(options) if isinstance(options, dict) else None)
+
+
+def sampler_from_dict(data: dict[str, Any] | int | str | None) -> Sampler | int | str | None:
+    """Build a sampler from its ``to_dict`` form (the inverse of ``to_dict``).
+
+    Accepts ``{"type": "random"|"rank"|"quantile_bin"|"gaussian"|"stratified", ...}``
+    with the fields that sampler's ``to_dict`` writes, and passes through what
+    :meth:`Selector.select` takes as is: ``None``, an ``int`` or ``"all"``.
+    """
+    if data is None or data == "all":
+        return data
+    if isinstance(data, int) and not isinstance(data, bool):
+        return data
+    if not isinstance(data, dict):
+        raise ValueError('a sampler must be like {"type": "random", "n": 24}')
+    kind = data.get("type")
+
+    def _int(key):
+        value = data.get(key)
+        return None if value is None else int(value)
+
+    if kind == "random":
+        return RandomSampler(n=_int("n"), seed=_int("seed"), replace=bool(data.get("replace")))
+    if kind == "all":
+        return "all"
+    attr = _attribute_from_dict(data.get("attr"))
+    if kind == "rank":
+        return RankSampler(attr=attr, n=_int("n"), by=data.get("by", "high"))
+    if kind == "quantile_bin":
+        return QuantileBinSampler(
+            attr=attr,
+            bin=data.get("bin", "high"),
+            n=_int("n"),
+            seed=_int("seed"),
+            q_low=float(data.get("q_low", 1 / 3)),
+            q_high=float(data.get("q_high", 2 / 3)),
+            proportion=data.get("proportion"),
+            percentile=data.get("percentile"),
+        )
+    if kind == "gaussian":
+        return GaussianSampler(
+            attr=attr,
+            center=float(data["center"]),
+            std=float(data["std"]),
+            n=_int("n"),
+            seed=_int("seed"),
+        )
+    if kind == "stratified":
+        categories = data.get("categories")
+        return StratifiedSampler(
+            attr=attr,
+            n_per_category=_int("n_per_category"),
+            n=_int("n"),
+            seed=_int("seed"),
+            categories=None if categories is None else tuple(categories),
+        )
+    raise ValueError(f"unknown sampler type {kind!r}")

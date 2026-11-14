@@ -147,6 +147,7 @@ def build_prompt(
     clustergram_state: dict | None = None,
     notes: list[str] | None = None,
     enrich_state: dict | None = None,
+    yearbook_state: dict | None = None,
     actions_help: str | None = None,
     lookups: list[str] | None = None,
     landscape_state: dict | None = None,
@@ -172,6 +173,8 @@ def build_prompt(
         notes: Short notes about the evidence, e.g. that a linked view didn't reply.
         enrich_state: An Enrich snapshot (``Enrich.latest_state``) of the enrichment
             results on screen; see :func:`format_enrich_state`.
+        yearbook_state: A Yearbook snapshot's observed state (its query, page and
+            cells); see :func:`format_yearbook_state`.
 
         actions_help: How Clerk may change the linked views (e.g.
             :data:`CLUSTERGRAM_ACTIONS_HELP`); omitted when nothing can be changed.
@@ -243,6 +246,10 @@ def build_prompt(
     enrich_text = format_enrich_state(enrich_state)
     if enrich_text:
         parts += ["## Enrich: enrichment results on screen", enrich_text, ""]
+
+    yearbook_text = format_yearbook_state(yearbook_state)
+    if yearbook_text:
+        parts += ["## Yearbook (what the scientist sees)", yearbook_text, ""]
 
     if has_image:
         parts += [
@@ -469,6 +476,86 @@ def format_landscape_state(state: dict | None, neighborhoods: list[dict] | None 
             f"{nbhd.get('n_cells', 0)} cells" + (f"; clusters {mix}" if mix else "")
         )
     return "\n".join(lines)
+
+
+def format_yearbook_state(state: dict | None, *, max_cells: int = 30) -> str:
+    """Render a Yearbook snapshot (its query, page and the cells shown) as short text.
+
+    A Yearbook is a grid of portraits of single cells, chosen by a query (a cluster's
+    cells, ranked by a gene's expression when one is given), a page at a time.
+    """
+    if not state:
+        return ""
+    query = state.get("query") or {}
+    cluster = (query.get("cluster") or {}) if isinstance(query.get("cluster"), dict) else {}
+    parts = []
+    if cluster.get("value") not in (None, ""):
+        parts.append(f"cells of cluster {cluster['value']}")
+    if query.get("gene"):
+        parts.append(f"ranked by {query['gene']} expression (highest first)")
+    selection = state.get("selection") or {}
+    if not parts and selection:
+        parts.append(
+            "cells selected from the AnnData with the query "
+            + json.dumps(selection.get("query"), separators=(",", ":"))
+            + " and sampler "
+            + json.dumps(selection.get("sampler"), separators=(",", ":"))
+        )
+    cells = [str(c) for c in state.get("cells") or []]
+    lines = [
+        "A grid of single-cell portraits: "
+        + (", ".join(parts) if parts else "no query")
+        + f"; {len(cells)} cells, page {int(state.get('page') or 0) + 1}."
+    ]
+    if cells:
+        shown = ", ".join(cells[:max_cells]) + (
+            f", +{len(cells) - max_cells}" if len(cells) > max_cells else ""
+        )
+        lines.append(f"Cells: {shown}")
+    selected = [str(c) for c in state.get("selected_cells") or []]
+    if selected:
+        lines.append("Selected by the scientist: " + ", ".join(selected[:max_cells]))
+    display = state.get("display") or {}
+    if display.get("genes"):
+        lines.append("Colored by: " + ", ".join(map(str, display["genes"])))
+    return "\n".join(lines)
+
+
+def describe_anndata(
+    adata, *, max_columns: int = 24, max_categories: int = 15, max_genes: int = 8
+) -> str:
+    """Describe an AnnData's cells for selecting them: its size, and each ``obs``
+    column with its categories or numeric range ("" without an AnnData)."""
+    if adata is None or not hasattr(adata, "obs"):
+        return ""
+    import pandas as pd
+
+    obs = adata.obs
+    genes = [str(g) for g in list(getattr(adata, "var_names", []))[:max_genes]]
+    parts = [
+        f"{adata.n_obs} cells x {adata.n_vars} genes (gene names like "
+        + ", ".join(genes)
+        + "). obs columns:"
+    ]
+    for name in list(obs.columns)[:max_columns]:
+        column = obs[name]
+        if isinstance(column.dtype, pd.CategoricalDtype) or column.dtype == object:
+            values = pd.Series(column).dropna().astype(str).unique()
+            shown = ", ".join(sorted(values, key=_natural_key)[:max_categories])
+            more = f", +{len(values) - max_categories}" if len(values) > max_categories else ""
+            parts.append(f"- {name}: {len(values)} values ({shown}{more})")
+        elif pd.api.types.is_bool_dtype(column):
+            parts.append(f"- {name}: true/false")
+        elif pd.api.types.is_numeric_dtype(column):
+            low, high = column.min(), column.max()
+            parts.append(f"- {name}: numbers {low:.4g} to {high:.4g}")
+    if len(obs.columns) > max_columns:
+        parts.append(f"- +{len(obs.columns) - max_columns} more columns")
+    return "\n".join(parts)
+
+
+def _natural_key(text: str):
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", text)]
 
 
 def format_enrich_state(state: dict | None, *, max_genes: int = 12) -> str:
@@ -750,6 +837,17 @@ def extract_actions(answer: str) -> tuple[str, dict | None, str | None]:
     return text, actions, None
 
 
+def _enrichment_line(message: dict, top: int = 3) -> str:
+    """An Enrichr result in the history, compactly: its top terms per library, so a
+    later question can use it instead of looking it up again."""
+    parts = [
+        f"{library}: " + ", ".join(str(t.get("name")) for t in (terms or [])[:top])
+        for library, terms in (message.get("libraries") or {}).items()
+    ]
+    label = message.get("label") or "genes"
+    return f"Enrichr for {label} (already looked up; top terms) " + "; ".join(parts)
+
+
 def _format_history(
     history: list[dict] | None,
     max_questions: int | None = None,
@@ -763,14 +861,20 @@ def _format_history(
     """
     max_questions = MAX_HISTORY_QUESTIONS if max_questions is None else max_questions
     max_chars = MAX_HISTORY_CHARS if max_chars is None else max_chars
-    labels = {"user": "Scientist", "assistant": "Clerk", "action": "Clerk did"}
+    labels = {
+        "user": "Scientist",
+        "assistant": "Clerk",
+        "action": "Clerk did",
+        "enrichment": "Clerk looked up",
+    }
     groups: list[list[str]] = []
     for m in history or []:
         if not isinstance(m, dict) or m.get("role") not in labels:
             continue
         if m["role"] == "user" or not groups:
             groups.append([])
-        groups[-1].append(f"{labels[m['role']]}: {str(m.get('content', '')).strip()}")
+        text = _enrichment_line(m) if m["role"] == "enrichment" else m.get("content", "")
+        groups[-1].append(f"{labels[m['role']]}: {str(text).strip()}")
     lines = [line for group in groups[-max_questions:] for line in group] if max_questions else []
     # Drop the oldest lines until the transcript fits the character budget.
     while lines and sum(len(t) for t in lines) > max_chars:
@@ -877,6 +981,7 @@ def build_follow_up(
     landscape_state: dict | None = None,
     neighborhoods: list[dict] | None = None,
     enrich_state: dict | None = None,
+    yearbook_state: dict | None = None,
     has_image: bool = False,
 ) -> str:
     """The message for a follow-up round: only what is new since the last message."""
@@ -890,6 +995,9 @@ def build_follow_up(
     enrich_text = format_enrich_state(enrich_state)
     if enrich_text:
         parts += ["## Enrich now", enrich_text, ""]
+    yearbook_text = format_yearbook_state(yearbook_state)
+    if yearbook_text:
+        parts += ["## Yearbook now", yearbook_text, ""]
     if has_image:
         parts += ["## Image", "A new screenshot of the Landscape view is attached.", ""]
     if notes:
@@ -1045,6 +1153,7 @@ def ask(
     clustergram_state: dict | None = None,
     notes: list[str] | None = None,
     enrich_state: dict | None = None,
+    yearbook_state: dict | None = None,
     actions_help: str | None = None,
     lookups: list[str] | None = None,
     landscape_state: dict | None = None,
@@ -1068,6 +1177,7 @@ def ask(
         clustergram_state=clustergram_state,
         notes=notes,
         enrich_state=enrich_state,
+        yearbook_state=yearbook_state,
         actions_help=actions_help,
         lookups=lookups,
         landscape_state=landscape_state,
@@ -1090,6 +1200,7 @@ def follow_up(
     landscape_state: dict | None = None,
     neighborhoods: list[dict] | None = None,
     enrich_state: dict | None = None,
+    yearbook_state: dict | None = None,
     image_b64: str | None = None,
     model: str = "",
     timeout: int = DEFAULT_TIMEOUT,
@@ -1105,6 +1216,7 @@ def follow_up(
         landscape_state=landscape_state,
         neighborhoods=neighborhoods,
         enrich_state=enrich_state,
+        yearbook_state=yearbook_state,
         has_image=bool(image_b64),
     )
     return run_claude(

@@ -579,6 +579,7 @@ def link_clerk(
     landscape: Landscape | None = None,
     clustergram: Clustergram | None = None,
     enrich: Enrich | None = None,
+    yearbook: Yearbook | None = None,
     capture_on_select: bool = True,
 ) -> Clerk:
     """Link a standalone `Clerk` to whichever widgets you pass -- the integration point.
@@ -596,15 +597,18 @@ def link_clerk(
     - ``enrich`` -> the enrichment results on screen (``Enrich.request_state``). Clerk
       then stops fetching its own Enrichr terms.
 
-    Yearbook is intentionally *not* linked into Clerk -- it's a sidecar you lay out
-    separately. This only wires state; lay the widgets out however you like. Returns
-    ``clerk`` for chaining.
+    - ``yearbook`` -> the portraits on screen (its query, page and cells, and an
+      image), shown with the question; Clerk can also change its query.
+
+    This only wires state; lay the widgets out however you like. Returns ``clerk`` for
+    chaining.
 
     Args:
         clerk (Clerk): The Clerk widget to link.
         landscape (Landscape | None): Source of raster / view-state evidence.
         clustergram (Clustergram | None): Source of matrix and gene-list evidence.
         enrich (Enrich | None): Source of enrichment-result evidence.
+        yearbook (Yearbook | None): Source of single-cell portrait evidence.
         capture_on_select (bool): Re-capture the Landscape raster on each selection.
     """
     # Remember linked widgets so later features (set-state, evidence sharing) can find
@@ -619,6 +623,8 @@ def link_clerk(
     if enrich is not None:
         linked["enrich"] = enrich
         clerk.fetch_enrichr = False  # read the Enrich panel's results instead
+    if yearbook is not None:
+        linked["yearbook"] = yearbook
     clerk._linked_widgets = linked
     return clerk
 

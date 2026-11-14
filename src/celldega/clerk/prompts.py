@@ -141,8 +141,11 @@ few views per answer, each supporting a specific claim. Change the views directl
 """
 
 
-def actions_help(*, clustergram: bool, landscape: bool = False) -> str:
-    """How Clerk can look things up, and change the linked Clustergram / Landscape."""
+def actions_help(
+    *, clustergram: bool, landscape: bool = False, yearbook: bool = False, anndata: str = ""
+) -> str:
+    """How Clerk can look things up, and change the linked Clustergram / Landscape /
+    Yearbook (``anndata``: a description of the cells it can select from, or "")."""
     libraries = ", ".join(DEFAULT_ENRICHR_LIBRARIES)
     lines = [
         f"End a reply with one fenced block tagged `{ACTIONS_FENCE}` containing one JSON "
@@ -177,6 +180,8 @@ def actions_help(*, clustergram: bool, landscape: bool = False) -> str:
         f"{libraries}; others e.g. Azimuth_Cell_Types_2021, GO_Biological_Process_2025 via "
         '"libraries").',
         "- pubmed: literature searches; returns titles and abstract excerpts with PMIDs.",
+        'Enrichr results from earlier in the conversation are in its history ("Clerk '
+        'looked up"); use them rather than repeating a lookup.',
     ]
     if clustergram:
         lines += [
@@ -196,7 +201,35 @@ def actions_help(*, clustergram: bool, landscape: bool = False) -> str:
             '"zoom_to": {"clusters": ["A"]} frames those cells; "reset_view": true; '
             '"space": "spatial" or "umap".',
         ]
-    if clustergram or landscape:
+    if yearbook:
+        lines += [
+            "",
+            "To show single cells in the Yearbook (a grid of cell portraits, to see what "
+            "the cells look like: shape, size, transcripts), when the scientist asks or "
+            'when seeing them settles a point: {"yearbook": {"cluster": "A", "gene": '
+            '"GENE1", "max_cells": 60}} shows cells of a cluster, ranked by a gene\'s '
+            "expression (highest first) when one is given; either may be left out.",
+        ]
+        if anndata:
+            lines += [
+                "To choose cells by any combination of cell attributes and genes, select "
+                "them from the AnnData described below with a query and a sampler "
+                "(celldega.select, written as JSON; nothing you write is run as code): "
+                '{"yearbook": {"select": {"query": {"op": "and", "queries": [{"op": "eq", '
+                '"attr": {"type": "obs", "name": "<column>"}, "value": "A"}, {"op": "gt", '
+                '"attr": {"type": "gene", "name": "GENE1"}, "value": 1}]}, "sampler": '
+                '{"type": "rank", "attr": {"type": "gene", "name": "GENE2"}, "n": 24, '
+                '"by": "high"}}}}. Query ops: eq, ne, lt, le, gt, ge, isin and notin (a '
+                "list value), between ([low, high]), isna, notna; combine with "
+                '{"op": "and"|"or"|"not", "queries": [...]}. Samplers: {"type": "random", '
+                '"n", "seed"}, {"type": "rank", "attr", "n", "by": "high"|"low"}, '
+                '{"type": "quantile_bin", "attr", "bin": "low"|"mid"|"high", "n", "seed"}, '
+                '{"type": "stratified", "attr", "n_per_category", "seed"} (default: 60 at '
+                "random). Use only columns and genes the AnnData has.",
+                "",
+                "AnnData you can select from: " + anndata,
+            ]
+    if clustergram or landscape or yearbook:
         lines += [
             "",
             "To save the views as a screenshot (an image with your description and the "

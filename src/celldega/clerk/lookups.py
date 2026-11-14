@@ -7,6 +7,7 @@ Results are cached for the session, and formatted as short text for the prompt.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import urllib.parse
 import urllib.request
 import uuid
@@ -22,6 +23,43 @@ _TIMEOUT = 30
 _enrichr_cache: dict[tuple, list[dict]] = {}
 _enrichr_links: dict[tuple, str] = {}
 _pubmed_cache: dict[tuple, list[dict]] = {}
+
+#: A folder to keep lookup results in between sessions (``None``: this session only).
+#: Clerk sets it to ``<output_dir>/lookup_cache``; a repeated lookup is then read from
+#: disk instead of asking Enrichr or PubMed again.
+cache_dir: str | Path | None = None
+
+
+def _disk_key(*parts) -> str:
+    return json.dumps(parts, sort_keys=True, default=str)
+
+
+def _disk_get(kind: str, key: str):
+    if cache_dir is None:
+        return None
+    path = Path(cache_dir) / f"{kind}.json"
+    try:
+        return json.loads(path.read_text()).get(key)
+    except (OSError, ValueError):
+        return None
+
+
+def _disk_put(kind: str, key: str, value) -> None:
+    if cache_dir is None:
+        return
+    path = Path(cache_dir) / f"{kind}.json"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            stored = json.loads(path.read_text())
+        except (OSError, ValueError):
+            stored = {}
+        stored[key] = value
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(stored))
+        tmp.replace(path)
+    except OSError:  # a cache that can't be written only costs a repeated lookup
+        pass
 
 
 class ClerkLookupError(RuntimeError):
@@ -65,6 +103,7 @@ def _post_gene_list(genes: list[str], timeout: float = _TIMEOUT) -> int:
     short_id = str(payload.get("shortId") or "")
     if short_id:
         _enrichr_links[tuple(sorted(genes))] = enrichr_app_url(short_id)
+        _disk_put("enrichr", _disk_key("link", sorted(genes)), enrichr_app_url(short_id))
     return payload["userListId"]
 
 
@@ -79,7 +118,12 @@ def enrichr_link(genes: list[str]) -> str:
     The page shows the same list's results in every Enrichr library.
     """
     genes = [str(g) for g in dict.fromkeys(genes) if str(g)]
-    return _enrichr_links.get(tuple(sorted(genes)), "")
+    key = tuple(sorted(genes))
+    if key not in _enrichr_links:
+        stored = _disk_get("enrichr", _disk_key("link", sorted(genes)))
+        if stored:
+            _enrichr_links[key] = stored
+    return _enrichr_links.get(key, "")
 
 
 def enrichr(
@@ -105,6 +149,10 @@ def enrichr(
     for library in libraries:
         key = (tuple(sorted(genes)), library)
         if key not in _enrichr_cache:
+            stored = _disk_get("enrichr", _disk_key(library, sorted(genes)))
+            if stored is not None:
+                _enrichr_cache[key] = stored
+        if key not in _enrichr_cache:
             if user_list_id is None:
                 user_list_id = _post_gene_list(genes)
             query = urllib.parse.urlencode({"userListId": user_list_id, "backgroundType": library})
@@ -122,6 +170,7 @@ def enrichr(
             ]
             terms.sort(key=lambda term: term["score"], reverse=True)
             _enrichr_cache[key] = terms
+            _disk_put("enrichr", _disk_key(library, sorted(genes)), terms)
         results[library] = _enrichr_cache[key][:top]
     return results
 
@@ -133,6 +182,10 @@ def pubmed(query: str, n: int = 5, abstract_chars: int = 600) -> list[dict]:
         list[dict]: ``{"pmid", "title", "journal", "year", "abstract"}`` per article.
     """
     key = (query, n, abstract_chars)
+    if key not in _pubmed_cache:
+        stored = _disk_get("pubmed", _disk_key(*key))
+        if stored is not None:
+            _pubmed_cache[key] = stored
     if key in _pubmed_cache:
         return _pubmed_cache[key]
     search = urllib.parse.urlencode(
@@ -150,6 +203,7 @@ def pubmed(query: str, n: int = 5, abstract_chars: int = 600) -> list[dict]:
     )
     if not ids:
         _pubmed_cache[key] = []
+        _disk_put("pubmed", _disk_key(*key), [])
         return []
     fetch = urllib.parse.urlencode(
         {"db": "pubmed", "id": ",".join(ids), "retmode": "xml", "tool": USER_AGENT}
@@ -174,6 +228,7 @@ def pubmed(query: str, n: int = 5, abstract_chars: int = 600) -> list[dict]:
             }
         )
     _pubmed_cache[key] = articles
+    _disk_put("pubmed", _disk_key(*key), articles)
     return articles
 
 

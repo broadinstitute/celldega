@@ -298,13 +298,14 @@ export const render_clerk = async ({ model, el }) => {
   // let the scientist revisit the evidence after navigating elsewhere.
   /**
    * Screenshots + "Sent with: ..." line recorded on a question by Python: the
-   * Landscape and Clustergram as Clerk saw them, side by side, each with a link
-   * back to that view (and one to both).
+   * Landscape, Clustergram and Yearbook as Clerk saw them, side by side, each with
+   * a link back to that view (and one to all of them).
    */
   const renderSentWith = (message, row, on_snapshot) => {
     const shots = [
       ['landscape', message.image, 'Landscape'],
       ['clustergram', message.clustergram_image, 'Clustergram'],
+      ['yearbook', message.yearbook_image, 'Yearbook'],
     ].filter(([, image]) => image);
     const snapshots = message.snapshots || {};
     const view_link = (text, title, which) => {
@@ -345,8 +346,8 @@ export const render_clerk = async ({ model, el }) => {
       if (saved.length > 1) {
         row.appendChild(
           view_link(
-            'Show both views',
-            'Return the Landscape and Clustergram to the views sent with this question',
+            saved.length === 2 ? 'Show both views' : 'Show all views',
+            'Return the linked views to those sent with this question',
             snapshots
           )
         );

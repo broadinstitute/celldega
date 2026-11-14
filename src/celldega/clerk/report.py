@@ -107,7 +107,11 @@ def _anchor_view_links(text: str, number: int, views: dict) -> str:
 def _capture_cell(nbformat, step: dict, names: dict | None) -> Any:
     cell = nbformat.v4.new_code_cell(reproduction_code(step, names))
     cell.metadata["clerk"] = {"capture": step.get("text", "")}
-    for key, what in (("image", "Landscape"), ("clustergram_image", "Clustergram")):
+    for key, what in (
+        ("image", "Landscape"),
+        ("clustergram_image", "Clustergram"),
+        ("yearbook_image", "Yearbook"),
+    ):
         if step.get(key):
             cell.outputs.append(
                 nbformat.v4.new_output(
@@ -357,6 +361,13 @@ def notebook_to_html(notebook) -> str:
 # Where a report keeps its screenshots (older reports used ``images/``).
 SCREENSHOT_DIR = "screenshots"
 _IMAGE_DIRS = (f"{SCREENSHOT_DIR}/", "images/")
+# A capture step's image of each widget, and the suffix of its screenshot's name.
+_IMAGE_KEYS = {
+    "landscape": "image",
+    "clustergram": "clustergram_image",
+    "yearbook": "yearbook_image",
+}
+_IMAGE_SUFFIXES = {"landscape": "", "clustergram": "_clustergram", "yearbook": "_yearbook"}
 
 
 def record_with_images(questions: list[dict], folder: Path | None) -> list[dict]:
@@ -370,7 +381,7 @@ def record_with_images(questions: list[dict], folder: Path | None) -> list[dict]
         steps = []
         for step in entry.get("steps") or []:
             step = dict(step)
-            for key in ("image", "clustergram_image"):
+            for key in _IMAGE_KEYS.values():
                 value = step.get(key)
                 if isinstance(value, str) and value.startswith(_IMAGE_DIRS):
                     path = Path(folder) / value if folder is not None else None
@@ -388,7 +399,7 @@ def _screenshot_shot(step: dict, widget: str) -> dict | None:
     source = (step.get("sources") or {}).get(widget)
     if not source:
         return None
-    key = "image" if widget == "landscape" else "clustergram_image"
+    key = _IMAGE_KEYS[widget]
     shot = {
         "image": step[key],
         "source": source,
@@ -422,9 +433,7 @@ def _write_capture(path: Path, step: dict, widget: str, question: str) -> None:
             return
         except Exception:  # not a decodable PNG, or a record too large to embed
             pass
-    path.write_bytes(
-        base64.b64decode(step["image" if widget == "landscape" else "clustergram_image"])
-    )
+    path.write_bytes(base64.b64decode(step[_IMAGE_KEYS[widget]]))
 
 
 def _record_without_images(record: list[dict], folder: Path) -> list[dict]:
@@ -436,12 +445,10 @@ def _record_without_images(record: list[dict], folder: Path) -> list[dict]:
         shot = 0
         for step in entry.get("steps") or []:
             step = dict(step)
-            if step.get("image") or step.get("clustergram_image"):
+            if any(step.get(key) for key in _IMAGE_KEYS.values()):
                 shot += 1
-            for key, widget, suffix in (
-                ("image", "landscape", ""),
-                ("clustergram_image", "clustergram", "_clustergram"),
-            ):
+            for widget, key in _IMAGE_KEYS.items():
+                suffix = _IMAGE_SUFFIXES[widget]
                 # A record reopened from another report may already point at a file.
                 if step.get(key) and not str(step[key]).startswith(_IMAGE_DIRS):
                     screenshots.mkdir(parents=True, exist_ok=True)

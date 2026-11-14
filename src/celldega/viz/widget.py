@@ -110,6 +110,33 @@ def _hsv_to_hex(h: float) -> str:
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
+def _describe_anndata(adata) -> str:
+    from celldega.clerk import describe_anndata
+
+    return describe_anndata(adata)
+
+
+def _read_anndata_link(link: str):
+    """Read an AnnData from a link: a local ``.h5ad`` (backed, so its matrix stays on
+    disk), or a ``.zarr`` path or URL."""
+    import anndata as ad
+
+    remote = "://" in link
+    if ".zarr" in link:
+        if remote:
+            import zarr
+
+            return ad.read_zarr(zarr.storage.FsspecStore.from_url(link, read_only=True))
+        return ad.read_zarr(link)
+    if link.endswith(".h5ad"):
+        if remote:
+            raise ValueError(
+                "a remote AnnData must be a .zarr URL; download the .h5ad and pass its path"
+            )
+        return ad.read_h5ad(link, backed="r")
+    raise ValueError(f"an AnnData link must be an .h5ad or .zarr path or URL: {link}")
+
+
 def _selection_to_payload(selection) -> dict:
     """Normalize a selector result into a JSON-ready payload with ordered ids."""
     if hasattr(selection, "to_json"):
@@ -1916,11 +1943,18 @@ class Clerk(CelldegaWidget):
         # ``Clerk(landscape=ls, clustergram=cgm, enrich=en)``. Pop them before
         # super().__init__ since they are not traits.
         link_targets = {
-            key: kwargs.pop(key, None) for key in ("landscape", "clustergram", "enrich")
+            key: kwargs.pop(key, None) for key in ("landscape", "clustergram", "enrich", "yearbook")
         }
         capture_on_select = kwargs.pop("capture_on_select", True)
+        adata = kwargs.pop("adata", None)
 
         super().__init__(name=name, registry_key=registry_key, **kwargs)
+        # Single-cell AnnData Clerk may select Yearbook cells from (celldega.select,
+        # run here in the kernel from a JSON query Clerk writes; Clerk runs no code):
+        # an AnnData, or a link to one (an .h5ad path, or a .zarr path or URL), read
+        # when first needed. Without it, a linked Landscape's AnnData is used.
+        self.adata = adata
+        self._loaded_adata: tuple[str, Any] | None = None
         self._last_request_id = None
         self._linked_widgets = {}
         self._worker: threading.Thread | None = None
@@ -1938,6 +1972,8 @@ class Clerk(CelldegaWidget):
         self.analyses: list[dict] = []
         # Where the data for analysis notebooks lives, e.g. {"adata": "data/x.h5ad"}.
         self.analysis_data: dict = {}
+        if isinstance(adata, str | Path):
+            self.analysis_data["adata"] = str(adata)
         # Messages change from Clerk's worker and from analysis runs, in other threads.
         self._messages_lock = threading.RLock()
         self._evidence_executor = None
@@ -2311,6 +2347,9 @@ class Clerk(CelldegaWidget):
         result = {
             "clustergram_image": "",
             "clustergram_thumb": "",
+            "yearbook_image": "",
+            "yearbook_thumb": "",
+            "yearbook_state": None,
             "snapshots": {},
             "clustergram_state": None,
             "enrich_state": None,
@@ -2361,6 +2400,10 @@ class Clerk(CelldegaWidget):
             else:
                 requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
                 labels.append("clustergram")
+        yearbook = self._linked_widgets.get("yearbook")
+        has_yearbook = yearbook is not None and hasattr(yearbook, "request_snapshot")
+        if has_yearbook:
+            capture("yearbook", yearbook)
         enrich = self._linked_widgets.get("enrich")
         has_enrich = enrich is not None and hasattr(enrich, "request_state")
         if has_enrich:
@@ -2435,6 +2478,44 @@ class Clerk(CelldegaWidget):
                     "may not be displayed, or the page needs reloading after an update)."
                 )
                 result["summary"].append("Clustergram: no snapshot")
+        if has_yearbook:
+            if "yearbook" in captured:
+                shot = captured["yearbook"]
+                result["yearbook_image"] = (shot.get("image") or {}).get("png", "")
+                result["yearbook_thumb"] = (shot.get("image") or {}).get("thumb", "")
+                state = deepcopy(shot.get("observed_state") or {})
+                chosen = getattr(yearbook, "selection", None) or {}
+                if (
+                    not state.get("query")
+                    and chosen.get("ids")
+                    and [str(c) for c in state.get("cells") or []] == list(chosen["ids"])
+                ):
+                    state["selection"] = {
+                        key: chosen.get(key)
+                        for key in ("query", "sampler", "candidate_count")
+                        if chosen.get(key) is not None
+                    }
+                result["yearbook_state"] = state
+                query = state.get("query") or {}
+                cluster = query.get("cluster") if isinstance(query.get("cluster"), dict) else {}
+                what = " · ".join(
+                    str(v)
+                    for v in (
+                        f"cluster {cluster['value']}" if (cluster or {}).get("value") else "",
+                        query.get("gene") or "",
+                    )
+                    if v
+                )
+                result["summary"].append(
+                    f"Yearbook: {len(state.get('cells') or [])} cells"
+                    + (f" ({what})" if what else "")
+                )
+            else:
+                result["notes"].append(
+                    "A Yearbook is linked but did not return its portraits this time "
+                    "(it may not be displayed)."
+                )
+                result["summary"].append("Yearbook: no snapshot")
         if has_enrich:
             if answered.get("enrich") and not enrich.state_error and enrich.latest_state:
                 state = dict(enrich.latest_state)
@@ -2459,13 +2540,14 @@ class Clerk(CelldegaWidget):
         image_fresh: bool,
         snapshots: dict | None = None,
         clustergram_thumb: str = "",
+        yearbook_thumb: str = "",
     ) -> None:
         """Attach what was sent to the latest question: previews of the Landscape and
         Clustergram screenshots, the views to return to, and a summary line."""
         from .snapshots import restore_spec
 
         landscape_thumb = self.image_thumb_b64 if image_fresh else ""
-        if not summary and not landscape_thumb and not clustergram_thumb:
+        if not summary and not (landscape_thumb or clustergram_thumb or yearbook_thumb):
             return
         messages = [dict(m) for m in self.messages]
         for message in reversed(messages):
@@ -2474,7 +2556,9 @@ class Clerk(CelldegaWidget):
                     message["image"] = landscape_thumb
                 if clustergram_thumb:
                     message["clustergram_image"] = clustergram_thumb
-                if landscape_thumb or clustergram_thumb:
+                if yearbook_thumb:
+                    message["yearbook_image"] = yearbook_thumb
+                if landscape_thumb or clustergram_thumb or yearbook_thumb:
                     message["snapshots"] = {
                         name: restore_spec(snapshot) for name, snapshot in (snapshots or {}).items()
                     }
@@ -2952,12 +3036,16 @@ class Clerk(CelldegaWidget):
                             out.add(path)
                     continue
                 if step.get("kind") != "capture" or not (
-                    step.get("image") or step.get("clustergram_image")
+                    step.get("image") or step.get("clustergram_image") or step.get("yearbook_image")
                 ):
                     continue
                 captures += 1
                 label = f"Q{number}" if captures == 1 else f"Q{number}.{captures}"
-                for key, widget in (("image", "landscape"), ("clustergram_image", "clustergram")):
+                for key, widget in (
+                    ("image", "landscape"),
+                    ("clustergram_image", "clustergram"),
+                    ("yearbook_image", "yearbook"),
+                ):
                     view = (step.get("snapshots") or {}).get(widget)
                     if not step.get(key) or not view:
                         continue
@@ -3025,6 +3113,10 @@ class Clerk(CelldegaWidget):
             self.messages = [*self.messages, message]
         if self.pending and message.get("role") in ("error", "pause"):
             self._log_step(message["role"], str(message.get("content", "")))
+
+    #: Folder (under :attr:`output_dir`) keeping Enrichr and PubMed results between
+    #: sessions, so the same lookup isn't sent again; ``None`` keeps them in memory only.
+    lookup_cache: str | None = "lookup_cache"
 
     #: Terms per library in an inline Enrichr result; its chart scrolls, as in the
     #: Enrich panel. Clerk itself reads the top ``ENRICHMENT_PROMPT_TERMS``.
@@ -3125,7 +3217,13 @@ class Clerk(CelldegaWidget):
         observations = deepcopy(
             {
                 key: views[key]
-                for key in ("landscape_state", "clustergram_state", "enrich_state", "neighborhoods")
+                for key in (
+                    "landscape_state",
+                    "clustergram_state",
+                    "enrich_state",
+                    "yearbook_state",
+                    "neighborhoods",
+                )
                 if views.get(key) is not None
             }
         )
@@ -3134,7 +3232,10 @@ class Clerk(CelldegaWidget):
         clustergram = _clustergram_reproduction(views.get("clustergram_state"))
         image = self.image_b64 if views.get("image_fresh") else ""
         clustergram_image = views.get("clustergram_image") or ""
-        if not (image or clustergram_image or landscape or clustergram or observations):
+        yearbook_image = views.get("yearbook_image") or ""
+        if not (
+            image or clustergram_image or yearbook_image or landscape or clustergram or observations
+        ):
             return
         last = next(
             (st for st in reversed(self.record[-1]["steps"]) if st["kind"] == "capture"), None
@@ -3157,6 +3258,7 @@ class Clerk(CelldegaWidget):
             and last.get("sources") == sources
             and last.get("image") == image
             and last.get("clustergram_image") == clustergram_image
+            and last.get("yearbook_image", "") == yearbook_image
             and replay_contracts(last.get("snapshots", {})) == replay_contracts(snapshots)
         ):
             return
@@ -3165,6 +3267,7 @@ class Clerk(CelldegaWidget):
             label,
             image=image,
             clustergram_image=clustergram_image,
+            yearbook_image=yearbook_image,
             landscape=landscape,
             clustergram=clustergram,
             observations=observations,
@@ -3196,12 +3299,18 @@ class Clerk(CelldegaWidget):
         Raises:
             ValueError: For something Clerk can't do, or an invalid request.
         """
-        unknown = sorted(set(actions) - {"clustergram", "landscape", "lookup", "snapshot"})
+        unknown = sorted(
+            set(actions) - {"clustergram", "landscape", "lookup", "snapshot", "yearbook"}
+        )
         if unknown:
             raise ValueError(
-                f"unknown action(s) {unknown}; use 'lookup', 'clustergram', 'landscape' "
-                "and/or 'snapshot'"
+                f"unknown action(s) {unknown}; use 'lookup', 'clustergram', 'landscape', "
+                "'yearbook' and/or 'snapshot'"
             )
+        # Validated (and any selection run) before anything changes.
+        yearbook_change = (
+            self._yearbook_change(actions["yearbook"]) if actions.get("yearbook") else None
+        )
         snapshot = actions.get("snapshot")
         if snapshot is not None and not isinstance(snapshot, dict):
             raise ValueError("'snapshot' must be like {'title': ..., 'description': ...}")
@@ -3284,7 +3393,139 @@ class Clerk(CelldegaWidget):
             changes += [f"the Landscape: {c}" for c in landscape.apply_state(landscape_settings)]
             if getattr(landscape, "_apply_request_id", 0) != before:
                 self._pending_landscape_apply = landscape._apply_request_id
+        if yearbook_change is not None:
+            apply, description = yearbook_change
+            apply()
+            changes.append(f"the Yearbook: {description}")
         return changes, reads
+
+    #: Most Yearbook portraits Clerk may ask for at once.
+    _MAX_YEARBOOK_CELLS = 200
+    _YEARBOOK_KEYS = frozenset({"cluster", "gene", "max_cells", "select"})
+
+    def _selection_adata(self):
+        """The AnnData Clerk selects Yearbook cells from: ``Clerk(adata=...)`` (read
+        from its link the first time), else a linked Landscape's; ``None`` when there
+        is neither.
+
+        Raises:
+            ValueError: When the link can't be read.
+        """
+        adata = self.adata
+        if isinstance(adata, str | Path):
+            link = str(adata)
+            if self._loaded_adata is None or self._loaded_adata[0] != link:
+                self._loaded_adata = (link, _read_anndata_link(link))
+            return self._loaded_adata[1]
+        if adata is not None:
+            return adata
+        return getattr(self._linked_widgets.get("landscape"), "_adata", None)
+
+    def _describe_selectable(self) -> str:
+        """The AnnData Clerk can select cells from, described for its prompt ("" when
+        there is none or its link can't be read)."""
+        try:
+            return _describe_anndata(self._selection_adata())
+        except Exception as exc:  # a broken link must not stop the question
+            return f"(not available: {exc})" if self.adata is not None else ""
+
+    def _yearbook_change(self, spec) -> tuple:
+        """Validate a ``yearbook`` action; return ``(apply, description)``.
+
+        ``{"cluster": "4", "gene": "GENE1", "max_cells": 60}`` sets the Yearbook's
+        query, which it evaluates in the browser (a cluster's cells, ranked by a gene's
+        expression). ``{"select": {"query": {...}, "sampler": {...}}}`` selects cells
+        from the AnnData with :mod:`celldega.select` (the query and sampler in their
+        ``to_dict`` form, rebuilt by ``query_from_dict`` / ``sampler_from_dict``, so
+        nothing Clerk writes is run as code) and shows those cells, in order.
+        """
+        yearbook = self._linked_widgets.get("yearbook")
+        if yearbook is None or not hasattr(yearbook, "front_end_query"):
+            raise ValueError("no Yearbook is linked")
+        if not isinstance(spec, dict):
+            raise ValueError("'yearbook' must be an object")
+        unknown = sorted(set(spec) - self._YEARBOOK_KEYS)
+        if unknown:
+            raise ValueError(f"unknown Yearbook setting(s): {unknown}")
+        try:
+            limit = int(spec.get("max_cells") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("yearbook.max_cells must be a number") from None
+        limit = max(1, min(limit, self._MAX_YEARBOOK_CELLS)) if limit else 0
+
+        if spec.get("select") is not None:
+            if spec.get("cluster") is not None or spec.get("gene"):
+                raise ValueError("use 'select' or 'cluster'/'gene' for the Yearbook, not both")
+            return self._yearbook_selection(yearbook, spec["select"], limit)
+
+        cluster, gene = spec.get("cluster"), spec.get("gene")
+        if cluster in (None, "") and not gene:
+            raise ValueError("the Yearbook needs a 'cluster', a 'gene' or a 'select'")
+        query: dict = {}
+        if cluster not in (None, ""):
+            attr = getattr(yearbook, "cluster_attr", "") or "leiden"
+            query["cluster"] = {"attr": attr, "value": str(cluster)}
+        if gene:
+            query["gene"] = str(gene)
+        query["max_cells"] = limit or 60
+        described = ", ".join(
+            part
+            for part in (
+                f"cluster {cluster}" if "cluster" in query else "",
+                f"ranked by {gene}" if gene else "",
+            )
+            if part
+        )
+
+        def apply():
+            yearbook.front_end_query = query
+
+        return apply, f"{described} (up to {query['max_cells']} cells)"
+
+    def _yearbook_selection(self, yearbook, select, limit: int) -> tuple:
+        from celldega.select import Selector, query_from_dict, sampler_from_dict
+
+        try:
+            adata = self._selection_adata()
+        except Exception as exc:
+            raise ValueError(f"couldn't read the AnnData ({exc})") from None
+        if adata is None:
+            raise ValueError(
+                "no AnnData to select cells from (pass Clerk(adata=...)); use "
+                "'cluster'/'gene' instead"
+            )
+        if not isinstance(select, dict):
+            raise ValueError("yearbook.select must be like {'query': {...}, 'sampler': {...}}")
+        limit = limit or 60
+        sampler_spec = select.get("sampler")
+        if sampler_spec in (None, "all"):
+            sampler_spec = {"type": "random", "n": limit, "seed": 0}
+        try:
+            query = query_from_dict(select["query"]) if select.get("query") else None
+            sampler = sampler_from_dict(sampler_spec)
+            selection = Selector(adata).select(query=query, sampler=sampler)
+        except (KeyError, TypeError, ValueError) as exc:
+            message = exc.args[0] if isinstance(exc, KeyError) and exc.args else exc
+            raise ValueError(f"the cell selection failed: {message}") from None
+        payload = _selection_to_payload(selection)
+        payload["ids"] = payload["ids"][:limit]
+        if not payload["ids"]:
+            raise ValueError("the cell selection matched no cells")
+        ids = payload["ids"]
+
+        def apply():
+            with yearbook.hold_sync():
+                # Clears the browser query (and its inputs), so the cells stay these.
+                yearbook.front_end_query = {}
+                yearbook.selection = payload
+                yearbook.current_page = 0
+                yearbook.cells = ids
+
+        matched = payload.get("candidate_count")
+        return apply, (
+            f"{len(ids)} cells selected from the AnnData"
+            + (f" (of {matched} matching)" if matched is not None else "")
+        )
 
     #: Folder for everything Clerk writes: exported reports (``report_<time>``) and
     #: its screenshots (``screenshots``), so one ignore rule covers them.
@@ -3320,6 +3561,16 @@ class Clerk(CelldegaWidget):
                     "state": _clustergram_reproduction(views.get("clustergram_state")),
                     "observed_state": deepcopy(views.get("clustergram_state")),
                     "snapshot": restore_spec(views.get("snapshots", {}).get("clustergram", {})),
+                }
+            )
+        yearbook = self._linked_widgets.get("yearbook")
+        if yearbook is not None and views.get("yearbook_image"):
+            shots.append(
+                {
+                    "image": views["yearbook_image"],
+                    "source": widget_source(yearbook),
+                    "observed_state": deepcopy(views.get("yearbook_state")),
+                    "snapshot": restore_spec(views.get("snapshots", {}).get("yearbook", {})),
                 }
             )
         if not shots:
@@ -3394,9 +3645,20 @@ class Clerk(CelldegaWidget):
         return out
 
     def _run_lookups(self, reads: dict, clustergram_state: dict | None) -> list[str]:
-        """Run the Enrichr / PubMed lookups (worker thread); returns text for the prompt."""
+        """Run the Enrichr / PubMed lookups (worker thread); returns text for the prompt.
+
+        Results are cached (in memory, and on disk in :attr:`lookup_cache`), so a
+        repeated lookup doesn't ask Enrichr or PubMed again, and an Enrichr result
+        already shown in the conversation isn't drawn again.
+        """
         from ..clerk import lookups
 
+        lookups.cache_dir = Path(self.output_dir) / self.lookup_cache if self.lookup_cache else None
+        shown = {
+            (tuple(m.get("genes") or []), tuple(sorted(m.get("libraries") or {})))
+            for m in self.messages
+            if m.get("role") == "enrichment"
+        }
         results = []
         by_cluster = {
             str(entry.get("cluster")): [g["name"] for g in entry.get("genes") or []]
@@ -3427,7 +3689,13 @@ class Clerk(CelldegaWidget):
             except Exception as exc:  # network or service problems become a note
                 results.append(f"Enrichr for {label} failed: {exc}")
                 continue
-            self._append_enrichment(label, genes, found, url=url, title=title)
+            drawn = (
+                tuple(str(g) for g in dict.fromkeys(genes)),
+                tuple(sorted(lib for lib, terms in found.items() if terms)),
+            )
+            if drawn not in shown:
+                self._append_enrichment(label, genes, found, url=url, title=title)
+                shown.add(drawn)
         for query in reads.get("pubmed") or []:
             try:
                 results.append(lookups.format_pubmed(query, lookups.pubmed(query)))
@@ -3438,6 +3706,7 @@ class Clerk(CelldegaWidget):
     def _use_views(self, call: dict, views: dict) -> None:
         call["clustergram_state"] = views["clustergram_state"]
         call["enrich_state"] = views["enrich_state"]
+        call["yearbook_state"] = views.get("yearbook_state")
         call["landscape_state"] = views.get("landscape_state")
         call["neighborhoods"] = views.get("neighborhoods")
         call["notes"] = list(views["notes"])
@@ -3466,6 +3735,7 @@ class Clerk(CelldegaWidget):
                 views["image_fresh"],
                 views.get("snapshots"),
                 views.get("clustergram_thumb", ""),
+                views.get("yearbook_thumb", ""),
             )
             if call.get("enrichr_terms"):
                 # The panel's own Enrichr results for the selected genes, shown once
@@ -3488,9 +3758,13 @@ class Clerk(CelldegaWidget):
             # Lookups (Enrichr, PubMed) work without widgets; Clustergram / Landscape
             # lookups and changes only when those are linked.
             landscape = self._linked_widgets.get("landscape")
+            yearbook = self._linked_widgets.get("yearbook")
+            has_yearbook = yearbook is not None and hasattr(yearbook, "front_end_query")
             call["actions_help"] = clerk.actions_help(
                 clustergram=cgm is not None and hasattr(cgm, "apply_state"),
                 landscape=landscape is not None and hasattr(landscape, "apply_state"),
+                yearbook=has_yearbook,
+                anndata=self._describe_selectable() if has_yearbook else "",
             )
             question_index = len(self.messages) - 1
             self._start_record(question, call, question_index, summary)
@@ -3791,7 +4065,7 @@ class Clerk(CelldegaWidget):
         from .snapshots import restore_spec
 
         requests, ids = [], {}
-        for name in ("clustergram", "landscape"):
+        for name in ("yearbook", "clustergram", "landscape"):
             widget = self._linked_widgets.get(name)
             if not hasattr(widget, "request_snapshot"):
                 continue
@@ -3838,13 +4112,13 @@ class Clerk(CelldegaWidget):
         """Revisit the views a question was sent with (one or both widgets), keeping
         the pre-click view for Back."""
         if not isinstance(snapshots, dict) or not (
-            snapshots.get("landscape") or snapshots.get("clustergram")
+            snapshots.get("landscape") or snapshots.get("clustergram") or snapshots.get("yearbook")
         ):
             self.error = "This image has no saved view."
             self._append({"role": "error", "content": self.error})
             return
         # Clustergram focus can change the Landscape; restore the image's view last.
-        for name in ("clustergram", "landscape"):
+        for name in ("yearbook", "clustergram", "landscape"):
             if name not in snapshots:
                 continue
             try:
@@ -3861,7 +4135,7 @@ class Clerk(CelldegaWidget):
         if not saved:
             return
         # Linked Clustergram focus can change Landscape; restore Landscape last.
-        for name in ("clustergram", "landscape"):
+        for name in ("yearbook", "clustergram", "landscape"):
             widget = self._linked_widgets.get(name)
             snapshot = saved.get("snapshots", {}).get(name)
             if not snapshot:
@@ -4019,7 +4293,11 @@ class Clerk(CelldegaWidget):
             {
                 **entry,
                 "steps": [
-                    {k: v for k, v in step.items() if k not in ("image", "clustergram_image")}
+                    {
+                        k: v
+                        for k, v in step.items()
+                        if k not in ("image", "clustergram_image", "yearbook_image")
+                    }
                     for step in entry.get("steps") or []
                 ],
             }
@@ -4290,7 +4568,13 @@ def _changed_views(call: dict, views: dict, image_b64: str) -> dict:
     """The views (and screenshot) that differ from what was last sent to Clerk."""
     changed = {
         key: views.get(key)
-        for key in ("clustergram_state", "landscape_state", "neighborhoods", "enrich_state")
+        for key in (
+            "clustergram_state",
+            "landscape_state",
+            "neighborhoods",
+            "enrich_state",
+            "yearbook_state",
+        )
         if views.get(key) and views.get(key) != call.get(key)
     }
     if views.get("image_fresh") and image_b64 and image_b64 != call.get("image_b64"):

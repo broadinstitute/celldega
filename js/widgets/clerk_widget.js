@@ -104,6 +104,8 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-figure > summary { color: #2c7fb8; }
 .${PANEL_CLASS} .clerk-image-view { display: block; width: fit-content; margin-top: 3px; font-size: 11px; color: #2c7fb8; }
 .${PANEL_CLASS} .clerk-sent-images { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.${PANEL_CLASS} .clerk-shown { margin-top: 8px; }
+.${PANEL_CLASS} .clerk-shown-caption { font-size: 12px; font-style: italic; color: #2c7fb8; }
 .${PANEL_CLASS} .clerk-sent-image { flex: 0 1 auto; min-width: 100px; max-width: 240px; }
 .${PANEL_CLASS} .clerk-sent-images > .clerk-sent-image:nth-last-child(2),
 .${PANEL_CLASS} .clerk-sent-images > .clerk-sent-image:nth-last-child(2) ~ .clerk-sent-image {
@@ -328,7 +330,10 @@ export const render_clerk = async ({ model, el }) => {
         figure.className = 'clerk-sent-image';
         const img = document.createElement('img');
         img.src = `data:image/png;base64,${image}`;
-        img.title = `${label} view sent with this question`;
+        img.title =
+          message.role === 'view'
+            ? `${label} view Clerk showed`
+            : `${label} view sent with this question`;
         figure.appendChild(img);
         if (snapshots[name]) {
           figure.appendChild(
@@ -842,6 +847,15 @@ export const render_clerk = async ({ model, el }) => {
     model.save_changes();
   };
 
+  // A preview's "Show this view": open its saved views in the linked widgets.
+  const open_snapshots = (snapshots) => {
+    shown_genes = [];
+    shown_clusters = [];
+    shown_view = '';
+    send_now({ show_snapshot: snapshots });
+    mark_shown();
+  };
+
   const renderTurn = (turn, index, is_last) => {
     const key = `turn-${index}`;
     let wrapper;
@@ -856,13 +870,7 @@ export const render_clerk = async ({ model, el }) => {
       label.appendChild(you);
       label.appendChild(document.createTextNode(turn.question.content || ''));
       wrapper = make_fold(key, label, true, 'clerk-turn');
-      renderSentWith(turn.question, wrapper, (snapshots) => {
-        shown_genes = [];
-        shown_clusters = [];
-        shown_view = '';
-        send_now({ show_snapshot: snapshots });
-        mark_shown();
-      });
+      renderSentWith(turn.question, wrapper, open_snapshots);
     } else {
       wrapper = document.createElement('div');
       wrapper.className = 'clerk-turn';
@@ -890,6 +898,17 @@ export const render_clerk = async ({ model, el }) => {
       });
       wrapper.appendChild(work);
     }
+    // Views Clerk changed for this question, as Snapshots to return to.
+    turn.shown.forEach((message) => {
+      const shown = document.createElement('div');
+      shown.className = 'clerk-shown';
+      const caption = document.createElement('div');
+      caption.className = 'clerk-shown-caption';
+      caption.textContent = `Clerk showed: ${message.content || 'a view'}`;
+      shown.appendChild(caption);
+      renderSentWith(message, shown, open_snapshots);
+      wrapper.appendChild(shown);
+    });
 
     let asked = false;
     if (turn.answer) {

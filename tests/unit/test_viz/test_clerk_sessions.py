@@ -234,4 +234,7 @@ def test_a_paused_question_keeps_its_session_until_continued(monkeypatch) -> Non
     w.request = {"id": "2", "continue": True}
     assert w.wait(timeout=5)
     assert len(followed) == 2  # the resumed round continued the same session
+    # Kept for the conversation's next question, and deleted when its session ends.
+    assert w._conversation["session"] is session and Path(session.workdir).exists()
+    w._end_conversation()
     assert not Path(session.workdir).exists()

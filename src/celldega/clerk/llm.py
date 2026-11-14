@@ -217,23 +217,9 @@ def build_prompt(
             "",
         ]
 
-    if enrichr_terms:
-        lines = []
-        for t in enrichr_terms:
-            name = t.get("name") if isinstance(t, dict) else str(t)
-            if not name:
-                continue
-            score = t.get("score") if isinstance(t, dict) else None
-            genes = t.get("genes") if isinstance(t, dict) else None
-            suffix = ""
-            if score is not None:
-                suffix += f" (score {float(score):.2f})"
-            if genes:
-                overlap = ", ".join(str(g) for g in genes[:8])
-                suffix += f" [{overlap}]"
-            lines.append(f"- {name}{suffix}")
-        if lines:
-            parts += ["## Enrichr enrichment (top terms)", *lines, ""]
+    lines = _enrichr_lines(enrichr_terms)
+    if lines:
+        parts += ["## Enrichr enrichment (top terms)", *lines, ""]
 
     landscape_text = format_landscape_state(landscape_state, neighborhoods)
     if landscape_text:
@@ -269,6 +255,24 @@ def build_prompt(
 
     parts += ["## Question", question.strip() or "Interpret this cluster."]
     return "\n".join(parts)
+
+
+def _enrichr_lines(enrichr_terms: list[dict] | None) -> list[str]:
+    lines = []
+    for t in enrichr_terms or []:
+        name = t.get("name") if isinstance(t, dict) else str(t)
+        if not name:
+            continue
+        score = t.get("score") if isinstance(t, dict) else None
+        genes = t.get("genes") if isinstance(t, dict) else None
+        suffix = ""
+        if score is not None:
+            suffix += f" (score {float(score):.2f})"
+        if genes:
+            overlap = ", ".join(str(g) for g in genes[:8])
+            suffix += f" [{overlap}]"
+        lines.append(f"- {name}{suffix}")
+    return lines
 
 
 _SELECTION_MODES = {
@@ -522,21 +526,23 @@ def format_yearbook_state(state: dict | None, *, max_cells: int = 30) -> str:
 
 
 def describe_anndata(
-    adata, *, max_columns: int = 24, max_categories: int = 15, max_genes: int = 8
+    adata, *, max_columns: int = 24, max_categories: int = 40, max_genes: int = 300
 ) -> str:
-    """Describe an AnnData's cells for selecting them: its size, and each ``obs``
+    """Describe an AnnData's cells for selecting them: its size, its genes (all of
+    them up to ``max_genes``), whether its values look like counts, and each ``obs``
     column with its categories or numeric range ("" without an AnnData)."""
     if adata is None or not hasattr(adata, "obs"):
         return ""
     import pandas as pd
 
     obs = adata.obs
-    genes = [str(g) for g in list(getattr(adata, "var_names", []))[:max_genes]]
-    parts = [
-        f"{adata.n_obs} cells x {adata.n_vars} genes (gene names like "
-        + ", ".join(genes)
-        + "). obs columns:"
-    ]
+    genes = [str(g) for g in list(getattr(adata, "var_names", []))]
+    if len(genes) <= max_genes:
+        named = "genes: " + ", ".join(genes)
+    else:
+        named = f"genes like {', '.join(genes[:20])} (+{len(genes) - 20} more)"
+    parts = [f"{adata.n_obs} cells x {adata.n_vars} genes{_value_kind(adata)}; {named}."]
+    parts.append("obs columns:")
     for name in list(obs.columns)[:max_columns]:
         column = obs[name]
         if isinstance(column.dtype, pd.CategoricalDtype) or column.dtype == object:
@@ -552,6 +558,21 @@ def describe_anndata(
     if len(obs.columns) > max_columns:
         parts.append(f"- +{len(obs.columns) - max_columns} more columns")
     return "\n".join(parts)
+
+
+def _value_kind(adata) -> str:
+    """ " (raw counts)" when a sample of X is whole numbers, else " (normalized values)"."""
+    import numpy as np
+
+    try:
+        sample = adata.X[: min(adata.n_obs, 2000)]
+        values = np.asarray(sample.data if hasattr(sample, "data") else sample).ravel()
+        values = values[np.isfinite(values)][:100_000]
+        if values.size == 0:
+            return ""
+        return " (raw counts)" if np.all(values == np.round(values)) else " (normalized values)"
+    except Exception:  # backed or unusual matrices: say nothing
+        return ""
 
 
 def _natural_key(text: str):
@@ -942,13 +963,15 @@ class Session:
     def started(self) -> bool:
         return self.calls > 0
 
-    def totals(self) -> dict:
-        """Tokens and the CLI's cost estimate summed over the calls so far."""
+    def totals(self, since: int = 0) -> dict:
+        """Tokens and the CLI's cost estimate summed over the calls so far (from call
+        number ``since``: a session can carry several questions)."""
+        usage = self.usage[since:]
         keys = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
-        out = {k: sum(int(u.get(k) or 0) for u in self.usage) for k in keys}
-        out["output_tokens"] = sum(int(u.get("output_tokens") or 0) for u in self.usage)
-        out["cost_usd"] = round(sum(float(u.get("cost_usd") or 0) for u in self.usage), 5)
-        out["calls"] = len(self.usage)
+        out = {k: sum(int(u.get(k) or 0) for u in usage) for k in keys}
+        out["output_tokens"] = sum(int(u.get("output_tokens") or 0) for u in usage)
+        out["cost_usd"] = round(sum(float(u.get("cost_usd") or 0) for u in usage), 5)
+        out["calls"] = len(usage)
         return out
 
     def close(self) -> None:
@@ -1009,6 +1032,99 @@ def build_follow_up(
         "already said or request anything you already did."
     ]
     return "\n".join(parts)
+
+
+#: How each linked view is named to Clerk.
+VIEW_NAMES = {
+    "landscape_state": "Landscape",
+    "clustergram_state": "Clustergram",
+    "enrich_state": "Enrich panel",
+    "yearbook_state": "Yearbook",
+}
+
+
+def build_next_question(
+    question: str,
+    *,
+    unchanged: list[str] | None = None,
+    since: str = "",
+    gene_list: list[str] | None = None,
+    enrichr_terms: list[dict] | None = None,
+    clustergram_state: dict | None = None,
+    landscape_state: dict | None = None,
+    neighborhoods: list[dict] | None = None,
+    enrich_state: dict | None = None,
+    yearbook_state: dict | None = None,
+    has_image: bool = False,
+    notes: list[str] | None = None,
+    actions_help: str | None = None,
+) -> str:
+    """The message for a new question in a conversation that continues one session.
+
+    Clerk already has the earlier questions, its answers and the evidence it was shown
+    in the session, so this carries only what changed since: the views whose state
+    differs from what Clerk last saw (``unchanged`` names the others), the selected
+    genes or Enrichr terms if they changed, and ``since`` (what happened in the panel
+    between questions, e.g. labels Clerk applied or an analysis that ran).
+    """
+    parts: list[str] = []
+    if since.strip():
+        parts += ["## Since your last answer", since.strip(), ""]
+    changed = []
+    for title, text in (
+        ("Landscape", format_landscape_state(landscape_state, neighborhoods)),
+        ("Clustergram", format_clustergram_state(clustergram_state)),
+        ("Enrich: enrichment results on screen", format_enrich_state(enrich_state)),
+        ("Yearbook", format_yearbook_state(yearbook_state)),
+    ):
+        if text:
+            changed.append(title)
+            parts += [f"## {title} now (changed since you last saw it)", text, ""]
+    if has_image:
+        parts += ["## Image", "A new screenshot of the Landscape view is attached.", ""]
+    if unchanged:
+        parts += [
+            "## Unchanged",
+            f"{_join(unchanged)}: as you last saw {'it' if len(unchanged) == 1 else 'them'} "
+            "earlier in this conversation.",
+            "",
+        ]
+    if gene_list:
+        parts += ["## Marker / DE genes now", ", ".join(str(g) for g in gene_list), ""]
+    lines = _enrichr_lines(enrichr_terms)
+    if lines:
+        parts += ["## Enrichr enrichment now (top terms)", *lines, ""]
+    if notes:
+        parts += ["## Evidence notes", *(f"- {note}" for note in notes), ""]
+    if actions_help:
+        parts += ["## Looking things up and changing views (updated)", actions_help, ""]
+    parts += ["## Question", question.strip() or "Interpret this cluster."]
+    return "\n".join(parts)
+
+
+def _join(names: list[str]) -> str:
+    names = [str(n) for n in names]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def next_question(
+    session: Session,
+    question: str,
+    *,
+    image_b64: str | None = None,
+    model: str = "",
+    timeout: int = DEFAULT_TIMEOUT,
+    effort: str = "",
+    **evidence,
+) -> str:
+    """Ask a new question in a started :class:`Session`, sending only what changed
+    (see :func:`build_next_question`)."""
+    if not session.started:
+        raise ValueError("start the session with ask(..., session=session) first")
+    prompt = build_next_question(question, has_image=bool(image_b64), **evidence)
+    return run_claude(
+        prompt, image_b64=image_b64, model=model, timeout=timeout, effort=effort, session=session
+    )
 
 
 def run_claude(

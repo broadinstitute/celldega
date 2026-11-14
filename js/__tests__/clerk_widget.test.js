@@ -251,6 +251,40 @@ describe('Clerk panel', () => {
     expect(el.querySelector('a.clerk-image-view')).toBeNull();
   });
 
+  test('views Clerk changed appear in the turn as Snapshots to return to', async () => {
+    const snapshots = { yearbook: { state: { cells: ['c1', 'c2'] } } };
+    const { el, model } = await render({
+      messages: [
+        { role: 'user', content: 'Show me the cells.' },
+        {
+          role: 'action',
+          content: 'Changed the Yearbook: 2 cells selected from the AnnData',
+        },
+        {
+          role: 'view',
+          content: 'the Yearbook: 2 cells selected from the AnnData',
+          yearbook_image: 'WUJL',
+          snapshots,
+        },
+        { role: 'assistant', content: 'Here they are.' },
+      ],
+    });
+    const shown = el.querySelector('.clerk-shown');
+    expect(shown.textContent).toContain(
+      'Clerk showed: the Yearbook: 2 cells selected from the AnnData'
+    );
+    const img = shown.querySelector('.clerk-sent-image img');
+    expect(img.src.slice(-4)).toBe('WUJL');
+    expect(img.title).toBe('Yearbook view Clerk showed');
+    // Between the Work fold and the answer, outside both.
+    expect(shown.closest('details.clerk-fold:not(.clerk-turn)')).toBeNull();
+    const turn = el.querySelector('.clerk-turn');
+    const order = [...turn.querySelectorAll('.clerk-shown, .clerk-md')];
+    expect(order[0]).toBe(shown);
+    shown.querySelector('a.clerk-image-view').click();
+    expect(model.get('request').show_snapshot).toEqual(snapshots);
+  });
+
   test('view changes Clerk made appear as their own line', async () => {
     const { el } = await render({
       messages: [

@@ -3,6 +3,11 @@ import * as d3 from 'd3';
 import { get_total_pages } from '../deck-gl/core/yearbook_viewports';
 import { toggle_background_layer_visibility } from '../deck-gl/layers/background_layer';
 import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
+import {
+  comparison_bar_data,
+  comparison_key,
+  gene_color,
+} from '../global_variables/gene_comparison';
 import { debounce } from '../utils/debounce';
 import { refresh_layer } from '../utils/refresh_layer';
 
@@ -606,6 +611,8 @@ export const make_yearbook_ui_container = (
   );
 
   viz_state.containers.image.appendChild(spatial_toggle_container);
+  // The IMG row also holds SNAP, as in the Landscape (see add_pic_button).
+  viz_state.containers.image_row = spatial_toggle_container;
 
   // Image layer sliders
   const get_slider_by_name = (img, name) => {
@@ -826,6 +833,7 @@ export const make_yearbook_ui_container = (
     ({
       svg,
       color_dict,
+      color_of = null,
       get_selected_array,
       bar_callback,
       container,
@@ -846,7 +854,9 @@ export const make_yearbook_ui_container = (
 
       const x_scale = d3
         .scaleLinear()
-        .domain([0, d3.max(bar_data_values)])
+        // `|| 1`: all-zero bars (e.g. compared genes with none in view) draw at
+        // zero width rather than NaN.
+        .domain([0, d3.max(bar_data_values) || 1])
         .range([0, max_bar_width]);
 
       const bars = svg.selectAll('g').data(bar_data, (d) => d.name);
@@ -898,7 +908,9 @@ export const make_yearbook_ui_container = (
         .select('rect')
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
-          const rgb = color_dict[d.name] || [0, 0, 0];
+          const rgb = (color_of ? color_of(d.name) : color_dict[d.name]) || [
+            0, 0, 0,
+          ];
           return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
         });
 
@@ -957,15 +969,34 @@ export const make_yearbook_ui_container = (
     { immediate: false }
   );
 
-  viz_state.obs_store.new_gene_bar_data.subscribe(
-    subscriber_new_bar_data({
-      svg: viz_state.genes.svg_bar_gene,
-      color_dict: viz_state.genes.color_dict_gene,
-      get_selected_array: () => viz_state.genes.selected_genes || [],
-      bar_callback: bar_callback_gene,
-      container: viz_state.containers.bar_gene,
-      tooltip: 'gene',
-    }),
+  // Gene bars, which become the key while genes are compared: just those genes,
+  // in their comparison colors (see gene_comparison.js).
+  const draw_gene_bars = subscriber_new_bar_data({
+    svg: viz_state.genes.svg_bar_gene,
+    color_dict: viz_state.genes.color_dict_gene,
+    color_of: (name) => gene_color(viz_state.genes, name),
+    get_selected_array: () => viz_state.genes.selected_genes || [],
+    bar_callback: bar_callback_gene,
+    container: viz_state.containers.bar_gene,
+    tooltip: 'gene',
+  });
+  let drawn_comparison = '';
+  const show_gene_bars = (bar_data) => {
+    drawn_comparison = comparison_key(viz_state.genes);
+    draw_gene_bars(comparison_bar_data(viz_state.genes, bar_data));
+  };
+  viz_state.obs_store.new_gene_bar_data.subscribe(show_gene_bars, {
+    immediate: false,
+  });
+  // A comparison starting, changing or ending redraws the bars it shows.
+  viz_state.obs_store.selected_genes.subscribe(
+    () => {
+      if (comparison_key(viz_state.genes) === drawn_comparison) return;
+      const latest = viz_state.obs_store.new_gene_bar_data.get();
+      show_gene_bars(
+        latest?.length ? latest : viz_state.genes.top_gene_counts || []
+      );
+    },
     { immediate: false }
   );
 

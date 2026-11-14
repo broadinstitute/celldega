@@ -204,9 +204,11 @@ def actions_help(
     if yearbook:
         lines += [
             "",
-            "To show single cells in the Yearbook (a grid of cell portraits, to see what "
-            "the cells look like: shape, size, transcripts), when the scientist asks or "
-            'when seeing them settles a point: {"yearbook": {"cluster": "A", "gene": '
+            "The cluster signatures (pseudo-bulk expression per cluster) are your main "
+            "evidence. The Yearbook is for looking at small samples of single cells (a "
+            "grid of cell portraits: their shape, size, transcripts), when the scientist "
+            "asks or when seeing them settles a point: "
+            '{"yearbook": {"cluster": "A", "gene": '
             '"GENE1", "max_cells": 60}} shows cells of a cluster, ranked by a gene\'s '
             "expression (highest first) when one is given; either may be left out.",
         ]
@@ -225,7 +227,9 @@ def actions_help(
                 '"n", "seed"}, {"type": "rank", "attr", "n", "by": "high"|"low"}, '
                 '{"type": "quantile_bin", "attr", "bin": "low"|"mid"|"high", "n", "seed"}, '
                 '{"type": "stratified", "attr", "n_per_category", "seed"} (default: 60 at '
-                "random). Use only columns and genes the AnnData has.",
+                "random). Use only columns and genes the AnnData has. Its values are "
+                "never sent to you: you learn how many cells matched, and see the "
+                "chosen cells in the Yearbook.",
                 "",
                 "AnnData you can select from: " + anndata,
             ]

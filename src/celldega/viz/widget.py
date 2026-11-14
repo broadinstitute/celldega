@@ -1955,6 +1955,9 @@ class Clerk(CelldegaWidget):
         # when first needed. Without it, a linked Landscape's AnnData is used.
         self.adata = adata
         self._loaded_adata: tuple[str, Any] | None = None
+        # The Claude session the conversation continues in, and what Clerk was last
+        # sent (see continue_conversation).
+        self._conversation: dict | None = None
         self._last_request_id = None
         self._linked_widgets = {}
         self._worker: threading.Thread | None = None
@@ -2541,12 +2544,18 @@ class Clerk(CelldegaWidget):
         snapshots: dict | None = None,
         clustergram_thumb: str = "",
         yearbook_thumb: str = "",
+        unchanged: list[str] | tuple = (),
     ) -> None:
-        """Attach what was sent to the latest question: previews of the Landscape and
-        Clustergram screenshots, the views to return to, and a summary line."""
+        """Attach what was sent to the latest question: previews of the linked views'
+        screenshots, the views to return to, and a summary line. Views Clerk wasn't
+        sent again (``unchanged``: "Landscape", "Clustergram", ...) get no preview."""
         from .snapshots import restore_spec
 
-        landscape_thumb = self.image_thumb_b64 if image_fresh else ""
+        skip = {str(name).split(" ")[0].lower() for name in unchanged}
+        landscape_thumb = self.image_thumb_b64 if image_fresh and "landscape" not in skip else ""
+        clustergram_thumb = "" if "clustergram" in skip else clustergram_thumb
+        yearbook_thumb = "" if "yearbook" in skip else yearbook_thumb
+        snapshots = {k: v for k, v in (snapshots or {}).items() if k not in skip}
         if not summary and not (landscape_thumb or clustergram_thumb or yearbook_thumb):
             return
         messages = [dict(m) for m in self.messages]
@@ -3309,7 +3318,7 @@ class Clerk(CelldegaWidget):
             )
         # Validated (and any selection run) before anything changes.
         yearbook_change = (
-            self._yearbook_change(actions["yearbook"]) if actions.get("yearbook") else None
+            self._yearbook_change(actions["yearbook"]) if "yearbook" in actions else None
         )
         snapshot = actions.get("snapshot")
         if snapshot is not None and not isinstance(snapshot, dict):
@@ -3463,8 +3472,10 @@ class Clerk(CelldegaWidget):
             raise ValueError("the Yearbook needs a 'cluster', a 'gene' or a 'select'")
         query: dict = {}
         if cluster not in (None, ""):
-            attr = getattr(yearbook, "cluster_attr", "") or "leiden"
-            query["cluster"] = {"attr": attr, "value": str(cluster)}
+            query["cluster"] = {
+                "attr": self._yearbook_cluster_attr(yearbook),
+                "value": str(cluster),
+            }
         if gene:
             query["gene"] = str(gene)
         query["max_cells"] = limit or 60
@@ -3481,6 +3492,17 @@ class Clerk(CelldegaWidget):
             yearbook.front_end_query = query
 
         return apply, f"{described} (up to {query['max_cells']} cells)"
+
+    def _yearbook_cluster_attr(self, yearbook) -> str:
+        """The cluster column of the Yearbook's own query (remembered while a selection
+        has cleared it), else its ``cluster_attr``."""
+        current = (yearbook.front_end_query or {}).get("cluster")
+        attr = current.get("attr") if isinstance(current, dict) else ""
+        if attr:
+            self._yearbook_attr = str(attr)
+        return getattr(self, "_yearbook_attr", "") or (
+            getattr(yearbook, "cluster_attr", "") or "leiden"
+        )
 
     def _yearbook_selection(self, yearbook, select, limit: int) -> tuple:
         from celldega.select import Selector, query_from_dict, sampler_from_dict
@@ -3512,6 +3534,8 @@ class Clerk(CelldegaWidget):
         if not payload["ids"]:
             raise ValueError("the cell selection matched no cells")
         ids = payload["ids"]
+
+        self._yearbook_cluster_attr(yearbook)  # remember it before the query is cleared
 
         def apply():
             with yearbook.hold_sync():
@@ -3723,7 +3747,29 @@ class Clerk(CelldegaWidget):
             sources = self._analysis_sources()
             if sources:
                 call["notes"].append("Data for analysis notebooks: " + "; ".join(sources))
-            summary = list(views["summary"])
+            cgm = self._linked_widgets.get("clustergram")
+            # Lookups (Enrichr, PubMed) work without widgets; Clustergram / Landscape
+            # lookups and changes only when those are linked.
+            landscape = self._linked_widgets.get("landscape")
+            yearbook = self._linked_widgets.get("yearbook")
+            has_yearbook = yearbook is not None and hasattr(yearbook, "front_end_query")
+            call["actions_help"] = clerk.actions_help(
+                clustergram=cgm is not None and hasattr(cgm, "apply_state"),
+                landscape=landscape is not None and hasattr(landscape, "apply_state"),
+                yearbook=has_yearbook,
+                anndata=self._describe_selectable() if has_yearbook else "",
+            )
+            # Continuing the conversation's session, Clerk is sent only what changed.
+            conversation = self._take_conversation(call)
+            unchanged = (
+                _unchanged_views(conversation["sent"], call) if conversation is not None else []
+            )
+            summary = [
+                f"{line} (unchanged)"
+                if any(line.startswith(name.split(" ")[0]) for name in unchanged)
+                else line
+                for line in views["summary"]
+            ]
             if call.get("gene_list"):
                 summary.append(f"{len(call['gene_list'])} selected genes")
             if call.get("enrichr_terms"):
@@ -3736,6 +3782,7 @@ class Clerk(CelldegaWidget):
                 views.get("snapshots"),
                 views.get("clustergram_thumb", ""),
                 views.get("yearbook_thumb", ""),
+                unchanged=unchanged,
             )
             if call.get("enrichr_terms"):
                 # The panel's own Enrichr results for the selected genes, shown once
@@ -3754,26 +3801,22 @@ class Clerk(CelldegaWidget):
                 )
                 # The chart scrolls through them all; Clerk reads the top few.
                 call["enrichr_terms"] = call["enrichr_terms"][: self.ENRICHMENT_PROMPT_TERMS]
-            cgm = self._linked_widgets.get("clustergram")
-            # Lookups (Enrichr, PubMed) work without widgets; Clustergram / Landscape
-            # lookups and changes only when those are linked.
-            landscape = self._linked_widgets.get("landscape")
-            yearbook = self._linked_widgets.get("yearbook")
-            has_yearbook = yearbook is not None and hasattr(yearbook, "front_end_query")
-            call["actions_help"] = clerk.actions_help(
-                clustergram=cgm is not None and hasattr(cgm, "apply_state"),
-                landscape=landscape is not None and hasattr(landscape, "apply_state"),
-                yearbook=has_yearbook,
-                anndata=self._describe_selectable() if has_yearbook else "",
-            )
             question_index = len(self.messages) - 1
             self._start_record(question, call, question_index, summary)
             self._log_capture(views, "When asked")
-            # One CLI session per question: follow-up rounds resume it and send only
-            # what is new, so the evidence already sent is read from the API's cache.
-            call["session"] = clerk.Session()
-            self._work(question, call, question_index, answer=_ask(question, call))
+            # Follow-up rounds resume the question's CLI session and send only what is
+            # new, so the evidence already sent is read from the API's cache; so do
+            # later questions while the conversation continues in it.
+            answer = None
+            if conversation is not None:
+                answer = self._ask_next(question, call, conversation, question_index)
+            if answer is None:
+                call["session"] = clerk.Session()
+                call["session_questions"] = 1
+                answer = _ask(question, call)
+            self._work(question, call, question_index, answer=answer)
         except Exception as exc:  # surface every failure in the panel, not the log
+            call["failed"] = True
             self._report_failure(exc)
         finally:
             self._finish_question(call)
@@ -3789,21 +3832,138 @@ class Clerk(CelldegaWidget):
                 pending_actions=paused["actions"],
             )
         except Exception as exc:
+            paused["call"]["failed"] = True
             self._report_failure(exc)
         finally:
             self._finish_question(paused["call"])
             self.pending = False
 
+    _VIEW_WIDGETS = ("landscape", "clustergram", "yearbook")
+
+    def _append_view(self, views: dict, widgets: list[str], label: str) -> None:
+        """Show the views Clerk just changed in the conversation, as Snapshots: their
+        previews, each with a link back to it (``role: "view"``)."""
+        from .snapshots import restore_spec
+
+        thumbs = {
+            "landscape": self.image_thumb_b64 if views.get("image_fresh") else "",
+            "clustergram": views.get("clustergram_thumb", ""),
+            "yearbook": views.get("yearbook_thumb", ""),
+        }
+        keys = {
+            "landscape": "image",
+            "clustergram": "clustergram_image",
+            "yearbook": "yearbook_image",
+        }
+        message: dict = {"role": "view", "content": label}
+        snapshots = {}
+        for widget in widgets:
+            if thumbs.get(widget):
+                message[keys[widget]] = thumbs[widget]
+                snapshot = (views.get("snapshots") or {}).get(widget)
+                if snapshot:
+                    snapshots[widget] = restore_spec(snapshot)
+        if len(message) == 2:
+            return  # no preview came back
+        message["snapshots"] = snapshots
+        self._append(message)
+
+    #: Keep one Claude session across questions. A new question then sends only the
+    #: views whose state changed since Clerk last saw them (the others are named as
+    #: unchanged); everything earlier stays in the session, read from the API's cache
+    #: at about a tenth of the price. ``False``: each question starts a new session
+    #: with all the evidence and a text summary of the conversation so far.
+    continue_conversation = True
+    #: Start a new session (sending all the evidence again) after this many questions
+    #: in one, since each question adds to what every later call re-reads.
+    max_session_questions = 10
+
+    def _take_conversation(self, call: dict) -> dict | None:
+        """The conversation's session, if this question can continue it (else closed)."""
+        conversation, self._conversation = self._conversation, None
+        if conversation is None:
+            return None
+        sent = conversation["sent"]
+        if (
+            self.continue_conversation
+            and conversation["session"].started
+            and conversation["questions"] < max(1, int(self.max_session_questions or 1))
+            # Context and briefings are part of a session's first message.
+            and call.get("info") == sent.get("info")
+            and call.get("briefing") == sent.get("briefing")
+        ):
+            return conversation
+        conversation["session"].close()
+        return None
+
+    def _end_conversation(self) -> None:
+        """Close the conversation's session: the next question starts a new one."""
+        conversation, self._conversation = self._conversation, None
+        if conversation is not None:
+            conversation["session"].close()
+
+    def _ask_next(self, question, call, conversation, question_index) -> str | None:
+        """Ask in the conversation's session, sending only what changed since Clerk
+        last saw it. ``None`` if the session can't be resumed (start a new one)."""
+        from .. import clerk
+        from ..clerk.llm import _format_history
+
+        sent = conversation["sent"]
+        session = conversation["session"]
+        call["session"] = session
+        call["usage_from"] = len(session.usage)
+        call["session_questions"] = conversation["questions"] + 1
+        # What happened in the panel between questions (labels applied, analyses run).
+        between = [
+            m
+            for m in self.messages[conversation["messages"] : question_index]
+            if m.get("role") in ("action", "enrichment", "assistant")
+        ]
+        evidence = _views_since(sent, call)
+        try:
+            return clerk.next_question(
+                session,
+                question,
+                since=_format_history(between, max_questions=50, max_chars=6000),
+                unchanged=_unchanged_views(sent, call),
+                model=call.get("model") or "",
+                effort=call.get("effort") or "",
+                timeout=call.get("timeout") or clerk.DEFAULT_TIMEOUT,
+                **evidence,
+            )
+        except clerk.ClerkBackendError as exc:
+            if str(exc) == clerk.LOGIN_HELP:
+                raise
+            session.close()
+            call.pop("session", None)
+            call.pop("usage_from", None)
+            self._log_step("note", f"Session could not be resumed ({exc}); resent all evidence.")
+            return None
+
     def _finish_question(self, call: dict) -> None:
-        """Record the question's token use and close its CLI session, unless paused."""
+        """Record the question's token use; keep its CLI session for the next question
+        (see :attr:`continue_conversation`), or close it. Not while paused."""
         if self._paused is not None and self._paused["call"] is call:
             return  # Continue will resume the same session
         session = call.pop("session", None)
         if session is None:
             return
         if self.record and session.usage:
-            self.record[-1]["usage"] = session.totals()
-        session.close()
+            self.record[-1]["usage"] = session.totals(since=call.get("usage_from", 0))
+        if self.continue_conversation and session.started and not call.get("failed"):
+            self._conversation = {
+                "session": session,
+                "sent": {key: deepcopy(call.get(key)) for key in _SENT_KEYS},
+                "questions": call.get("session_questions", 1),
+                "messages": len(self.messages),
+            }
+        else:
+            session.close()
+
+    def close(self):  # pragma: no cover - front-end cleanup depends on JS
+        """Close the conversation's Claude session, then the widget."""
+        self._end_conversation()
+        super().close()
 
     def _report_failure(self, exc: Exception) -> None:
         from .. import clerk
@@ -3928,6 +4088,9 @@ class Clerk(CelldegaWidget):
                 )
                 views = self._refresh_views(question, **options)
                 self._log_capture(views, label)
+                shown = [w for w in self._VIEW_WIDGETS if (event["actions"] or {}).get(w)]
+                if changes and shown:
+                    self._append_view(views, shown, "; ".join(changes))
                 if reads.get("snapshot") is not None:
                     self._save_snapshot(views, reads["snapshot"], question)
                 if event["continue"]:
@@ -4382,6 +4545,8 @@ class Clerk(CelldegaWidget):
             if session is not None:
                 session.close()
             self._paused = None
+        # The loaded conversation reaches Clerk as text with the next question.
+        self._end_conversation()
         self.record = list(saved.get("record") or [])
         self.findings = list(saved.get("findings") or [])
         # Keep what this session already knows; fill in what it doesn't.
@@ -4544,7 +4709,9 @@ def _is_screenshot_record(path: Path) -> bool:
 
 
 #: A question's call fields that are Clerk's own bookkeeping, not ``clerk.ask`` options.
-_CLERK_CALL_ONLY = frozenset({"done", "enrichr_library", "enrichr_short_id"})
+_CLERK_CALL_ONLY = frozenset(
+    {"done", "enrichr_library", "enrichr_short_id", "session_questions", "usage_from", "failed"}
+)
 
 _ENRICHR_SHORT_ID = re.compile(r"^[A-Za-z0-9]{1,64}$")
 
@@ -4562,6 +4729,64 @@ def _ask(question: str, call: dict) -> str:
     from .. import clerk
 
     return clerk.ask(question, **{k: v for k, v in call.items() if k not in _CLERK_CALL_ONLY})
+
+
+# What a question sent Clerk, compared with the next question's (see _views_since).
+_SENT_KEYS = (
+    "clustergram_state",
+    "landscape_state",
+    "neighborhoods",
+    "enrich_state",
+    "yearbook_state",
+    "image_b64",
+    "gene_list",
+    "enrichr_terms",
+    "info",
+    "briefing",
+    "actions_help",
+    "notes",
+)
+
+
+def _unchanged_views(sent: dict, call: dict) -> list[str]:
+    """Names of the views whose state is what Clerk was last sent."""
+    from ..clerk.llm import VIEW_NAMES
+
+    out = []
+    for key, name in VIEW_NAMES.items():
+        if not call.get(key) or call.get(key) != sent.get(key):
+            continue
+        if key == "landscape_state" and call.get("neighborhoods") != sent.get("neighborhoods"):
+            continue
+        out.append(name)
+    return out
+
+
+def _views_since(sent: dict, call: dict) -> dict:
+    """The evidence for a new question in a continuing session: only what differs
+    from what Clerk was last sent (``sent``), as ``next_question`` takes it.
+
+    A view's state is sent when it changed; the Landscape's screenshot only with a
+    changed Landscape (its state holds the camera, selection and layers), since a
+    re-captured image of the same view can differ by a few pixels.
+    """
+    from ..clerk.llm import VIEW_NAMES
+
+    out: dict = {}
+    unchanged = set(_unchanged_views(sent, call))
+    for key, name in VIEW_NAMES.items():
+        if call.get(key) and name not in unchanged:
+            out[key] = call[key]
+    if "landscape_state" in out and call.get("neighborhoods"):
+        out["neighborhoods"] = call["neighborhoods"]
+    if call.get("image_b64") and ("landscape_state" in out or not sent.get("image_b64")):
+        out["image_b64"] = call["image_b64"]
+    for key in ("gene_list", "enrichr_terms", "actions_help"):
+        if call.get(key) and call.get(key) != sent.get(key):
+            out[key] = call[key]
+    seen = set(sent.get("notes") or [])
+    out["notes"] = [note for note in call.get("notes") or [] if note not in seen]
+    return out
 
 
 def _changed_views(call: dict, views: dict, image_b64: str) -> dict:

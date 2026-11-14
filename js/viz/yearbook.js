@@ -56,6 +56,7 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { show_loading } from '../ui/loading';
 import { add_pic_button } from '../ui/pic_button';
 import { set_image_layer_sliders } from '../ui/sliders';
 import { make_yearbook_selection } from '../ui/yearbook_selection';
@@ -220,15 +221,29 @@ export const yearbook = async (
 
   const viz_state = {};
   const pending_updates = new Set();
+  // The Celldega mark over the portraits while they load (a query, a page, new
+  // cells), once the grid exists; only after a moment, so quick updates don't flash.
+  let loading_root = null;
+  let hide_loading = null;
   const tracked =
     (operation) =>
     async (...args) => {
+      if (!pending_updates.size && loading_root && !hide_loading) {
+        hide_loading = show_loading(loading_root, {
+          overlay: true,
+          delay: 200,
+        });
+      }
       const promise = operation(...args);
       pending_updates.add(promise);
       try {
         return await promise;
       } finally {
         pending_updates.delete(promise);
+        if (!pending_updates.size && hide_loading) {
+          hide_loading();
+          hide_loading = null;
+        }
       }
     };
 
@@ -405,6 +420,7 @@ export const yearbook = async (
   root.style.position = 'relative';
   root.style.height = `${height}px`;
   root.style.border = '1px solid #d3d3d3';
+  loading_root = root;
 
   // Calculate microns per pixel for scale bar
   const userMicronsPerPixel =
@@ -1393,6 +1409,8 @@ export const yearbook = async (
   );
   const pic = add_pic_button(ui_container, {
     model: viz_state.model,
+    // In the image controls' IMG row, as in the Landscape.
+    container: viz_state.containers.image_row || null,
     capture: async () => ({
       snapshot: await yearbook_api.snapshot({ max_size: 2048, thumb_size: 64 }),
     }),

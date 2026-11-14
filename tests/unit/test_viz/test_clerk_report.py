@@ -163,13 +163,16 @@ def test_report_captures_are_screenshots_that_reopen_their_views(tmp_path) -> No
     record, findings = _record()
     capture = record[0]["steps"][0]
     capture["clustergram_image"] = PNG
+    capture["yearbook_image"] = PNG
     capture["sources"] = {
         "landscape": {"widget": "landscape", "base_url": "https://example.com/data"},
         "clustergram": {"widget": "clustergram", "name": "kidney"},
+        "yearbook": {"widget": "yearbook", "base_url": "https://example.com/data"},
     }
     capture["snapshots"] = {
         "landscape": {"state": {"view": {"target": [1, 2, 0], "zoom": -1}}},
         "clustergram": {"state": {"marker_level": 25}},
+        "yearbook": {"state": {"cells": ["c1", "c2"]}},
     }
     capture["observations"] = {"landscape_state": {"space": "spatial"}}
     written = report.write_report(tmp_path / "out", record, findings, html_report=False)
@@ -177,9 +180,11 @@ def test_report_captures_are_screenshots_that_reopen_their_views(tmp_path) -> No
     steps = json.loads(written["record"].read_text())["questions"][0]["steps"]
     assert steps[0]["image"] == "screenshots/q1_1.png"
     assert steps[0]["clustergram_image"] == "screenshots/q1_1_clustergram.png"
+    assert steps[0]["yearbook_image"] == "screenshots/q1_1_yearbook.png"
     for path, widget in [
         (steps[0]["image"], "landscape"),
         (steps[0]["clustergram_image"], "clustergram"),
+        (steps[0]["yearbook_image"], "yearbook"),
     ]:
         saved = load_screenshot(tmp_path / "out" / path)
         assert saved["celldega_screenshot"] and saved["author"] == "Clerk"
@@ -194,6 +199,7 @@ def test_report_captures_are_screenshots_that_reopen_their_views(tmp_path) -> No
         json.loads(written["record"].read_text())["questions"], tmp_path / "out"
     )
     assert back[0]["steps"][0]["image"] and back[0]["steps"][0]["clustergram_image"]
+    assert back[0]["steps"][0]["yearbook_image"]
 
 
 def test_older_reports_with_an_images_folder_still_reopen(tmp_path) -> None:

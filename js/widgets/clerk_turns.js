@@ -43,6 +43,8 @@ export const group_turns = (messages = [], pending = false) => {
       results: [],
       // Enrichr results drawn like the Enrich panel, in view rather than in Work.
       figures: [],
+      // Views Clerk changed (previews linking back to them), in view too.
+      shown: [],
       errors: [],
       pause: null,
       pending: is_pending,
@@ -50,6 +52,7 @@ export const group_turns = (messages = [], pending = false) => {
     items.forEach((message, i) => {
       const role = message?.role;
       if (role === 'enrichment') turn.figures.push(message);
+      else if (role === 'view') turn.shown.push(message);
       else if (role === 'error') turn.errors.push(message);
       else if (role === 'pause') turn.pause = message;
       else if (i === answer_at) {

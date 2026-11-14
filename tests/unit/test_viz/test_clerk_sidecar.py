@@ -146,8 +146,11 @@ def test_enrichr_lookups_show_inline_like_the_enrich_panel(monkeypatch):
         "adjusted_p": 0.01,
         "odds_ratio": 3.0,
     }
-    # The results reach the model as text already, so the card stays out of its history.
-    assert clerk_llm.llm._format_history(w.messages).count("Term 0") == 0
+    # Later questions see the top few terms in the history, to use rather than look
+    # them up again.
+    history = clerk_llm.llm._format_history(w.messages)
+    assert "Clerk looked up: Enrichr for cluster 4's top 1 markers" in history
+    assert "Term 2" in history and "Term 3" not in history
 
 
 def test_failed_enrichr_lookups_show_no_card(monkeypatch):

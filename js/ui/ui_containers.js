@@ -21,6 +21,11 @@ import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
+  comparison_bar_data,
+  comparison_key,
+  gene_color,
+} from '../global_variables/gene_comparison';
+import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
@@ -1112,16 +1117,24 @@ export const make_ist_ui_container = (
     { immediate: false }
   );
 
-  viz_state.obs_store.selected_genes.subscribe(
-    make_bar_cat_subscriber(
-      viz_state.genes.svg_bar_gene,
-      viz_state.containers.bar_gene
-    ),
-    { immediate: false }
+  const style_gene_bars = make_bar_cat_subscriber(
+    viz_state.genes.svg_bar_gene,
+    viz_state.containers.bar_gene
   );
+  viz_state.obs_store.selected_genes.subscribe(style_gene_bars, {
+    immediate: false,
+  });
 
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container, tooltip }) =>
+    ({
+      svg,
+      color_dict,
+      color_of = null,
+      selected_array,
+      bar_callback,
+      container,
+      tooltip,
+    }) =>
     (bar_data) => {
       const bar_height = BAR_HEIGHT;
       const svg_height = bar_svg_height(bar_data.length);
@@ -1137,7 +1150,9 @@ export const make_ist_ui_container = (
 
       const x_scale = d3
         .scaleLinear()
-        .domain([0, d3.max(bar_data_values)])
+        // `|| 1`: all-zero bars (e.g. compared genes with none in view) draw at
+        // zero width rather than NaN.
+        .domain([0, d3.max(bar_data_values) || 1])
         .range([0, max_bar_width]);
 
       const bars = svg.selectAll('g').data(bar_data, (d) => d.name);
@@ -1187,7 +1202,9 @@ export const make_ist_ui_container = (
         .select('rect')
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
-          const rgb = color_dict[d.name] || [0, 0, 0];
+          const rgb = (color_of ? color_of(d.name) : color_dict[d.name]) || [
+            0, 0, 0,
+          ];
           const opacity =
             selected_array.length === 0 || selected_array.includes(d.name)
               ? 1
@@ -1221,17 +1238,43 @@ export const make_ist_ui_container = (
     { immediate: false }
   );
 
-  viz_state.obs_store.new_gene_bar_data.subscribe(
-    subscriber_new_bar_data({
-      svg: viz_state.genes.svg_bar_gene,
-      color_dict: viz_state.genes.color_dict_gene,
-      selected_array: viz_state.genes.selected_genes,
-      bar_callback: bar_callback_gene,
-      container: viz_state.containers.bar_gene,
-      tooltip: 'gene',
-    }),
-    { immediate: false }
-  );
+  // Gene bars, which become the key while genes are compared: just those genes,
+  // in their comparison colors (see gene_comparison.js).
+  const draw_gene_bars = subscriber_new_bar_data({
+    svg: viz_state.genes.svg_bar_gene,
+    color_dict: viz_state.genes.color_dict_gene,
+    color_of: (name) => gene_color(viz_state.genes, name),
+    selected_array: viz_state.genes.selected_genes,
+    bar_callback: bar_callback_gene,
+    container: viz_state.containers.bar_gene,
+    tooltip: 'gene',
+  });
+  let drawn_comparison = '';
+  const show_gene_bars = (bar_data) => {
+    drawn_comparison = comparison_key(viz_state.genes);
+    draw_gene_bars(comparison_bar_data(viz_state.genes, bar_data));
+  };
+  if (!viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    viz_state.obs_store.new_gene_bar_data.subscribe(show_gene_bars, {
+      immediate: false,
+    });
+    // A comparison starting, changing or ending redraws the bars it shows.
+    viz_state.obs_store.selected_genes.subscribe(
+      (selected_genes) => {
+        if (comparison_key(viz_state.genes) === drawn_comparison) return;
+        const latest = viz_state.obs_store.new_gene_bar_data.get();
+        show_gene_bars(
+          latest?.length ? latest : viz_state.genes.top_gene_counts || []
+        );
+        style_gene_bars(selected_genes);
+      },
+      { immediate: false }
+    );
+  } else {
+    viz_state.obs_store.new_gene_bar_data.subscribe(draw_gene_bars, {
+      immediate: false,
+    });
+  }
 
   cell_container.appendChild(cell_ctrl_container);
   cell_container.appendChild(viz_state.containers.bar_cluster);

@@ -288,3 +288,45 @@ def test_actions_help_matches_linked_widgets() -> None:
     assert '"markers"' in with_cgm and "marker_level" in with_cgm
     without = clerk_llm.actions_help(clustergram=False)
     assert "marker_level" not in without and "pubmed" in without
+
+
+def test_lookups_are_cached_on_disk_between_sessions(monkeypatch, tmp_path) -> None:
+    calls = []
+
+    def fake_urlopen(request, timeout=None):
+        url = request.full_url
+        calls.append(url)
+        if url.endswith("/addList"):
+            return _Response(json.dumps({"userListId": 7, "shortId": "abc"}))
+        library = url.split("backgroundType=")[1]
+        return _Response(json.dumps({library: [[1, "Term", 1e-9, 9.0, 80.0, ["A"], 1e-8]]}))
+
+    monkeypatch.setattr(lookups.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(lookups, "cache_dir", tmp_path / "cache")
+    lookups._enrichr_cache.clear()
+    lookups._enrichr_links.clear()
+    first = lookups.enrichr(["B", "A"], ["CellMarker_2024"])
+    assert calls
+    # A new session (empty memory) reads the same lookup, in any gene order, from disk.
+    calls.clear()
+    lookups._enrichr_cache.clear()
+    lookups._enrichr_links.clear()
+    assert lookups.enrichr(["A", "B"], ["CellMarker_2024"]) == first
+    assert lookups.enrichr_link(["A", "B"]) == "https://maayanlab.cloud/Enrichr/enrich?dataset=abc"
+    assert calls == []
+    assert (tmp_path / "cache" / "enrichr.json").is_file()
+    # Without a folder, nothing is kept on disk.
+    monkeypatch.setattr(lookups, "cache_dir", None)
+    lookups._enrichr_cache.clear()
+    lookups.enrichr(["A", "B"], ["CellMarker_2024"])
+    assert calls
+
+
+def test_clerk_keeps_lookups_in_its_output_folder(monkeypatch, tmp_path) -> None:
+    w = Clerk()
+    w.output_dir = str(tmp_path)
+    w.lookup_cache = "lookup_cache"
+    monkeypatch.setattr(lookups, "enrichr", lambda genes, libraries=None, **kw: {})
+    monkeypatch.setattr(lookups, "pubmed", lambda query: [])
+    w._run_lookups({"genes": [], "markers": None, "enrichr": [], "pubmed": ["x"]}, None)
+    assert lookups.cache_dir == tmp_path / "lookup_cache"

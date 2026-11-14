@@ -32,6 +32,9 @@ machine running your notebook.
   to your own view with **Return**.
 - **Look things up.** Ranked marker genes and expression values from the Clustergram,
   enrichment from Enrichr, and the literature from PubMed.
+- **Look at single cells.** With a linked [Yearbook](#looking-at-single-cells-in-a-yearbook),
+  Clerk sees its cell portraits and can choose which cells it shows. Its main evidence
+  stays the cluster signatures; single cells are small samples it looks at.
 - **Answer questions from several kinds of evidence at once**: the tissue image, gene
   expression, enrichment and papers, with the evidence behind each claim.
 - **Annotate.** It records tentative cell types, offers to label the Clustergram with
@@ -166,13 +169,28 @@ unpublished data, or leave dataset names out of `context_info`.
 
 ## Efficiency
 
-Each question is one CLI session. The first call sends the evidence; each follow-up
-round (after a lookup or a view change Clerk asked to see) resumes the session and
-sends only what is new: the lookup results, any view that changed, and a screenshot
-only if the view moved. The API caches the conversation so far, so a follow-up round
-re-reads it at about a tenth of the price; in a test with a 34k-token prompt, a
-follow-up cost $0.008 instead of $0.12. The CLI saves the session's transcript so it
-can be resumed, and Clerk deletes it when the question is done.
+A conversation runs in one CLI session. The first question sends all the evidence.
+Each later call resumes the session and sends only what is new:
+
+- **A follow-up round** (after a lookup, or a view change Clerk asked to see) sends
+  the lookup results, any view that changed, and a screenshot only if the view moved.
+- **A new question** sends only the linked views whose state changed since Clerk last
+  saw them, and names the others as unchanged. It also sends what happened in the
+  panel in between, such as labels applied or an analysis that ran. The Landscape's
+  screenshot goes only with a changed Landscape. "Sent with" under your question marks
+  the views that weren't resent "(unchanged)".
+
+The API caches the conversation so far, so each later call re-reads it at about a
+tenth of the price. In a test with a 34k-token prompt, a follow-up cost $0.008 instead
+of $0.12. After `clerk.max_session_questions` questions (default 10), or when the
+context or briefing changes, the next question starts a new session. It sends
+everything again, with a text summary of the conversation so far. Reopening a saved
+conversation also starts a new session. Set `clerk.continue_conversation = False` to
+start a new session for every question.
+
+The CLI saves the session's transcript so it can be resumed. Clerk deletes it when the
+conversation's session ends: a new session, a reopened conversation, or closing the
+widget. Transcripts left by a crashed kernel are removed after an hour.
 
 Token use per question (and the CLI's cost estimate, which is notional on a Claude
 plan) is recorded in `clerk.record[i]["usage"]` and shown in exported reports.
@@ -387,6 +405,13 @@ Clerk's own Enrichr lookups and the panel's Enrichr results for the selected gen
 shown once per gene list. The model reads the top 8 terms as text, with the Enrichr
 link, which it can cite; the drawing is for you.
 
+Enrichr and PubMed results are cached. Later questions see earlier Enrichr results in
+the conversation's history, so Clerk reuses them rather than asking again, and every
+result is kept on disk in `<output_dir>/lookup_cache` (`clerk_files/lookup_cache` by
+default). A lookup made in an earlier session is read from there instead of sent to
+Enrichr or PubMed again. Set `clerk.lookup_cache = None` to keep results for the
+session only.
+
 ## Recording cell types
 
 When Clerk proposes cell types (for example when you ask what a cluster might be), it
@@ -412,6 +437,37 @@ clerk.write_cell_types(adata, groupby="leiden", key="clerk_cell_type")
 `write_cell_types` only adds a column (pass `overwrite=True` to replace one), fills
 clusters without a proposal with `Unassigned`, and records the labels used in
 `adata.uns["clerk_cell_types"]`.
+
+## Looking at single cells in a Yearbook
+
+Link a [Yearbook](../yearbook.md) and each question also sends Clerk its portraits: the
+query, page, the cells on screen and an image of them, shown under your question. Clerk
+can choose which cells the Yearbook shows, in one of two ways:
+
+- **The Yearbook's own query**: a cluster's cells, ranked by a gene's expression. The
+  Yearbook runs it in the browser, so no AnnData is needed.
+- **A `celldega.select` selection**, from a single-cell AnnData you give Clerk: any
+  combination of cell attributes and genes, sampled at random, ranked, by quantile
+  bin, or evenly across categories.
+
+```python
+clerk = dega.viz.Clerk(adata="data/cells.h5ad")   # or a .zarr path or URL, or an AnnData
+dega.viz.link_clerk(clerk, landscape=landscape, clustergram=cgm, yearbook=yearbook)
+```
+
+Clerk works mainly from the cluster signatures (the Clustergram's pseudo-bulk
+expression) and uses selections to look at small samples of single cells: 60 by
+default, at most 200. It never sees the AnnData's values. It gets a short description
+(its size, gene names, and each `obs` column's categories or range) and writes the
+query and sampler as JSON. The Clerk widget rebuilds them in the kernel
+(`dega.select.query_from_dict`, `sampler_from_dict`; no code Clerk writes is run) and
+runs them. Clerk then learns how many cells matched and sees the chosen ones in the
+Yearbook. The selection is stored with the Yearbook (`yearbook.selection`), so the
+report records how its cells were chosen.
+
+An AnnData link is read the first time Clerk needs it (a local `.h5ad` in backed mode).
+It also tells the [analysis notebooks](#analysis-notebooks) Clerk drafts where the
+data is. Without one, Clerk uses a linked Landscape's AnnData if it has one.
 
 ## Letting Clerk change the views
 
@@ -627,5 +683,5 @@ Clerk. See [Portable Snapshots](../../javascript/saved-views.md).
 
 Planned next steps include a one-click "label my clusters" pass (evidence gathered by
 code, one model call), counting the cell types in view at mid zoom without loading
-transcripts, Yearbook portraits on request, and running Clerk on the Claude Agent SDK
+transcripts, and running Clerk on the Claude Agent SDK
 so lookups are real tools. See `celldega/clerk/ROADMAP.md` for the full plan.

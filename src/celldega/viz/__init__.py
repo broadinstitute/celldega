@@ -598,7 +598,10 @@ def link_clerk(
       then stops fetching its own Enrichr terms.
 
     - ``yearbook`` -> the portraits on screen (its query, page and cells, and an
-      image), shown with the question; Clerk can also change its query.
+      image), shown with the question. Clerk can also choose which cells it shows: a
+      cluster ranked by a gene (the Yearbook's own query), or, given a single-cell
+      AnnData (``Clerk(adata=...)``: an AnnData, or a link to one), any selection
+      ``celldega.select`` can make.
 
     This only wires state; lay the widgets out however you like. Returns ``clerk`` for
     chaining.

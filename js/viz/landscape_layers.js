@@ -61,7 +61,10 @@ export const get_landscape_layers = (state) => {
   const nbhd_mode = state.obs_store.viz_nbhd_layer?.get?.();
   return {
     layers: {
-      image: Boolean(state.obs_store.viz_image_layers?.get()),
+      // The IMG button's setting, not whether the image is drawn right now: zoomed
+      // out with clusters or a gene selected, the image hides itself (see
+      // obs_store's image visibility manager) and returns when zooming in.
+      image: state.img_layer_visible !== false,
       ...Object.fromEntries(
         Object.entries(LAYERS)
           .filter(([, key]) => layers[key])
@@ -164,8 +167,16 @@ export const apply_landscape_layers = async (state, context, changes) => {
     state.update_image_source_control?.();
   }
   if ('image' in requested) {
+    // Restore the IMG button, then let the usual rule decide what is drawn (a
+    // selection zoomed out hides the image until zooming in).
     state.img_layer_visible = requested.image;
-    state.obs_store.viz_image_layers.set(requested.image);
+    state.buttons?.buttons?.img?.style?.(
+      'color',
+      requested.image ? 'blue' : 'gray'
+    );
+    if (requested.image && state.update_viz_image_layers)
+      state.update_viz_image_layers();
+    else state.obs_store.viz_image_layers.set(requested.image);
     state.obs_store.viz_background_layer?.set(requested.image);
   }
   const setters = {

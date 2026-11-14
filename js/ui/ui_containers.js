@@ -21,6 +21,11 @@ import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
+  comparison_bar_data,
+  comparison_key,
+  gene_color,
+} from '../global_variables/gene_comparison';
+import {
   is_orbit_technology,
   is_neighborhood_cloud_technology,
 } from '../global_variables/image_info';
@@ -40,6 +45,7 @@ import {
   make_bar_container,
   bar_callback_gene,
 } from './bar_plot';
+import { CONTROL_FONT_SIZE, control_width } from './control_style';
 import { make_dataset_dropdown } from './dataset_dropdown';
 import { update_dendro_from_slider } from './dendro_slider';
 import { is_gene_axis, make_gene_info_box } from './gene_info';
@@ -276,7 +282,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .append('div')
       .text(text)
       .style('white-space', 'nowrap')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('font-weight', 'bold')
       .style('color', 'black')
       .style('user-select', 'none')
@@ -329,7 +335,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const readout = d3
       .select(grid)
       .append('div')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('white-space', 'nowrap')
       .style('color', '#47515b')
       .style('user-select', 'none')
@@ -410,7 +416,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   const action_container = flex_container('matrix_action_container', 'row');
   action_container.style.gridColumn = '1 / -1';
   action_container.style.alignItems = 'center';
-  action_container.style.gap = '16px';
+  // Spread across the grid's width: CROP | UNDO, the mode toggles, then SNAP
+  // (added by matrix_viz) at the right.
+  action_container.style.justifyContent = 'space-between';
+  action_container.style.gap = '6px';
   // Sit a little closer to the DIM/COL row above.
   action_container.style.marginTop = '-2px';
 
@@ -422,7 +431,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .append('div')
       .text(text)
       .style('display', 'inline-flex')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('font-family', MATRIX_UI_FONT_FAMILY);
 
   const crop_button = action_text(d3.select(crop_container), 'CROP').on(
@@ -510,7 +519,10 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   // categories load (see matrix_viz's bootstrap_manual_categories).
   const cat_bars_slot = document.createElement('div');
   cat_bars_slot.className = 'matrix_cat_bars_slot';
-  cat_bars_slot.style.flexShrink = '0';
+  // The bars and the search column narrow (to a point) before the panel scrolls,
+  // so a narrow Clustergram keeps its controls within its own width.
+  cat_bars_slot.style.flex = '0 1 auto';
+  cat_bars_slot.style.minWidth = '0';
   viz_state.cat_bars_slot = cat_bars_slot;
   ui_container.appendChild(cat_bars_slot);
   init_matrix_cat_bars(viz_state, cat_bars_slot);
@@ -518,7 +530,9 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   // Search + gene info stack vertically in one column: ui_container is a flex
   // row, so appending them as siblings would widen the control panel instead.
   const search_container = flex_container('matrix_search_container', 'column');
-  search_container.style.flexShrink = '0';
+  // 136px search/info column (plus its 10px indent), narrowing to 90px.
+  search_container.style.flex = '0 1 146px';
+  search_container.style.minWidth = '100px';
   search_container.style.marginRight = '6px';
 
   const row_search = set_matrix_row_search(viz_state, (row_index) =>
@@ -536,7 +550,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
     const gene_info_box = make_gene_info_box({
       marginLeft: '10px',
       height: '68px',
-      width: '136px',
+      width: 'calc(100% - 10px)',
     });
     viz_state.gene_info_box = gene_info_box;
     search_container.appendChild(gene_info_box.element);
@@ -565,7 +579,7 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
   }
 
   // The logo shares the search row, sized to the gene info box below it.
-  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '136px');
+  embed_logo_in_search(viz_state.row_search.input, 'clustergram', '100%');
 
   return ui_container;
 };
@@ -1103,16 +1117,24 @@ export const make_ist_ui_container = (
     { immediate: false }
   );
 
-  viz_state.obs_store.selected_genes.subscribe(
-    make_bar_cat_subscriber(
-      viz_state.genes.svg_bar_gene,
-      viz_state.containers.bar_gene
-    ),
-    { immediate: false }
+  const style_gene_bars = make_bar_cat_subscriber(
+    viz_state.genes.svg_bar_gene,
+    viz_state.containers.bar_gene
   );
+  viz_state.obs_store.selected_genes.subscribe(style_gene_bars, {
+    immediate: false,
+  });
 
   const subscriber_new_bar_data =
-    ({ svg, color_dict, selected_array, bar_callback, container, tooltip }) =>
+    ({
+      svg,
+      color_dict,
+      color_of = null,
+      selected_array,
+      bar_callback,
+      container,
+      tooltip,
+    }) =>
     (bar_data) => {
       const bar_height = BAR_HEIGHT;
       const svg_height = bar_svg_height(bar_data.length);
@@ -1128,7 +1150,9 @@ export const make_ist_ui_container = (
 
       const x_scale = d3
         .scaleLinear()
-        .domain([0, d3.max(bar_data_values)])
+        // `|| 1`: all-zero bars (e.g. compared genes with none in view) draw at
+        // zero width rather than NaN.
+        .domain([0, d3.max(bar_data_values) || 1])
         .range([0, max_bar_width]);
 
       const bars = svg.selectAll('g').data(bar_data, (d) => d.name);
@@ -1178,7 +1202,9 @@ export const make_ist_ui_container = (
         .select('rect')
         .attr('width', (d) => x_scale(d.value))
         .attr('fill', (d) => {
-          const rgb = color_dict[d.name] || [0, 0, 0];
+          const rgb = (color_of ? color_of(d.name) : color_dict[d.name]) || [
+            0, 0, 0,
+          ];
           const opacity =
             selected_array.length === 0 || selected_array.includes(d.name)
               ? 1
@@ -1212,17 +1238,43 @@ export const make_ist_ui_container = (
     { immediate: false }
   );
 
-  viz_state.obs_store.new_gene_bar_data.subscribe(
-    subscriber_new_bar_data({
-      svg: viz_state.genes.svg_bar_gene,
-      color_dict: viz_state.genes.color_dict_gene,
-      selected_array: viz_state.genes.selected_genes,
-      bar_callback: bar_callback_gene,
-      container: viz_state.containers.bar_gene,
-      tooltip: 'gene',
-    }),
-    { immediate: false }
-  );
+  // Gene bars, which become the key while genes are compared: just those genes,
+  // in their comparison colors (see gene_comparison.js).
+  const draw_gene_bars = subscriber_new_bar_data({
+    svg: viz_state.genes.svg_bar_gene,
+    color_dict: viz_state.genes.color_dict_gene,
+    color_of: (name) => gene_color(viz_state.genes, name),
+    selected_array: viz_state.genes.selected_genes,
+    bar_callback: bar_callback_gene,
+    container: viz_state.containers.bar_gene,
+    tooltip: 'gene',
+  });
+  let drawn_comparison = '';
+  const show_gene_bars = (bar_data) => {
+    drawn_comparison = comparison_key(viz_state.genes);
+    draw_gene_bars(comparison_bar_data(viz_state.genes, bar_data));
+  };
+  if (!viz_state.nbhd_cloud?.is_nbhd_cloud) {
+    viz_state.obs_store.new_gene_bar_data.subscribe(show_gene_bars, {
+      immediate: false,
+    });
+    // A comparison starting, changing or ending redraws the bars it shows.
+    viz_state.obs_store.selected_genes.subscribe(
+      (selected_genes) => {
+        if (comparison_key(viz_state.genes) === drawn_comparison) return;
+        const latest = viz_state.obs_store.new_gene_bar_data.get();
+        show_gene_bars(
+          latest?.length ? latest : viz_state.genes.top_gene_counts || []
+        );
+        style_gene_bars(selected_genes);
+      },
+      { immediate: false }
+    );
+  } else {
+    viz_state.obs_store.new_gene_bar_data.subscribe(draw_gene_bars, {
+      immediate: false,
+    });
+  }
 
   cell_container.appendChild(cell_ctrl_container);
   cell_container.appendChild(viz_state.containers.bar_cluster);
@@ -1613,9 +1665,9 @@ export const make_ist_ui_container = (
     d3.select(slice_label_container)
       .append('div')
       .text('SLICE')
-      .style('width', '40px')
+      .style('width', `${control_width(40)}px`)
       .style('text-align', 'left')
-      .style('font-size', '12px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .style('font-weight', 'bold')
       .style('color', 'black');
 

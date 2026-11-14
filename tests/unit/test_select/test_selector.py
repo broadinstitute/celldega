@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import warnings
 
 from anndata import AnnData
@@ -379,3 +380,46 @@ def test_missing_attribute_and_gene_errors_are_clear(adata: AnnData, selector_cl
 
     with pytest.raises(KeyError, match="Gene 'MISSING' not found"):
         selector.select(query=selector.gene("MISSING") > 0)
+
+
+def test_queries_and_samplers_round_trip_through_their_dicts() -> None:
+    from celldega.select import Selector, query_from_dict, sampler_from_dict
+
+    rng = np.random.default_rng(0)
+    adata = AnnData(
+        X=rng.poisson(1, (40, 2)).astype(float),
+        obs=pd.DataFrame(
+            {"cluster": list("ab") * 20, "qc": np.linspace(0, 1, 40)},
+            index=[f"c{i}" for i in range(40)],
+        ),
+        var=pd.DataFrame(index=["G1", "G2"]),
+    )
+    selector = Selector(adata)
+    query = ((selector.attr("cluster") == "a") & (selector.gene("G1") > 0)) | (
+        selector.attr("qc").between(0.2, 0.4) & ~selector.attr("cluster").isna()
+    )
+    rebuilt = query_from_dict(json.loads(json.dumps(query.to_dict())))
+    assert rebuilt.to_dict() == query.to_dict()
+    samplers = [
+        selector.samplers.random(5, 1),
+        selector.samplers.rank(selector.gene("G2"), 5, by="low"),
+        selector.samplers.quantile_bin(selector.attr("qc"), "high", 4, 0),
+        selector.samplers.gaussian(selector.attr("qc"), 0.5, 0.1, 4, 0),
+        selector.samplers.stratified(selector.attr("cluster"), n_per_category=2, seed=0),
+    ]
+    for sampler in samplers:
+        again = sampler_from_dict(json.loads(json.dumps(sampler.to_dict())))
+        assert again.to_dict() == sampler.to_dict()
+        assert selector.select(rebuilt, again).names() == selector.select(query, sampler).names()
+    assert sampler_from_dict(3) == 3 and sampler_from_dict("all") == "all"
+
+    for bad, problem in [
+        ({"op": "exec", "attr": {"type": "obs", "name": "qc"}}, "unknown query op"),
+        ({"op": "eq", "attr": {"type": "code", "name": "qc"}}, "an attribute must be"),
+        ({"op": "isin", "attr": {"type": "obs", "name": "qc"}, "value": "a"}, "list of values"),
+        ({"op": "and", "queries": "x"}, '"queries" list'),
+    ]:
+        with pytest.raises(ValueError, match=problem):
+            query_from_dict(bad)
+    with pytest.raises(ValueError, match="unknown sampler type"):
+        sampler_from_dict({"type": "magic", "attr": {"type": "obs", "name": "qc"}})

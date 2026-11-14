@@ -1,7 +1,7 @@
 /**
- * PIC: save a screenshot from a widget's control panel, with a description.
+ * SNAP: save a screenshot from a widget's control panel, with a description.
  *
- * The front-end side of `widget.screenshot(description=...)`. Clicking PIC captures
+ * The front-end side of `widget.screenshot(description=...)`. Clicking SNAP captures
  * the view right away (image + the widget's state), then opens a small dialog for a
  * title and a description. SAVE sends both to Python, which writes the PNG (with the
  * record embedded) and an optional .md explanation, and replies with the path.
@@ -9,6 +9,8 @@
  */
 
 import { screenshot_png } from '../viz/png';
+
+import { CONTROL_FONT_SIZE } from './control_style';
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -32,7 +34,8 @@ const text_button = (label, title, color = 'gray') => {
 };
 
 /**
- * Add a PIC button next to the widget's logo (in its search row when there is one).
+ * Add a SNAP button: in `container` when given (a row of the panel's controls),
+ * otherwise next to the widget's logo (in its search row when there is one).
  *
  * @param {HTMLElement} ui_container - The widget's control panel.
  * @param {{model: object, capture: () => ({snapshot: object}|null|
@@ -42,23 +45,36 @@ const text_button = (label, title, color = 'gray') => {
  *   dispose: () => void}} Route custom messages to `on_message` (it returns true
  *   for the ones it handled); call `dispose` on finalize.
  */
-export const add_pic_button = (ui_container, { model, capture }) => {
+export const add_pic_button = (
+  ui_container,
+  { model, capture, container = null, margin = '5px 0 0 5px' }
+) => {
   const button = text_button(
-    'PIC',
-    'Save a screenshot with a description: a PNG plus what it takes to recreate it'
+    'SNAP',
+    'Save a Snapshot with a memo: a PNG plus what it takes to recreate it'
   );
-  const row = ui_container.querySelector('.search_logo_row');
-  const logo = (row || ui_container).querySelector('.logo_button');
-  if (logo?.parentNode) logo.parentNode.insertBefore(button, logo);
-  else ui_container.appendChild(button);
-  if (!row) button.style.margin = '5px 6px 0 auto';
+  // Sized like the rest of the control panel (its dialog keeps 12px text).
+  button.style.fontSize = CONTROL_FONT_SIZE;
+  button.classList.add('snap_button');
+  if (container) {
+    // Among the panel's own controls (e.g. the Landscape's IMG row, or the
+    // Clustergram's CROP row), so the logo keeps its room.
+    button.style.margin = margin;
+    container.appendChild(button);
+  } else {
+    const row = ui_container.querySelector('.search_logo_row');
+    const logo = (row || ui_container).querySelector('.logo_button');
+    if (logo?.parentNode) logo.parentNode.insertBefore(button, logo);
+    else ui_container.appendChild(button);
+    if (!row) button.style.margin = '5px 6px 0 auto';
+  }
 
   let dialog = null;
   let shot = null;
   let request_id = 0;
   const captured_status =
     typeof model?.send === 'function'
-      ? 'The view is captured; saving writes a PNG with replay metadata.'
+      ? 'Captured. Save a PNG + Markdown memo and add it to this viewer’s snapshots.'
       : 'The view is captured; saving downloads a PNG with replay metadata.';
 
   const close = () => {
@@ -110,7 +126,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
       });
       return input;
     };
-    const title = field('input', 'Title (optional)');
+    const title = field('input', 'Snapshot name (optional)');
     const description = field(
       'textarea',
       'What are you looking at, and why is it interesting?'
@@ -150,7 +166,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
     });
     const save = text_button(
       'SAVE',
-      'Save the screenshot (Ctrl/Cmd+Enter)',
+      'Save the Snapshot (Ctrl/Cmd+Enter)',
       '#2c7fb8'
     );
     const cancel = text_button('CANCEL', 'Close without saving (Esc)');
@@ -163,7 +179,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
       if (!shot) return;
       if (typeof model?.send !== 'function') {
         if (!shot.snapshot) {
-          status.textContent = 'This visualization cannot export a saved view';
+          status.textContent = 'This visualization cannot export a Snapshot';
           return;
         }
         const saved = {
@@ -187,7 +203,7 @@ export const add_pic_button = (ui_container, { model, capture }) => {
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         status.textContent =
-          'Downloaded saved view PNG (including replay settings)';
+          'Downloaded Snapshot PNG (including replay settings)';
         return;
       }
       request_id += 1;

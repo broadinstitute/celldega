@@ -29,7 +29,8 @@ const scatter = new Function(
   'fingerprint',
   'show_space_gates',
   'migrate_umap_gates',
-  `${read('umap/expression_scatter.js')}
+  `${read('ui/control_style.js')}
+  ${read('umap/expression_scatter.js')}
   return { expression_axis, interpolate_positions, initialize_expression_scatter };`
 )(
   class {},

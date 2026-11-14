@@ -1,7 +1,7 @@
 """Screenshots with provenance: an image, a description, and what it takes to redo it.
 
-``landscape.screenshot(description="...")`` (or ``dega.viz.screenshot(linked, ...)``
-for several linked widgets, or the PIC button in a widget's control panel) writes two
+``landscape.snapshot(description="...", name="...")`` (or ``dega.viz.snapshot(linked, ...)``
+for several linked widgets, or the SNAP button in a widget's control panel) writes two
 files next to each other:
 
 - ``<name>.png``: the image, with its record embedded: description, author, time, and
@@ -11,12 +11,10 @@ files next to each other:
   URLs, AnnData shape, Matrix source);
 - ``<name>.md``: the description, the image, and code to replay supported settings.
 
-A saved view is the versioned image, replay state, observations and provenance.
-A screenshot is its user-facing image export. It becomes an evidence artifact when
-used to support or contradict a claim; reports collect artifacts and reasoning
-outside the Viz API. ``dega.viz.from_png`` reopens the referenced source data and
-restores supported settings; in-memory inputs must be supplied again. See the
-Viz API documentation for supported controls and remaining limitations.
+A Snapshot is an image, memo and reproducibility metadata, whether kept in memory
+or written as a PNG. ``dega.viz.Snapshot`` displays a lightweight notebook postcard;
+``dega.viz.from_png`` reopens the referenced data as an interactive viewer. The
+``screenshot`` spellings remain compatible with earlier releases.
 
 Capture is asynchronous: the browser sends the image after the cell has finished, so
 ``screenshot()`` returns a :class:`Screenshot` whose output updates when the files are
@@ -38,13 +36,15 @@ import time
 from typing import Any
 import zlib
 
+import traitlets
+
 from .snapshots import restore_spec
 
 
 # 3: a widget's replay settings are kept once, in its saved view (``snapshot.state``).
 SCHEMA_VERSION = 3
 # Manual exports have an application-neutral default.
-DEFAULT_DIR = "celldega_files/screenshots"
+DEFAULT_DIR = "celldega_files/snapshots"
 # PNG text chunk holding the record.
 PNG_KEY = "celldega"
 # Bound decoded metadata without imposing Pillow's 1 MiB compressed-text limit.
@@ -134,6 +134,10 @@ def widget_source(widget) -> dict:
         "rotation_x",
         "rotate",
         "scale_bar_microns_per_pixel",
+        "num_rows",
+        "num_cols",
+        "portrait_size_um",
+        "portrait_gap",
     )
     options = {
         key: deepcopy(value)
@@ -366,10 +370,21 @@ def _markdown(record: dict, image_name: str) -> str:
         "",
         record.get("description") or "_No description._",
         "",
-        f"![{record.get('title') or 'screenshot'}]({image_name})",
+        f"![{record.get('title') or 'Snapshot'}]({image_name})",
         "",
         f"_{record.get('author', 'you')}, {record.get('created', '')}, Celldega "
         f"{record.get('celldega') or 'unknown version'}_",
+        "",
+    ]
+    lines += [
+        "## Notebook postcard",
+        "",
+        "```python",
+        f"dega.viz.Snapshot({image_name!r})",
+        "```",
+        "",
+        "Pass `landscape=landscape`, `clustergram=cgm` or `yearbook=yb` to add a link "
+        "back to a displayed viewer.",
         "",
     ]
     code = []
@@ -428,6 +443,7 @@ def write_screenshot(
     author: str = "you",
     metadata: dict | None = None,
     background: str | None = "white",
+    markdown: bool = True,
 ) -> Path:
     """Write a screenshot's self-contained PNG record and readable ``.md`` companion.
 
@@ -440,6 +456,7 @@ def write_screenshot(
             settings) is kept only when there is no saved view.
         background: Color behind transparent areas and between widgets (white
             by default); ``None`` keeps transparency.
+        markdown: Also write the ``.md`` companion (a report has its own text).
 
     Returns:
         Path: The PNG written.
@@ -490,7 +507,8 @@ def write_screenshot(
     info = PngInfo()
     info.add_itxt(PNG_KEY, text, zip=True)
     image.save(target, pnginfo=info)
-    target.with_suffix(".md").write_text(_markdown(record, target.name))
+    if markdown:
+        target.with_suffix(".md").write_text(_markdown(record, target.name))
     return target
 
 
@@ -608,9 +626,9 @@ class Screenshot:
 
     def _html(self) -> str:
         if not self.done:
-            return "<span style='color:#8a929b'>Capturing the screenshot…</span>"
+            return "<span style='color:#8a929b'>Capturing the Snapshot…</span>"
         if self.error:
-            return f"<span style='color:#c0392b'>Screenshot not saved: {self.error}</span>"
+            return f"<span style='color:#c0392b'>Snapshot not saved: {self.error}</span>"
         thumb = ""
         try:
             data = base64.b64encode(self.path.read_bytes()).decode()
@@ -636,7 +654,7 @@ class Screenshot:
 
     def __repr__(self) -> str:
         state = "saving" if not self.done else (f"failed: {self.error}" if self.error else "saved")
-        return f"Screenshot({str(self.path) if self.path else '…'}, {state})"
+        return f"Snapshot({str(self.path) if self.path else '…'}, {state})"
 
 
 class _Capture:
@@ -749,6 +767,10 @@ class _Capture:
                 metadata=metadata,
                 background=self.background,
             )
+            record = load_screenshot(target)
+            for panel, (widget, shot) in enumerate(zip(self.widgets, shots, strict=True)):
+                if shot.get("image"):
+                    _remember_snapshot(widget, target, record, panel=panel)
         except Exception as exc:  # surface in the cell's output, not the log
             self.result._set(error=str(exc))
             return
@@ -774,11 +796,11 @@ def screenshot(
     Args:
         description: What you're looking at and why it's interesting.
         path: A ``.png`` file, or a folder for an auto-named file (default
-            ``celldega_files/screenshots``).
+            ``celldega_files/snapshots``).
         title: Optional short title (also used in the file name).
         metadata: Anything else to record, e.g. ``{"adata": "data/kidney.h5ad"}``.
             Set ``widget.screenshot_metadata`` to record it with every screenshot
-            of that widget, including ones taken with its PIC button.
+            of that widget, including ones taken with its SNAP button.
         max_size: Longest side of each widget's image, in pixels.
         background: A CSS color behind areas the visualization leaves empty
             (white by default); ``None`` keeps them transparent.
@@ -797,10 +819,39 @@ def screenshot(
     return result
 
 
-def save_from_browser(widget, content: dict) -> Path:
-    """Save a screenshot the widget's PIC button captured in the browser.
+def _remember_snapshot(widget, path: Path, record: dict, *, panel: int = 0) -> str:
+    """Keep a named record locally, without syncing the viewer's collection."""
+    entries = dict(getattr(widget, "snap", {}) or {})
+    name = str(record.get("title") or path.stem)
+    key, suffix = name, 2
+    while key in entries:
+        key = f"{name} ({suffix})"
+        suffix += 1
+    entries[key] = {**deepcopy(record), "_path": str(path.resolve()), "_panel": panel}
+    widget.snap = entries
+    return key
 
-    The PIC message carries one saved view (``snapshot``): image, observed state,
+
+def snapshot(*widgets, name: str = "", **kwargs) -> Screenshot:
+    """Save a Snapshot (PNG + Markdown memo) and register it in each viewer's ``snap``.
+
+    ``name`` is the collection key and postcard title. Capture finishes after the
+    notebook cell returns. See :func:`screenshot` for capture options; that spelling
+    remains a compatibility alias.
+    """
+    if name:
+        kwargs["title"] = name
+    return screenshot(*widgets, **kwargs)
+
+
+load_snapshot = load_screenshot
+load_snapshots = load_screenshots
+
+
+def save_from_browser(widget, content: dict) -> Path:
+    """Save a screenshot the widget's SNAP button captured in the browser.
+
+    The SNAP message carries one saved view (``snapshot``): image, observed state,
     replay settings and identity, recorded the same way as :func:`screenshot`.
     """
     snapshot = content.get("snapshot") or {}
@@ -814,28 +865,60 @@ def save_from_browser(widget, content: dict) -> Path:
         "view_state": dict(image.get("view_state") or {}),
         "in_view": _in_view(observed),
     }
-    return write_screenshot(
+    target = write_screenshot(
         getattr(widget, "screenshot_dir", None) or None,
         [shot],
         description=str(content.get("description") or ""),
         title=str(content.get("title") or ""),
         author="you",
     )
+    _remember_snapshot(widget, target, load_screenshot(target))
+    return target
 
 
-class Screenshots:
+class Screenshots(traitlets.HasTraits):
     """Mixin for widgets that can take screenshots (needs ``request_raster``).
 
-    Adds :meth:`screenshot` and handles the PIC button in the widget's control panel,
+    Adds :meth:`screenshot` and handles the SNAP button in the widget's control panel,
     which captures in the browser and asks Python to save. Subclasses call
     :meth:`_listen_for_pics` from ``__init__``.
     """
 
-    #: Folder for screenshots (PIC button and ``screenshot()`` without a path).
+    #: Folder for screenshots (SNAP button and ``screenshot()`` without a path).
     screenshot_dir: str | Path | None = None
     #: Extra provenance recorded with every screenshot of this widget, e.g.
     #: ``{"adata": "data/kidney.h5ad", "notebook": "kidney_review.ipynb"}``.
     screenshot_metadata: dict | None = None
+
+    # Deliberately local: only displayed Snapshot cards embed their PNG in a notebook.
+    snap = traitlets.Dict(default_value={})
+
+    @property
+    def snapshot_dir(self):
+        """Folder for SNAP and ``snapshot()``; ``screenshot_dir`` is an alias."""
+        return self.screenshot_dir
+
+    @snapshot_dir.setter
+    def snapshot_dir(self, value):
+        self.screenshot_dir = value
+
+    @property
+    def snapshot_metadata(self):
+        return self.screenshot_metadata
+
+    @snapshot_metadata.setter
+    def snapshot_metadata(self, value):
+        self.screenshot_metadata = value
+
+    def snapshot(self, description: str = "", path=None, *, name: str = "", **kwargs):
+        """Save a named PNG + Markdown memo, then add it to ``self.snap``.
+
+        Display it later with ``Snapshot(landscape=self, snapshot=name)`` (or the
+        ``clustergram`` / ``yearbook`` argument). Repeated names get `` (2)``, etc.
+        """
+        if name:
+            kwargs["title"] = name
+        return self.screenshot(description, path, **kwargs)
 
     def screenshot(
         self,
@@ -857,7 +940,7 @@ class Screenshots:
         Args:
             description: What you're looking at and why it's interesting.
             path: A ``.png`` file, or a folder for an auto-named file (default
-                :attr:`screenshot_dir`, else ``celldega_files/screenshots``).
+                :attr:`screenshot_dir`, else ``celldega_files/snapshots``).
             title: Optional short title (also used in the file name).
             metadata: Anything else to record, e.g. the AnnData's path.
             max_size: Longest side of the image, in pixels.

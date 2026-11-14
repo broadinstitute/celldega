@@ -3,12 +3,16 @@
 import asyncio
 from collections.abc import Sequence
 import colorsys
+import concurrent.futures
+import contextlib
 from copy import deepcopy
 import importlib.metadata
 import json
 import os
 from pathlib import Path
 import re
+import threading
+import time
 from typing import Any, Literal
 import urllib.error
 from urllib.parse import quote, urlparse
@@ -104,6 +108,33 @@ def _hsv_to_hex(h: float) -> str:
     """Convert HSV color to hex string."""
     r, g, b = colorsys.hsv_to_rgb(h, 0.65, 0.9)
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _describe_anndata(adata) -> str:
+    from celldega.clerk import describe_anndata
+
+    return describe_anndata(adata)
+
+
+def _read_anndata_link(link: str):
+    """Read an AnnData from a link: a local ``.h5ad`` (backed, so its matrix stays on
+    disk), or a ``.zarr`` path or URL."""
+    import anndata as ad
+
+    remote = "://" in link
+    if ".zarr" in link:
+        if remote:
+            import zarr
+
+            return ad.read_zarr(zarr.storage.FsspecStore.from_url(link, read_only=True))
+        return ad.read_zarr(link)
+    if link.endswith(".h5ad"):
+        if remote:
+            raise ValueError(
+                "a remote AnnData must be a .zarr URL; download the .h5ad and pass its path"
+            )
+        return ad.read_h5ad(link, backed="r")
+    raise ValueError(f"an AnnData link must be an .h5ad or .zarr path or URL: {link}")
 
 
 def _selection_to_payload(selection) -> dict:
@@ -856,7 +887,21 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     meta_nbhd = traitlets.Instance(pd.DataFrame, allow_none=True)
 
     meta_cluster = traitlets.Dict({}).tag(sync=True)
+    #: Pins shown with the PINS button (see :attr:`pins`): name, memo, position and
+    #: saved view of each Snapshot.
+    pin_data = traitlets.List(default_value=[]).tag(sync=True)
+    #: Whether the pins are shown (the PINS button toggles it).
+    show_pins = traitlets.Bool(False).tag(sync=True)
+    #: A Snapshot card asks to open its view (``{"id", "snapshot"}``) and the browser
+    #: answers in ``view_result``; linked in the browser, so cards work without a
+    #: kernel too (see :class:`Snapshot`).
+    view_request = traitlets.Dict({}).tag(sync=True)
+    view_result = traitlets.Dict({}).tag(sync=True)
+    _JS_VIEW_LINK = True
     selected_cells = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
+    #: Clusters highlighted in the browser while cells are colored by cluster (set by
+    #: the front end; a linked Clustergram shows them as blue column labels).
+    selected_clusters = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
     landscape_state = traitlets.Unicode("spatial").tag(sync=True)
     xy_genes = traitlets.List(trait=traitlets.Unicode(), default_value=[], maxlen=2).tag(sync=True)
     xy_scale = traitlets.Enum(["linear", "log1p"], default_value="log1p").tag(sync=True)
@@ -1121,6 +1166,9 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         return summary
 
     def __init__(self, **kwargs):
+        # Snapshots to pin on the tissue (``snapshots=``; ``pins=`` is an alias).
+        pins = kwargs.pop("snapshots", None)
+        pins = kwargs.pop("pins", None) if pins is None else pins
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)
         pq_meta_cluster = kwargs.pop("meta_cluster_parquet", None)
@@ -1415,6 +1463,8 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         self._listen_for_raster()
         self._listen_for_pics()
         self._listen_for_state()
+        if pins is not None:
+            self.pins = pins
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr
@@ -1559,6 +1609,83 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             [list(ring.coords.xy[0]) for ring in rings],
             [list(ring.coords.xy[1]) for ring in rings],
         )
+
+    @property
+    def pins(self) -> list[dict]:
+        """Points of interest on the tissue or the UMAP, one per Snapshot (**PINS**).
+
+        Set it to Snapshots to annotate the Landscape: a :class:`Snapshots`
+        collection, PNG paths, a folder of Snapshot PNGs, or a viewer's ``snap``.
+        Each Landscape Snapshot of the tissue or the UMAP becomes a pin at the center
+        of its view, shown while the Landscape shows that space; hovering shows its
+        name and memo, and clicking opens its view::
+
+            landscape.pins = dega.viz.Snapshots(landscape.snap)
+            landscape.show_pins = True  # or press PINS
+
+        Returns the pins (name, description, position and saved view).
+        """
+        return deepcopy(self.pin_data)
+
+    @pins.setter
+    def pins(self, snapshots) -> None:
+        from .snapshot_widget import Snapshots
+
+        if snapshots is None:
+            self.pin_data = []
+            return
+        kept, other = [], []
+        for pin in Snapshots(snapshots).pins():
+            source = (pin.get("snapshot") or {}).get("source") or {}
+            (kept if self._same_data(source) else other).append(pin)
+        if other:
+            warnings.warn(
+                "Not pinned, Snapshots of other data than this Landscape: "
+                + ", ".join(p["name"] for p in other),
+                stacklevel=2,
+            )
+        self.pin_data = kept
+
+    # Constructor options that say which data a Landscape shows (besides its URLs).
+    _DATA_KEYS = (
+        "zarr_layer",
+        "technology",
+        "segmentation",
+        "alignment",
+        "dataset_name",
+        "cell_name_prefix",
+        "data_revision",
+    )
+
+    def _same_data(self, source: dict) -> bool:
+        """Whether a Snapshot's ``source`` is this Landscape's data, as far as both say.
+
+        Opening a pin checks the data itself (its cell, gene and cluster names) too.
+        """
+
+        def urls(values) -> set[str]:
+            out = {str(values(key) or "") for key in ("base_url", "zarr_url")}
+            for entry in values("base_urls") or []:
+                out.add(str(entry.get("url", "") if isinstance(entry, dict) else entry))
+            return {url.rstrip("/") for url in out if url}
+
+        # Where the data lives: DegaFiles (base_url) and an AnnData Zarr are different
+        # data, even though neither side names the other's location.
+        mine = urls(lambda k: getattr(self, k, None) if self.has_trait(k) else None)
+        theirs = urls(source.get)
+        if mine and theirs and not mine & theirs:
+            return False
+        for key in self._DATA_KEYS:
+            theirs = source.get(key)
+            mine = getattr(self, key, None) if self.has_trait(key) else None
+            if theirs in (None, "", []) or mine in (None, "", []):
+                continue
+            if isinstance(mine, list | tuple) or isinstance(theirs, list | tuple):
+                if list(mine) != list(theirs):
+                    return False
+            elif str(mine) != str(theirs):
+                return False
+        return True
 
     @property
     def nbhd_polygons(self):
@@ -1711,6 +1838,2991 @@ class Enrich(_StateGetter, CelldegaWidget):
         return self._send_state_request({"max_terms": int(max_terms)})
 
 
+class Clerk(CelldegaWidget):
+    """Clerk -- Celldega's AI tool for exploring and interpreting its visualizations.
+
+    Works like :class:`Enrich`, but instead of the Enrichr API it talks to Claude via
+    the local ``claude`` CLI (kernel-side, no API key). The scientist asks free-form
+    questions in a chat box; Celldega bundles the available evidence -- the gene list,
+    pre-fetched Enrichr terms, a captured Landscape raster, and any free-text context --
+    into a single-shot prompt so Claude reasons only from what it is shown.
+
+    Reads as both a *law clerk* (gathers evidence, drafts reasoning, the human decides)
+    and a *bodega clerk* (fetches what you ask for).
+
+    Clerk is standalone and wide by default. Link it to other widgets (which can live in
+    other notebook cells) either from the constructor or via ``dega.viz.link_clerk``::
+
+        clerk = dega.viz.Clerk(landscape=ls, clustergram=cgm, enrich=en)
+
+    Or lay it out with them, linked: as a narrow sidecar column at the end of the row,
+    like Enrich, or full width underneath::
+
+        dega.viz.spatial_clustergram(ls, cgm, clerk=True)                     # sidecar
+        dega.viz.spatial_clustergram(ls, cgm, clerk=True, clerk_layout="wide")
+
+    Enrichr results Clerk gets are drawn in the conversation, like the Enrich panel: a
+    bar graph of the top terms and a paragraph of the genes tested.
+
+    Args:
+        landscape (Landscape): Optional. Link a Landscape; its raster + zoom/pan flow in
+            as image evidence.
+        clustergram (Clustergram): Optional. Link a Clustergram; selected genes flow into
+            ``gene_list``.
+        enrich (Enrich): Optional. Remembered for enrichment-term evidence sharing
+            (roadmap).
+        gene_list (list): Marker / DE genes for the selection.
+        context_info (str): Free-text context (dataset, cluster id, notes).
+        model (str): Optional Claude model alias or id (e.g. ``"opus"``, ``"sonnet"``,
+            ``"haiku"``). Empty inherits the CLI default. A smaller model is
+            cheaper/faster for routine annotation.
+        effort (str): Reasoning effort, ``"low"`` to ``"max"`` (``"xhigh"`` in between);
+            empty inherits the CLI default. Higher effort is slower and uses more tokens.
+        width (int): Widget width in px; 0 (default) means full container width.
+        name (str): Registry key; creating a new Clerk with the same name closes the old.
+    """
+
+    _esm = _WIDGET_ESM
+
+    component = traitlets.Unicode("Clerk").tag(sync=True)
+
+    # Wide by default (0 -> 100% of the container, like Landscape). Clerk is meant to be
+    # a standalone wide panel, linked to widgets that live elsewhere in the notebook.
+    width = traitlets.Int(0).tag(sync=True)
+    height = traitlets.Int(450).tag(sync=True)
+
+    # Evidence
+    gene_list = traitlets.List(default_value=[]).tag(sync=True)
+    context_info = traitlets.Unicode("").tag(sync=True)
+    # The full image sent to the model stays Python-side (not synced), so it is never
+    # saved into the notebook's widget state; the panel only gets a small preview.
+    image_b64 = traitlets.Unicode("")
+    image_thumb_b64 = traitlets.Unicode("").tag(sync=True)
+    has_image = traitlets.Bool(False).tag(sync=True)
+    # View state (zoom/pan) paired with image_b64, captured from the linked Landscape.
+    image_view_state = traitlets.Dict(default_value={}).tag(sync=True)
+
+    # Model config
+    model = traitlets.Unicode("").tag(sync=True)
+    # Reasoning effort ("low", "medium", "high", "xhigh", "max"); "" = CLI default.
+    effort = traitlets.Unicode("").tag(sync=True)
+    timeout = traitlets.Int(180).tag(sync=True)
+
+    # Chat state (kept in memory only)
+    messages = traitlets.List(default_value=[]).tag(sync=True)
+    pending = traitlets.Bool(False).tag(sync=True)
+    error = traitlets.Unicode("").tag(sync=True)
+
+    # JS sets this dict (with a unique ``id``) to trigger a single-shot call.
+    request = traitlets.Dict(default_value={}).tag(sync=True)
+
+    # Whether the panel fetches its own Enrichr terms for the gene list. Turned off
+    # when an Enrich widget is linked: Clerk then reads that panel's results instead.
+    fetch_enrichr = traitlets.Bool(True).tag(sync=True)
+
+    # Earlier work shared with Clerk (Markdown), sent with every question as clearly
+    # labeled prior conclusions; see load_briefing. Python-side only; the panel shows
+    # briefing_label so it's visible what Clerk was told.
+    briefing = traitlets.Unicode("")
+    briefing_label = traitlets.Unicode("").tag(sync=True)
+
+    # Cluster names the panel links ("cluster 4" -> highlight it), and their labels
+    # (Clerk's tentative cell types, or yours) for hover text.
+    cluster_names = traitlets.List(default_value=[]).tag(sync=True)
+    cluster_labels = traitlets.Dict(default_value={}).tag(sync=True)
+    # True while the scientist's view is saved (evidence links were followed); the
+    # panel then offers RETURN.
+    can_restore = traitlets.Bool(False).tag(sync=True)
+
+    def __init__(self, **kwargs):
+        name = kwargs.pop("name", None)
+        registry_key = kwargs.pop("registry_key", None)
+        if name is None and registry_key is None:
+            registry_key = "default"
+        # Widgets can be linked straight from the constructor:
+        # ``Clerk(landscape=ls, clustergram=cgm, enrich=en)``. Pop them before
+        # super().__init__ since they are not traits.
+        link_targets = {
+            key: kwargs.pop(key, None) for key in ("landscape", "clustergram", "enrich", "yearbook")
+        }
+        capture_on_select = kwargs.pop("capture_on_select", True)
+        adata = kwargs.pop("adata", None)
+
+        super().__init__(name=name, registry_key=registry_key, **kwargs)
+        # Single-cell AnnData Clerk may select Yearbook cells from (celldega.select,
+        # run here in the kernel from a JSON query Clerk writes; Clerk runs no code):
+        # an AnnData, or a link to one (an .h5ad path, or a .zarr path or URL), read
+        # when first needed. Without it, a linked Landscape's AnnData is used.
+        self.adata = adata
+        self._loaded_adata: tuple[str, Any] | None = None
+        # The Claude session the conversation continues in, and what Clerk was last
+        # sent (see continue_conversation).
+        self._conversation: dict | None = None
+        self._last_request_id = None
+        self._linked_widgets = {}
+        self._worker: threading.Thread | None = None
+        # Cell types Clerk has proposed (see findings_df / write_cell_types).
+        self.findings: list[dict] = []
+        # One entry per question: steps, screenshots and the state behind them.
+        self.record: list[dict] = []
+        self._paused: dict | None = None
+        # Labels Clerk put on the Clustergram, per axis, so it never overwrites yours.
+        self._clerk_marks: dict[str, dict] = {}
+        self._saved_view: dict | None = None
+        # Screenshots Clerk saved (paths), newest last.
+        self.screenshots: list[str] = []
+        # Analysis notebooks Clerk drafted (see run_analysis), newest last.
+        self.analyses: list[dict] = []
+        # Where the data for analysis notebooks lives, e.g. {"adata": "data/x.h5ad"}.
+        self.analysis_data: dict = {}
+        if isinstance(adata, str | Path):
+            self.analysis_data["adata"] = str(adata)
+        # Messages change from Clerk's worker and from analysis runs, in other threads.
+        self._messages_lock = threading.RLock()
+        self._evidence_executor = None
+        self._last_evidence: concurrent.futures.Future | None = None
+        # Which Clustergram rows/columns to describe with each question: on screen by
+        # default ("viewport"), or "ranked" / a list of names; see
+        # Clustergram.request_state for the options.
+        self.clustergram_options = {
+            "rows": "viewport",
+            "cols": "viewport",
+            "max_rows": 40,
+            "max_cols": 30,
+        }
+        self.has_image = bool(self.image_b64)
+        self.observe(self._on_request, names="request")
+        self.observe(self._on_image, names="image_b64")
+        self.briefing_sources: list[str] = []
+        self._briefing_from: list[str] = []
+        self.observe(self._on_briefing, names="briefing")
+        # The panel's OPEN button sends a saved conversation as a one-off message.
+        self.on_msg(self._on_panel_msg)
+
+        if any(w is not None for w in link_targets.values()):
+            from . import link_clerk
+
+            link_clerk(self, capture_on_select=capture_on_select, **link_targets)
+
+    def _on_image(self, change):
+        self.has_image = bool(change["new"])
+        if not change["new"]:
+            self.image_thumb_b64 = ""
+
+    def _on_briefing(self, change):
+        text = change["new"] or ""
+        # Sources come from load_briefing; text set directly has none.
+        self.briefing_sources, self._briefing_from = self._briefing_from, []
+        if not text.strip():
+            self.briefing_sources = []
+            self.briefing_label = ""
+            return
+        sources = f" from {', '.join(self.briefing_sources)}" if self.briefing_sources else ""
+        self.briefing_label = f"Briefing: {len(text):,} characters of earlier work{sources}"
+
+    def load_briefing(self, *sources, append: bool = False) -> str:
+        """Give Clerk earlier work to start from, as a visible, labeled briefing.
+
+        Each source is an exported report folder or its ``record.json`` (see
+        :meth:`export`), a Markdown / text file, or another :class:`Clerk`. Records are
+        summarized (questions, final answers, recorded cell types). The briefing goes
+        with every question under "Earlier work", as conclusions to check rather than
+        evidence, and the panel shows that one is loaded. Set :attr:`briefing` directly
+        for free text, or to ``""`` to clear it.
+
+        Args:
+            append: Add to the current briefing instead of replacing it.
+
+        Returns:
+            str: The briefing text.
+        """
+        from ..clerk import report
+        from . import screenshots as screenshot_module
+
+        parts, names = [], []
+        for source in sources:
+            if isinstance(source, Clerk):
+                parts.append(report.summarize(source.record, source.findings, "Earlier session"))
+                names.append("another Clerk panel")
+                continue
+            path = Path(source)
+            shots = None
+            if path.is_dir() and not (path / "record.json").is_file():
+                shots = screenshot_module.load_screenshots(path)
+                if not shots:
+                    raise FileNotFoundError(f"no Clerk record or screenshots in {source}")
+            elif path.is_dir():
+                path = path / "record.json"
+            elif path.suffix == ".png" or (path.suffix == ".json" and _is_screenshot_record(path)):
+                shots = [{**screenshot_module.load_screenshot(path), "_path": str(path)}]
+            if shots is not None:
+                parts.append(screenshot_module.summarize(shots))
+                names.append(path.name)
+                continue
+            if not path.is_file():
+                raise FileNotFoundError(f"no briefing source at {source}")
+            if path.suffix == ".json":
+                data = json.loads(path.read_text())
+                parts.append(
+                    report.summarize(
+                        data.get("questions") or [],
+                        data.get("findings") or [],
+                        f"Earlier session ({path.parent.name}, exported "
+                        f"{(data.get('meta') or {}).get('exported', 'unknown date')})",
+                    )
+                )
+            else:
+                parts.append(path.read_text())
+            names.append(path.parent.name if path.name == "record.json" else path.name)
+        text = "\n\n".join(parts)
+        if append and self.briefing:
+            text = f"{self.briefing}\n\n{text}"
+            names = [*self.briefing_sources, *names]
+        self.briefing = ""  # re-label even if the text is unchanged
+        self._briefing_from = names
+        self.briefing = text
+        return text
+
+    def _on_request(self, change):
+        """Handle a question from the chat UI.
+
+        The model call runs in a background thread so the kernel stays free while
+        Claude thinks: other cells can run, and linked widgets keep updating.
+        """
+        req = change["new"] or {}
+        req_id = req.get("id")
+        if not req_id or req_id == self._last_request_id:
+            return
+        self._last_request_id = req_id
+
+        if req.get("export"):
+            self._export_from_panel(title=str(req.get("report_title") or ""))
+            return
+        if req.get("save_conversation"):
+            self._save_from_panel()
+            return
+
+        # Evidence clicked in the conversation (works while Clerk is still answering):
+        # genes, clusters and cited views, shown right away in the linked widgets.
+        # The scientist's own view is saved first, so "Back" can restore it.
+        if req.get("show_genes") is not None:
+            self._follow_evidence(self._show_genes, req["show_genes"], focus=req.get("focus"))
+            return
+        if req.get("show_clusters") is not None:
+            self._follow_evidence(self._show_clusters, req["show_clusters"])
+            return
+        if req.get("apply_view") is not None:
+            self._follow_evidence(self._apply_view, req["apply_view"])
+            return
+        if req.get("show_snapshot") is not None:
+            self._follow_evidence(self._show_snapshot, req["show_snapshot"])
+            return
+        if req.get("restore_view"):
+            self._queue_evidence(self._restore_view)
+            return
+
+        if self._worker is not None and self._worker.is_alive():
+            self.error = "Clerk is still answering the previous question."
+            return
+
+        if req.get("continue"):
+            paused, self._paused = self._paused, None
+            if not paused:
+                return
+            self.error = ""
+            self.pending = True
+            self._worker = threading.Thread(
+                target=self._resume, args=(paused,), name="celldega-clerk", daemon=True
+            )
+            self._worker.start()
+            return
+        if self._paused is not None:  # a new question drops a paused one
+            session = self._paused["call"].pop("session", None)
+            if session is not None:
+                session.close()
+        self._paused = None
+
+        question = req.get("question", "")
+        call = {
+            # Earlier turns, so follow-up questions keep their context.
+            "history": [dict(m) for m in self.messages],
+            "gene_list": req.get("gene_list") or list(self.gene_list),
+            "enrichr_terms": req.get("enrichr_terms") or [],
+            "enrichr_library": str(req.get("enrichr_library") or ""),
+            "enrichr_short_id": str(req.get("enrichr_short_id") or ""),
+            "info": self.context_info,
+            "image_b64": self.image_b64 or None,
+            "model": self.model,
+            "effort": self.effort,
+            "timeout": self.timeout,
+            "briefing": self.briefing,
+            "history_questions": self.history_questions,
+            "history_chars": self.history_chars,
+        }
+
+        # Append the user's message so it renders immediately.
+        self.messages = [*self.messages, {"role": "user", "content": question}]
+        self.error = ""
+        self.pending = True
+        self._worker = threading.Thread(
+            target=self._answer, args=(question, call), name="celldega-clerk", daemon=True
+        )
+        self._worker.start()
+
+    # Seconds to wait for a fresh Landscape snapshot before asking anyway.
+    snapshot_timeout = 5.0
+    # Screenshot the linked Clustergram with each capture, for the record and report
+    # (Clerk itself reads the Clustergram's text snapshot, which is more precise).
+    capture_clustergram = True
+
+    def _request_and_wait(self, requests) -> list[bool]:
+        """Send requests to the browser and wait for their replies (worker thread).
+
+        ``requests`` is a list of ``(widget, id_trait, send)``: ``send()`` issues the
+        request and returns its id, and the widget sets ``id_trait`` to that id once
+        the browser has answered. All replies share one ``snapshot_timeout``. The
+        kernel's main thread is free while this waits, so it can receive the replies.
+
+        Returns:
+            list[bool]: Whether each request was answered in time.
+        """
+
+        def received(widget, trait, rid):
+            if trait in ("snapshot_capture_id", "apply_capture_id"):
+                cache = (
+                    widget._snapshot_replies
+                    if trait == "snapshot_capture_id"
+                    else widget._apply_replies
+                )
+                return rid in cache
+            return getattr(widget, trait) >= rid
+
+        pending = []
+        for widget, id_trait, send in requests:
+            done = threading.Event()
+            target = {"id": None}
+
+            def _on_reply(change, done=done, target=target, widget=widget, id_trait=id_trait):
+                if target["id"] is not None and received(widget, id_trait, target["id"]):
+                    done.set()
+
+            widget.observe(_on_reply, names=id_trait)
+            pending.append((widget, id_trait, send, _on_reply, done, target))
+        try:
+            for widget, id_trait, send, _cb, done, target in pending:
+                target["id"] = send()
+                if received(widget, id_trait, target["id"]):
+                    done.set()
+            deadline = time.monotonic() + self.snapshot_timeout
+            for *_, done, _target in pending:
+                done.wait(max(0.0, deadline - time.monotonic()))
+            return [done.is_set() for *_, done, _target in pending]
+        finally:
+            for widget, id_trait, _send, callback, _done, _target in pending:
+                widget.unobserve(callback, names=id_trait)
+
+    _GENE_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9._-]+")
+
+    def _mentioned_rows(self, texts, limit: int = 40) -> list[str]:
+        """Clustergram row names (e.g. genes) mentioned in ``texts``, in order.
+
+        Matches exactly, or case-insensitively when the word is written in capitals
+        or contains a digit (``muc2`` won't match, ``MUC2`` / ``Muc2`` will), so plain
+        English words that happen to be gene symbols aren't picked up.
+        """
+        cgm = self._linked_widgets.get("clustergram")
+        names = [str(n) for n in (getattr(cgm, "row_names", None) or [])]
+        return self._find_names(texts, names, limit)
+
+    def _known_genes(self) -> list[str]:
+        """Gene names Clerk can link: the Clustergram's rows, else the Landscape's genes."""
+        cgm = self._linked_widgets.get("clustergram")
+        names = [str(n) for n in (getattr(cgm, "row_names", None) or [])]
+        if not names:
+            landscape = self._linked_widgets.get("landscape")
+            adata = getattr(landscape, "_adata", None)
+            if adata is not None:
+                names = [str(n) for n in adata.var_names]
+        return names
+
+    def _known_clusters(self) -> list[str]:
+        """Cluster names Clerk can link: the Clustergram's columns, else the Landscape's."""
+        cgm = self._linked_widgets.get("clustergram")
+        names = [str(n) for n in (getattr(cgm, "col_names", None) or [])]
+        if not names:
+            landscape = self._linked_widgets.get("landscape")
+            meta = getattr(landscape, "meta_cell", None)
+            attr = getattr(landscape, "cluster_attr", "leiden")
+            if isinstance(meta, pd.DataFrame) and attr in meta:
+                names = [str(n) for n in pd.unique(meta[attr].astype(str))]
+        return names
+
+    def _cluster_labels(self) -> dict[str, str]:
+        """``{cluster: label}`` for hover text: Clerk's latest proposals, then yours."""
+        labels = {f["cluster"]: f"{f['label']} (Clerk, tentative)" for f in self.findings}
+        cgm = self._linked_widgets.get("clustergram")
+        if cgm is not None and hasattr(cgm, "_category_target"):
+            try:
+                _axis, attribute = cgm._category_target("col", None)
+            except ValueError:
+                attribute = None
+            if attribute:
+                values = ((cgm.manual_cat_dict or {}).get("col") or {}).get(attribute, {})
+                for cluster, label in (values.get("values") or {}).items():
+                    if label and label != self._clerk_marks.get("col", {}).get(cluster):
+                        labels[str(cluster)] = str(label)
+        return labels
+
+    def _links_for(self, text: str, genes: Sequence[str] = ()) -> dict:
+        """Genes in ``text`` the panel can make clickable (``{"genes": [...]}`` or ``{}``).
+
+        Also refreshes :attr:`cluster_names` / :attr:`cluster_labels`, which the panel
+        uses to link "cluster N" in any message.
+        """
+        found = self._find_names([text], self._known_genes(), limit=500)
+        found += [str(g) for g in genes if str(g) not in found]
+        known = self._known_clusters()
+        if known != list(self.cluster_names):
+            self.cluster_names = known
+        labels = self._cluster_labels()
+        labels = {c: labels[c] for c in known if c in labels}
+        if labels != dict(self.cluster_labels):
+            self.cluster_labels = labels
+        return {"genes": found} if found else {}
+
+    # "[MYH11]" (brackets without a link target): Markdown leaves the brackets.
+    _BRACKETED = re.compile(r"\[([A-Za-z0-9][A-Za-z0-9._/-]*)\](?!\()")
+
+    def _unbracket_names(self, text: str, genes: Sequence[str] = ()) -> str:
+        """Drop brackets Clerk put around gene or cluster names ("[MYH11]").
+
+        The panel links those names by itself; in brackets they would show as
+        "[MYH11]". Figure links ("[Fig 1A](view:1A)") and other brackets are kept.
+        """
+        known = {str(g).upper() for g in genes} | {str(c).upper() for c in self.cluster_names}
+        if not known or "[" not in (text or ""):
+            return text
+
+        def plain(match):
+            name = match.group(1)
+            return name if name.upper() in known else match.group(0)
+
+        return self._BRACKETED.sub(plain, text)
+
+    def _find_names(self, texts, names: list[str], limit: int) -> list[str]:
+        """Names from ``names`` mentioned in ``texts`` (see :meth:`_mentioned_rows`)."""
+        if not names:
+            return []
+        exact = set(names)
+        by_upper = {}
+        for name in names:
+            by_upper.setdefault(name.upper(), name)
+        found: list[str] = []
+        for text in texts:
+            for raw in self._GENE_TOKEN.findall(text or ""):
+                # Dots and dashes occur inside symbols (HLA-DRA) but not at the end of
+                # one: "...and PTPRC." -> PTPRC.
+                token = raw.rstrip("._-")
+                name = token if token in exact else None
+                if name is None and (token.isupper() or any(c.isdigit() for c in token)):
+                    name = by_upper.get(token.upper())
+                if name and name not in found:
+                    found.append(name)
+        return found[:limit]
+
+    def _refresh_views(
+        self,
+        question: str = "",
+        extra_rows: Sequence[str] = (),
+        markers: dict | None = None,
+    ) -> dict:
+        """Capture the linked views as they are now, before a question is sent.
+
+        The Landscape screenshot lands in ``image_b64`` (via the ``link_clerk``
+        observers). The Clustergram snapshot covers what's on screen plus any of its
+        rows named in the question or in Clerk's previous answer. Views that aren't
+        linked or displayed time out; the question still goes ahead, with a note.
+
+        Returns:
+            dict: ``clustergram_state`` (or ``None``), ``image_fresh`` (bool),
+            ``notes`` for the prompt, and ``summary`` lines for the panel.
+        """
+        result = {
+            "clustergram_image": "",
+            "clustergram_thumb": "",
+            "yearbook_image": "",
+            "yearbook_thumb": "",
+            "yearbook_state": None,
+            "snapshots": {},
+            "clustergram_state": None,
+            "enrich_state": None,
+            "landscape_state": None,
+            "neighborhoods": None,
+            "image_fresh": False,
+            "notes": [],
+            "summary": [],
+        }
+        requests = []
+        labels = []
+        snapshot_ids = {}
+
+        def capture(name, widget, **options):
+            def send():
+                rid = widget.request_snapshot(**options)
+                snapshot_ids[name] = rid
+                return rid
+
+            requests.append((widget, "snapshot_capture_id", send))
+            labels.append(name)
+
+        landscape = self._linked_widgets.get("landscape")
+        has_landscape = landscape is not None and hasattr(landscape, "request_snapshot")
+        if has_landscape:
+            capture("landscape", landscape)
+        cgm = self._linked_widgets.get("clustergram")
+        has_cgm = cgm is not None and hasattr(cgm, "request_state")
+        if has_cgm:
+            last_answer = next(
+                (
+                    m.get("content", "")
+                    for m in reversed(self.messages)
+                    if m.get("role") == "assistant"
+                ),
+                "",
+            )
+            options = dict(self.clustergram_options)
+            mentioned = self._mentioned_rows([question, last_answer])
+            options.setdefault(
+                "extra_rows",
+                list(dict.fromkeys([*(str(g) for g in extra_rows), *mentioned])),
+            )
+            if markers:
+                options["markers"] = markers
+            if self.capture_clustergram and hasattr(cgm, "request_snapshot"):
+                capture("clustergram", cgm, **options)
+            else:
+                requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
+                labels.append("clustergram")
+        yearbook = self._linked_widgets.get("yearbook")
+        has_yearbook = yearbook is not None and hasattr(yearbook, "request_snapshot")
+        if has_yearbook:
+            capture("yearbook", yearbook)
+        enrich = self._linked_widgets.get("enrich")
+        has_enrich = enrich is not None and hasattr(enrich, "request_state")
+        if has_enrich:
+            requests.append((enrich, "state_capture_id", enrich.request_state))
+            labels.append("enrich")
+        if not requests:
+            result["notes"].append(
+                "No Landscape, Clustergram or Enrich panel is linked to Clerk; only the "
+                "text evidence below is available."
+            )
+            return result
+
+        answered = dict(zip(labels, self._request_and_wait(requests), strict=True))
+        captured = {}
+        for name, rid in snapshot_ids.items():
+            reply = self._linked_widgets[name]._snapshot_replies.get(rid, {})
+            snapshot = reply.get("snapshot")
+            answered[name] = bool(snapshot) and not reply.get("error")
+            if answered[name]:
+                captured[name] = snapshot
+                result["snapshots"][name] = snapshot
+        if has_landscape:
+            if answered.get("landscape"):
+                image = captured["landscape"]["image"]
+                self.image_b64 = image.get("png") or ""
+                self.image_thumb_b64 = image.get("thumb") or ""
+                self.image_view_state = dict(image.get("view_state") or {})
+                result["image_fresh"] = True
+                result["summary"].append("Landscape view")
+            else:
+                result["notes"].append(
+                    "The linked Landscape did not return a screenshot this time (it may "
+                    "not be displayed); any image attached is from an earlier view."
+                )
+                result["summary"].append("Landscape: no new screenshot")
+            if answered.get("landscape"):
+                result["landscape_state"] = deepcopy(captured["landscape"]["observed_state"])
+            if hasattr(landscape, "neighborhood_summary"):
+                try:
+                    neighborhoods = landscape.neighborhood_summary()
+                except Exception:  # drawn regions are optional evidence
+                    neighborhoods = []
+                if neighborhoods:
+                    result["neighborhoods"] = neighborhoods
+                    result["summary"].append(f"{len(neighborhoods)} drawn neighborhoods")
+        if has_cgm:
+            if "clustergram" in captured:
+                result["clustergram_image"] = captured["clustergram"]["image"].get("png", "")
+                result["clustergram_thumb"] = captured["clustergram"]["image"].get("thumb", "")
+            state = (
+                captured["clustergram"]["observed_state"]
+                if "clustergram" in captured
+                else cgm.latest_state
+                if "clustergram" not in snapshot_ids and not cgm.state_error
+                else None
+            )
+            if answered.get("clustergram") and state:
+                state = deepcopy(state)
+                result["clustergram_state"] = state
+                rows = state.get("rows") or {}
+                cols = state.get("cols") or {}
+                line = (
+                    f"Clustergram: {len(rows.get('names') or [])} rows x "
+                    f"{len(cols.get('names') or [])} columns"
+                )
+                if rows.get("added"):
+                    line += f" (incl. {len(rows['added'])} asked about)"
+                result["summary"].append(line)
+            else:
+                result["notes"].append(
+                    "A Clustergram is linked but did not return a snapshot this time (it "
+                    "may not be displayed, or the page needs reloading after an update)."
+                )
+                result["summary"].append("Clustergram: no snapshot")
+        if has_yearbook:
+            if "yearbook" in captured:
+                shot = captured["yearbook"]
+                result["yearbook_image"] = (shot.get("image") or {}).get("png", "")
+                result["yearbook_thumb"] = (shot.get("image") or {}).get("thumb", "")
+                state = deepcopy(shot.get("observed_state") or {})
+                chosen = getattr(yearbook, "selection", None) or {}
+                if (
+                    not state.get("query")
+                    and chosen.get("ids")
+                    and [str(c) for c in state.get("cells") or []] == list(chosen["ids"])
+                ):
+                    state["selection"] = {
+                        key: chosen.get(key)
+                        for key in ("query", "sampler", "candidate_count")
+                        if chosen.get(key) is not None
+                    }
+                result["yearbook_state"] = state
+                query = state.get("query") or {}
+                cluster = query.get("cluster") if isinstance(query.get("cluster"), dict) else {}
+                what = " · ".join(
+                    str(v)
+                    for v in (
+                        f"cluster {cluster['value']}" if (cluster or {}).get("value") else "",
+                        query.get("gene") or "",
+                    )
+                    if v
+                )
+                result["summary"].append(
+                    f"Yearbook: {len(state.get('cells') or [])} cells"
+                    + (f" ({what})" if what else "")
+                )
+            else:
+                result["notes"].append(
+                    "A Yearbook is linked but did not return its portraits this time "
+                    "(it may not be displayed)."
+                )
+                result["summary"].append("Yearbook: no snapshot")
+        if has_enrich:
+            if answered.get("enrich") and not enrich.state_error and enrich.latest_state:
+                state = dict(enrich.latest_state)
+                result["enrich_state"] = state
+                if state.get("terms"):
+                    result["summary"].append(
+                        f"Enrich: {len(state['terms'])} {state.get('library') or ''} terms".replace(
+                            "  ", " "
+                        )
+                    )
+            else:
+                result["notes"].append(
+                    "An Enrich panel is linked but did not return its results this time "
+                    "(it may not be displayed)."
+                )
+                result["summary"].append("Enrich: no snapshot")
+        return result
+
+    def _record_evidence(
+        self,
+        summary: list[str],
+        image_fresh: bool,
+        snapshots: dict | None = None,
+        clustergram_thumb: str = "",
+        yearbook_thumb: str = "",
+        unchanged: list[str] | tuple = (),
+    ) -> None:
+        """Attach what was sent to the latest question: previews of the linked views'
+        screenshots, the views to return to, and a summary line. Views Clerk wasn't
+        sent again (``unchanged``: "Landscape", "Clustergram", ...) get no preview."""
+        from .snapshots import restore_spec
+
+        skip = {str(name).split(" ")[0].lower() for name in unchanged}
+        landscape_thumb = self.image_thumb_b64 if image_fresh and "landscape" not in skip else ""
+        clustergram_thumb = "" if "clustergram" in skip else clustergram_thumb
+        yearbook_thumb = "" if "yearbook" in skip else yearbook_thumb
+        snapshots = {k: v for k, v in (snapshots or {}).items() if k not in skip}
+        if not summary and not (landscape_thumb or clustergram_thumb or yearbook_thumb):
+            return
+        messages = [dict(m) for m in self.messages]
+        for message in reversed(messages):
+            if message.get("role") == "user":
+                if landscape_thumb:
+                    message["image"] = landscape_thumb
+                if clustergram_thumb:
+                    message["clustergram_image"] = clustergram_thumb
+                if yearbook_thumb:
+                    message["yearbook_image"] = yearbook_thumb
+                if landscape_thumb or clustergram_thumb or yearbook_thumb:
+                    message["snapshots"] = {
+                        name: restore_spec(snapshot) for name, snapshot in (snapshots or {}).items()
+                    }
+                message["evidence"] = list(summary)
+                break
+        self.messages = messages
+
+    # Rounds of lookups / view changes Clerk may make for one question; each is another
+    # model call. Checking carefully can take a few (markers -> Enrichr -> PubMed).
+    max_action_rounds = 6
+
+    # How much of this panel's conversation goes with each question: the last N
+    # questions (with Clerk's replies and actions), within a character budget.
+    history_questions = 10
+    history_chars = 40_000
+
+    @staticmethod
+    def _markers_needed(reads: dict) -> dict | None:
+        """One Clustergram markers request covering ``lookup.markers`` and any
+        ``enrichr`` specs that name a cluster."""
+        spec = reads.get("markers")
+        clusters: list[str] = []
+        n = 0
+        every = False
+        if spec:
+            n = spec["n"]
+            if spec["clusters"] is None:
+                every = True
+            else:
+                clusters.extend(spec["clusters"])
+        for entry in reads.get("enrichr") or []:
+            if entry["cluster"]:
+                clusters.append(entry["cluster"])
+                n = max(n, entry["n"])
+        if not every and not clusters:
+            return None
+        return {"clusters": None if every else list(dict.fromkeys(clusters)), "n": n or 25}
+
+    def _record_findings(self, findings: dict, question: str) -> None:
+        """Keep proposed cell types (``celldega-findings``) and note them in the chat."""
+        recorded = []
+        for item in findings.get("cell_types") or []:
+            if not isinstance(item, dict) or item.get("cluster") is None or not item.get("label"):
+                continue
+            entry = {
+                "cluster": str(item["cluster"]),
+                "label": str(item["label"]),
+                "confidence": str(item.get("confidence") or ""),
+                "markers": [str(g) for g in item.get("markers") or []],
+                "notes": str(item.get("notes") or ""),
+                "question": question,
+                "recorded": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            self.findings.append(entry)
+            confidence = f" ({entry['confidence']})" if entry["confidence"] else ""
+            recorded.append(f"{entry['cluster']} → {entry['label']}{confidence}")
+        if not recorded:
+            return
+        latest = self.findings[-len(recorded) :]
+        n = len(recorded)
+        # One short line in the chat; the per-cluster list is in its Evidence.
+        message = {
+            "role": "action",
+            "content": f"Recorded tentative cell types for {n} cluster{'s' if n != 1 else ''}",
+            "detail": "Recorded cell types: " + ", ".join(recorded),
+        }
+        cgm = self._linked_widgets.get("clustergram")
+        can_label = hasattr(cgm, "set_categories") and self.label_clustergram is not False
+        # Label right away when set to, or when the scientist asked Clerk to label
+        # (Clerk then marks the block "label": true); otherwise offer to.
+        label_now = can_label and (self.label_clustergram is True or findings.get("label") is True)
+        if can_label and not label_now:
+            try:
+                _axis, attribute = cgm._category_target("col", None)
+            except (AttributeError, ValueError):
+                attribute = self.clustergram_label_attribute
+            message["label_offer"] = {
+                "id": uuid.uuid4().hex[:12],
+                "status": "offered",
+                # The manual column category the labels would go in.
+                "attribute": attribute,
+                "cell_types": [
+                    {"cluster": e["cluster"], "label": e["label"], "markers": e["markers"]}
+                    for e in latest
+                ],
+            }
+        self._append(message)
+        self._log_step("findings", ", ".join(recorded), cell_types=[dict(e) for e in latest])
+        if label_now:
+            labeled = self._label_clustergram(
+                {e["cluster"]: e["label"] for e in latest},
+                {e["cluster"]: e["markers"] for e in latest},
+            )
+            if labeled:
+                self._append({"role": "action", "content": labeled[0], "detail": labeled[1]})
+
+    # Recorded cell types can label the linked Clustergram's columns (a manual
+    # category) and mark the marker genes Clerk relied on (rows) with the same label.
+    # "ask" offers this as a button under the recorded types; True labels right away;
+    # False never labels.
+    label_clustergram: "bool | Literal['ask']" = "ask"
+    # Attributes used when the Clustergram has no manual category set up on an axis.
+    clustergram_label_attribute = "clerk_cell_type"
+    clustergram_marker_attribute = "clerk_marker"
+
+    def _label_from_offer(self, offer_id: str) -> None:
+        """Apply the cell types a LABEL button offered (see :attr:`label_clustergram`)."""
+        if self.pending:
+            return
+        messages = [dict(m) for m in self.messages]
+        for message in messages:
+            offer = message.get("label_offer")
+            if isinstance(offer, dict) and offer.get("id") == offer_id:
+                break
+        else:
+            return
+        if offer.get("status") != "offered":
+            return
+        if not hasattr(self._linked_widgets.get("clustergram"), "set_categories"):
+            self._append({"role": "error", "content": "Link a Clustergram to label it."})
+            return
+        cell_types = [c for c in offer.get("cell_types") or [] if isinstance(c, dict)]
+        labeled = self._label_clustergram(
+            {str(c.get("cluster")): str(c.get("label")) for c in cell_types},
+            {str(c.get("cluster")): [str(g) for g in c.get("markers") or []] for c in cell_types},
+        )
+        offer = {**offer, "status": "done"}
+        if labeled:
+            offer["result"], offer["result_detail"] = labeled
+        else:
+            offer["result"] = "Nothing to label: the Clustergram already shows these labels"
+        message["label_offer"] = offer
+        self.messages = messages
+
+    def _label_axis(self, cgm, axis: str, labels: dict, default_attribute: str):
+        """Set Clerk's labels on one Clustergram axis, keeping the scientist's own.
+
+        A name already labeled with something Clerk didn't put there is left alone;
+        ``None`` clears a label Clerk set earlier. Returns ``(applied, kept, attribute)``.
+        """
+        try:
+            _axis, attribute = cgm._category_target(axis, None)
+        except ValueError:
+            attribute = default_attribute
+        current = ((cgm.manual_cat_dict or {}).get(axis) or {}).get(attribute, {}).get(
+            "values"
+        ) or {}
+        mine = self._clerk_marks.setdefault(axis, {})
+        apply, kept = {}, []
+        for name, label in labels.items():
+            existing = current.get(name)
+            if existing and existing != mine.get(name):
+                if label is not None:
+                    kept.append(f"{name} ({existing})")
+                continue
+            if label is None and not existing:
+                continue
+            if existing != label:
+                apply[name] = label
+        if apply:
+            cgm.set_categories(apply, axis=axis, attribute=attribute)
+            for name, label in apply.items():
+                if label is None:
+                    mine.pop(name, None)
+                else:
+                    mine[name] = label
+        return apply, kept, attribute
+
+    def _label_clustergram(
+        self, labels: dict[str, str], markers: dict | None = None
+    ) -> tuple[str, str] | None:
+        """Label Clustergram columns with Clerk's proposals and mark their marker genes.
+
+        ``labels`` maps clusters to cell types; ``markers`` maps clusters to the genes
+        Clerk cited, which are labeled (rows) with their cluster's cell type, in the
+        same color. Labels the scientist set are never overwritten.
+
+        Returns:
+            ``(summary, detail)`` describing what changed (a short line and the
+            per-cluster list), or ``None`` when nothing changed.
+        """
+        cgm = self._linked_widgets.get("clustergram")
+        if cgm is None or not hasattr(cgm, "set_categories"):
+            return None
+        summary, detail = [], []
+        previous = dict(self._clerk_marks.get("col") or {})
+        try:
+            applied, kept, attribute = self._label_axis(
+                cgm, "col", labels, self.clustergram_label_attribute
+            )
+        except ValueError as exc:
+            self._append({"role": "error", "content": f"Couldn't label the Clustergram: {exc}"})
+            return None
+        if applied:
+            n = len(applied)
+            summary.append(f"Labeled {n} Clustergram column{'s' if n != 1 else ''}")
+            pairs = ", ".join(f"{k} → {v}" for k, v in applied.items())
+            detail.append(f"Clustergram columns ({attribute}): {pairs}")
+        if kept:
+            summary.append(f"kept your labels for {len(kept)}")
+            detail.append("Kept your labels for " + ", ".join(kept))
+
+        rows = self._marker_rows(cgm, labels, markers or {}, previous)
+        if rows:
+            try:
+                marked, _kept_rows, row_attribute = self._label_axis(
+                    cgm, "row", rows, self.clustergram_marker_attribute
+                )
+            except ValueError as exc:
+                marked, row_attribute = {}, ""
+                summary.append("couldn't mark marker genes")
+                detail.append(f"Couldn't mark marker genes: {exc}")
+            shown = [g for g, label in marked.items() if label is not None]
+            if shown:
+                summary.append(f"marked {len(shown)} marker gene{'s' if len(shown) != 1 else ''}")
+                detail.append(f"Marker genes ({row_attribute}): " + ", ".join(shown))
+        if not summary:
+            return None
+        return "; ".join(summary), "\n".join(detail)
+
+    def _marker_rows(self, cgm, labels: dict, markers: dict, previous: dict) -> dict:
+        """``{gene: cell type}`` for cited marker genes that are Clustergram rows.
+
+        A relabeled cluster's earlier marks are cleared (``None``) unless re-cited.
+        """
+        names = [str(n) for n in (getattr(cgm, "row_names", None) or [])]
+        by_upper = {}
+        for name in names:
+            by_upper.setdefault(name.upper(), name)
+        rows: dict[str, str | None] = {}
+        mine = self._clerk_marks.get("row") or {}
+        for cluster, label in labels.items():
+            old = previous.get(cluster)
+            if old and old != label:
+                for gene, mark in mine.items():
+                    if mark == old:
+                        rows.setdefault(gene, None)
+            for gene in markers.get(cluster) or []:
+                name = by_upper.get(str(gene).strip().upper())
+                if name:
+                    rows[name] = label
+        return rows
+
+    # -- Analysis notebooks: drafted by Clerk, run by the scientist or Claude Code --
+
+    def _analysis_sources(self) -> list[str]:
+        """Where the data for an analysis notebook lives, as lines for the notebook
+        and the prompt: the linked widgets' sources and :attr:`analysis_data`."""
+        from .screenshots import widget_source
+
+        lines = [f"{key}: {value}" for key, value in (self.analysis_data or {}).items()]
+        for name, widget in self._linked_widgets.items():
+            if name == "enrich":
+                continue
+            source = widget_source(widget)
+            parts = [
+                f"{key} {source[key]}"
+                for key in ("dataset_name", "base_url", "zarr_url", "technology", "cluster_attr")
+                if source.get(key)
+            ]
+            matrix = source.get("matrix")
+            if isinstance(matrix, dict) and matrix.get("source"):
+                parts.append(f"matrix source {matrix['source']}")
+            adata = source.get("adata")
+            if isinstance(adata, dict) and adata.get("filename"):
+                parts.append(f"AnnData file {adata['filename']}")
+            elif isinstance(adata, dict) and adata.get("n_obs") is not None:
+                parts.append(
+                    f"an in-memory AnnData ({adata['n_obs']} x {adata.get('n_vars')}, no "
+                    "file path: ask the scientist for clerk.analysis_data)"
+                )
+            elif isinstance(adata, str) and adata:
+                parts.append(f"AnnData {adata}")
+            for key, value in (getattr(widget, "screenshot_metadata", None) or {}).items():
+                parts.append(f"{key} {value}")
+            if parts:
+                lines.append(f"{source['widget']}: " + ", ".join(parts))
+        return lines
+
+    # Analysis notebooks are written only when the scientist asks for the analysis
+    # (Clerk marks those "requested: yes"); a notebook Clerk suggests on its own waits
+    # for a click on Draft notebook. True drafts every one; False none.
+    draft_notebooks: "bool | Literal['ask']" = "ask"
+
+    def _draft_notebook(self, notebook: dict, question: str) -> None:
+        """Write a notebook Clerk drafted, or offer it first (never run here)."""
+        from ..clerk.analysis import purpose
+
+        title = str(notebook.get("title") or "Analysis")
+        if self.draft_notebooks is False:
+            self._append(
+                {
+                    "role": "note",
+                    "content": f"Clerk suggested an analysis notebook ({title}); "
+                    "drafting notebooks is turned off.",
+                }
+            )
+            return
+        if self.draft_notebooks is True or notebook.get("requested"):
+            self._write_notebook(notebook, question)
+            return
+        self._append(
+            {
+                "role": "action",
+                "content": f"Suggested an analysis notebook: {title}",
+                "detail": purpose(notebook),
+                "notebook_offer": {
+                    "id": uuid.uuid4().hex[:12],
+                    "status": "offered",
+                    "title": title,
+                    "purpose": purpose(notebook),
+                    "question": question,
+                    "notebook": deepcopy(notebook),
+                },
+            }
+        )
+
+    def draft_notebook(self, offer_id: str | None = None) -> Path | None:
+        """Write a notebook Clerk suggested (as the panel's Draft notebook button does).
+
+        ``offer_id`` picks the suggestion; by default the latest one not yet drafted.
+        Returns the notebook's path, or ``None`` if there was nothing to draft.
+        """
+        with self._messages_lock:
+            messages = [dict(m) for m in self.messages]
+            offers = [
+                m
+                for m in messages
+                if (m.get("notebook_offer") or {}).get("status") == "offered"
+                and offer_id in (None, m["notebook_offer"]["id"])
+            ]
+            if not offers:
+                return None
+            message = offers[-1]
+            offer = message["notebook_offer"]
+            entry = self._write_notebook(offer["notebook"], offer["question"], append=False)
+            if entry is None:
+                return None
+            # The suggestion's line becomes the drafted notebook's (path, Run button).
+            message.pop("notebook_offer")
+            message.update(
+                content=f"Drafted an analysis notebook: {entry['title']}",
+                detail=f"Analysis notebook: {entry['path']}",
+                analysis=dict(entry),
+            )
+            self.messages = messages
+        return Path(entry["path"])
+
+    def _write_notebook(self, notebook: dict, question: str, *, append: bool = True):
+        """Write a drafted notebook to disk and add it to :attr:`analyses`."""
+        from ..clerk.analysis import write_notebook
+
+        try:
+            path = write_notebook(
+                notebook,
+                Path(self.output_dir) / "analyses",
+                question=question,
+                sources=self._analysis_sources(),
+            )
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't write the notebook: {exc}"})
+            return None
+        entry = {
+            "id": uuid.uuid4().hex[:12],
+            "title": str(notebook.get("title") or "Analysis"),
+            "path": str(path),
+            "status": "drafted",
+            "summary": "",
+            "question": question,
+        }
+        self.analyses.append(entry)
+        if append:
+            self._append(
+                {
+                    "role": "action",
+                    "content": f"Drafted an analysis notebook: {entry['title']}",
+                    "detail": f"Analysis notebook: {path}",
+                    "analysis": dict(entry),
+                }
+            )
+        self._log_step("notebook", str(path), title=entry["title"])
+        return entry
+
+    def _update_analysis(self, entry: dict) -> None:
+        """Show an analysis notebook's new status on its line in the panel."""
+        with self._messages_lock:
+            messages = [dict(m) for m in self.messages]
+            for message in messages:
+                if (message.get("analysis") or {}).get("id") == entry["id"]:
+                    message["analysis"] = dict(entry)
+            self.messages = messages
+
+    def run_analysis(self, which: str | int = -1, *, wait: bool = False):
+        """Have Claude Code run an analysis notebook Clerk drafted, in a separate process.
+
+        Claude Code may run the notebook (``jupyter nbconvert``) and fix small errors
+        in it, and nothing else. Its summary appears in the conversation, so Clerk can
+        interpret the results with the next question. Inspect the notebook first: its
+        path is in :attr:`analyses` and on its line in the panel. You can also run it
+        yourself instead.
+
+        Args:
+            which: An entry of :attr:`analyses` by id, path or index (default: the
+                latest).
+            wait: Block until the run finishes and return its result; otherwise the
+                run continues in the background and its thread is returned.
+        """
+        from ..clerk.analysis import run_with_claude_code
+
+        entry = None
+        if isinstance(which, int) and self.analyses:
+            entry = self.analyses[which]
+        else:
+            entry = next(
+                (a for a in self.analyses if which in (a["id"], a["path"], Path(a["path"]).name)),
+                None,
+            )
+        if entry is None:
+            raise ValueError(f"No analysis notebook {which!r}; see clerk.analyses")
+        if entry["status"] == "running":
+            return None
+
+        def task():
+            entry.update(status="running", summary="")
+            self._update_analysis(entry)
+            result = run_with_claude_code(entry["path"])
+            entry.update(
+                status="done" if result["ok"] else "failed",
+                summary=result["summary"],
+                log=result["log"],
+            )
+            self._update_analysis(entry)
+            verb = "ran" if result["ok"] else "couldn't run"
+            # In the conversation, so Clerk reads the results with the next question.
+            self._append(
+                {
+                    "role": "action",
+                    "content": f"Claude Code {verb} the analysis notebook {entry['title']}",
+                    "detail": f"{entry['path']}\n\n{result['summary']}",
+                }
+            )
+            return result
+
+        if wait:
+            return task()
+        thread = threading.Thread(target=task, name="celldega-clerk-analysis", daemon=True)
+        thread.start()
+        return thread
+
+    @property
+    def snapshots(self):
+        """The views Clerk was shown in this conversation, as :class:`Snapshots`.
+
+        One per widget per capture, named by question: ``"Q1 Landscape"``,
+        ``"Q1 Clustergram"`` (a later capture for the same question is ``"Q1.2
+        Landscape"``), with the question as the memo; plus the Snapshots Clerk saved
+        with its screenshot action. They're kept in memory (and written as Snapshot
+        PNGs when you export a report); ``clerk.snapshots.save(folder)`` writes them::
+
+            clerk.snapshots.card("Q1 Landscape", landscape=landscape)
+            landscape.pins = clerk.snapshots
+        """
+        from .snapshot_widget import Snapshots
+
+        out = Snapshots()
+        for number, entry in enumerate(self.record, start=1):
+            captures = 0
+            question = str(entry.get("question") or "")
+            for step in entry.get("steps") or []:
+                if step.get("kind") == "screenshot":
+                    path = Path(str(step.get("text") or ""))
+                    if path.suffix.lower() == ".png" and path.is_file():
+                        # A PNG without a Snapshot record is skipped.
+                        with contextlib.suppress(ValueError):
+                            out.add(path)
+                    continue
+                if step.get("kind") != "capture" or not (
+                    step.get("image") or step.get("clustergram_image") or step.get("yearbook_image")
+                ):
+                    continue
+                captures += 1
+                label = f"Q{number}" if captures == 1 else f"Q{number}.{captures}"
+                for key, widget in (
+                    ("image", "landscape"),
+                    ("clustergram_image", "clustergram"),
+                    ("yearbook_image", "yearbook"),
+                ):
+                    view = (step.get("snapshots") or {}).get(widget)
+                    if not step.get(key) or not view:
+                        continue
+                    name = f"{label} {widget.title()}"
+                    out.add(
+                        {
+                            **deepcopy(view),
+                            "image": {"png": step[key]},
+                            "title": name,
+                            "description": question,
+                        },
+                        name=name,
+                    )
+        return out
+
+    def findings_df(self) -> pd.DataFrame:
+        """Cell types Clerk has proposed, one row per proposal (latest last).
+
+        Columns: ``cluster``, ``label``, ``confidence``, ``markers`` (supporting genes),
+        ``notes``, ``question`` (what was asked) and ``recorded`` (time).
+        """
+        columns = ["cluster", "label", "confidence", "markers", "notes", "question", "recorded"]
+        return pd.DataFrame(
+            [{**f, "markers": ", ".join(f["markers"])} for f in self.findings], columns=columns
+        )
+
+    def write_cell_types(
+        self,
+        adata,
+        groupby: str,
+        key: str = "clerk_cell_type",
+        *,
+        overwrite: bool = False,
+        unassigned: str = "Unassigned",
+    ) -> pd.Series:
+        """Write Clerk's latest proposed cell type per cluster into ``adata.obs[key]``.
+
+        Works for a cell-level AnnData (``obs[groupby]`` holds each cell's cluster) and
+        for a cluster-level one such as the signature AnnData behind a Clustergram.
+        Clusters without a proposal get ``unassigned``. Adds a column only: an existing
+        ``key`` is left alone unless ``overwrite=True``. The labels used, and where they
+        came from, are recorded in ``adata.uns["clerk_cell_types"][key]``.
+
+        Returns:
+            pd.Series: The new column.
+        """
+        if groupby not in adata.obs:
+            raise KeyError(f"{groupby!r} is not a column of adata.obs")
+        if key in adata.obs and not overwrite:
+            raise ValueError(f"adata.obs already has {key!r}; pass overwrite=True to replace it")
+        labels: dict[str, str] = {}
+        for finding in self.findings:  # later proposals win
+            labels[finding["cluster"]] = finding["label"]
+        values = adata.obs[groupby].astype(str).map(labels).fillna(unassigned)
+        adata.obs[key] = pd.Categorical(values)
+        adata.uns.setdefault("clerk_cell_types", {})[key] = {
+            "groupby": groupby,
+            "labels": labels,
+            "written": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        return adata.obs[key]
+
+    def _append(self, message: dict) -> None:
+        with self._messages_lock:
+            self.messages = [*self.messages, message]
+        if self.pending and message.get("role") in ("error", "pause"):
+            self._log_step(message["role"], str(message.get("content", "")))
+
+    #: Folder (under :attr:`output_dir`) keeping Enrichr and PubMed results between
+    #: sessions, so the same lookup isn't sent again; ``None`` keeps them in memory only.
+    lookup_cache: str | None = "lookup_cache"
+
+    #: Terms per library in an inline Enrichr result; its chart scrolls, as in the
+    #: Enrich panel. Clerk itself reads the top ``ENRICHMENT_PROMPT_TERMS``.
+    ENRICHMENT_TERMS = 20
+    ENRICHMENT_PROMPT_TERMS = 8
+
+    def _append_enrichment(
+        self,
+        label: str,
+        genes: list,
+        results: dict,
+        *,
+        once: bool = False,
+        url: str = "",
+        title: str = "",
+    ) -> None:
+        """Show Enrichr results in the conversation, like the Enrich panel.
+
+        The panel draws an ``enrichment`` message as a bar graph of the top terms per
+        library and a paragraph of the genes tested, linked to the views, plus a link
+        to the same results on the Enrichr website (``url``) when known. The
+        results already reach the model as text, so these messages are left out of
+        its history. ``once`` skips results identical to the last ones shown.
+        """
+
+        def number(value):
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        libraries = {}
+        for library, terms in (results or {}).items():
+            rows = []
+            for term in list(terms or [])[: self.ENRICHMENT_TERMS]:
+                row = {
+                    "name": str(term.get("name", "")),
+                    "score": number(term.get("score")) or 0.0,
+                    "genes": [str(g) for g in term.get("genes") or []],
+                }
+                for key in ("adjusted_p", "odds_ratio"):
+                    if number(term.get(key)) is not None:
+                        row[key] = number(term.get(key))
+                rows.append(row)
+            if rows:
+                libraries[str(library)] = rows
+        if not libraries:
+            return
+        genes = [str(g) for g in dict.fromkeys(genes or []) if str(g)]
+        if once:
+            key = (tuple(genes), json.dumps(libraries, sort_keys=True))
+            if key == getattr(self, "_last_enrichment", None):
+                return
+            self._last_enrichment = key
+        message = {
+            "role": "enrichment",
+            "content": f"Enrichr results for {label}",
+            # The panel folds the results under this title, e.g. "Cluster 4 upregulated".
+            "title": title or label,
+            "label": label,
+            "genes": genes,
+            "libraries": libraries,
+        }
+        if url:
+            message["url"] = url
+        self._append(message)
+
+    # -- The case record: what was asked, what Clerk did, and how to reproduce it --
+
+    def _start_record(self, question: str, call: dict, question_index: int, summary) -> None:
+        """Open the record for a new question (see :meth:`export`)."""
+        self.record.append(
+            {
+                "question": question,
+                "asked": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "model": call.get("model") or "",
+                "effort": call.get("effort") or "",
+                "message_index": question_index,
+                "sent_with": list(summary),
+                "context": call.get("info") or "",
+                "gene_list": list(call.get("gene_list") or []),
+                "briefing": bool(call.get("briefing")),
+                "steps": [],
+            }
+        )
+
+    def _log_step(self, kind: str, text: str, **extra) -> None:
+        if self.record:
+            self.record[-1]["steps"].append({"kind": kind, "text": text, **extra})
+
+    def _log_capture(self, views: dict, label: str) -> None:
+        """Keep observed evidence separately from the subset of settings we can replay."""
+        from .screenshots import widget_source
+        from .snapshots import restore_spec
+
+        if not self.record:
+            return
+        observations = deepcopy(
+            {
+                key: views[key]
+                for key in (
+                    "landscape_state",
+                    "clustergram_state",
+                    "enrich_state",
+                    "yearbook_state",
+                    "neighborhoods",
+                )
+                if views.get(key) is not None
+            }
+        )
+        sources = {name: widget_source(widget) for name, widget in self._linked_widgets.items()}
+        landscape = _landscape_reproduction(views.get("landscape_state"))
+        clustergram = _clustergram_reproduction(views.get("clustergram_state"))
+        image = self.image_b64 if views.get("image_fresh") else ""
+        clustergram_image = views.get("clustergram_image") or ""
+        yearbook_image = views.get("yearbook_image") or ""
+        if not (
+            image or clustergram_image or yearbook_image or landscape or clustergram or observations
+        ):
+            return
+        last = next(
+            (st for st in reversed(self.record[-1]["steps"]) if st["kind"] == "capture"), None
+        )
+        snapshots = {
+            name: restore_spec(value) for name, value in views.get("snapshots", {}).items()
+        }
+
+        def replay_contracts(saved):
+            # A new capture time alone is redundant; changed data or replay settings
+            # must survive even when the capped observations and pixels are identical.
+            return {
+                name: {key: value for key, value in snapshot.items() if key != "captured_at"}
+                for name, snapshot in saved.items()
+            }
+
+        if (
+            last
+            and last.get("observations") == observations
+            and last.get("sources") == sources
+            and last.get("image") == image
+            and last.get("clustergram_image") == clustergram_image
+            and last.get("yearbook_image", "") == yearbook_image
+            and replay_contracts(last.get("snapshots", {})) == replay_contracts(snapshots)
+        ):
+            return
+        self._log_step(
+            "capture",
+            label,
+            image=image,
+            clustergram_image=clustergram_image,
+            yearbook_image=yearbook_image,
+            landscape=landscape,
+            clustergram=clustergram,
+            observations=observations,
+            sources=sources,
+            snapshots=snapshots,
+            view_state=dict(self.image_view_state or {}) if image else {},
+        )
+
+    # Caps on what one lookup request can ask for.
+    _MAX_LOOKUP_GENES = 200
+    _MAX_ENRICHR_REQUESTS = 4
+    _MAX_PUBMED_QUERIES = 3
+
+    def _apply_actions(self, actions: dict) -> tuple[list[str], dict]:
+        """Validate a ``celldega-actions`` request and apply its view changes.
+
+        ``lookup`` is read-only and nothing in it changes what the scientist sees:
+        ``genes`` (rows added to the next Clustergram snapshot), ``markers`` (ranked
+        markers per cluster, ``{"clusters": [...], "n": 25}``), ``enrichr`` (a spec or
+        list of specs, each ``{"genes": [...]}`` or ``{"cluster": "4", "n": 25}``,
+        plus optional ``libraries``) and ``pubmed`` (a query or list of queries).
+        ``clustergram`` settings go to ``Clustergram.apply_state`` (its legacy
+        ``lookup_genes`` key is read as ``lookup.genes``).
+
+        Returns:
+            tuple: ``(changes, reads)``; ``changes`` describes view changes made,
+            ``reads`` holds the validated lookups (run after the views are re-read).
+
+        Raises:
+            ValueError: For something Clerk can't do, or an invalid request.
+        """
+        unknown = sorted(
+            set(actions) - {"clustergram", "landscape", "lookup", "snapshot", "yearbook"}
+        )
+        if unknown:
+            raise ValueError(
+                f"unknown action(s) {unknown}; use 'lookup', 'clustergram', 'landscape', "
+                "'yearbook' and/or 'snapshot'"
+            )
+        # Validated (and any selection run) before anything changes.
+        yearbook_change = (
+            self._yearbook_change(actions["yearbook"]) if "yearbook" in actions else None
+        )
+        snapshot = actions.get("snapshot")
+        if snapshot is not None and not isinstance(snapshot, dict):
+            raise ValueError("'snapshot' must be like {'title': ..., 'description': ...}")
+        landscape_settings = actions.get("landscape")
+        landscape = self._linked_widgets.get("landscape")
+        if landscape_settings is not None and (
+            landscape is None or not hasattr(landscape, "apply_state")
+        ):
+            raise ValueError("no Landscape is linked")
+        lookup = actions.get("lookup") or {}
+        settings = dict(actions.get("clustergram") or {})
+        if not isinstance(lookup, dict):
+            raise ValueError("'lookup' must be an object")
+
+        def _names(value, what):
+            if value is None:
+                return []
+            if isinstance(value, str) or not isinstance(value, list | tuple):
+                raise ValueError(f"{what} must be a list of names")
+            return [str(v) for v in value][: self._MAX_LOOKUP_GENES]
+
+        reads: dict[str, Any] = {
+            "genes": _names(settings.pop("lookup_genes", None), "lookup_genes")
+            + _names(lookup.get("genes"), "lookup.genes"),
+            "markers": None,
+            "enrichr": [],
+            "pubmed": [],
+            "snapshot": dict(snapshot) if snapshot is not None else None,
+        }
+        markers = lookup.get("markers")
+        if markers is not None:
+            if not isinstance(markers, dict):
+                raise ValueError("lookup.markers must be like {'clusters': ['4'], 'n': 25}")
+            reads["markers"] = {
+                "clusters": None
+                if markers.get("clusters") is None
+                else _names(markers["clusters"], "markers.clusters"),
+                "n": int(markers.get("n", 25)),
+            }
+        enrichr = lookup.get("enrichr")
+        for spec in ([enrichr] if isinstance(enrichr, dict) else enrichr or [])[
+            : self._MAX_ENRICHR_REQUESTS
+        ]:
+            if not isinstance(spec, dict) or not (spec.get("genes") or spec.get("cluster")):
+                raise ValueError("each lookup.enrichr needs 'genes' or 'cluster'")
+            reads["enrichr"].append(
+                {
+                    "genes": _names(spec.get("genes"), "enrichr.genes"),
+                    "cluster": None if spec.get("cluster") is None else str(spec["cluster"]),
+                    "n": int(spec.get("n", 25)),
+                    "libraries": _names(spec.get("libraries"), "enrichr.libraries") or None,
+                }
+            )
+        pubmed = lookup.get("pubmed")
+        queries = [pubmed] if isinstance(pubmed, str) else list(pubmed or [])
+        reads["pubmed"] = [str(q) for q in queries if str(q).strip()][: self._MAX_PUBMED_QUERIES]
+
+        cgm = self._linked_widgets.get("clustergram")
+        needs_cgm = (
+            settings
+            or reads["genes"]
+            or reads["markers"]
+            or any(spec["cluster"] for spec in reads["enrichr"])
+        )
+        if needs_cgm and (cgm is None or not hasattr(cgm, "apply_state")):
+            raise ValueError("no Clustergram is linked")
+        # Validate both widgets' changes before applying either.
+        if landscape_settings:
+            unknown_keys = sorted(set(landscape_settings) - set(landscape.APPLY_STATE_KEYS))
+            if unknown_keys:
+                raise ValueError(f"unknown Landscape setting(s): {unknown_keys}")
+        before_cgm = getattr(cgm, "_apply_request_id", 0)
+        changes = [f"the Clustergram: {c}" for c in (cgm.apply_state(settings) if settings else [])]
+        self._pending_clustergram_apply = (
+            cgm._apply_request_id if getattr(cgm, "_apply_request_id", 0) != before_cgm else None
+        )
+        self._pending_landscape_apply = None
+        if landscape_settings:
+            before = getattr(landscape, "_apply_request_id", 0)
+            changes += [f"the Landscape: {c}" for c in landscape.apply_state(landscape_settings)]
+            if getattr(landscape, "_apply_request_id", 0) != before:
+                self._pending_landscape_apply = landscape._apply_request_id
+        if yearbook_change is not None:
+            apply, description = yearbook_change
+            apply()
+            changes.append(f"the Yearbook: {description}")
+        return changes, reads
+
+    #: Most Yearbook portraits Clerk may ask for at once.
+    _MAX_YEARBOOK_CELLS = 200
+    _YEARBOOK_KEYS = frozenset({"cluster", "gene", "max_cells", "select"})
+
+    def _selection_adata(self):
+        """The AnnData Clerk selects Yearbook cells from: ``Clerk(adata=...)`` (read
+        from its link the first time), else a linked Landscape's; ``None`` when there
+        is neither.
+
+        Raises:
+            ValueError: When the link can't be read.
+        """
+        adata = self.adata
+        if isinstance(adata, str | Path):
+            link = str(adata)
+            if self._loaded_adata is None or self._loaded_adata[0] != link:
+                self._loaded_adata = (link, _read_anndata_link(link))
+            return self._loaded_adata[1]
+        if adata is not None:
+            return adata
+        return getattr(self._linked_widgets.get("landscape"), "_adata", None)
+
+    def _describe_selectable(self) -> str:
+        """The AnnData Clerk can select cells from, described for its prompt ("" when
+        there is none or its link can't be read)."""
+        try:
+            return _describe_anndata(self._selection_adata())
+        except Exception as exc:  # a broken link must not stop the question
+            return f"(not available: {exc})" if self.adata is not None else ""
+
+    def _yearbook_change(self, spec) -> tuple:
+        """Validate a ``yearbook`` action; return ``(apply, description)``.
+
+        ``{"cluster": "4", "gene": "GENE1", "max_cells": 60}`` sets the Yearbook's
+        query, which it evaluates in the browser (a cluster's cells, ranked by a gene's
+        expression). ``{"select": {"query": {...}, "sampler": {...}}}`` selects cells
+        from the AnnData with :mod:`celldega.select` (the query and sampler in their
+        ``to_dict`` form, rebuilt by ``query_from_dict`` / ``sampler_from_dict``, so
+        nothing Clerk writes is run as code) and shows those cells, in order.
+        """
+        yearbook = self._linked_widgets.get("yearbook")
+        if yearbook is None or not hasattr(yearbook, "front_end_query"):
+            raise ValueError("no Yearbook is linked")
+        if not isinstance(spec, dict):
+            raise ValueError("'yearbook' must be an object")
+        unknown = sorted(set(spec) - self._YEARBOOK_KEYS)
+        if unknown:
+            raise ValueError(f"unknown Yearbook setting(s): {unknown}")
+        try:
+            limit = int(spec.get("max_cells") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("yearbook.max_cells must be a number") from None
+        limit = max(1, min(limit, self._MAX_YEARBOOK_CELLS)) if limit else 0
+
+        if spec.get("select") is not None:
+            if spec.get("cluster") is not None or spec.get("gene"):
+                raise ValueError("use 'select' or 'cluster'/'gene' for the Yearbook, not both")
+            return self._yearbook_selection(yearbook, spec["select"], limit)
+
+        cluster, gene = spec.get("cluster"), spec.get("gene")
+        if cluster in (None, "") and not gene:
+            raise ValueError("the Yearbook needs a 'cluster', a 'gene' or a 'select'")
+        query: dict = {}
+        if cluster not in (None, ""):
+            query["cluster"] = {
+                "attr": self._yearbook_cluster_attr(yearbook),
+                "value": str(cluster),
+            }
+        if gene:
+            query["gene"] = str(gene)
+        query["max_cells"] = limit or 60
+        described = ", ".join(
+            part
+            for part in (
+                f"cluster {cluster}" if "cluster" in query else "",
+                f"ranked by {gene}" if gene else "",
+            )
+            if part
+        )
+
+        def apply():
+            yearbook.front_end_query = query
+
+        return apply, f"{described} (up to {query['max_cells']} cells)"
+
+    def _yearbook_cluster_attr(self, yearbook) -> str:
+        """The cluster column of the Yearbook's own query (remembered while a selection
+        has cleared it), else its ``cluster_attr``."""
+        current = (yearbook.front_end_query or {}).get("cluster")
+        attr = current.get("attr") if isinstance(current, dict) else ""
+        if attr:
+            self._yearbook_attr = str(attr)
+        return getattr(self, "_yearbook_attr", "") or (
+            getattr(yearbook, "cluster_attr", "") or "leiden"
+        )
+
+    def _yearbook_selection(self, yearbook, select, limit: int) -> tuple:
+        from celldega.select import Selector, query_from_dict, sampler_from_dict
+
+        try:
+            adata = self._selection_adata()
+        except Exception as exc:
+            raise ValueError(f"couldn't read the AnnData ({exc})") from None
+        if adata is None:
+            raise ValueError(
+                "no AnnData to select cells from (pass Clerk(adata=...)); use "
+                "'cluster'/'gene' instead"
+            )
+        if not isinstance(select, dict):
+            raise ValueError("yearbook.select must be like {'query': {...}, 'sampler': {...}}")
+        limit = limit or 60
+        sampler_spec = select.get("sampler")
+        if sampler_spec in (None, "all"):
+            sampler_spec = {"type": "random", "n": limit, "seed": 0}
+        try:
+            query = query_from_dict(select["query"]) if select.get("query") else None
+            sampler = sampler_from_dict(sampler_spec)
+            selection = Selector(adata).select(query=query, sampler=sampler)
+        except (KeyError, TypeError, ValueError) as exc:
+            message = exc.args[0] if isinstance(exc, KeyError) and exc.args else exc
+            raise ValueError(f"the cell selection failed: {message}") from None
+        payload = _selection_to_payload(selection)
+        payload["ids"] = payload["ids"][:limit]
+        if not payload["ids"]:
+            raise ValueError("the cell selection matched no cells")
+        ids = payload["ids"]
+
+        self._yearbook_cluster_attr(yearbook)  # remember it before the query is cleared
+
+        def apply():
+            with yearbook.hold_sync():
+                # Clears the browser query (and its inputs), so the cells stay these.
+                yearbook.front_end_query = {}
+                yearbook.selection = payload
+                yearbook.current_page = 0
+                yearbook.cells = ids
+
+        matched = payload.get("candidate_count")
+        return apply, (
+            f"{len(ids)} cells selected from the AnnData"
+            + (f" (of {matched} matching)" if matched is not None else "")
+        )
+
+    #: Folder for everything Clerk writes: exported reports (``report_<time>``) and
+    #: its screenshots (``screenshots``), so one ignore rule covers them.
+    output_dir = "clerk_files"
+    #: Folder for screenshots Clerk takes (default: ``<output_dir>/screenshots``).
+    screenshot_dir = None
+
+    def _save_snapshot(self, views: dict, spec: dict, question: str) -> None:
+        """Save the views just captured as a screenshot Clerk took (``snapshot`` action)."""
+        from .screenshots import _in_view, widget_source, write_screenshot
+        from .snapshots import restore_spec
+
+        shots = []
+        landscape = self._linked_widgets.get("landscape")
+        if landscape is not None and views.get("image_fresh") and self.image_b64:
+            shots.append(
+                {
+                    "image": self.image_b64,
+                    "source": widget_source(landscape),
+                    "state": _landscape_reproduction(views.get("landscape_state")),
+                    "observed_state": deepcopy(views.get("landscape_state")),
+                    "snapshot": restore_spec(views.get("snapshots", {}).get("landscape", {})),
+                    "view_state": dict(self.image_view_state or {}),
+                    "in_view": _in_view(views.get("landscape_state")),
+                }
+            )
+        cgm = self._linked_widgets.get("clustergram")
+        if cgm is not None and views.get("clustergram_image"):
+            shots.append(
+                {
+                    "image": views["clustergram_image"],
+                    "source": widget_source(cgm),
+                    "state": _clustergram_reproduction(views.get("clustergram_state")),
+                    "observed_state": deepcopy(views.get("clustergram_state")),
+                    "snapshot": restore_spec(views.get("snapshots", {}).get("clustergram", {})),
+                }
+            )
+        yearbook = self._linked_widgets.get("yearbook")
+        if yearbook is not None and views.get("yearbook_image"):
+            shots.append(
+                {
+                    "image": views["yearbook_image"],
+                    "source": widget_source(yearbook),
+                    "observed_state": deepcopy(views.get("yearbook_state")),
+                    "snapshot": restore_spec(views.get("snapshots", {}).get("yearbook", {})),
+                }
+            )
+        if not shots:
+            self._append(
+                {"role": "error", "content": "Couldn't take a screenshot: no view sent an image."}
+            )
+            return
+        try:
+            target = write_screenshot(
+                self.screenshot_dir or Path(self.output_dir) / "screenshots",
+                shots,
+                description=str(spec.get("description") or ""),
+                title=str(spec.get("title") or ""),
+                author="Clerk",
+                metadata={"question": question},
+            )
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't save the screenshot: {exc}"})
+            return
+        self.screenshots.append(str(target))
+        self._append({"role": "action", "content": f"Saved a screenshot: {target}"})
+        self._log_step("screenshot", str(target), description=str(spec.get("description") or ""))
+
+    def _wait_for_landscape_apply(self) -> None:
+        """Wait for view changes to finish before claiming success or capturing evidence."""
+        for name in ("clustergram", "landscape"):
+            pending = getattr(self, f"_pending_{name}_apply", None)
+            widget = self._linked_widgets.get(name)
+            if pending is None or widget is None:
+                continue
+            answered = self._request_and_wait(
+                [(widget, "apply_capture_id", lambda rid=pending: rid)]
+            )[0]
+            setattr(self, f"_pending_{name}_apply", None)
+            if not answered:
+                raise ValueError(
+                    f"{name.title()} did not confirm the view change before the timeout"
+                )
+            reply = widget._apply_replies[pending]
+            if reply["event"] == "apply_error":
+                raise ValueError(
+                    f"{name.title()} view change failed: {reply.get('error') or 'apply_state failed'}"
+                )
+
+    @staticmethod
+    def _describe_reads(reads: dict) -> list[str]:
+        """Short descriptions of the lookups, for the conversation."""
+        out = []
+        genes = reads.get("genes") or []
+        if genes:
+            shown = ", ".join(genes) if len(genes) <= 8 else f"{len(genes)} genes"
+            out.append(f"Looked up {shown} in the Clustergram (view unchanged)")
+        markers = reads.get("markers")
+        if markers:
+            which = (
+                "clusters " + ", ".join(markers["clusters"])
+                if markers.get("clusters")
+                else "all clusters"
+            )
+            out.append(f"Read the top {markers['n']} ranked markers of {which}")
+        for spec in reads.get("enrichr") or []:
+            source = (
+                f"cluster {spec['cluster']}'s top {spec['n']} markers"
+                if spec["cluster"]
+                else f"{len(spec['genes'])} genes"
+            )
+            libraries = ", ".join(spec["libraries"] or ["default libraries"])
+            out.append(f"Ran Enrichr ({libraries}) on {source}")
+        out.extend(f"Searched PubMed: {query!r}" for query in reads.get("pubmed") or [])
+        if reads.get("snapshot") is not None:
+            out.append("Took a screenshot")
+        return out
+
+    def _run_lookups(self, reads: dict, clustergram_state: dict | None) -> list[str]:
+        """Run the Enrichr / PubMed lookups (worker thread); returns text for the prompt.
+
+        Results are cached (in memory, and on disk in :attr:`lookup_cache`), so a
+        repeated lookup doesn't ask Enrichr or PubMed again, and an Enrichr result
+        already shown in the conversation isn't drawn again.
+        """
+        from ..clerk import lookups
+
+        lookups.cache_dir = Path(self.output_dir) / self.lookup_cache if self.lookup_cache else None
+        shown = {
+            (tuple(m.get("genes") or []), tuple(sorted(m.get("libraries") or {})))
+            for m in self.messages
+            if m.get("role") == "enrichment"
+        }
+        results = []
+        by_cluster = {
+            str(entry.get("cluster")): [g["name"] for g in entry.get("genes") or []]
+            for entry in (clustergram_state or {}).get("cluster_markers") or []
+        }
+        for spec in reads.get("enrichr") or []:
+            if spec["cluster"]:
+                genes = by_cluster.get(spec["cluster"], [])[: spec["n"]]
+                label = f"cluster {spec['cluster']}'s top {len(genes)} markers"
+                # Ranked markers (rank_genes_groups) are the cluster's upregulated genes.
+                title = f"Cluster {spec['cluster']} upregulated"
+            else:
+                genes, label = spec["genes"], f"{len(spec['genes'])} genes"
+                title = label[:1].upper() + label[1:]
+            if not genes:
+                results.append(f"Enrichr for {label}: no genes to test.")
+                continue
+            try:
+                found = lookups.enrichr(
+                    genes,
+                    spec["libraries"] or lookups.DEFAULT_LIBRARIES,
+                    top=self.ENRICHMENT_TERMS,
+                )
+                url = lookups.enrichr_link(genes)
+                # Clerk reads the top few terms; the panel's chart scrolls through more.
+                brief = {lib: terms[: self.ENRICHMENT_PROMPT_TERMS] for lib, terms in found.items()}
+                results.append(lookups.format_enrichr(label, brief, url=url))
+            except Exception as exc:  # network or service problems become a note
+                results.append(f"Enrichr for {label} failed: {exc}")
+                continue
+            drawn = (
+                tuple(str(g) for g in dict.fromkeys(genes)),
+                tuple(sorted(lib for lib, terms in found.items() if terms)),
+            )
+            if drawn not in shown:
+                self._append_enrichment(label, genes, found, url=url, title=title)
+                shown.add(drawn)
+        for query in reads.get("pubmed") or []:
+            try:
+                results.append(lookups.format_pubmed(query, lookups.pubmed(query)))
+            except Exception as exc:
+                results.append(f"PubMed search {query!r} failed: {exc}")
+        return results
+
+    def _use_views(self, call: dict, views: dict) -> None:
+        call["clustergram_state"] = views["clustergram_state"]
+        call["enrich_state"] = views["enrich_state"]
+        call["yearbook_state"] = views.get("yearbook_state")
+        call["landscape_state"] = views.get("landscape_state")
+        call["neighborhoods"] = views.get("neighborhoods")
+        call["notes"] = list(views["notes"])
+        call["image_b64"] = self.image_b64 or None
+
+    def _answer(self, question, call):
+        """Answer one question (worker thread), following any actions Clerk asks for."""
+        from .. import clerk
+
+        try:
+            views = self._refresh_views(question)
+            self._use_views(call, views)
+            # Where a notebook Clerk drafts should load its data from.
+            sources = self._analysis_sources()
+            if sources:
+                call["notes"].append("Data for analysis notebooks: " + "; ".join(sources))
+            cgm = self._linked_widgets.get("clustergram")
+            # Lookups (Enrichr, PubMed) work without widgets; Clustergram / Landscape
+            # lookups and changes only when those are linked.
+            landscape = self._linked_widgets.get("landscape")
+            yearbook = self._linked_widgets.get("yearbook")
+            has_yearbook = yearbook is not None and hasattr(yearbook, "front_end_query")
+            call["actions_help"] = clerk.actions_help(
+                clustergram=cgm is not None and hasattr(cgm, "apply_state"),
+                landscape=landscape is not None and hasattr(landscape, "apply_state"),
+                yearbook=has_yearbook,
+                anndata=self._describe_selectable() if has_yearbook else "",
+            )
+            # Continuing the conversation's session, Clerk is sent only what changed.
+            conversation = self._take_conversation(call)
+            unchanged = (
+                _unchanged_views(conversation["sent"], call) if conversation is not None else []
+            )
+            summary = [
+                f"{line} (unchanged)"
+                if any(line.startswith(name.split(" ")[0]) for name in unchanged)
+                else line
+                for line in views["summary"]
+            ]
+            if call.get("gene_list"):
+                summary.append(f"{len(call['gene_list'])} selected genes")
+            if call.get("enrichr_terms"):
+                summary.append(f"{len(call['enrichr_terms'])} Enrichr terms")
+            if call.get("info"):
+                summary.append("context")
+            self._record_evidence(
+                summary,
+                views["image_fresh"],
+                views.get("snapshots"),
+                views.get("clustergram_thumb", ""),
+                views.get("yearbook_thumb", ""),
+                unchanged=unchanged,
+            )
+            if call.get("enrichr_terms"):
+                # The panel's own Enrichr results for the selected genes, shown once
+                # per gene list rather than with every question about it.
+                url = _enrichr_page(call.get("enrichr_short_id"))
+                if url:
+                    call["notes"].append(f"Enrichr page for the selected genes' results: {url}")
+                n = len(call.get("gene_list") or [])
+                self._append_enrichment(
+                    f"{n} selected genes",
+                    call.get("gene_list") or [],
+                    {call.get("enrichr_library") or "CellMarker_2024": call["enrichr_terms"]},
+                    once=True,
+                    url=url,
+                    title=f"{n} selected gene{'s' if n != 1 else ''}",
+                )
+                # The chart scrolls through them all; Clerk reads the top few.
+                call["enrichr_terms"] = call["enrichr_terms"][: self.ENRICHMENT_PROMPT_TERMS]
+            question_index = len(self.messages) - 1
+            self._start_record(question, call, question_index, summary)
+            self._log_capture(views, "When asked")
+            # Follow-up rounds resume the question's CLI session and send only what is
+            # new, so the evidence already sent is read from the API's cache; so do
+            # later questions while the conversation continues in it.
+            answer = None
+            if conversation is not None:
+                answer = self._ask_next(question, call, conversation, question_index)
+            if answer is None:
+                call["session"] = clerk.Session()
+                call["session_questions"] = 1
+                answer = _ask(question, call)
+            self._work(question, call, question_index, answer=answer)
+        except Exception as exc:  # surface every failure in the panel, not the log
+            call["failed"] = True
+            self._report_failure(exc)
+        finally:
+            self._finish_question(call)
+            self.pending = False
+
+    def _resume(self, paused: dict) -> None:
+        """Continue a paused question (worker thread) with a fresh round budget."""
+        try:
+            self._work(
+                paused["question"],
+                paused["call"],
+                paused["question_index"],
+                pending_actions=paused["actions"],
+            )
+        except Exception as exc:
+            paused["call"]["failed"] = True
+            self._report_failure(exc)
+        finally:
+            self._finish_question(paused["call"])
+            self.pending = False
+
+    _VIEW_WIDGETS = ("landscape", "clustergram", "yearbook")
+
+    def _append_view(self, views: dict, widgets: list[str], label: str) -> None:
+        """Show the views Clerk just changed in the conversation, as Snapshots: their
+        previews, each with a link back to it (``role: "view"``)."""
+        from .snapshots import restore_spec
+
+        thumbs = {
+            "landscape": self.image_thumb_b64 if views.get("image_fresh") else "",
+            "clustergram": views.get("clustergram_thumb", ""),
+            "yearbook": views.get("yearbook_thumb", ""),
+        }
+        keys = {
+            "landscape": "image",
+            "clustergram": "clustergram_image",
+            "yearbook": "yearbook_image",
+        }
+        message: dict = {"role": "view", "content": label}
+        snapshots = {}
+        for widget in widgets:
+            if thumbs.get(widget):
+                message[keys[widget]] = thumbs[widget]
+                snapshot = (views.get("snapshots") or {}).get(widget)
+                if snapshot:
+                    snapshots[widget] = restore_spec(snapshot)
+        if len(message) == 2:
+            return  # no preview came back
+        message["snapshots"] = snapshots
+        self._append(message)
+
+    #: Keep one Claude session across questions. A new question then sends only the
+    #: views whose state changed since Clerk last saw them (the others are named as
+    #: unchanged); everything earlier stays in the session, read from the API's cache
+    #: at about a tenth of the price. ``False``: each question starts a new session
+    #: with all the evidence and a text summary of the conversation so far.
+    continue_conversation = True
+    #: Start a new session (sending all the evidence again) after this many questions
+    #: in one, since each question adds to what every later call re-reads.
+    max_session_questions = 10
+
+    def _take_conversation(self, call: dict) -> dict | None:
+        """The conversation's session, if this question can continue it (else closed)."""
+        conversation, self._conversation = self._conversation, None
+        if conversation is None:
+            return None
+        sent = conversation["sent"]
+        if (
+            self.continue_conversation
+            and conversation["session"].started
+            and conversation["questions"] < max(1, int(self.max_session_questions or 1))
+            # Context and briefings are part of a session's first message.
+            and call.get("info") == sent.get("info")
+            and call.get("briefing") == sent.get("briefing")
+        ):
+            return conversation
+        conversation["session"].close()
+        return None
+
+    def _end_conversation(self) -> None:
+        """Close the conversation's session: the next question starts a new one."""
+        conversation, self._conversation = self._conversation, None
+        if conversation is not None:
+            conversation["session"].close()
+
+    def _ask_next(self, question, call, conversation, question_index) -> str | None:
+        """Ask in the conversation's session, sending only what changed since Clerk
+        last saw it. ``None`` if the session can't be resumed (start a new one)."""
+        from .. import clerk
+        from ..clerk.llm import _format_history
+
+        sent = conversation["sent"]
+        session = conversation["session"]
+        call["session"] = session
+        call["usage_from"] = len(session.usage)
+        call["session_questions"] = conversation["questions"] + 1
+        # What happened in the panel between questions (labels applied, analyses run).
+        between = [
+            m
+            for m in self.messages[conversation["messages"] : question_index]
+            if m.get("role") in ("action", "enrichment", "assistant")
+        ]
+        evidence = _views_since(sent, call)
+        try:
+            return clerk.next_question(
+                session,
+                question,
+                since=_format_history(between, max_questions=50, max_chars=6000),
+                unchanged=_unchanged_views(sent, call),
+                model=call.get("model") or "",
+                effort=call.get("effort") or "",
+                timeout=call.get("timeout") or clerk.DEFAULT_TIMEOUT,
+                **evidence,
+            )
+        except clerk.ClerkBackendError as exc:
+            if str(exc) == clerk.LOGIN_HELP:
+                raise
+            session.close()
+            call.pop("session", None)
+            call.pop("usage_from", None)
+            self._log_step("note", f"Session could not be resumed ({exc}); resent all evidence.")
+            return None
+
+    def _finish_question(self, call: dict) -> None:
+        """Record the question's token use; keep its CLI session for the next question
+        (see :attr:`continue_conversation`), or close it. Not while paused."""
+        if self._paused is not None and self._paused["call"] is call:
+            return  # Continue will resume the same session
+        session = call.pop("session", None)
+        if session is None:
+            return
+        if self.record and session.usage:
+            self.record[-1]["usage"] = session.totals(since=call.get("usage_from", 0))
+        if self.continue_conversation and session.started and not call.get("failed"):
+            self._conversation = {
+                "session": session,
+                "sent": {key: deepcopy(call.get(key)) for key in _SENT_KEYS},
+                "questions": call.get("session_questions", 1),
+                "messages": len(self.messages),
+            }
+        else:
+            session.close()
+
+    def close(self):  # pragma: no cover - front-end cleanup depends on JS
+        """Close the conversation's Claude session, then the widget."""
+        self._end_conversation()
+        super().close()
+
+    def _report_failure(self, exc: Exception) -> None:
+        from .. import clerk
+
+        message = (
+            str(exc) if isinstance(exc, clerk.ClerkBackendError) else f"Unexpected error: {exc}"
+        )
+        self.error = message
+        self.messages = [*self.messages, {"role": "error", "content": message}]
+
+    def _continue(self, question, call, changed: dict, found: list[str], notes: list[str]):
+        """The next round: resume the question's session with only what's new.
+
+        Falls back to a fresh call with all the evidence if the session can't be resumed.
+        """
+        from .. import clerk
+
+        session = call.get("session")
+        if session is not None and session.started:
+            try:
+                return clerk.follow_up(
+                    session,
+                    notes=notes,
+                    lookups=found,
+                    model=call.get("model") or "",
+                    effort=call.get("effort") or "",
+                    timeout=call.get("timeout") or clerk.DEFAULT_TIMEOUT,
+                    **changed,
+                )
+            except clerk.ClerkBackendError as exc:
+                if str(exc) == clerk.LOGIN_HELP:
+                    raise
+                session.close()
+                call["session"] = clerk.Session()
+                self._log_step(
+                    "note", f"Session could not be resumed ({exc}); resent all evidence."
+                )
+        return _ask(question, call)
+
+    def _work(self, question, call, question_index, answer=None, pending_actions=None):
+        """Notebook adapter for the transport-independent Clerk workflow."""
+        from ..clerk.engine import run_turn
+
+        workflow = run_turn(
+            answer, max_rounds=self.max_action_rounds, pending_actions=pending_actions
+        )
+        response = None
+        while True:
+            try:
+                event = workflow.send(response)
+            except StopIteration:
+                return
+            response = None
+            kind = event["kind"]
+            if kind == "answer":
+                from ..clerk.llm import resolve_dendrogram_groups
+
+                text = event["text"]
+                views, problems = resolve_dendrogram_groups(
+                    event["views"], call.get("clustergram_state")
+                )
+                if problems:
+                    self._append(
+                        {
+                            "role": "error",
+                            "content": "Some cited views were changed: " + "; ".join(problems),
+                        }
+                    )
+                links = self._links_for(text)
+                text = self._unbracket_names(text, links.get("genes", ()))
+                message = {"role": "assistant", "content": text, **links}
+                if views:
+                    message["views"] = views
+                self._append(message)
+                self._log_step("answer", text, views=views)
+            elif kind == "findings":
+                self._record_findings(event["findings"], question)
+            elif kind == "notebook":
+                self._draft_notebook(event["notebook"], question)
+            elif kind == "error":
+                self._append({"role": "error", "content": event["text"]})
+                if not self.pending:
+                    self._log_step("error", event["text"])
+            elif kind == "pause":
+                self._paused = {
+                    "question": question,
+                    "call": call,
+                    "question_index": question_index,
+                    "actions": event["actions"],
+                }
+                self._append(
+                    {
+                        "role": "pause",
+                        "content": f"Clerk has made {event['rounds']} "
+                        "lookups or view changes for this question and paused. Continue?",
+                    }
+                )
+            elif kind == "apply":
+                try:
+                    changes, reads = self._apply_actions(event["actions"])
+                    self._wait_for_landscape_apply()
+                    response = {"changes": changes, "reads": reads}
+                except ValueError as exc:
+                    response = {"error": str(exc)}
+            elif kind == "observe":
+                changes, reads = event["changes"], event["reads"]
+                did = (["Changed " + "; ".join(changes)] if changes else []) + self._describe_reads(
+                    reads
+                )
+                involved = list(reads.get("genes") or [])
+                for spec in reads.get("enrichr") or []:
+                    involved += [g for g in spec["genes"] if g not in involved]
+                label = ". ".join(did)
+                self._append(
+                    {"role": "action", "content": label, **self._links_for(label, involved)}
+                )
+                self._log_step("action", label, actions=event["actions"])
+                options = (
+                    {"extra_rows": reads["genes"], "markers": self._markers_needed(reads)}
+                    if event["continue"]
+                    else {}
+                )
+                views = self._refresh_views(question, **options)
+                self._log_capture(views, label)
+                shown = [w for w in self._VIEW_WIDGETS if (event["actions"] or {}).get(w)]
+                if changes and shown:
+                    self._append_view(views, shown, "; ".join(changes))
+                if reads.get("snapshot") is not None:
+                    self._save_snapshot(views, reads["snapshot"], question)
+                if event["continue"]:
+                    found = self._run_lookups(reads, views["clustergram_state"])
+                    if found:
+                        self._log_step("lookups", "\n\n".join(found))
+                    response = {"views": views, "found": found, "did": did}
+            elif kind == "follow_up":
+                views, found, did = (event["evidence"][key] for key in ("views", "found", "did"))
+                changed = _changed_views(call, views, self.image_b64)
+                self._use_views(call, views)
+                call["lookups"] = _keep_recent([*(call.get("lookups") or []), *found])
+                call.setdefault("done", []).extend(d[0].lower() + d[1:] for d in did)
+                note = (
+                    "For this question you have so far: " + "; ".join(call["done"]) + ". The "
+                    "evidence and lookup results reflect this. Continue answering the "
+                    "scientist's question without repeating what you already said or "
+                    "requesting any of these again."
+                )
+                call["notes"].append(note)
+                call["history"] = [
+                    dict(m) for i, m in enumerate(self.messages) if i != question_index
+                ]
+                response = self._continue(question, call, changed, found, [*views["notes"], note])
+
+    def export(
+        self,
+        folder: str | Path | None = None,
+        *,
+        title: str = "",
+        adata=None,
+        groupby: str | None = None,
+        key: str = "clerk_cell_type",
+        write_h5ad: bool = False,
+        names: dict | None = None,
+        html: bool = True,
+    ) -> dict[str, Path]:
+        """Save a record of this conversation that you can take with you.
+
+        Writes into ``folder`` (default ``<output_dir>/report_<date>-<time>``, i.e.
+        ``clerk_files/report_...``):
+
+        - ``report.html``: the whole conversation as one page. Each screenshot sits
+          under the code that recreates that view (``landscape.apply_state(...)``,
+          ``cgm.apply_state(...)``); Clerk's work and evidence are collapsed.
+        - ``report.ipynb``: the same as a notebook, to re-run the code.
+        - ``record.json``: everything, machine-readable.
+        - ``screenshots/``: each capture as a Celldega screenshot (a PNG carrying the
+          record to reopen its view with ``dega.viz.from_png``).
+        - ``findings.csv``: the cell types Clerk proposed.
+
+        With ``adata`` and ``groupby``, the latest cell types are also written into
+        ``adata.obs[key]`` (see :meth:`write_cell_types`; a column Clerk wrote before
+        is replaced) and saved as ``cell_types.csv``, plus ``adata.h5ad`` with
+        ``write_h5ad=True``.
+
+        Args:
+            title: Optional report name, shown as its heading and used in the
+                default folder name (followed by a timestamp).
+            names: Variable names for the reproduction code, default
+                ``{"landscape": "landscape", "clustergram": "cgm"}``.
+            html: Also render ``report.html`` (needs ``nbconvert``).
+
+        Returns:
+            dict: Paths written, by kind.
+        """
+        from ..clerk import report
+
+        title = " ".join(title.split())
+        stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").lower()[:50] or "report"
+        folder = Path(folder or Path(self.output_dir) / f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}")
+        try:
+            celldega_version = importlib.metadata.version("celldega")
+        except importlib.metadata.PackageNotFoundError:
+            celldega_version = ""
+        meta = {
+            "title": title,
+            "context": self.context_info,
+            "widgets": sorted(self._linked_widgets),
+            "celldega": celldega_version,
+            "models": sorted({e["model"] or "default" for e in self.record}),
+            "briefing": self.briefing,
+            "briefing_sources": list(self.briefing_sources),
+        }
+        written = report.write_report(
+            folder,
+            self.record,
+            self.findings,
+            meta,
+            names=names,
+            html_report=html,
+            messages=[dict(m) for m in self.messages],
+        )
+        if adata is not None:
+            if not groupby:
+                raise ValueError("pass groupby= (the cluster column) to annotate adata")
+            mine = key in (adata.uns.get("clerk_cell_types") or {})
+            column = self.write_cell_types(adata, groupby, key, overwrite=mine)
+            written["cell_types"] = folder / "cell_types.csv"
+            pd.DataFrame({groupby: adata.obs[groupby].astype(str), key: column}).to_csv(
+                written["cell_types"]
+            )
+            if write_h5ad:
+                written["adata"] = folder / "adata.h5ad"
+                adata.write_h5ad(written["adata"])
+        return written
+
+    # Most genes one click can show (the Landscape's gene search allows 20).
+    _MAX_SHOWN_GENES = 20
+
+    def _queue_evidence(self, task, *args, **kwargs) -> concurrent.futures.Future:
+        """Run evidence clicks in order on one background thread (saving the view
+        waits for the browser, which the kernel's main thread must stay free for)."""
+        if self._evidence_executor is None:
+            self._evidence_executor = concurrent.futures.ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="celldega-clerk-evidence"
+            )
+        self._last_evidence = self._evidence_executor.submit(task, *args, **kwargs)
+        return self._last_evidence
+
+    def _follow_evidence(self, show, *args, **kwargs) -> concurrent.futures.Future:
+        def task():
+            if self._saved_view is None:
+                self._save_view()
+                if self._saved_view is None:
+                    if self.error:
+                        self._append({"role": "error", "content": self.error})
+                    return
+            show(*args, **kwargs)
+
+        return self._queue_evidence(task)
+
+    def _save_view(self) -> None:
+        """Remember coordinated, identified views before following an evidence link."""
+        from .snapshots import restore_spec
+
+        requests, ids = [], {}
+        for name in ("yearbook", "clustergram", "landscape"):
+            widget = self._linked_widgets.get(name)
+            if not hasattr(widget, "request_snapshot"):
+                continue
+
+            def send(widget=widget, name=name):
+                options = (
+                    {"max_rows": 1, "max_cols": 1, "include_values": False}
+                    if name == "clustergram"
+                    else {}
+                )
+                ids[name] = widget.request_snapshot(**options)
+                return ids[name]
+
+            requests.append((widget, "snapshot_capture_id", send))
+        self._request_and_wait(requests)
+        saved = {"snapshots": {}}
+        for name, rid in ids.items():
+            widget = self._linked_widgets[name]
+            reply = widget._snapshot_replies.get(rid, {})
+            snapshot = reply.get("snapshot")
+            if not snapshot or reply.get("error"):
+                self.error = f"Couldn't save your {name} view before following the evidence link"
+                return
+            saved[name] = deepcopy(snapshot["state"])
+            saved["snapshots"][name] = restore_spec(snapshot)
+        cgm = self._linked_widgets.get("clustergram")
+        if cgm is not None:
+            saved["highlighted_genes"] = list(cgm.highlighted_genes)
+        self._saved_view = saved
+        self.can_restore = bool(saved["snapshots"])
+
+    def _restore_captured_widget(self, name: str, snapshot: dict) -> None:
+        """Restore one identified capture and wait for its exact browser reply."""
+        widget = self._linked_widgets.get(name)
+        if not hasattr(widget, "restore_snapshot"):
+            raise ValueError(f"no {name.title()} is linked")
+        rid = widget.restore_snapshot(snapshot)
+        answered = self._request_and_wait([(widget, "apply_capture_id", lambda: rid)])[0]
+        reply = widget._apply_replies.get(rid, {})
+        if not answered or reply.get("event") == "apply_error":
+            raise ValueError(reply.get("error") or "browser did not confirm restoration")
+
+    def _show_snapshot(self, snapshots) -> None:
+        """Revisit the views a question was sent with (one or both widgets), keeping
+        the pre-click view for Back."""
+        if not isinstance(snapshots, dict) or not (
+            snapshots.get("landscape") or snapshots.get("clustergram") or snapshots.get("yearbook")
+        ):
+            self.error = "This image has no saved view."
+            self._append({"role": "error", "content": self.error})
+            return
+        # Clustergram focus can change the Landscape; restore the image's view last.
+        for name in ("yearbook", "clustergram", "landscape"):
+            if name not in snapshots:
+                continue
+            try:
+                self._restore_captured_widget(name, snapshots[name])
+            except ValueError as exc:
+                self.error = f"Couldn't show the captured view: {name}: {exc}"
+                self._append({"role": "error", "content": self.error})
+                return
+        self.error = ""
+
+    def _restore_view(self) -> None:
+        """Back: verify saved data and acknowledge restoration before clearing history."""
+        saved = self._saved_view
+        if not saved:
+            return
+        # Linked Clustergram focus can change Landscape; restore Landscape last.
+        for name in ("yearbook", "clustergram", "landscape"):
+            widget = self._linked_widgets.get(name)
+            snapshot = saved.get("snapshots", {}).get(name)
+            if not snapshot:
+                continue
+            try:
+                # Same-session undo: the restore still checks the saved view matches
+                # the loaded data (e.g. after a dataset switch).
+                self._restore_captured_widget(name, snapshot)
+                if name == "clustergram":
+                    widget.highlighted_genes = saved.get("highlighted_genes") or []
+            except ValueError as exc:
+                self.error = f"Couldn't fully restore your view: {name}: {exc}"
+                self._append({"role": "error", "content": self.error})
+                return  # keep the saved view available to retry
+        self._saved_view = None
+        self.can_restore = False
+        self.error = ""
+
+    def _show_genes(self, genes, focus: str | None = None) -> None:
+        """Show genes clicked in the conversation on the linked views.
+
+        The Landscape colors cells by them (like its gene search); the Clustergram
+        marks them as blue row labels and zooms to ``focus`` (the gene just clicked).
+        An empty list returns the Landscape to cluster colors.
+        """
+        if not isinstance(genes, list | tuple):
+            return
+        genes = [str(g) for g in genes][: self._MAX_SHOWN_GENES]
+        landscape = self._linked_widgets.get("landscape")
+        cgm = self._linked_widgets.get("clustergram")
+        if not hasattr(landscape, "apply_state") and not hasattr(cgm, "apply_state"):
+            self.error = "Link a Landscape or Clustergram to show genes."
+            return
+        problems = []
+        if hasattr(landscape, "apply_state"):
+            try:
+                landscape.apply_state({"genes": genes})
+            except ValueError as exc:
+                problems.append(f"Landscape: {exc}")
+        if hasattr(cgm, "apply_state"):
+            rows = set(map(str, cgm.row_names or []))
+            cgm.highlighted_genes = [g for g in genes if g in rows]
+            # Zoom the Clustergram to a single gene shown. Its focus also reaches a
+            # Landscape linked through Enrich, as that one gene, so for several genes
+            # leave the focus alone (it would replace them with one).
+            if len(genes) == 1 and str(focus or "") in rows and focus in genes:
+                focus_gene = str(focus)
+            elif not genes:
+                focus_gene = ""
+            else:
+                focus_gene = None
+            if focus_gene is not None:
+                try:
+                    cgm.apply_state({"focus_gene": focus_gene})
+                except ValueError as exc:
+                    problems.append(f"Clustergram: {exc}")
+        if problems:
+            self.error = f"Couldn't show {', '.join(genes) or 'the genes'}: " + "; ".join(problems)
+
+    def _show_clusters(self, clusters) -> None:
+        """Highlight clusters clicked in the conversation in the linked Landscape."""
+        landscape = self._linked_widgets.get("landscape")
+        if not hasattr(landscape, "apply_state"):
+            self.error = "Link a Landscape to show clusters."
+            return
+        if not isinstance(clusters, list | tuple):
+            return
+        try:
+            landscape.apply_state({"clusters": [str(c) for c in clusters]})
+        except ValueError as exc:
+            self.error = f"Couldn't show clusters: {exc}"
+
+    def _apply_view(self, view) -> None:
+        """Show a view Clerk cited (``[Fig 1A](view:1A)``) in the linked widgets."""
+        from ..clerk.llm import RESOLVED_VIEW_KEYS, VIEW_KEYS
+
+        if not isinstance(view, dict):
+            return
+        problems = []
+        for widget_name, keys in VIEW_KEYS.items():
+            settings = view.get(widget_name)
+            if not settings:
+                continue
+            widget = self._linked_widgets.get(widget_name)
+            if not hasattr(widget, "apply_state"):
+                problems.append(f"no {widget_name.title()} is linked")
+                continue
+            allowed = (*keys, *RESOLVED_VIEW_KEYS.get(widget_name, ()))
+            settings = {k: v for k, v in settings.items() if k in allowed}
+            # A group the view names is resolved when the answer arrives (by then
+            # the cut and members are known); an unresolved one can't be shown.
+            settings.pop("dendrogram_group", None)
+            try:
+                widget.apply_state(settings)
+            except ValueError as exc:
+                problems.append(f"{widget_name.title()}: {exc}")
+        if problems:
+            self.error = "Couldn't show that view: " + "; ".join(problems)
+
+    def _export_from_panel(self, *, title: str = "") -> None:
+        """The panel's Write report button: write a report and say where it went."""
+        try:
+            written = self.export(title=title)
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't write the report: {exc}"})
+            return
+        main = written.get("html") or written.get("notebook") or written["record"]
+        self._append(
+            {
+                "role": "note",
+                "content": f"Saved this conversation to {main} "
+                f"(with {', '.join(p.name for k, p in written.items() if p != main)}).",
+            }
+        )
+
+    # -- Saved conversations: SAVE / OPEN, save_conversation / load_conversation --
+
+    #: Format version of a saved conversation file.
+    CONVERSATION_VERSION = 1
+
+    def save_conversation(self, path: str | Path | None = None, *, title: str = "") -> Path:
+        """Save the conversation to reopen later with :meth:`load_conversation`.
+
+        Writes one JSON file: the panel's messages (with their gene, cluster and view
+        links and Enrichr results), the record of each question with the replay settings
+        of its captures, Clerk's proposed cell types, the context, and links to the data
+        the linked widgets show. Each question's screenshot preview is kept; full-size
+        captures are left out to keep the file light (:meth:`export` keeps those).
+
+        Reading a saved conversation needs no Claude. Its links change the linked
+        widgets, so they need the same data loaded.
+
+        Args:
+            path: A ``.json`` file, or a folder for an auto-named one (default
+                ``<output_dir>/conversations``, i.e. ``clerk_files/conversations``).
+            title: Optional name, also used in the file name.
+
+        Returns:
+            Path: The file written.
+        """
+        from .screenshots import widget_source
+
+        location = Path(path) if path else Path(self.output_dir) / "conversations"
+        if location.suffix.lower() == ".json":
+            target = location
+        else:
+            stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").lower()[:50] or "conversation"
+            target = location / f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            celldega_version = importlib.metadata.version("celldega")
+        except importlib.metadata.PackageNotFoundError:
+            celldega_version = ""
+        record = [
+            {
+                **entry,
+                "steps": [
+                    {
+                        k: v
+                        for k, v in step.items()
+                        if k not in ("image", "clustergram_image", "yearbook_image")
+                    }
+                    for step in entry.get("steps") or []
+                ],
+            }
+            for entry in deepcopy(self.record)
+        ]
+        payload = {
+            "celldega_clerk_conversation": self.CONVERSATION_VERSION,
+            "title": title,
+            "saved": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "celldega": celldega_version,
+            "context_info": self.context_info,
+            "model": self.model,
+            "effort": self.effort,
+            "cluster_names": list(self.cluster_names),
+            "cluster_labels": dict(self.cluster_labels),
+            "sources": {name: widget_source(w) for name, w in self._linked_widgets.items()},
+            "messages": [dict(m) for m in self.messages],
+            "record": record,
+            "findings": [dict(f) for f in self.findings],
+        }
+        target.write_text(json.dumps(payload, default=str), encoding="utf-8")
+        return target
+
+    def load_conversation(self, path: str | Path) -> dict:
+        """Reopen a saved conversation in the panel, without Claude.
+
+        Opens a file from :meth:`save_conversation` (or the panel's SAVE button), or a
+        report folder from :meth:`export` (or its ``record.json``). The panel shows the
+        conversation as it was: its genes, clusters and cited views stay clickable and
+        change the linked widgets, which need the same data loaded. A new question
+        continues the conversation, with the loaded one as its history.
+
+        Replaces the current conversation, record and proposed cell types.
+
+        Args:
+            path: The conversation ``.json``, or an export folder or its ``record.json``.
+
+        Returns:
+            dict: What was saved: ``title``, ``saved``, ``celldega``, ``context_info``
+            and ``sources`` (the data the original widgets showed).
+        """
+        path = Path(path)
+        if path.is_dir():
+            path = path / "record.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return self._load_conversation_data(data, path.parent)
+
+    def _load_conversation_data(self, data, folder: Path | None) -> dict:
+        from ..clerk import report
+        from .snapshots import restore_spec
+
+        if not isinstance(data, dict):
+            raise ValueError("Not a saved Clerk conversation or exported report")
+        if "celldega_clerk_conversation" in data:
+            if data["celldega_clerk_conversation"] != self.CONVERSATION_VERSION:
+                raise ValueError(
+                    "Unsupported saved conversation version "
+                    f"{data['celldega_clerk_conversation']!r}"
+                )
+            saved = data
+        elif isinstance(data.get("questions"), list):  # an export's record.json
+            meta = data.get("meta") or {}
+            record = report.record_with_images(data["questions"], folder)
+            saved = {
+                "title": meta.get("title", ""),
+                "saved": meta.get("exported", ""),
+                "celldega": meta.get("celldega", ""),
+                "context_info": meta.get("context", ""),
+                "messages": data.get("messages") or self._messages_from_record(record),
+                "record": record,
+                "findings": data.get("findings") or [],
+            }
+        else:
+            raise ValueError("Not a saved Clerk conversation or exported report")
+        if self.pending:
+            raise RuntimeError("Clerk is answering; open the conversation once it's done")
+        if not isinstance(saved.get("messages"), list):
+            raise ValueError("The saved conversation has no messages")
+
+        if self._paused is not None:  # a loaded conversation replaces a paused question
+            session = self._paused["call"].pop("session", None)
+            if session is not None:
+                session.close()
+            self._paused = None
+        # The loaded conversation reaches Clerk as text with the next question.
+        self._end_conversation()
+        self.record = list(saved.get("record") or [])
+        self.findings = list(saved.get("findings") or [])
+        # Keep what this session already knows; fill in what it doesn't.
+        if saved.get("context_info") and not self.context_info:
+            self.context_info = saved["context_info"]
+        if saved.get("cluster_names") and not self.cluster_names:
+            self.cluster_names = list(saved["cluster_names"])
+        if saved.get("cluster_labels") and not self.cluster_labels:
+            self.cluster_labels = dict(saved["cluster_labels"])
+        self._last_enrichment = None
+        self.error = ""
+        messages = [dict(m) for m in saved["messages"] if isinstance(m, dict)]
+        # Earlier conversations kept replay state only in the record. Recover it
+        # from the initial capture, never from a view Clerk changed to later.
+        questions = (m for m in messages if m.get("role") == "user")
+        for message, entry in zip(questions, self.record, strict=False):
+            if (
+                not message.get("image")
+                or message.get("snapshots")
+                or message.get("content") != entry.get("question")
+            ):
+                continue
+            capture = next(
+                (
+                    step
+                    for step in entry.get("steps") or []
+                    if step.get("kind") == "capture" and step.get("text") == "When asked"
+                ),
+                {},
+            )
+            if (capture.get("snapshots") or {}).get("landscape"):
+                message["snapshots"] = {
+                    name: restore_spec(snapshot) for name, snapshot in capture["snapshots"].items()
+                }
+        self.messages = messages
+        return {
+            key: saved.get(key) for key in ("title", "saved", "celldega", "context_info", "sources")
+        }
+
+    def _messages_from_record(self, record: list[dict]) -> list[dict]:
+        """The panel's messages, rebuilt from a record (reports exported before 0.29)."""
+        messages = []
+        for entry in record:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": entry.get("question", ""),
+                    "evidence": list(entry.get("sent_with") or []),
+                }
+            )
+            for step in entry.get("steps") or []:
+                kind, text = step.get("kind"), str(step.get("text") or "")
+                if kind == "answer":
+                    message = {"role": "assistant", "content": text, **self._links_for(text)}
+                    if step.get("views"):
+                        message["views"] = step["views"]
+                    messages.append(message)
+                elif kind in ("action", "findings", "screenshot") and text:
+                    messages.append({"role": "action", "content": text})
+                elif kind == "error" and text:
+                    messages.append({"role": "error", "content": text})
+        return messages
+
+    def _save_from_panel(self) -> None:
+        """The panel's SAVE button: save the conversation and say where it went."""
+        try:
+            target = self.save_conversation()
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't save the conversation: {exc}"})
+            return
+        self._append(
+            {
+                "role": "note",
+                "content": f"Saved this conversation to {target}. Reopen it with OPEN or "
+                f"clerk.load_conversation({str(target)!r}).",
+            }
+        )
+
+    def _on_panel_msg(self, _widget, content, _buffers) -> None:
+        """One-off panel messages: a LABEL offer accepted, or OPEN's saved conversation."""
+        if not isinstance(content, dict):
+            return
+        if content.get("event") == "label_clustergram":
+            self._label_from_offer(str(content.get("id") or ""))
+            return
+        if content.get("event") == "run_analysis":
+            self.run_analysis(str(content.get("id") or ""))
+            return
+        if content.get("event") == "draft_notebook":
+            self.draft_notebook(str(content.get("id") or "") or None)
+            return
+        if content.get("event") != "load_conversation":
+            return
+        name = str(content.get("name") or "the file")
+        try:
+            self._load_conversation_data(json.loads(content.get("text") or ""), None)
+        except Exception as exc:
+            self._append({"role": "error", "content": f"Couldn't open {name}: {exc}"})
+            return
+        self._append({"role": "note", "content": f"Opened the conversation saved in {name}."})
+
+    def wait(self, timeout: float | None = None) -> bool:
+        """Block until the question in flight (if any) has been answered.
+
+        Args:
+            timeout (float | None): Seconds to wait; ``None`` waits indefinitely.
+
+        Returns:
+            bool: ``True`` if Clerk is idle afterwards.
+        """
+        worker = self._worker
+        if worker is not None:
+            worker.join(timeout)
+        return worker is None or not worker.is_alive()
+
+    def ask(self, question, **kwargs):
+        """Ask a question from Python (bypasses the chat UI). Returns the answer text.
+
+        Unlike the chat box, this blocks until the answer arrives. A cell can't wait
+        for the browser, so this uses the views' latest snapshots (e.g. the last
+        Landscape capture and ``Clustergram.latest_state``) rather than fresh ones.
+        """
+        from .. import clerk
+
+        self.wait()
+        genes = kwargs.pop("gene_list", None) or list(self.gene_list)
+        history = [dict(m) for m in self.messages]
+        cgm = self._linked_widgets.get("clustergram")
+        latest = dict(getattr(cgm, "latest_state", None) or {}) or None
+        self.messages = [*self.messages, {"role": "user", "content": question}]
+        self.pending = True
+        self.error = ""
+        try:
+            answer = clerk.ask(
+                question,
+                history=history,
+                clustergram_state=kwargs.pop("clustergram_state", None) or latest,
+                gene_list=genes,
+                enrichr_terms=kwargs.pop("enrichr_terms", None) or [],
+                info=kwargs.pop("info", None) or self.context_info,
+                image_b64=kwargs.pop("image_b64", None) or self.image_b64 or None,
+                model=kwargs.pop("model", None) or self.model,
+                effort=kwargs.pop("effort", None) or self.effort,
+                timeout=kwargs.pop("timeout", None) or self.timeout,
+            )
+            self.messages = [*self.messages, {"role": "assistant", "content": answer}]
+            return answer
+        except clerk.ClerkBackendError as exc:
+            self.error = str(exc)
+            raise
+        finally:
+            self.pending = False
+
+
+def _is_screenshot_record(path: Path) -> bool:
+    try:
+        return bool(json.loads(path.read_text()).get("celldega_screenshot"))
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+#: A question's call fields that are Clerk's own bookkeeping, not ``clerk.ask`` options.
+_CLERK_CALL_ONLY = frozenset(
+    {"done", "enrichr_library", "enrichr_short_id", "session_questions", "usage_from", "failed"}
+)
+
+_ENRICHR_SHORT_ID = re.compile(r"^[A-Za-z0-9]{1,64}$")
+
+
+def _enrichr_page(short_id) -> str:
+    """The Enrichr web page for a gene list the panel uploaded, or ``""``."""
+    from ..clerk import lookups
+
+    short_id = str(short_id or "")
+    return lookups.enrichr_app_url(short_id) if _ENRICHR_SHORT_ID.match(short_id) else ""
+
+
+def _ask(question: str, call: dict) -> str:
+    """``clerk.ask`` with a question's call settings (minus Clerk's own bookkeeping)."""
+    from .. import clerk
+
+    return clerk.ask(question, **{k: v for k, v in call.items() if k not in _CLERK_CALL_ONLY})
+
+
+# What a question sent Clerk, compared with the next question's (see _views_since).
+_SENT_KEYS = (
+    "clustergram_state",
+    "landscape_state",
+    "neighborhoods",
+    "enrich_state",
+    "yearbook_state",
+    "image_b64",
+    "gene_list",
+    "enrichr_terms",
+    "info",
+    "briefing",
+    "actions_help",
+    "notes",
+)
+
+
+def _unchanged_views(sent: dict, call: dict) -> list[str]:
+    """Names of the views whose state is what Clerk was last sent."""
+    from ..clerk.llm import VIEW_NAMES
+
+    out = []
+    for key, name in VIEW_NAMES.items():
+        if not call.get(key) or call.get(key) != sent.get(key):
+            continue
+        if key == "landscape_state" and call.get("neighborhoods") != sent.get("neighborhoods"):
+            continue
+        out.append(name)
+    return out
+
+
+def _views_since(sent: dict, call: dict) -> dict:
+    """The evidence for a new question in a continuing session: only what differs
+    from what Clerk was last sent (``sent``), as ``next_question`` takes it.
+
+    A view's state is sent when it changed; the Landscape's screenshot only with a
+    changed Landscape (its state holds the camera, selection and layers), since a
+    re-captured image of the same view can differ by a few pixels.
+    """
+    from ..clerk.llm import VIEW_NAMES
+
+    out: dict = {}
+    unchanged = set(_unchanged_views(sent, call))
+    for key, name in VIEW_NAMES.items():
+        if call.get(key) and name not in unchanged:
+            out[key] = call[key]
+    if "landscape_state" in out and call.get("neighborhoods"):
+        out["neighborhoods"] = call["neighborhoods"]
+    if call.get("image_b64") and ("landscape_state" in out or not sent.get("image_b64")):
+        out["image_b64"] = call["image_b64"]
+    for key in ("gene_list", "enrichr_terms", "actions_help"):
+        if call.get(key) and call.get(key) != sent.get(key):
+            out[key] = call[key]
+    seen = set(sent.get("notes") or [])
+    out["notes"] = [note for note in call.get("notes") or [] if note not in seen]
+    return out
+
+
+def _changed_views(call: dict, views: dict, image_b64: str) -> dict:
+    """The views (and screenshot) that differ from what was last sent to Clerk."""
+    changed = {
+        key: views.get(key)
+        for key in (
+            "clustergram_state",
+            "landscape_state",
+            "neighborhoods",
+            "enrich_state",
+            "yearbook_state",
+        )
+        if views.get(key) and views.get(key) != call.get(key)
+    }
+    if views.get("image_fresh") and image_b64 and image_b64 != call.get("image_b64"):
+        changed["image_b64"] = image_b64
+    return changed
+
+
+# Cap on lookup results carried into one prompt (characters, newest kept).
+MAX_LOOKUP_CHARS = 24_000
+
+
+def _keep_recent(results: list[str], limit: int = MAX_LOOKUP_CHARS) -> list[str]:
+    """The newest lookup results that fit in ``limit`` characters, in order."""
+    kept: list[str] = []
+    total = 0
+    for text in reversed(results):
+        if kept and total + len(text) > limit:
+            break
+        kept.append(text)
+        total += len(text)
+    return kept[::-1]
+
+
 def _validate_replay_controls(widget, changes):
     axes = {"row", "col"}
     if "categories" in changes and "annotations" in changes:
@@ -1770,17 +4882,29 @@ def _validate_replay_controls(widget, changes):
                 widget._check_category_names(key[:-1], dict.fromkeys(value))
         group = selection.get("dendrogram")
         if group is not None:
-            if (
-                not isinstance(group, dict)
-                or set(group) != {"axis", "members"}
-                or group["axis"] not in axes
-                or not isinstance(group["members"], list)
-                or not group["members"]
-                or any(not isinstance(v, str) for v in group["members"])
-                or len(set(group["members"])) != len(group["members"])
-            ):
-                raise ValueError("selection.dendrogram requires axis and unique members")
-            widget._check_category_names(group["axis"], dict.fromkeys(group["members"]))
+            # A group at the current cut: by its members, or by the name the
+            # Clustergram snapshot lists it under.
+            by_name = (
+                isinstance(group, dict)
+                and set(group) == {"axis", "name"}
+                and group["axis"] in axes
+                and isinstance(group["name"], str)
+                and bool(group["name"])
+            )
+            if not by_name:
+                if (
+                    not isinstance(group, dict)
+                    or set(group) != {"axis", "members"}
+                    or group["axis"] not in axes
+                    or not isinstance(group["members"], list)
+                    or not group["members"]
+                    or any(not isinstance(v, str) for v in group["members"])
+                    or len(set(group["members"])) != len(group["members"])
+                ):
+                    raise ValueError(
+                        "selection.dendrogram requires axis and unique members (or name)"
+                    )
+                widget._check_category_names(group["axis"], dict.fromkeys(group["members"]))
 
 
 def _validate_clustergram_controls(widget, changes: dict) -> dict:
@@ -2126,7 +5250,7 @@ def _composition_matrix_inputs(
     }
 
 
-class Yearbook(CelldegaWidget):
+class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
 
@@ -2406,6 +5530,10 @@ class Yearbook(CelldegaWidget):
         if meta_cluster_df is not None:
             self.meta_cluster_df = meta_cluster_df
 
+        self._listen_for_raster()
+        self._listen_for_state()
+        self._listen_for_pics()
+
     def get_selected_cells(self, adata=None):
         """Return checked IDs, or a copied AnnData subset in its original row order."""
         ids = list(self.selected_cells)
@@ -2615,7 +5743,8 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 - ``dendrogram``: ``{"row": 35, "col": 65}`` cut percentages (0-100).
                 - ``selection``: any of ``rows``, ``cols``, ``genes``,
                   ``highlighted_genes`` (lists of names) and ``dendrogram``
-                  (``{"axis", "members"}``, a group that exists at the current cut).
+                  (``{"axis", "members"}``, a group that exists at the current cut,
+                  or ``{"axis", "name"}`` with the name ``get_state`` lists it under).
                 - ``view``: ``{"target": [x, y], "zoom": [x_zoom, y_zoom]}``.
                 - ``crop``: ``{"row": [...names], "col": None}``; None clears an axis.
                 - ``order``: per axis, a named order (``"clust"``, ``"rank"``,
@@ -2803,6 +5932,13 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     # ``selected_genes``, which *feeds* enrichment input — reusing it would
     # loop the linkage.
     highlighted_genes = traitlets.List(default_value=[]).tag(sync=True)
+    #: Columns drawn with blue labels: e.g. the clusters highlighted in a linked
+    #: Landscape (see `spatial_clustergram`), or columns shift-clicked here.
+    highlighted_cols = traitlets.List(default_value=[]).tag(sync=True)
+    #: Snapshot cards open their view through these, in the browser (see Landscape).
+    view_request = traitlets.Dict({}).tag(sync=True)
+    view_result = traitlets.Dict({}).tag(sync=True)
+    _JS_VIEW_LINK = True
     #: Upper bound on the gene set a column click sends to enrichment.
     top_n_genes = traitlets.Int(50).tag(sync=True)
 

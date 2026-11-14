@@ -41,7 +41,9 @@ export const ini_trx_layer = (viz_state) => {
     pickable: true,
     getFillColor: (i, d) => {
       const geneId = genes.trx_gene_ids?.[d.index];
-      const inst_color = genes.g_colorMapping_inv?.[geneId] || [0, 0, 0];
+      // Genes being compared get distinct colors (gene_comparison.js).
+      const inst_color = genes.comparison_colors?.[geneId] ||
+        genes.g_colorMapping_inv?.[geneId] || [0, 0, 0];
       const inst_opacity =
         !genes.selected_gene_ids ||
         genes.selected_gene_ids.size === 0 ||

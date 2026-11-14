@@ -61,6 +61,7 @@ def test_manual_capture_uses_its_own_response_not_a_newer_request(tmp_path, monk
         "write_screenshot",
         lambda path, shots, **kw: captures.append(shots) or tmp_path / "saved.png",
     )
+    monkeypatch.setattr(screenshots, "load_screenshot", lambda _path: {"widgets": []})
     capture = _Capture([w], result, tmp_path, "", "you", {}, 1024)
     later = w.request_snapshot()
     w._on_snapshot_msg(w, {"event": "snapshot", "id": later, "snapshot": snapshot("new")}, [])

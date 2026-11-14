@@ -1162,12 +1162,15 @@ export const restore_dendro_selection = (deck, layers, state, selection) => {
   state.obs_store.category_breakdown.set({ row: {}, col: {} });
   clear_dendro_selection(deck, layers, state);
   if (!selection) return;
-  const wanted = new Set(selection.members);
-  const polygon = state.dendro.polygons?.[selection.axis]?.find(
-    ({ properties }) =>
-      properties.all_names?.length === wanted.size &&
-      properties.all_names.every((name) => wanted.has(String(name)))
-  );
+  const wanted = new Set(selection.members || []);
+  // By members, or by the group name the Clustergram state lists (same cut).
+  const matches =
+    selection.members == null && selection.name != null
+      ? ({ properties }) => String(properties.name) === String(selection.name)
+      : ({ properties }) =>
+          properties.all_names?.length === wanted.size &&
+          properties.all_names.every((name) => wanted.has(String(name)));
+  const polygon = state.dendro.polygons?.[selection.axis]?.find(matches);
   if (!polygon)
     throw new Error(
       'Selected dendrogram group is unavailable at this cut/crop'

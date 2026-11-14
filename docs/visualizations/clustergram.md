@@ -280,12 +280,17 @@ Clustergram drives the other views:
 | Click a gene label | Colors cells by that gene; click again to return to clusters | — |
 | Click a column label | Selects that cluster's cells | Receives the column's top marker genes |
 | Click a column dendrogram branch | Selects those clusters' cells | — |
+| Shift-click column labels | Selects those clusters' cells (shift-click again to remove one) | Receives their top marker genes |
 | Click a row dendrogram branch, or crop rows | Colors cells by the genes' combined expression | Receives those genes |
+| Shift-click gene labels | Colors cells by the genes' combined expression | Receives those genes |
 | Click a mark | Colors cells by that gene within that cluster | — |
 
 Selecting an Enrich term turns its genes' labels blue in the Clustergram, and
-clicking a gene in Enrich zooms the Clustergram to it. Selections made in a
-Landscape do not change the Clustergram. See
+clicking a gene in Enrich zooms the Clustergram to it. Shift-clicked labels are blue
+too, until a plain click starts over. With `dega.viz.spatial_clustergram`, the clusters
+highlighted in the Landscape (from its cluster bars, a Clustergram click or a Clerk
+link) turn their column labels blue (`cgm.highlighted_cols`); other Landscape
+selections do not change the Clustergram. See
 [Landscape–Clustergram–Enrich](landscape-clustergram-enrich.md) for a complete
 linked example.
 
@@ -308,7 +313,7 @@ As a notebook widget, a Clustergram also shares its state with Python:
   would; the strips, bars and `cgm.manual_cat` update. Pass `axis="row"` for rows,
   `attribute=...` to choose or create the category, `colors={...}` for colors, and
   `replace=True` to clear the axis's other labels first.
-- **Snapshots**: `cgm.request_state()` asks the browser what is shown (rows and
+- **State queries**: `cgm.request_state()` asks the browser what is shown (rows and
   columns on screen, order, marker level, dendrogram groups, attributes, selection,
   values); `cgm.request_state(markers={"clusters": ["4"], "n": 25})` also returns
   a cluster's ranked `rank_genes_groups` markers. Read `cgm.latest_state` in a
@@ -317,8 +322,9 @@ As a notebook widget, a Clustergram also shares its state with Python:
   category strips) as a PNG, like the Landscape's; read `cgm.raster_png` (and the
   `cgm.raster_thumb` preview) in a later cell. Captures stay in memory and are never
   saved into the notebook. In JavaScript, `matrix.capture_raster()` returns the same.
-  To save a PNG file that can be reopened, use `cgm.screenshot()` (see
-  [Screenshots](index.md#screenshots)).
+- **Snapshots**: `cgm.snapshot(description="...", name="...")` saves the screenshot
+  together with a memo and reproducibility metadata in a PNG that can be reopened.
+  See [Snapshots](index.md#snapshots).
 
 ```python
 cgm = dega.viz.Clustergram(matrix=mat, manual_col_cat="cell_type")

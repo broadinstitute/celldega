@@ -550,3 +550,135 @@ describe('on_view_state_change during a programmatic transition', () => {
     expect(set_props_calls).toHaveLength(1);
   });
 });
+
+describe('highlighted columns and shift-click selections', () => {
+  let ini_col_label_layer;
+  let handle_label_click;
+  let synced;
+
+  beforeAll(() => {
+    ({ ini_col_label_layer, handle_label_click } = load_module(
+      '../deck-gl/matrix/label_layers.js',
+      `${layer_shims}
+       const sync_selected_rows = (vs, names) => globalThis.__synced.push(['rows', names]);
+       const sync_selected_cols = (vs, names) => globalThis.__synced.push(['cols', names]);
+       const sync_selected_genes = (vs, names) => globalThis.__synced.push(['genes', names]);
+       const buildColAxisSlice = (vs, index) => ({
+         entries: [{ counterpart_name: 'TOP' + index }],
+       });
+       const is_axis_index_visible = () => true;`,
+      '{ ini_col_label_layer, handle_label_click }'
+    ));
+  });
+
+  const fixture = () => {
+    globalThis.__synced = [];
+    synced = globalThis.__synced;
+    const state = { highlighted_cols: ['4'] };
+    const model = {
+      set: (key, value) => {
+        state[key] = value;
+      },
+      get: (key) => state[key],
+      save_changes: () => {},
+    };
+    const viz_state = make_viz_state();
+    viz_state.model = model;
+    viz_state.click = {};
+    viz_state.labels.highlighted_cols = new Set(['4']);
+    viz_state.row_entity = { entity: 'gene', attr: 'name' };
+    viz_state.col_entity = { entity: 'cell', attr: 'leiden' };
+    viz_state.col_nodes = [{ name: '4' }, { name: '5' }, { name: '6' }];
+    const make_layer = (id) => ({
+      id,
+      props: {},
+      clone(props = {}) {
+        return { ...this, props: { ...this.props, ...props } };
+      },
+    });
+    const layers_mat = {
+      row_label_layer: make_layer('row-label-layer'),
+      row_label_focus_layer: make_layer('row-label-layer-focus'),
+      col_label_layer: make_layer('col-label-layer'),
+    };
+    const deck_mat = { setProps: () => {} };
+    return { viz_state, layers_mat, deck_mat, state };
+  };
+  const shift = { srcEvent: { shiftKey: true } };
+
+  test('columns highlighted elsewhere have blue labels', () => {
+    const { viz_state } = fixture();
+    const layer = ini_col_label_layer(viz_state);
+    expect(layer.props.getColor({ name: '4', index: 0 })).toEqual([
+      47, 116, 255, 255,
+    ]);
+    expect(layer.props.getColor({ name: '5', index: 1 })).toEqual([
+      0, 0, 0, 255,
+    ]);
+  });
+
+  test('shift-clicking columns selects several, as a dendrogram group would', () => {
+    const { viz_state, layers_mat, deck_mat, state } = fixture();
+    const click = (name, index, src = shift) =>
+      handle_label_click(
+        { object: { name, index } },
+        deck_mat,
+        layers_mat,
+        viz_state,
+        'col',
+        () => {},
+        src
+      );
+    // Continues from the current selection (cluster 4, highlighted elsewhere).
+    viz_state.labels.multi_selection = { col: ['4'] };
+    click('5', 1);
+    expect(state.click_info).toMatchObject({
+      type: 'col_dendro',
+      value: { selected_names: ['4', '5'], is_unselecting: false },
+    });
+    expect([...viz_state.labels.highlighted_cols]).toEqual(['4', '5']);
+    expect(synced).toContainEqual(['cols', ['4', '5']]);
+    // Their top genes together, for a linked Enrich.
+    expect(synced).toContainEqual(['genes', ['TOP0', 'TOP1']]);
+    // Shift-clicking a selected column removes it; removing the last unselects.
+    click('4', 0);
+    click('5', 1);
+    expect(state.click_info.value).toMatchObject({
+      selected_names: [],
+      is_unselecting: true,
+    });
+
+    // A plain click starts over and drops the shift-made highlight.
+    click('6', 2);
+    jest.useFakeTimers();
+    click('5', 1, null);
+    expect([...viz_state.labels.highlighted_cols]).toEqual(['4']); // the model's
+    jest.useRealTimers();
+  });
+
+  test('shift-clicking rows selects several genes, shown in blue', () => {
+    const { viz_state, layers_mat, deck_mat, state } = fixture();
+    const click = (name, index) =>
+      handle_label_click(
+        { object: { name, index } },
+        deck_mat,
+        layers_mat,
+        viz_state,
+        'row',
+        () => {},
+        shift
+      );
+    click('EPHA7', 0);
+    click('FAM124A', 1);
+    expect(state.click_info).toMatchObject({
+      type: 'row_dendro',
+      value: { selected_names: ['EPHA7', 'FAM124A'] },
+    });
+    expect(state.highlighted_genes).toEqual(['EPHA7', 'FAM124A']);
+    expect([...viz_state.labels.highlighted_genes]).toEqual([
+      'epha7',
+      'fam124a',
+    ]);
+    expect(synced).toContainEqual(['genes', ['EPHA7', 'FAM124A']]);
+  });
+});

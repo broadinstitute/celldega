@@ -161,11 +161,25 @@ const wheel_delta_px = (event, element) => {
  * scroll — scrolling the page is exactly what we're preventing, so the walk
  * never escapes past `boundary` (or `<body>`).
  */
-const nearest_scrollable = (start, boundary) => {
+// A box that scrolls (overflow auto/scroll) and can still move in the wheel's
+// direction. Content taller than a box that doesn't scroll (a code block with a
+// horizontal scrollbar, a table) or a box already at its end passes the gesture
+// on to the box around it, so an inner panel never traps the scroll.
+const can_scroll = (node, direction) => {
+  if (node.scrollHeight <= node.clientHeight) return false;
+  const { overflowY } = window.getComputedStyle(node);
+  if (!/auto|scroll|overlay/.test(overflowY)) return false;
+  if (direction < 0) return node.scrollTop > 0;
+  if (direction > 0)
+    return node.scrollTop + node.clientHeight < node.scrollHeight - 1;
+  return true;
+};
+
+const nearest_scrollable = (start, boundary, direction = 0) => {
   let node = start;
 
   while (node && node !== document.body && node !== document.documentElement) {
-    if (node.scrollHeight > node.clientHeight) return node;
+    if (can_scroll(node, direction)) return node;
     if (node === boundary) return null;
     node = node.parentElement;
   }
@@ -206,7 +220,11 @@ export const contain_scroll = (element) => {
         event.target instanceof Element && element.contains(event.target)
           ? event.target
           : element;
-      const target = nearest_scrollable(start, element);
+      const target = nearest_scrollable(
+        start,
+        element,
+        Math.sign(event.deltaY)
+      );
       if (target) target.scrollTop += wheel_delta_px(event, target);
     },
     { passive: false }

@@ -2,6 +2,7 @@
 Module for visualization
 """
 
+import contextlib
 import json
 
 from ipywidgets import HBox, Layout, VBox, jsdlink, jslink
@@ -10,9 +11,18 @@ from .cloud import CellCloud, NeighborhoodCloud
 from .landmark_widget import Landmark
 from .local_server import get_local_server, get_proxy_server
 from .reopen import from_png
-from .screenshots import Screenshot, load_screenshot, load_screenshots, screenshot
+from .screenshots import (
+    Screenshot,
+    load_screenshot,
+    load_screenshots,
+    load_snapshot,
+    load_snapshots,
+    screenshot,
+    snapshot,
+)
+from .snapshot_widget import Snapshot, Snapshots
 from .snapshots import fingerprint_dataset
-from .widget import Clustergram, Composition, Enrich, Landscape, Yearbook
+from .widget import Clerk, Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
 def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
@@ -42,15 +52,30 @@ def _pixel_height(value: str | int, fallback: int = 700) -> int:
     return pixels if pixels > 0 else fallback
 
 
-# Width that fits the compact Clustergram control panel: order/dendrogram grid
-# (~170px), ROW/COL category bars (~210px) and gene search (~160px). Narrower
-# clips the gene search.
-_CLUSTERGRAM_MIN_PANEL_WIDTH = 550
+# Narrowest panel that fits the Clustergram control panel: the order/dendrogram
+# grid (~170px), then the ROW/COL category bars and the search column, which
+# narrow from ~210px and ~150px to ~120px and ~100px. Narrower scrolls the
+# controls (the canvas itself sets the panel width above this).
+_CLUSTERGRAM_MIN_PANEL_WIDTH = 400
 
 
 # The front end draws the deck canvas at ``width + 100`` (room for labels; see
 # js/deck-gl/matrix/deck_mat.js), plus a 1px border on each side.
 _CLUSTERGRAM_CANVAS_PADDING = 102
+
+
+def _columns_are_clusters(mat: Clustergram) -> bool:
+    """Whether a Clustergram's columns are clusters of cells (not genes, single cells
+    or neighborhoods), so the Landscape's highlighted clusters name its columns."""
+    entity = getattr(mat, "col_entity", None) or {"entity": "cell", "attr": "leiden"}
+    if isinstance(entity, str):
+        try:
+            entity = json.loads(entity)
+        except ValueError:
+            entity = {"entity": entity}
+    if not isinstance(entity, dict):
+        return False
+    return entity.get("entity", "cell") == "cell" and entity.get("attr") != "name"
 
 
 def _clustergram_panel_width(mat: Clustergram) -> str:
@@ -70,7 +95,10 @@ def spatial_clustergram(
     col_enrich: bool = False,
     enrich_kwargs: dict | None = None,
     cluster_attr: str | None = None,
-) -> HBox:
+    clerk: "bool | Clerk" = False,
+    clerk_layout: str = "sidecar",
+    clerk_kwargs: dict | None = None,
+) -> "HBox | VBox":
     """
     Display a spatial widget and a `Clustergram` widget side by side, linked
     so that clicking a Clustergram row/column updates the spatial widget.
@@ -109,10 +137,25 @@ def spatial_clustergram(
             a clicked cluster refers to. Only used when `spatial` is a
             `Yearbook`; defaults to the Clustergram's own ``col_entity``
             attribute (see `_clustergram_col_attr`).
+        clerk (bool | Clerk): If True, create a `Clerk`; if a `Clerk` is given,
+            use it. Either way it is linked (:func:`link_clerk`) to the spatial
+            widget, the Clustergram and any `Enrich` here. If False, no Clerk.
+        clerk_layout (str): ``"sidecar"`` (default) adds Clerk to the end of the
+            row as a narrow column the row's height, like `Enrich`: it takes the
+            room the row leaves (240-300 px), and the views keep their widths. A row
+            wider than the notebook scrolls sideways. ``"wide"`` puts Clerk full
+            width under the row.
+        clerk_kwargs (dict | None): Optional kwargs passed to `Clerk` when
+            `clerk=True`, e.g. ``{"context_info": "..."}``.
 
     Returns:
-        HBox: Visualization display containing the widgets.
+        HBox: The widgets side by side; with ``clerk_layout="wide"``, a VBox with
+        that row above the Clerk.
     """
+    if clerk_layout not in ("sidecar", "wide"):
+        raise ValueError("clerk_layout must be 'sidecar' or 'wide'")
+    clerk_widget = _clerk_for_layout(clerk, clerk_layout, height, clerk_kwargs)
+
     if isinstance(spatial, Yearbook):
         attr = cluster_attr or _clustergram_col_attr(mat)
         _link_clustergram_to_yearbook(mat, spatial, attr)
@@ -120,10 +163,17 @@ def spatial_clustergram(
         mat.layout = Layout(width=width)
         spatial.layout = Layout(width="100%", height=height)
 
-        return HBox([spatial, mat])
+        if clerk_widget is not None:
+            # A Yearbook has no raster for Clerk; it still reads the Clustergram.
+            _link_clerk_once(clerk_widget, clustergram=mat)
+        return _with_clerk([spatial, mat], clerk_widget, clerk_layout)
 
     # Link clustergram click_info to the spatial widget's update_trigger
     jslink((mat, "click_info"), (spatial, "update_trigger"))
+    # Clusters highlighted in the Landscape (by its bars, a Clustergram click or a
+    # Clerk link) show as blue column labels when the columns are those clusters.
+    if spatial.has_trait("selected_clusters") and _columns_are_clusters(mat):
+        jsdlink((spatial, "selected_clusters"), (mat, "highlighted_cols"))
 
     # Layouts
     mat.layout = Layout(width=_clustergram_panel_width(mat))
@@ -154,7 +204,79 @@ def spatial_clustergram(
     if enrich_widget is not None:
         children.append(enrich_widget)
 
-    return HBox(children)
+    if clerk_widget is not None:
+        _link_clerk_once(clerk_widget, landscape=spatial, clustergram=mat, enrich=enrich_widget)
+        if clerk_layout == "sidecar":
+            _fit_row_beside_clerk([spatial, mat, enrich_widget])
+    return _with_clerk(children, clerk_widget, clerk_layout)
+
+
+#: A sidecar Clerk fills the room the row leaves, between these widths (px).
+CLERK_SIDECAR_MIN_WIDTH = 240
+CLERK_SIDECAR_MAX_WIDTH = 300
+#: Room under a sidecar row for its horizontal scrollbar, when it's wider than the notebook.
+ROW_SCROLLBAR_PADDING = "0 0 14px 0"
+
+
+def _clerk_for_layout(
+    clerk: "bool | Clerk", layout: str, height: str, kwargs: dict | None
+) -> "Clerk | None":
+    """The Clerk to show (created if asked for), sized for its layout."""
+    if isinstance(clerk, Clerk):
+        widget = clerk
+    elif clerk:
+        widget = Clerk(**dict(kwargs or {}))
+    else:
+        return None
+    if layout == "sidecar":
+        widget.height = _pixel_height(height)  # the row's height
+        if widget.width:
+            # A width the caller set is kept as is.
+            widget.layout = Layout(flex="0 0 auto")
+        else:
+            # Fill the room the row leaves, within a narrow column's bounds.
+            widget.layout = Layout(
+                flex=f"1 1 {CLERK_SIDECAR_MAX_WIDTH}px",
+                min_width=f"{CLERK_SIDECAR_MIN_WIDTH}px",
+                max_width=f"{CLERK_SIDECAR_MAX_WIDTH}px",
+            )
+    else:
+        widget.width = 0  # the full width of the notebook
+    return widget
+
+
+def _fit_row_beside_clerk(widgets: list) -> None:
+    """Beside a sidecar Clerk, the views keep their full widths; only Clerk flexes.
+
+    A row wider than the notebook scrolls sideways (see :func:`_with_clerk`) rather
+    than squeezing the views.
+    """
+    for widget in widgets:
+        if widget is not None:
+            layout = widget.layout
+            widget.layout = Layout(width=layout.width, height=layout.height, flex="0 0 auto")
+
+
+def _link_clerk_once(clerk: "Clerk", **widgets) -> None:
+    """Link only what this Clerk isn't linked to yet (it may come pre-linked)."""
+    linked = getattr(clerk, "_linked_widgets", None) or {}
+    fresh = {k: w for k, w in widgets.items() if w is not None and linked.get(k) is not w}
+    if fresh:
+        link_clerk(clerk, **fresh)
+
+
+def _with_clerk(children: list, clerk: "Clerk | None", layout: str) -> "HBox | VBox":
+    if clerk is None:
+        return HBox(children)
+    if layout == "sidecar":
+        # Wider than the notebook, the row scrolls sideways, with room for the
+        # scrollbar under it, rather than squeezing the views.
+        return HBox(
+            [*children, clerk],
+            # Exactly the output's width, so this row (not the output) scrolls.
+            layout=Layout(width="100%", overflow="auto hidden", padding=ROW_SCROLLBAR_PADDING),
+        )
+    return VBox([HBox(children), clerk])
 
 
 def landscape_clustergram(
@@ -404,8 +526,144 @@ def landscape_yearbook_clustergram(
     return VBox([top_row, yearbook])
 
 
+def _feed_landscape_raster_to_clerk(
+    landscape: Landscape, clerk: Clerk, *, capture_on_select: bool = True
+) -> None:
+    """Wire a Landscape's raster capture into a Clerk's image evidence.
+
+    Copies the captured PNG and its exact view state (zoom/pan) into the Clerk, and
+    (optionally) requests a fresh capture whenever the Landscape selection changes so the
+    attached raster reflects what the user is inspecting.
+    """
+
+    def _copy_raster(change):
+        png = change["new"] or ""
+        if png:
+            # Preview first: the panel redraws when ``has_image`` flips.
+            clerk.image_thumb_b64 = landscape.raster_thumb or ""
+            clerk.image_b64 = png
+
+    def _copy_view_state(change):
+        vs = change["new"] or {}
+        if vs:
+            clerk.image_view_state = dict(vs)
+
+    landscape.observe(_copy_raster, names="raster_png")
+    landscape.observe(_copy_view_state, names="raster_view_state")
+
+    if capture_on_select:
+
+        def _capture(_change):
+            with contextlib.suppress(Exception):
+                landscape.request_raster()
+
+        landscape.observe(_capture, names="update_trigger")
+
+    # Request an initial capture so the first question can include an image.
+    with contextlib.suppress(Exception):
+        landscape.request_raster()
+
+
+def _feed_clustergram_genes_to_clerk(cgm: Clustergram, clerk: Clerk) -> None:
+    """Wire a Clustergram's selected genes into a Clerk's ``gene_list`` evidence."""
+
+    def _on_selected_genes(change):
+        clerk.gene_list = list(change["new"] or [])
+
+    cgm.observe(_on_selected_genes, names="selected_genes")
+
+
+def link_clerk(
+    clerk: Clerk,
+    *,
+    landscape: Landscape | None = None,
+    clustergram: Clustergram | None = None,
+    enrich: Enrich | None = None,
+    yearbook: Yearbook | None = None,
+    capture_on_select: bool = True,
+) -> Clerk:
+    """Link a standalone `Clerk` to whichever widgets you pass -- the integration point.
+
+    Clerk stands alone and only sees the widgets you pass it. Widgets are modular and
+    swappable: pass any subset. The usual case is ``Landscape`` + ``Clustergram`` +
+    ``Enrich``. Each question from the chat box captures the linked views as they are
+    at that moment:
+
+    - ``landscape`` -> a screenshot of the current view (+ zoom/pan view state) in
+      ``clerk.image_b64`` / ``clerk.image_view_state``.
+    - ``clustergram`` -> a snapshot of what's on screen (``Clustergram.request_state``),
+      plus any genes named in the question; its selected genes also flow into
+      ``clerk.gene_list``.
+    - ``enrich`` -> the enrichment results on screen (``Enrich.request_state``). Clerk
+      then stops fetching its own Enrichr terms.
+
+    - ``yearbook`` -> the portraits on screen (its query, page and cells, and an
+      image), shown with the question. Clerk can also choose which cells it shows: a
+      cluster ranked by a gene (the Yearbook's own query), or, given a single-cell
+      AnnData (``Clerk(adata=...)``: an AnnData, or a link to one), any selection
+      ``celldega.select`` can make.
+
+    This only wires state; lay the widgets out however you like. Returns ``clerk`` for
+    chaining.
+
+    Args:
+        clerk (Clerk): The Clerk widget to link.
+        landscape (Landscape | None): Source of raster / view-state evidence.
+        clustergram (Clustergram | None): Source of matrix and gene-list evidence.
+        enrich (Enrich | None): Source of enrichment-result evidence.
+        yearbook (Yearbook | None): Source of single-cell portrait evidence.
+        capture_on_select (bool): Re-capture the Landscape raster on each selection.
+    """
+    # Remember linked widgets so later features (set-state, evidence sharing) can find
+    # them without re-plumbing.
+    linked = dict(getattr(clerk, "_linked_widgets", {}) or {})
+    if clustergram is not None:
+        _feed_clustergram_genes_to_clerk(clustergram, clerk)
+        linked["clustergram"] = clustergram
+    if landscape is not None:
+        _feed_landscape_raster_to_clerk(landscape, clerk, capture_on_select=capture_on_select)
+        linked["landscape"] = landscape
+    if enrich is not None:
+        linked["enrich"] = enrich
+        clerk.fetch_enrichr = False  # read the Enrich panel's results instead
+    if yearbook is not None:
+        linked["yearbook"] = yearbook
+    clerk._linked_widgets = linked
+    return clerk
+
+
+def landscape_clerk(
+    landscape: Landscape,
+    clerk: Clerk,
+    width: str = "600px",
+    height: str = "650px",
+    *,
+    capture_on_select: bool = True,
+) -> HBox:
+    """Convenience layout: a `Landscape` beside a portrait `Clerk`, wired via
+    :func:`link_clerk`.
+
+    For anything else, call :func:`link_clerk` and arrange the widgets yourself.
+
+    Args:
+        landscape (Landscape): A `Landscape` widget.
+        clerk (Clerk): A `Clerk` widget.
+        width (str): Width of the Landscape widget.
+        height (str): Height of both widgets.
+        capture_on_select (bool): Re-capture the raster on each Landscape selection.
+
+    Returns:
+        HBox: Both widgets side by side.
+    """
+    link_clerk(clerk, landscape=landscape, capture_on_select=capture_on_select)
+    landscape.layout = Layout(width=width, height=height)
+    clerk.layout = Layout(height=height)
+    return HBox([landscape, clerk])
+
+
 __all__ = [
     "CellCloud",
+    "Clerk",
     "Clustergram",
     "Composition",
     "Enrich",
@@ -413,16 +671,23 @@ __all__ = [
     "Landscape",
     "NeighborhoodCloud",
     "Screenshot",
+    "Snapshot",
+    "Snapshots",
     "Yearbook",
     "clustergram_enrich",
     "from_png",
     "get_local_server",
     "get_proxy_server",
+    "landscape_clerk",
     "landscape_clustergram",
     "landscape_yearbook",
     "landscape_yearbook_clustergram",
+    "link_clerk",
     "load_screenshot",
     "load_screenshots",
+    "load_snapshot",
+    "load_snapshots",
     "screenshot",
+    "snapshot",
     "spatial_clustergram",
 ]

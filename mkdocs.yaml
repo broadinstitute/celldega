@@ -77,9 +77,13 @@ nav:
       - Enrich: visualizations/enrich.md
       - Landscape–Clustergram–Enrich: visualizations/landscape-clustergram-enrich.md
       - CellCloud–Clustergram: visualizations/cell-cloud-clustergram.md
+      - Clerk:
+          - visualizations/clerk/index.md
+          - "Embedding Clerk": visualizations/clerk/hosting.md
   - Python API:
       - python/index.md
       - align: python/align/api.md
+      - clerk: python/clerk/api.md
       - clust: python/clust/api.md
       - collection: python/collection/api.md
       - dataset: python/dataset/api.md
@@ -94,7 +98,7 @@ nav:
       - javascript/index.md
       - API: javascript/api.md
       - "Viz API: getters, setters, exporters": javascript/viz-api.md
-      - "Portable saved views": javascript/saved-views.md
+      - "Portable Snapshots": javascript/saved-views.md
       - Development:
           - State management: javascript/development/state-management.md
   - Gallery:

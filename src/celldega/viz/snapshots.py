@@ -57,7 +57,7 @@ def validate_snapshot(snapshot: dict) -> None:
             f"Unsupported saved-view schema/version {snapshot.get('version')!r}; this "
             f"Celldega reads version {VERSION}. Recapture the view."
         )
-    if snapshot.get("kind") not in ("landscape", "clustergram"):
+    if snapshot.get("kind") not in ("landscape", "clustergram", "yearbook"):
         raise ValueError("Unsupported saved-view kind")
     if not isinstance(snapshot.get("state"), dict):
         raise ValueError("Saved view has no replay settings")

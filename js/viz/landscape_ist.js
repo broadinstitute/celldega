@@ -107,10 +107,12 @@ import {
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { add_pic_button } from '../ui/pic_button';
+import { add_pins_control } from '../ui/pins';
 import { toggle_slider, set_image_layer_sliders } from '../ui/sliders';
 import { get_img_layer_visible } from '../ui/text_buttons';
 import { sync_trx_button } from '../ui/trx_handle';
 import { make_ist_ui_container } from '../ui/ui_containers';
+import { collapse_view_modes } from '../ui/view_mode_menu';
 import { initialize_expression_scatter } from '../umap/expression_scatter';
 import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
@@ -142,6 +144,7 @@ import {
   landscape_identity,
   landscape_source,
 } from './snapshot';
+import { announce_view, listen_for_view_requests } from './view_requests';
 
 // Row group reading support
 
@@ -1228,10 +1231,35 @@ export const landscape_ist = async (
   el.appendChild(ui_container);
   el.appendChild(root);
 
+  // The clusters highlighted here (while cells are colored by cluster), for
+  // linked widgets: a Clustergram turns their column labels blue.
+  const publish_selected_clusters = () => {
+    const { model } = viz_state;
+    if (typeof model?.set !== 'function') return;
+    const clusters =
+      viz_state.cats?.cat === 'cluster'
+        ? (viz_state.obs_store.selected_cats.get() || []).map(String)
+        : [];
+    const now = model.get('selected_clusters') || [];
+    if (JSON.stringify(now) === JSON.stringify(clusters)) return;
+    model.set('selected_clusters', clusters);
+    model.save_changes();
+  };
+  cleanup_callbacks.push(
+    viz_state.obs_store.selected_cats.subscribe(publish_selected_clusters, {
+      immediate: false,
+    }),
+    viz_state.obs_store.selected_genes.subscribe(publish_selected_clusters, {
+      immediate: false,
+    })
+  );
+
   // PIC: save a screenshot with a description; Python writes the PNG and the
   // state to recreate it (see ui/pic_button.js and Landscape.screenshot).
+  // SNAP sits with the view controls (IMG, the image source), not by the logo.
   const pic = add_pic_button(ui_container, {
     model: viz_state.model,
+    container: viz_state.containers.view_modes || null,
     capture: async () => ({
       snapshot: await landscape.snapshot({ max_size: 2048, thumb_size: 64 }),
     }),
@@ -1242,6 +1270,27 @@ export const landscape_ist = async (
     viz_state.model.off?.('msg:custom', on_pic_message);
     pic.dispose();
   });
+
+  // Snapshot cards linked to this Landscape open their view here, in the browser.
+  cleanup_callbacks.push(
+    listen_for_view_requests(viz_state.model, (snapshot) => {
+      // A move of ours, not the scientist's (see on_view_state_change).
+      viz_state.programmatic_view_at = Date.now();
+      return landscape.restore_snapshot(snapshot, { allow_resize: true });
+    })
+  );
+
+  // PINS: Snapshots pinned on the tissue (landscape.pins); a pin opens its view.
+  if (viz_state.containers.view_modes) {
+    const pins = add_pins_control({
+      viz_state,
+      layers_obj,
+      container: viz_state.containers.view_modes,
+      restore: (snapshot) =>
+        landscape.restore_snapshot(snapshot, { allow_resize: true }),
+    });
+    cleanup_callbacks.push(() => pins.dispose());
+  }
 
   // Reveal the neighborhood layer in the initial view when landscape_state='nbhd'.
   // Done after the UI is built so the viz_nbhd_layer subscription can update the
@@ -1375,6 +1424,10 @@ export const landscape_ist = async (
         deck_ist
       )
     );
+    // SPATIAL / UMAP / XY as one small menu, now that XY's button exists.
+    cleanup_callbacks.push(
+      collapse_view_modes(viz_state, viz_state.containers.view_modes)
+    );
     viz_state.refresh_viewport = () =>
       calc_viewport(
         {
@@ -1465,13 +1518,13 @@ export const landscape_ist = async (
       update_selected_cats(viz_state.cats, [inst_col], viz_state.obs_store);
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
+      // Repaint: each refresh toggles its layer's readiness false→true. Leaving a
+      // layer marked not-ready (as a bare reset here once did) blocks every later
+      // repaint, so zooming in would show no transcripts.
       viz_state.layers_obj = layers_obj;
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      refresh_layer(viz_state, layers_obj, 'path_layer');
+      refresh_layer(viz_state, layers_obj, 'trx_layer');
 
       // Notify listeners
       callbacks.on_cluster_select.forEach((cb) => cb(inst_col));
@@ -1485,13 +1538,13 @@ export const landscape_ist = async (
 
       update_selected_genes(viz_state.genes, [], viz_state.obs_store);
 
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
+      // Repaint: each refresh toggles its layer's readiness false→true. Leaving a
+      // layer marked not-ready (as a bare reset here once did) blocks every later
+      // repaint, so zooming in would show no transcripts.
       viz_state.layers_obj = layers_obj;
+      refresh_layer(viz_state, layers_obj, 'cell_layer');
+      refresh_layer(viz_state, layers_obj, 'path_layer');
+      refresh_layer(viz_state, layers_obj, 'trx_layer');
 
       // Notify listeners
       callbacks.on_clusters_select.forEach((cb) => cb(selected_cols));
@@ -1506,18 +1559,19 @@ export const landscape_ist = async (
         viz_state,
         viz_state.obs_store
       );
-      viz_state.obs_store.deck_check.set({
-        ...viz_state.obs_store.deck_check.get(),
-        cell_layer: false,
-        path_layer: false,
-        trx_layer: false,
-      });
 
+      // calc_viewport owns layer readiness. Resetting it after the load leaves
+      // cell_layer pending indefinitely and blocks transcript redraws on later zooms.
       deck_ist.setProps({
         controller: { doubleClickZoom: false },
         initialViewState: new_view_state,
         views: viz_state.views,
       });
+      // The scale bar follows the camera on user gestures (on_view_state_change);
+      // a programmatic move (apply_state, a restored Snapshot, a pin) updates it here.
+      if (viz_state.scale_bar) {
+        viz_state.obs_store.scale_bar_view_state.set(new_view_state);
+      }
 
       viz_state.layers_obj = layers_obj;
     },
@@ -1548,6 +1602,10 @@ export const landscape_ist = async (
     get_replay_state: () => get_landscape_replay_state(viz_state),
     apply_state: (changes = {}, { timeout_ms = 30000 } = {}) => {
       const canvas = deck_ist.getCanvas?.();
+      // The view changes: linked Snapshot cards drop their "shown" mark (a
+      // Snapshot or pin being opened marks its own once it is shown).
+      announce_view(viz_state.model, '');
+      viz_state.programmatic_view_at = Date.now();
       return wait_for_operation(
         () =>
           apply_landscape_state(

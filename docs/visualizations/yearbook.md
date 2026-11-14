@@ -29,7 +29,7 @@ same scale.
 | --- | --- | --- |
 | 1 | Image | **IMG** shows or hides the image; each channel button toggles a channel, and its slider sets the channel's brightness. |
 | 2 | **CELL** | Shows or hides the cells; the slider sets their size. The bars count the clusters of the cells shown; click a bar to show only that cluster's cells. |
-| 3 | **TRX** | Shows or hides transcripts; the slider sets their size. Click a gene's bar, or shift-click several, to show only those genes' transcripts. |
+| 3 | **TRX** | Shows or hides transcripts; the slider sets their size. Click a gene's bar, or shift-click several, to show only those genes' transcripts. Two or more genes get distinct colors, and typed genes turn the bars into their key (see [Genes and transcripts](landscape/index.md#genes-and-transcripts)). |
 | 4 | Gene search | Choose genes by name, as in a Landscape. |
 | 5 | **Query Cells** | Find cells by cluster, gene, or both; see [Querying cells](#querying-cells). |
 | 6 | Pages | Move between pages of portraits. |

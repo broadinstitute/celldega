@@ -258,7 +258,7 @@ def test_widget_screenshots_default_to_celldega_files(tmp_path, monkeypatch) -> 
     _browser(ls, _png(20, 20), LANDSCAPE_STATE)
     shot = ls.screenshot("x")
     assert shot.wait(timeout=5) and not shot.error
-    assert shot.path.parent == Path("celldega_files/screenshots")
+    assert shot.path.parent == Path("celldega_files/snapshots")
 
 
 def test_pic_and_screenshot_save_to_the_same_place(tmp_path, monkeypatch) -> None:

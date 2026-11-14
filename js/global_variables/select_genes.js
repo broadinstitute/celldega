@@ -1,5 +1,6 @@
 import { force_set_selected_cats, update_cat } from './cat';
 import { update_cell_exp_array } from './cell_exp_array';
+import { set_gene_comparison } from './gene_comparison';
 import { force_set_selected_genes } from './selected_genes';
 
 /**
@@ -58,14 +59,24 @@ export const is_current_gene_load = (cats, applied, cat) =>
 /**
  * Show `genes` in a Landscape or Yearbook: the transcripts of every listed
  * gene, and cells colored by their summed expression. An empty list returns
- * to cluster coloring.
+ * to cluster coloring. Two or more genes are compared: their transcripts get
+ * distinct colors, and the gene bars become their key (see gene_comparison.js).
  *
  * @param {object} viz_state
  * @param {string[]} genes
+ * @param {{filter_bars?: boolean}} [options] - Filter the gene bars to these
+ *   genes while comparing them (default; false keeps every bar, e.g. for a
+ *   selection built by shift-clicking bars).
  */
-export const select_genes = async (viz_state, genes) => {
+export const select_genes = async (
+  viz_state,
+  genes,
+  { filter_bars = true } = {}
+) => {
   const { cats, obs_store } = viz_state;
   const { selected, total } = limit_gene_selection(genes, viz_state.genes);
+  // Before the selection notifies its subscribers, which redraw with it.
+  set_gene_comparison(viz_state.genes, selected, { filter: filter_bars });
 
   // Read by the gene panel (gene_search.js) to note when only a subset is
   // shown. Tied to this exact list, so selections made elsewhere never show

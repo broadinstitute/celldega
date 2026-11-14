@@ -185,14 +185,20 @@ const row_label_text_color = (viz_state, d) => {
     : [0, 0, 0, crop_alpha];
 };
 
-// Column labels: crop fade plus the reorder-driver blue (no term-gene
-// highlighting — columns aren't genes).
+// Columns highlighted elsewhere, e.g. the clusters highlighted in a linked
+// Landscape (`highlighted_cols`), or shift-clicked here.
+const is_col_label_highlighted = (viz_state, d) =>
+  Boolean(viz_state.labels.highlighted_cols?.has(String(d.name ?? '')));
+
+// Column labels: crop fade, plus blue for highlighted columns and the reorder
+// driver.
 const col_label_text_color = (viz_state, d) => {
   const crop_alpha = Math.round(
     255 * crop_fade_axis_alpha_factor(viz_state, 'col', d.index)
   );
   if (crop_alpha === 0) return [0, 0, 0, 0];
-  return is_reorder_driver_label(viz_state, 'col', d)
+  return is_col_label_highlighted(viz_state, d) ||
+    is_reorder_driver_label(viz_state, 'col', d)
     ? [...HIGHLIGHT_LABEL_COLOR, crop_alpha]
     : [0, 0, 0, crop_alpha];
 };
@@ -276,7 +282,8 @@ export const ini_row_label_focus_layer = (viz_state) => {
     // The overlay REPLACES the (transparent) base label, so it takes over its
     // click/hover behavior via the handlers stashed by the set_* wiring.
     pickable: true,
-    onClick: (event) => viz_state.labels._row_label_click_handler?.(event),
+    onClick: (event, src_event) =>
+      viz_state.labels._row_label_click_handler?.(event, src_event),
     onHover: (info) => viz_state.labels._row_label_hover_handler?.(info),
     // Deliberately no transitions: TextLayer expands strings into
     // per-character instances, so transitioning this filtered layer between
@@ -304,6 +311,22 @@ export const refresh_row_label_styles = (layers_mat, viz_state) => {
     },
   });
   refresh_row_label_focus_layer(layers_mat, viz_state);
+};
+
+/** Re-trigger column-label colors, e.g. after `highlighted_cols` changes. */
+export const refresh_col_label_highlight = (
+  deck_mat,
+  layers_mat,
+  viz_state
+) => {
+  viz_state.labels._col_style_rev = (viz_state.labels._col_style_rev || 0) + 1;
+  layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
+    updateTriggers: {
+      ...get_layer_update_triggers(layers_mat.col_label_layer),
+      getColor: col_label_color_triggers(viz_state),
+    },
+  });
+  deck_mat.setProps({ layers: get_mat_layers_list(layers_mat) });
 };
 
 /**
@@ -646,13 +669,80 @@ const queue_label_single_click = (viz_state, axis, label, callback) => {
   }, DOUBLE_CLICK_DELAY);
 };
 
+/**
+ * Shift-click on a label adds it to (or removes it from) a selection of several
+ * columns or rows, which linked widgets receive like a dendrogram group: a
+ * Landscape highlights the clusters, or colors cells by the genes together.
+ */
+const apply_label_shift_click = (
+  deck_mat,
+  layers_mat,
+  viz_state,
+  axis,
+  label
+) => {
+  const { labels } = viz_state;
+  const current = labels.multi_selection?.[axis] || [];
+  const name = String(label.name);
+  const names = current.includes(name)
+    ? current.filter((n) => n !== name)
+    : [...current, name];
+  labels.multi_selection = { [axis]: names };
+  labels.shift_highlight = { ...labels.shift_highlight, [axis]: true };
+
+  viz_state.click.type = `${axis}_dendro`;
+  viz_state.click.value = {
+    name: null,
+    selected_names: names,
+    is_unselecting: names.length === 0,
+    entity: (axis === 'row' ? viz_state.row_entity : viz_state.col_entity)
+      .entity,
+    attr: (axis === 'row' ? viz_state.row_entity : viz_state.col_entity).attr,
+    row_entity: viz_state.row_entity.entity,
+    col_entity: viz_state.col_entity.entity,
+    row_entity_full: viz_state.row_entity,
+    col_entity_full: viz_state.col_entity,
+    shift_click: true,
+  };
+  if (viz_state.model?.set) {
+    viz_state.model.set('click_info', null);
+    viz_state.model.set('click_info', viz_state.click);
+    viz_state.model.save_changes();
+  }
+
+  if (axis === 'row') {
+    sync_selected_rows(viz_state, names);
+    sync_selected_genes(viz_state, names);
+    // Shift-selected rows are blue, like genes highlighted from elsewhere.
+    labels.highlighted_genes = new Set(names.map((n) => n.toLowerCase()));
+    viz_state.model?.set?.('highlighted_genes', names);
+    viz_state.model?.save_changes?.();
+    refresh_row_label_highlight(deck_mat, layers_mat, viz_state);
+  } else {
+    sync_selected_cols(viz_state, names);
+    // Their top genes together (for a linked Enrich), as one column's are.
+    const genes = new Set();
+    (viz_state.col_nodes || []).forEach((node, index) => {
+      if (names.includes(String(node.name))) {
+        top_gene_names_for_column(viz_state, index).forEach((g) =>
+          genes.add(g)
+        );
+      }
+    });
+    sync_selected_genes(viz_state, [...genes]);
+    labels.highlighted_cols = new Set(names);
+    refresh_col_label_highlight(deck_mat, layers_mat, viz_state);
+  }
+};
+
 const handle_label_click = (
   event,
   deck_mat,
   layers_mat,
   viz_state,
   axis,
-  single_click_callback
+  single_click_callback,
+  src_event = null
 ) => {
   if (!event?.object) return;
 
@@ -662,6 +752,28 @@ const handle_label_click = (
   };
 
   ensure_label_click_tracking(viz_state);
+  if (src_event?.srcEvent?.shiftKey) {
+    clear_pending_label_click(viz_state, axis);
+    apply_label_shift_click(deck_mat, layers_mat, viz_state, axis, label);
+    return;
+  }
+  // A plain click starts a new selection (shift-clicks add to it), dropping the
+  // highlight shift-clicks made; highlights from linked widgets stay.
+  viz_state.labels.multi_selection = { [axis]: [String(label.name)] };
+  if (viz_state.labels.shift_highlight?.[axis]) {
+    viz_state.labels.shift_highlight[axis] = false;
+    if (axis === 'col') {
+      viz_state.labels.highlighted_cols = new Set(
+        (viz_state.model?.get?.('highlighted_cols') || []).map(String)
+      );
+      refresh_col_label_highlight(deck_mat, layers_mat, viz_state);
+    } else {
+      viz_state.labels.highlighted_genes = new Set();
+      viz_state.model?.set?.('highlighted_genes', []);
+      viz_state.model?.save_changes?.();
+      refresh_row_label_highlight(deck_mat, layers_mat, viz_state);
+    }
+  }
   const pending = viz_state.labels.pending_click[axis];
 
   if (!viz_state.labels.click_timeouts[axis]) {
@@ -697,20 +809,44 @@ const handle_label_click = (
   queue_label_single_click(viz_state, axis, label, single_click_callback);
 };
 
-const row_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
+const row_label_layer_onclick = (
+  event,
+  deck_mat,
+  layers_mat,
+  viz_state,
+  src_event = null
+) => {
   if (!event?.object) return;
 
   const visibility = viz_state.labels.row_visibility;
   if (visibility && visibility[event.object.index] === false) return;
 
-  handle_label_click(event, deck_mat, layers_mat, viz_state, 'row', (label) =>
-    apply_row_label_single_click(label, viz_state)
+  handle_label_click(
+    event,
+    deck_mat,
+    layers_mat,
+    viz_state,
+    'row',
+    (label) => apply_row_label_single_click(label, viz_state),
+    src_event
   );
 };
 
-const col_label_layer_onclick = (event, deck_mat, layers_mat, viz_state) => {
-  handle_label_click(event, deck_mat, layers_mat, viz_state, 'col', (label) =>
-    apply_col_label_single_click(label, viz_state)
+const col_label_layer_onclick = (
+  event,
+  deck_mat,
+  layers_mat,
+  viz_state,
+  src_event = null
+) => {
+  handle_label_click(
+    event,
+    deck_mat,
+    layers_mat,
+    viz_state,
+    'col',
+    (label) => apply_col_label_single_click(label, viz_state),
+    src_event
   );
 };
 
@@ -722,8 +858,8 @@ export const set_row_label_layer_onclick = (
   // Stashed so the bold focus overlay (rebuilt at many sites without access
   // to deck_mat/layers_mat) can forward its clicks to the same handler — the
   // base label underneath it is drawn transparent and therefore unpickable.
-  viz_state.labels._row_label_click_handler = (event) =>
-    row_label_layer_onclick(event, deck_mat, layers_mat, viz_state);
+  viz_state.labels._row_label_click_handler = (event, src_event) =>
+    row_label_layer_onclick(event, deck_mat, layers_mat, viz_state, src_event);
   layers_mat.row_label_layer = layers_mat.row_label_layer.clone({
     onClick: viz_state.labels._row_label_click_handler,
   });
@@ -735,8 +871,14 @@ export const set_col_label_layer_onclick = (
   viz_state
 ) => {
   layers_mat.col_label_layer = layers_mat.col_label_layer.clone({
-    onClick: (event) =>
-      col_label_layer_onclick(event, deck_mat, layers_mat, viz_state),
+    onClick: (event, src_event) =>
+      col_label_layer_onclick(
+        event,
+        deck_mat,
+        layers_mat,
+        viz_state,
+        src_event
+      ),
   });
 };
 

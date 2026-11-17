@@ -22,6 +22,7 @@ import { refresh_row_label_visibility } from '../matrix/composition_data';
 import { crop_filter_signature } from '../matrix/crop_filter';
 import { refresh_layer } from '../utils/refresh_layer';
 
+import { CONTROL_FONT_SIZE, control_width } from './control_style';
 import { set_nbhd_button_color } from './nbhd_button';
 import { toggle_slider } from './sliders';
 import { sync_trx_button } from './trx_handle';
@@ -233,7 +234,7 @@ export const make_reorder_dropdown = (
     padding: '0',
     margin: '0',
     fontFamily: BUTTON_FONT_FAMILY,
-    fontSize: '9px',
+    fontSize: CONTROL_FONT_SIZE,
     fontWeight: 'bold',
     color: viz_state.buttons.text_active,
     cursor: 'pointer',
@@ -294,7 +295,7 @@ export const make_text_toggle_group = (
         .append('div')
         .text('|')
         .style('color', 'black')
-        .style('font-size', '9px')
+        .style('font-size', CONTROL_FONT_SIZE)
         .style('font-weight', 'bold')
         .style('margin', '0 3px');
     }
@@ -302,7 +303,7 @@ export const make_text_toggle_group = (
       .append('div')
       .text(opt.label.toUpperCase())
       .style('display', 'inline-flex')
-      .style('font-size', '9px')
+      .style('font-size', CONTROL_FONT_SIZE)
       .on('click', () => {
         setActive(opt.value);
         onSelect(opt.value);
@@ -604,10 +605,10 @@ export const make_button = (
     .append('div')
     .attr('class', button_class)
     .text(text)
-    .style('width', `${width}px`)
+    .style('width', `${control_width(width)}px`)
     .style('text-align', 'left')
     .style('cursor', 'pointer')
-    .style('font-size', '12px')
+    .style('font-size', CONTROL_FONT_SIZE)
     .style('font-weight', 'bold')
     .style('color', color)
     .style('margin-top', '5px')
@@ -645,14 +646,14 @@ export const make_edit_button = (
     .classed(button_class, true)
     .classed('active', active)
     .text(text)
-    .style('width', `${width}px`)
+    .style('width', `${control_width(width)}px`)
     .style('height', '20px') // Adjust height for button padding
     .style('display', 'inline-flex')
     .style('align-items', 'center')
     .style('justify-content', 'center')
     .style('text-align', 'center')
     .style('cursor', 'pointer')
-    .style('font-size', '12px')
+    .style('font-size', CONTROL_FONT_SIZE)
     .style('font-weight', 'bold')
     .style('color', 'gray')
     // .style('border', '3px solid')  // Light gray border

@@ -299,7 +299,11 @@ export const bar_callback_gene = async (
     .selectAll('rect')
     .style('opacity', new_genes.length === 0 ? 1.0 : 0.2);
 
-  await select_genes(_viz_state, new_genes);
+  // Genes picked from the ranking keep every bar; editing a filtered key (bars
+  // that are already just the compared genes) keeps it filtered.
+  await select_genes(_viz_state, new_genes, {
+    filter_bars: Boolean(_viz_state.genes.comparison?.filter),
+  });
 };
 
 export const bar_callback_nbhd = (

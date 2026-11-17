@@ -11,6 +11,8 @@ from .core import (
     Selection,
     Selector,
     StratifiedSampler,
+    query_from_dict,
+    sampler_from_dict,
 )
 
 
@@ -25,4 +27,6 @@ __all__ = [
     "Selection",
     "Selector",
     "StratifiedSampler",
+    "query_from_dict",
+    "sampler_from_dict",
 ]

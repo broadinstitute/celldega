@@ -93,7 +93,8 @@ def test_write_screenshot_files_and_embedded_record(tmp_path) -> None:
     target = screenshot_module.write_screenshot(
         tmp_path, shots, description="A ring of cluster A.", title="Ring", author="you"
     )
-    assert target.parent == tmp_path and target.name.startswith("ring_")
+    # Named after its title.
+    assert target == tmp_path / "ring.png"
     assert not target.with_suffix(".json").exists()
     record = load_screenshot(target)
     assert record["description"] == "A ring of cluster A."
@@ -103,11 +104,14 @@ def test_write_screenshot_files_and_embedded_record(tmp_path) -> None:
     md = target.with_suffix(".md").read_text()
     assert "A ring of cluster A." in md and f"![Ring]({target.name})" in md
     assert "landscape.apply_state({'clusters': ['A']})" in md
-    # An explicit .png path is used as given; a second auto-named file doesn't clash.
+    # An explicit .png path is used as given; the same title again replaces the file,
+    # while untitled ones (named after the data and the time) don't clash.
     explicit = screenshot_module.write_screenshot(tmp_path / "fig" / "1a.png", shots)
     assert explicit == tmp_path / "fig" / "1a.png" and explicit.is_file()
     again = screenshot_module.write_screenshot(tmp_path, shots, title="Ring")
-    assert again != target and again.is_file()
+    assert again == target and again.is_file()
+    untitled = [screenshot_module.write_screenshot(tmp_path, shots) for _ in range(2)]
+    assert untitled[0] != untitled[1] and untitled[0].name.startswith("kidney_")
 
 
 def test_compose_places_widgets_side_by_side() -> None:
@@ -258,7 +262,7 @@ def test_widget_screenshots_default_to_celldega_files(tmp_path, monkeypatch) -> 
     _browser(ls, _png(20, 20), LANDSCAPE_STATE)
     shot = ls.screenshot("x")
     assert shot.wait(timeout=5) and not shot.error
-    assert shot.path.parent == Path("celldega_files/screenshots")
+    assert shot.path.parent == Path("celldega_files/snapshots")
 
 
 def test_pic_and_screenshot_save_to_the_same_place(tmp_path, monkeypatch) -> None:

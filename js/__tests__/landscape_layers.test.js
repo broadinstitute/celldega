@@ -143,6 +143,32 @@ test('master image visibility preserves channel choices and is isolated per inst
   expect(a.layers.image_layers[0].props.visible).toBe(false);
 });
 
+test('a saved view keeps the IMG setting, not an image hidden by a selection', async () => {
+  // Zoomed out with clusters selected, the image hides itself; IMG is still on.
+  const { state, api, context } = fixture();
+  state.obs_store.viz_image_layers.set(false);
+  const saved = api.get_landscape_layers(state);
+  expect(saved.layers.image).toBe(true);
+
+  // Restoring it turns IMG on and lets the usual rule decide what is drawn now
+  // (so zooming in later brings the image back).
+  state.img_layer_visible = false;
+  state.update_viz_image_layers = jest.fn(() =>
+    state.obs_store.viz_image_layers.set(false)
+  );
+  await api.apply_landscape_layers(state, context, { layers: { image: true } });
+  expect(state.img_layer_visible).toBe(true);
+  expect(state.update_viz_image_layers).toHaveBeenCalled();
+  expect(state.obs_store.viz_image_layers.get()).toBe(false);
+
+  // Turning IMG off is still explicit.
+  await api.apply_landscape_layers(state, context, {
+    layers: { image: false },
+  });
+  expect(state.img_layer_visible).toBe(false);
+  expect(api.get_landscape_layers(state).layers.image).toBe(false);
+});
+
 test.each([
   { layers: { cells: 1 } },
   { layers: { typo: true } },

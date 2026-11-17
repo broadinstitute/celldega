@@ -2,7 +2,7 @@ from importlib import import_module
 import importlib.metadata  # temporary fix for libpysal warning
 import warnings
 
-from celldega import align, clust, collection, dataset, nbhd, select, set, viz
+from celldega import align, clerk, clust, collection, dataset, nbhd, select, set, viz
 from celldega.align import align_serial_slices
 from celldega.collection import CelldegaCollection
 from celldega.dataset import DatasetCollection
@@ -12,6 +12,7 @@ from celldega.qc import qc_segmentation
 from celldega.set import SetCollection, concat_sets
 from celldega.viz import (
     CellCloud,
+    Clerk,
     Clustergram,
     Composition,
     Landmark,
@@ -36,6 +37,7 @@ def __dir__() -> list[str]:
 __all__ = [
     "CellCloud",
     "CelldegaCollection",
+    "Clerk",
     "Clustergram",
     "Composition",
     "DatasetCollection",
@@ -48,6 +50,7 @@ __all__ = [
     "align",
     "align_serial_slices",
     "alpha_shape",
+    "clerk",
     "clust",
     "collection",
     "concat_sets",

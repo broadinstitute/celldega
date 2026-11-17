@@ -34,6 +34,22 @@ describe('show_loading', () => {
     expect(el.children).toHaveLength(1); // the widget's own content is untouched
   });
 
+  test('as an overlay, covers the widget without moving or blocking it', () => {
+    const el = document.createElement('div');
+    const grid = document.createElement('canvas');
+    el.appendChild(grid);
+    const remove = show_loading(el, { overlay: true });
+    expect(el.firstChild).toBe(grid);
+    const box = el.lastChild;
+    expect(box.className).toBe('celldega-loading celldega-loading-overlay');
+    expect(box.style.height).toBe('');
+    expect(
+      document.getElementById('celldega-loading-style').textContent
+    ).toContain('.celldega-loading-overlay { position: absolute; inset: 0;');
+    remove();
+    expect([...el.children]).toEqual([grid]);
+  });
+
   test('keeps a minimum height and adds its style only once', () => {
     const el = document.createElement('div');
     show_loading(el, { height: 0 })();

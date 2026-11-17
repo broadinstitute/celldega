@@ -13,6 +13,11 @@ neighborhoods with **Landscape**; compare expression patterns with **Clustergram
 heatmaps and dot plots; and interpret gene sets with **Enrich**. Other views
 include cell portraits, composition charts, and 3D cell and neighborhood clouds.
 
+Preserve an observation as a **[Snapshot](https://broadinstitute.github.io/celldega/visualizations/#snapshots)**:
+a screenshot (raster image of the visualization), a memo, and metadata for
+reproducibility. Share the image with its context and revisit the supported view
+settings with the original data.
+
 Use Celldega in Jupyter or marimo notebooks, or as a standalone JavaScript
 library. Try it instantly in [molab](https://molab.marimo.io/notebooks/nb_QLzYVa6S9nBApCwvw9vzni),
 marimo's cloud notebooks, with a prepared Atera dataset. For

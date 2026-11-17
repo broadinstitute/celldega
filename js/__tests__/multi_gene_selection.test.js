@@ -60,6 +60,7 @@ describe('select_genes', () => {
         if (control.pending) await control.pending;
         return control.applied;
       };
+      ${read_stripped('../global_variables/gene_comparison.js')}
     `;
     mod = load(
       '../global_variables/select_genes.js',
@@ -169,6 +170,29 @@ describe('select_genes', () => {
     await loading;
     expect(viz_state.cats.cat).toBe('cluster');
     expect(viz_state.cats.selected_cats).toEqual(['3']);
+  });
+
+  it('compares two or more genes: distinct colors, set before subscribers run', async () => {
+    const viz_state = make_viz_state();
+    viz_state.genes.g_nameMapping = { G1: 1, G2: 2 };
+    const seen = [];
+    viz_state.obs_store.selected_genes.subscribe(() =>
+      seen.push(viz_state.genes.comparison)
+    );
+    await mod.select_genes(viz_state, ['G1', 'G2']);
+    const { comparison, comparison_colors } = viz_state.genes;
+    expect(comparison.genes).toEqual(['G1', 'G2']);
+    expect(comparison.filter).toBe(true);
+    expect(comparison.colors.G1).not.toEqual(comparison.colors.G2);
+    expect(comparison_colors[1]).toBe(comparison.colors.G1);
+    expect(seen).toEqual([comparison]);
+
+    await mod.select_genes(viz_state, ['G1', 'G2'], { filter_bars: false });
+    expect(viz_state.genes.comparison.filter).toBe(false);
+    // One gene keeps its own color.
+    await mod.select_genes(viz_state, ['G1']);
+    expect(viz_state.genes.comparison).toBeNull();
+    expect(viz_state.genes.comparison_colors).toBeNull();
   });
 
   it('treats a load as current only while nothing replaced it', () => {
@@ -467,8 +491,8 @@ describe('shift-click on gene bars', () => {
 
   beforeAll(() => {
     const shims = `
-      const select_genes = async (viz_state, genes) => {
-        selections.push(genes);
+      const select_genes = async (viz_state, genes, options) => {
+        selections.push({ genes, options });
         viz_state.genes.selected_genes = genes;
       };
       const toggle_slider = () => {};
@@ -519,5 +543,77 @@ describe('shift-click on gene bars', () => {
     expect(viz_state.genes.selected_genes).toEqual(['PODXL']);
     await click(viz_state, 'PODXL');
     expect(viz_state.genes.selected_genes).toEqual([]);
+  });
+
+  it('keeps every bar unless they are already a filtered key', async () => {
+    const viz_state = make_viz_state();
+    await click(viz_state, 'NPHS2', true);
+    expect(selections.at(-1).options).toEqual({ filter_bars: false });
+    // Removing a gene from a typed comparison, on its key, keeps the key.
+    viz_state.genes.selected_genes = ['NPHS1', 'NPHS2', 'PODXL'];
+    viz_state.genes.comparison = {
+      genes: ['NPHS1', 'NPHS2', 'PODXL'],
+      filter: true,
+    };
+    await click(viz_state, 'NPHS2', true);
+    expect(selections.at(-1)).toEqual({
+      genes: ['NPHS1', 'PODXL'],
+      options: { filter_bars: true },
+    });
+  });
+});
+
+describe('gene comparison', () => {
+  let mod;
+
+  beforeAll(() => {
+    mod = load('../global_variables/gene_comparison.js', '', [
+      'COMPARISON_COLORS',
+      'set_gene_comparison',
+      'gene_color',
+      'comparison_bar_data',
+      'comparison_key',
+    ]);
+  });
+
+  const make_genes = () => ({
+    g_nameMapping: { A: 0, B: 1, C: 2 },
+    color_dict_gene: { A: [1, 1, 1], B: [2, 2, 2], C: [3, 3, 3] },
+  });
+
+  it('has a distinct color for each gene up to the selection cap', () => {
+    const keys = new Set(mod.COMPARISON_COLORS.map((rgb) => rgb.join(',')));
+    expect(keys.size).toBe(20);
+  });
+
+  it('colors compared genes in selection order, others in their own color', () => {
+    const genes = make_genes();
+    mod.set_gene_comparison(genes, ['B', 'A']);
+    expect(mod.gene_color(genes, 'B')).toEqual(mod.COMPARISON_COLORS[0]);
+    expect(mod.gene_color(genes, 'A')).toEqual(mod.COMPARISON_COLORS[1]);
+    expect(mod.gene_color(genes, 'C')).toEqual([3, 3, 3]);
+    expect(genes.comparison_colors[1]).toEqual(mod.COMPARISON_COLORS[0]);
+    expect(mod.comparison_key(genes)).toBe('filter:B,A');
+    mod.set_gene_comparison(genes, ['A']);
+    expect(mod.gene_color(genes, 'A')).toEqual([1, 1, 1]);
+    expect(mod.comparison_key(genes)).toBe('');
+  });
+
+  it('filters the bars to the compared genes, as their key', () => {
+    const genes = make_genes();
+    const bars = [
+      { name: 'C', value: 9 },
+      { name: 'A', value: 4 },
+    ];
+    expect(mod.comparison_bar_data(genes, bars)).toBe(bars);
+    mod.set_gene_comparison(genes, ['A', 'B']);
+    // In selection order; a gene with nothing in view stays in the key.
+    expect(mod.comparison_bar_data(genes, bars)).toEqual([
+      { name: 'A', value: 4 },
+      { name: 'B', value: 0 },
+    ]);
+    mod.set_gene_comparison(genes, ['A', 'B'], { filter: false });
+    expect(mod.comparison_bar_data(genes, bars)).toBe(bars);
+    expect(mod.comparison_key(genes)).toBe('colors:A,B');
   });
 });

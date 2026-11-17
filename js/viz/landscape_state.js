@@ -486,7 +486,11 @@ export const apply_landscape_state = async (
       path_layer: false,
       trx_layer: false,
     });
+    // Every layer marked not-ready must be marked ready again, or deck.gl stops
+    // redrawing (deck_ready waits for all of them) and zooming in shows nothing.
     refresh_layer(viz_state, layers_obj, 'cell_layer');
+    refresh_layer(viz_state, layers_obj, 'path_layer');
+    refresh_layer(viz_state, layers_obj, 'trx_layer');
     done.push(
       clusters.length
         ? `highlighted cluster${clusters.length > 1 ? 's' : ''} ${clusters.join(', ')}`

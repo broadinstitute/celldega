@@ -11,6 +11,29 @@ from celldega.viz.widget import _clustergram_reproduction, _landscape_reproducti
 
 def snapshot_browser(widget, render):
     def send(content):
+        if content.get("event") == "apply_state":
+            result = render(content)
+            # These fixtures model a successful browser; explicit failure/timeout
+            # tests use their own transport. Echo the browser's trait sync, which
+            # now follows applying the request rather than preceding its send.
+            if content["id"] not in widget._apply_replies:
+                state = content["changes"]
+                for key, trait in {
+                    "space": "landscape_state",
+                    "marker_level": "rank_dim",
+                    "focus_gene": "focused_gene",
+                    "mode": "viz_mode",
+                    "size": "dot_size_encoded",
+                }.items():
+                    if key in state and widget.has_trait(trait):
+                        value = state[key]
+                        if key == "marker_level" and value == "all":
+                            value = 0
+                        if key == "size":
+                            value = value == "prop"
+                        setattr(widget, trait, value)
+                widget._on_apply_msg(widget, {"event": "applied", "id": content["id"]}, [])
+            return result
         if content.get("event") == "restore_snapshot":
             render(content)
             state = content["snapshot"]["state"]

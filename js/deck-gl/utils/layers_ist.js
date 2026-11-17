@@ -32,5 +32,7 @@ export const get_layers_list = (layers_obj, close_up, viz_state) => {
     layers_obj.nbhd_cloud_shapes_layer,
     layers_obj.nbhd_cloud_cell_layer,
     layers_obj.edit_layer,
+    // Pins (points of interest from Snapshots) stay on top.
+    layers_obj.pin_layer,
   ].filter(Boolean);
 };

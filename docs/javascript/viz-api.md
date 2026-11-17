@@ -8,21 +8,21 @@ code. Support varies by widget and control. Three kinds of methods cover this:
   and the values behind them.
 - **Setters** change what it shows, as its controls would: select clusters, color by
   genes, zoom to cells, move the Clustergram's marker level, label columns.
-- **Exporters** capture what it shows at three levels: a raster (the image alone), a
-  saved view (the image with its state, in memory), and a screenshot (a PNG file with
-  the saved view embedded). See [the three levels](saved-views.md#terms-and-scope).
+- **Snapshots** combine a screenshot (raster image), memo and metadata for
+  reproducibility, in memory or as a PNG. See [Snapshots](saved-views.md#terms-and-scope).
 
 `get_state()` returns bounded scientific observations. `get_replay_state()` returns
 complete inputs for supported controls, without those observation caps. Only the
 latter can be passed directly to `apply_state()`; saved views use it automatically.
 Saved settings replay the supported parts of a view on widgets with the same data.
 `from_png` can construct a fresh visualization from an exported PNG's source
-references and restore those settings. Use [portable saved views](saved-views.md) to
+references and restore those settings. Use [Portable Snapshots](saved-views.md) to
 capture image and state together and validate data identity before restoring
 supported settings; some controls remain outside replay coverage.
 
-The API uses corresponding operations in a web page (JavaScript) and a notebook
-(Python). Any web app, script or AI agent can use it to read a view, reason about it, show the
+The API uses corresponding operations in a web page (JavaScript) and a notebook (Python). It was built
+for [Clerk](../visualizations/clerk/index.md), Celldega's AI assistant, but it doesn't depend on it:
+any web app, script or AI agent can use it to read a view, reason about it, show the
 evidence it finds, and save it.
 
 | | JavaScript (web page) | Python (notebook widget) |
@@ -31,16 +31,17 @@ evidence it finds, and save it.
 | Replay inputs | `viz.get_replay_state()` | `widget.latest_snapshot["state"]` after capture |
 | Set | `await viz.apply_state(changes)` | `widget.apply_state(changes)`, then `widget.get_apply_result(widget.apply_request_id)` |
 | Raster | `viz.capture_raster(options)` returns a PNG | `widget.request_raster()`, then `widget.raster_png` |
-| Save view | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
-| Screenshot | `celldega.screenshot_png(saved_view)` returns a PNG Blob | `widget.screenshot(description, path)` writes the PNG |
+| Capture Snapshot | `await viz.snapshot(options)` | `widget.request_snapshot(...)`, then `widget.latest_snapshot` |
+| Save Snapshot | `celldega.snapshot_png(snapshot)` returns a PNG Blob | `widget.snapshot(description, path, name="...")` writes PNG + Markdown |
+| Notebook postcard | — | `dega.viz.Snapshot(landscape=landscape, snapshot="name")` |
 | Restore | `await viz.restore_snapshot(saved)` | `widget.restore_snapshot(saved)`, then `widget.get_apply_result(request_id)` |
 | Open PNG | `await celldega.from_png(el, file, options)` | `dega.viz.from_png(path, **options)`, then display the widget |
-| Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_screenshot(path)` |
+| Read PNG metadata | `await celldega.read_png(file)` | `dega.viz.load_snapshot(path)` |
 
 In Python, every request is answered asynchronously: the browser's reply reaches
 Python only after the calling cell finishes. Read `latest_state`, `raster_png` or
-`get_apply_result(...)` in a later cell, or `observe` the traits. Nothing is ever
-saved into the notebook's widget state.
+`get_apply_result(...)` in a later cell, or `observe` the traits. Live-view capture traits are not synced into notebook widget state. A displayed
+`Snapshot` postcard embeds its PNG, memo and metadata so the card can be shared.
 
 Design rules the API follows:
 
@@ -59,7 +60,7 @@ Design rules the API follows:
 
 `celldega.landscape(el, options)` returns the Landscape object these methods are on
 (see the [API reference](api.md)). CellCloud and NeighborhoodCloud support
-the same state/snapshot API; their `view` also supports orbit rotation.
+the same state and Snapshot APIs; their `view` also supports orbit rotation.
 
 ### `get_state(options)`
 
@@ -131,7 +132,7 @@ When `xy_genes` is empty at construction, XY starts with the two genes with the
 highest whole-dataset mean expression (X first, Y second). Ties keep dataset gene
 order; genes without finite mean statistics follow those with statistics, in dataset
 order. A one-gene dataset initializes X only. Explicit constructor axes take
-precedence, and later edits or snapshot restores—including empty axes—are preserved.
+precedence, and later edits or Snapshot restores—including empty axes—are preserved.
 The default uses loaded metadata and fetches expression only when XY is entered.
 
 ### `capture_raster(options)`
@@ -296,7 +297,9 @@ await landscape.apply_state({
 that axis. This updates the visualization and synced manual-category traits, not the
 source AnnData. `categories` remains the patch-oriented assignment API. Do not pass
 both in one operation. A saved dendrogram selection uses `{axis, members}` and must
-exist at the restored cut/crop; unavailable groups fail explicitly. Selection lists
+exist at the restored cut/crop; unavailable groups fail explicitly. `apply_state` also
+accepts `{axis, name}`, the group name `get_state` lists, which only identifies a group
+together with the cut it was listed at (pass that cut in `dendrogram`). Selection lists
 in replay state are uncapped, unlike the bounded observations returned by `get_state`.
 
 Restore applies cuts before crop, selection after crop, and camera last. The XY
@@ -344,5 +347,5 @@ transaction. Scientific state equality is the primary round-trip check; exact pi
 are only expected under matching canvas size, renderer, fonts, browser and GPU.
 
 Records remain marked `restoration: "partial"` because of these boundaries. Older
-saved views only restore the fields they contain. See [portable saved views](saved-views.md)
+saved views only restore the fields they contain. See [Portable Snapshots](saved-views.md)
 for identity checks, schema compatibility, and the explicit canvas-resize override.

@@ -3,6 +3,19 @@ const updateSelectedGeneState = (genes, selectedGenes) => {
     return;
   }
 
+  // A gene comparison (gene_comparison.js) lasts only as long as its exact
+  // selection: any other change of genes, e.g. a cluster click, ends it.
+  const compared = genes.comparison?.genes;
+  if (
+    compared &&
+    !(
+      compared.length === selectedGenes.length &&
+      compared.every((gene, i) => gene === selectedGenes[i])
+    )
+  ) {
+    genes.comparison = null;
+    genes.comparison_colors = null;
+  }
   genes.selected_genes = selectedGenes;
   genes.selected_gene_ids = new Set(
     selectedGenes

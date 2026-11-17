@@ -22,6 +22,7 @@ const makeAPI = () => {
   const code = [
     strip('../global_variables/image_info.js'),
     strip('../deck-gl/layers/image_layers.js'),
+    strip('../ui/control_style.js'),
     strip('../ui/image_source.js'),
     strip('../deck-gl/utils/layers_ist.js'),
     `return { make_image_layers, make_yearbook_image_layers,

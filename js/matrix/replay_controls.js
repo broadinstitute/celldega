@@ -128,15 +128,25 @@ export const validate_replay_controls = (state, changes) => {
     }
     if (spec.dendrogram != null) {
       const group = spec.dendrogram;
+      // A group at the current cut, by its members or by the name the state lists.
+      const by_name =
+        object(group) &&
+        typeof group.name === 'string' &&
+        group.name &&
+        !('members' in group);
       if (
         !object(group) ||
         !axes.includes(group.axis) ||
-        Object.keys(group).some((k) => !['axis', 'members'].includes(k))
+        Object.keys(group).some(
+          (k) => !['axis', by_name ? 'name' : 'members'].includes(k)
+        )
       )
         throw new Error('selection.dendrogram requires axis and members');
-      names(group.members, 'dendrogram selection', known[group.axis]);
-      if (!group.members.length)
-        throw new Error('A dendrogram selection needs members');
+      if (!by_name) {
+        names(group.members, 'dendrogram selection', known[group.axis]);
+        if (!group.members.length)
+          throw new Error('A dendrogram selection needs members');
+      }
     }
     if (!state.state_controls?.selection)
       throw new Error('Selection controls are not ready');

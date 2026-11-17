@@ -287,6 +287,7 @@ describe('scroll containment', () => {
   const make_scrollable = (element, { content = 500, visible = 100 } = {}) => {
     Object.defineProperty(element, 'scrollHeight', { value: content });
     Object.defineProperty(element, 'clientHeight', { value: visible });
+    element.style.overflowY = 'auto';
     return element;
   };
 
@@ -354,6 +355,31 @@ describe('scroll containment', () => {
     wheel(word);
     expect(paragraph.scrollTop).toBe(40);
     expect(bars.scrollTop).toBe(40);
+  });
+
+  test('content that overflows a box which does not scroll, or a box at its end, passes the scroll on', () => {
+    // The Clerk conversation's shape: an expanded work log with a code block (taller
+    // than its box, but not a scroll box) inside the scrolling conversation.
+    const api = load_gene_info({});
+    const pane = make_scrollable(document.createElement('div'));
+    const block = document.createElement('pre');
+    Object.defineProperty(block, 'scrollHeight', { value: 60 });
+    Object.defineProperty(block, 'clientHeight', { value: 50 });
+    block.style.overflowY = 'visible';
+    const inner = make_scrollable(document.createElement('div'));
+    pane.append(block, inner);
+    document.body.appendChild(pane);
+    api.contain_scroll(pane);
+
+    wheel(block);
+    expect(pane.scrollTop).toBe(40);
+    // An inner scroll box scrolls first; at its end, the conversation does.
+    wheel(inner);
+    expect(inner.scrollTop).toBe(40);
+    inner.scrollTop = 400; // at the bottom (500 - 100)
+    wheel(inner);
+    expect(inner.scrollTop).toBe(400);
+    expect(pane.scrollTop).toBe(80);
   });
 
   test('absorbs the gesture over empty panels with no results', () => {

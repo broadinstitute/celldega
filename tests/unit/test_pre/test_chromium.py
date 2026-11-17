@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
+import sys
+import types
 
 from anndata import AnnData
 import numpy as np
 import pandas as pd
 import pytest
 
-import sys
-import types
 
 fake_module = types.ModuleType("celldega.pre.run_pre_processing")
 fake_module.main = lambda *args, **kwargs: None

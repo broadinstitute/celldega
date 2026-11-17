@@ -164,6 +164,40 @@ test('bounded observations do not truncate replay state or lose provenance', asy
   });
 });
 
+test('a restore shows it is loading until the view has settled', async () => {
+  const events = [];
+  let settle;
+  const f = fixture({
+    busy: () => {
+      events.push('busy');
+      return () => events.push('done');
+    },
+    settled: () =>
+      new Promise((resolve) => {
+        events.push('settling');
+        settle = resolve;
+      }),
+  });
+  const saved = await f.api.snapshot();
+  const pending = f.api.restore_snapshot(saved);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(events).toEqual(['busy', 'settling']);
+  settle();
+  await expect(pending).resolves.toEqual(['moved']);
+  expect(events).toEqual(['busy', 'settling', 'done']);
+
+  // A view that fails to apply still clears it; one that never settles still
+  // restores (settled errors are ignored).
+  events.length = 0;
+  f.apply.mockRejectedValueOnce(new Error('nope'));
+  await expect(f.api.restore_snapshot(saved)).rejects.toThrow('nope');
+  expect(events).toEqual(['busy', 'done']);
+  const failing = fixture({ settled: () => Promise.reject(new Error('slow')) });
+  await expect(
+    failing.api.restore_snapshot(await failing.api.snapshot())
+  ).resolves.toEqual(['moved']);
+});
+
 test('restore freezes the submitted state while awaiting validation', async () => {
   const f = fixture();
   const saved = await f.api.snapshot();

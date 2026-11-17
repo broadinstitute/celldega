@@ -154,6 +154,10 @@ const canvas_size = (value) => ({
  * @param {() => {width: number, height: number}} api.viewport - Canvas size in
  *   CSS pixels (what the camera framing depends on).
  * @param {() => Promise<void>} [api.ready]
+ * @param {() => (() => void)} [api.busy] - Shows that a saved view is loading
+ *   (e.g. dims the visualization under the Celldega mark); returns its remover.
+ * @param {() => Promise<void>} [api.settled] - Resolves once a restored view has
+ *   finished loading (its tiles, expression...); `busy` shows until then.
  */
 export const create_snapshot_api = ({
   kind,
@@ -165,6 +169,8 @@ export const create_snapshot_api = ({
   source,
   viewport,
   ready,
+  busy,
+  settled,
 }) => ({
   /** Image, observations, replay settings and identity, all read in one JS task. */
   snapshot: async (options = {}) => {
@@ -240,9 +246,44 @@ export const create_snapshot_api = ({
         `Saved view does not match the loaded data: ${differences.join(', ')} differ`
       );
     // No mutation, including model traits, until every compatibility check passes.
-    return apply_state(copy(snapshot.state));
+    const stop_busy = busy?.();
+    try {
+      const done = await apply_state(copy(snapshot.state));
+      // Still loading the restored view: keep showing it, but never fail on it.
+      if (settled) await settled().catch(() => {});
+      return done;
+    } finally {
+      stop_busy?.();
+    }
   },
 });
+
+/**
+ * Resolves once `ready` (an observable flag, e.g. the Landscape's deck_ready) is
+ * true, checked after a frame so a change just made has started loading; or after
+ * `timeout_ms`, whichever comes first.
+ */
+export const wait_until_ready = (ready, timeout_ms = 15000) =>
+  new Promise((resolve) => {
+    let unsubscribe = null;
+    let timer = null;
+    const done = () => {
+      clearTimeout(timer);
+      unsubscribe?.();
+      resolve();
+    };
+    timer = setTimeout(done, timeout_ms);
+    const check = () => {
+      if (!ready || ready.get()) return done();
+      unsubscribe = ready.subscribe((value) => value && done(), {
+        immediate: false,
+      });
+      return undefined;
+    };
+    if (typeof requestAnimationFrame === 'function')
+      requestAnimationFrame(check);
+    else setTimeout(check, 16);
+  });
 
 /** Common notebook protocol; the same methods are public on standalone instances. */
 export const handle_snapshot_message = async (model, api, msg) => {

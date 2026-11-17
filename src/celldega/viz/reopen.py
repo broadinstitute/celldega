@@ -52,6 +52,10 @@ _SOURCE_OPTIONS = frozenset(
         "rank_dim",
         "row_label_scale",
         "col_label_scale",
+        "num_rows",
+        "num_cols",
+        "portrait_size_um",
+        "portrait_gap",
     ]
 )
 
@@ -127,7 +131,7 @@ def from_png(
     semantic restore, not a guarantee of identical pixels.
     """
     from .cloud import CellCloud, NeighborhoodCloud
-    from .widget import Clustergram, Landscape
+    from .widget import Clustergram, Landscape, Yearbook
 
     if not isinstance(allow_resize, bool):
         raise ValueError("allow_resize must be a boolean")
@@ -137,7 +141,9 @@ def from_png(
     if not isinstance(browser_source, dict) or not isinstance(python_source, dict):
         raise ValueError("PNG has invalid data source metadata")
     source = {**browser_source, **python_source}
-    default_kind = "Clustergram" if snapshot["kind"] == "clustergram" else "Landscape"
+    default_kind = {"clustergram": "Clustergram", "yearbook": "Yearbook"}.get(
+        snapshot["kind"], "Landscape"
+    )
     kind = source.get("widget") or default_kind
     classes = {
         "Landscape": Landscape,
@@ -145,11 +151,14 @@ def from_png(
         "NeighborhoodCloud": NeighborhoodCloud,
         "Clustergram": Clustergram,
         "Composition": Clustergram,
+        "Yearbook": Yearbook,
     }
     constructor = classes.get(kind)
     if constructor is None:
         raise ValueError(f"Cannot reopen PNG visualization type {kind!r}")
     if (constructor is Clustergram) != (snapshot["kind"] == "clustergram"):
+        raise ValueError("PNG source type does not match its saved view")
+    if (constructor is Yearbook) != (snapshot["kind"] == "yearbook"):
         raise ValueError("PNG source type does not match its saved view")
 
     options = {}

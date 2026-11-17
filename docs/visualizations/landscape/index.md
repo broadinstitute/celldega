@@ -112,6 +112,14 @@ several bars, to color cells by their **combined** (summed) expression; up to th
 20 highest-expressed genes are combined. Clear the search box, or type
 `cluster`, to return to cluster colors.
 
+With two or more genes selected you are comparing them, so their transcripts get
+distinct colors for the comparison (a gene's own color is arbitrary, and two can
+look alike). Genes typed in the search box, or sent by a Clustergram, Clerk or
+`apply_state`, also turn the gene bars into the comparison's key: just those genes,
+in their colors, with their counts in view. Shift-clicked bars keep every bar, since
+you're picking from the ranking; shift-clicking a gene on a key removes it from the
+comparison. Selecting a single gene, or a cluster, ends the comparison.
+
 [![Searching for NPHS2 and EMCN to color cells by their combined expression](../../assets/img/visualizations/landscape/search_genes.webp){ width="880" loading=lazy }](../../assets/img/visualizations/landscape/search_genes.webp)
 
 *Searching for the podocyte marker NPHS2 and the endothelial marker EMCN lights

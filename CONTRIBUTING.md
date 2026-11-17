@@ -121,6 +121,25 @@ test('should handle basic case', () => {
 });
 ```
 
+## Documentation terminology
+
+Use **Snapshot** (plural **Snapshots**) for Celldega's captured visualization
+artifact: a screenshot (raster image), a memo, and reproducibility metadata. The
+screenshot is its visual component; Snapshot names the whole artifact, whether
+held in memory or exported as a PNG. Capitalize it as a product concept, like
+Landscape, Clustergram and Yearbook. See the [Snapshot guide](docs/visualizations/index.md#snapshots).
+
+Use **screenshot** for the image component or an ordinary screen capture, and
+**state query** for observations returned by `get_state()` / `request_state()`.
+Neither alone is a complete Snapshot. A **saved view** refers to the settings and
+data identity used to restore a Snapshot's view.
+
+Prefer `snapshot()`, `load_snapshot()`, `load_snapshots()`, `snapshot_dir`,
+`snapshot_metadata` and JavaScript's `snapshot_png()` in new examples. Preserve
+existing API names, file paths and schema keys when documenting compatibility or
+interfaces that still use `screenshot`, such as Clerk's `screenshot_dir` and
+`screenshots` attributes.
+
 ## 📓 Rendering Docs Notebooks (Widget Embedding)
 
 See the [documentation maintenance checklist](.github/DOCS_MAINTENANCE.md) for

@@ -41,6 +41,18 @@ describe('force_set_selected_genes', () => {
     };
   };
 
+  test('a gene comparison lasts only as long as its exact selection', () => {
+    const genes = makeGenes();
+    const comparison = { genes: ['GAPDH', 'INS'], colors: {}, filter: true };
+    genes.comparison = comparison;
+    genes.comparison_colors = [];
+    force_set_selected_genes(genes, ['GAPDH', 'INS'], makeStore());
+    expect(genes.comparison).toBe(comparison);
+    force_set_selected_genes(genes, ['INS'], makeStore());
+    expect(genes.comparison).toBeNull();
+    expect(genes.comparison_colors).toBeNull();
+  });
+
   it('updates selected_gene_ids so the trx layer can focus the gene', () => {
     const genes = makeGenes();
     const store = makeStore();

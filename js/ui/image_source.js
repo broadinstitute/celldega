@@ -2,6 +2,8 @@ import { toggle_visibility_image_layers } from '../deck-gl/layers/image_layers';
 import { get_aligned_he } from '../global_variables/image_info';
 import { refresh_layer } from '../utils/refresh_layer';
 
+import { CONTROL_FONT_SIZE } from './control_style';
+
 // Both views retain the same spatial layers and only swap the image background.
 // The selector is appended to `container`, the view-mode row (SPATIAL, IMG, XY).
 export const make_image_source_control = (
@@ -27,7 +29,7 @@ export const make_image_source_control = (
     margin: '5px 0 0 5px',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize: '12px',
+    fontSize: CONTROL_FONT_SIZE,
     fontWeight: 'bold',
     color: 'blue',
     cursor: 'pointer',

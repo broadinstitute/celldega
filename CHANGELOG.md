@@ -4,42 +4,134 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [0.29.0] - Unreleased
+## [0.29.0] - 2026-11-16
+
+This release adds the **Viz API** (read and change visualizations from code),
+**Snapshots** (saved views as annotated PNGs, cards and pins), and **Clerk**, an
+experimental AI tool for exploring and interpreting visualizations.
 
 ### Added
 
-- A Viz API for reading and changing visualizations from code, the same in Python
-  and JavaScript: getters (`get_state` / `request_state`), setters (`apply_state`),
-  and exporters (`capture_raster` / `request_raster`) for Landscape, CellCloud,
-  NeighborhoodCloud and Clustergram; `Enrich.request_state`. See
-  [Viz API](docs/javascript/viz-api.md).
+#### Viz API
+
+- Read and change visualizations from code, the same in Python and JavaScript:
+  getters (`get_state` / `request_state`), setters (`apply_state`), and exporters
+  (`capture_raster` / `request_raster`) for Landscape, CellCloud, NeighborhoodCloud
+  and Clustergram; `Enrich.request_state`. See [Viz API](docs/javascript/viz-api.md).
+- `data_revision` on Landscape, Clustergram and the standalone JavaScript
+  constructors; `dega.viz.fingerprint_dataset` computes one for a local dataset.
+
+#### Snapshots
+
 - Saved views: `snapshot()` / `restore_snapshot()` capture the image, observations
   and complete supported replay settings, and restore them after checking the data
   (cell, gene and cluster names, or a Clustergram's row and column names, plus an
   optional `data_revision`) and canvas size.
-- Screenshots as one PNG with its record embedded, plus a readable Markdown
-  companion: `widget.screenshot()`, `dega.viz.screenshot(...)` for linked widgets,
-  and the **PIC** button. Empty areas are white by default (`background=`).
-- Reopen a screenshot as an interactive visualization from its recorded data links:
+- A Snapshot is one PNG with its record embedded, plus a readable Markdown memo:
+  the **SNAP** button (in the Landscape's image row, beside the Clustergram's CROP,
+  and in the Yearbook's image row), `widget.snapshot(description, name=...)`, and
+  `dega.viz.snapshot(...)` for linked widgets. A named Snapshot's file is its name
+  (saving the name again replaces it); unnamed ones are named after the data and the
+  time. Empty areas are white by default (`background=`).
+- `widget.snap`: the Snapshots saved through a widget, by name.
+- `dega.viz.Snapshot`: a postcard of a Snapshot (image, name, memo) whose **Show this
+  view** opens its view in a linked Landscape, Clustergram or Yearbook; cards linked
+  to the same viewer show which one is open. Open one by name, from the viewer's
+  `snap` or its `snapshot_dir`.
+- `dega.viz.Snapshots`: a collection of Snapshots from a folder, PNG paths or a
+  viewer's `snap`, with `card(name)`, `save(folder)` and `pins()`.
+- Pins: `Landscape(snapshots=...)` or `landscape.pins` marks each Snapshot at the
+  center of its view on the tissue or the UMAP, like notes on a map. **PINS** shows
+  them and lists them by name; hover a pin for its name, memo and a preview, and click
+  it to open its view. Only Snapshots of the same data are pinned.
+- Reopen a Snapshot as an interactive visualization from its recorded data links:
   `dega.viz.from_png(path)` and `widget.restore_png(path)`, and in JavaScript
   `celldega.from_png`, `read_png` and `screenshot_png`.
-- `data_revision` on Landscape, Clustergram and the standalone JavaScript
-  constructors; `dega.viz.fingerprint_dataset` computes one for a local dataset.
-- A loading indicator while widgets fetch their data.
+- The Celldega mark over a visualization while it loads: while widgets fetch their
+  data, while a Landscape opens a saved view, and while a Yearbook pages or runs a
+  query.
+
+#### Clerk (experimental)
+
+Clerk is a proof of concept: its features, API and saved formats may change between
+releases without deprecation. See the [Clerk guide](docs/visualizations/clerk/index.md).
+
+- `dega.viz.Clerk` and `celldega.clerk`: ask Claude about the visualizations you link
+  to it (`link_clerk`, or `spatial_clustergram(..., clerk=...)`): a Landscape,
+  Clustergram, Enrich panel and Yearbook. It runs through your own Claude account and
+  the local `claude` command-line tool; Celldega never handles credentials.
+- Clerk reads what the linked widgets show (the Landscape's image and state, the
+  Clustergram's rows, columns and dendrogram groups, Enrich results, Yearbook
+  portraits) and can change them: highlight clusters, color cells by genes, zoom,
+  move the Clustergram's marker level, or choose the Yearbook's cells. Answers cite
+  views you open with a click (**RETURN** goes back to yours); genes, clusters and
+  dendrogram groups in them are links.
+- Lookups: ranked marker genes, Enrichr (drawn in the conversation like the Enrich
+  panel, with a library picker and a link to Enrichr) and PubMed. Results are cached,
+  in the conversation and on disk (`clerk_files/lookup_cache`).
+- Tentative cell types: Clerk records them (`clerk.findings_df()`,
+  `clerk.write_cell_types(adata, ...)`) and offers to label the Clustergram's columns.
+- Single cells: with a linked Yearbook, Clerk can show a cluster's cells ranked by a
+  gene, or select cells with `celldega.select` from a single-cell AnnData you give it
+  (`Clerk(adata=...)`: an AnnData, or an `.h5ad` / `.zarr` path or URL). The
+  AnnData's values are never sent to the model.
+- Analysis notebooks: Clerk drafts a notebook for new analysis (when you ask, or when
+  you accept its suggestion), which you run yourself or have Claude Code run in a
+  separate, restricted process; the results come back to Clerk to interpret.
+- The record: **Report** (`clerk.export()`) writes `report.html`, `report.ipynb`,
+  `record.json`, each view as a Snapshot, and `findings.csv`, in a folder named after
+  the report (`-2` if the name is taken). **Save** / **Open** save and reopen a
+  conversation. `Clerk(clerk_files=...)` reopens a case (the most recent in a
+  `clerk_files` folder) without Claude, with its views as pins on the Landscape, to
+  read back through or keep working on. Briefings start Clerk from earlier work.
+- A conversation continues in one session: each new question sends only the linked
+  views that changed since Clerk last saw them, and earlier evidence is read from the
+  API's cache. Model and reasoning-effort pickers sit next to **Ask**.
+- `celldega.clerk.run_turn`: the bounded question workflow, for hosting Clerk outside
+  a notebook (see [Hosting](docs/visualizations/clerk/hosting.md)).
+
+#### Other
+
+- Comparing genes: with two or more genes selected in a Landscape or Yearbook, their
+  transcripts get distinct colors, and genes typed in the search box (or sent from a
+  Clustergram, Clerk or `apply_state`) turn the gene bars into the comparison's key.
+- Clustergram column labels turn blue when a linked Landscape highlights those
+  clusters; shift-click column and row labels to highlight several.
+- `celldega.select.query_from_dict` and `sampler_from_dict` rebuild queries and
+  samplers from their `to_dict()` form.
 - `CELLDEGA_LOCAL_ESM=serve` serves a local bundle once over HTTP for development,
   instead of inlining it into every widget.
 
 ### Changed
 
+- The Landscape's SPATIAL / UMAP / XY buttons are one menu, with SNAP beside it, and
+  the Landscape's control text matches the Clustergram's size, so the controls fit
+  one row.
+- The **PIC** button is now **SNAP**, and screenshots are Snapshots
+  (`widget.screenshot()` and `dega.viz.screenshot()` remain as aliases).
 - With no `xy_genes`, the XY view starts with the two genes with the highest
   whole-dataset mean expression.
 - Long Clustergram row labels are shortened with "…" to fit, keeping their start.
 
 ### Fixed
 
+- Requests sent from Python right after displaying a widget (`apply_state`,
+  `snapshot`, state reads) were lost while it loaded its data; they're now applied
+  once it has rendered.
+- Transcripts show again when zooming in after a view was set from code.
+- Opening a saved view restores whether the background image is shown, and the scale
+  bar follows views set from code.
+- IMG slider values are kept per dataset when switching datasets in the dropdown.
 - Focusing a gene from a linked Clustergram or Enrich sets it exactly, so the
   Landscape's gene search and gene bars stay in sync when transcripts are shown.
 - Turning on neighborhood mode no longer errors in gene-less point clouds.
+
+### Documentation
+
+- Clerk guide and API reference, and how to host the Clerk workflow.
+- Snapshots and pins in the visualizations overview, with why to use them.
+- Atera gallery examples (Landscapes loaded from GitHub DegaFiles, with linked
+  Clustergrams) and H&E tutorials.
 
 ## [0.28.2] - 2026-11-08
 

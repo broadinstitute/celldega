@@ -15,6 +15,7 @@ import {
   handleValidationWarning,
 } from './temp_utils/errorHandler';
 import { show_loading } from './ui/loading';
+import { hold_custom_messages } from './utils/held_messages';
 import { link_models, make_options_model } from './utils/options_model';
 import { create_from_png } from './viz/from_png';
 import { landmark } from './viz/landmark';
@@ -28,6 +29,7 @@ import {
   handle_snapshot_message,
 } from './viz/snapshot';
 import { yearbook } from './viz/yearbook';
+import { render_clerk } from './widgets/clerk_widget';
 import { render_enrich } from './widgets/enrich_widget';
 
 // Show the loading placeholder only for renders slower than this.
@@ -383,13 +385,18 @@ const render_matrix_new = async ({ model, el }) => {
 };
 
 // Main render function - no export keyword
-async function render({ model, el }) {
+async function render({ model: widget_model, el }) {
+  // Requests Python sends while this view renders (e.g. apply_state run right after
+  // the cell that displays it) are held, then delivered once it has rendered.
+  const messages = hold_custom_messages(widget_model);
+  const { model } = messages;
   let cleanup = null;
   let finalized = false;
 
   const finalize = () => {
     if (finalized) return;
     finalized = true;
+    messages.close();
 
     try {
       if (typeof cleanup === 'function') {
@@ -453,6 +460,9 @@ async function render({ model, el }) {
       case 'Enrich':
         cleanup = await with_loading(render_enrich);
         break;
+      case 'Clerk':
+        cleanup = await with_loading(render_clerk);
+        break;
       case 'Landmark':
         cleanup = await with_loading(render_landmark);
         break;
@@ -467,6 +477,8 @@ async function render({ model, el }) {
       if (msg.event === 'finalize') finalize();
     };
     model.on('msg:custom', on_finalize_message);
+    // Every handler is listening now: deliver what arrived while rendering.
+    messages.open();
 
     // anywidget invokes the function returned by render whenever this view is
     // removed or rerendered. Keep the explicit custom-message path above for
@@ -683,6 +695,7 @@ export default {
   clustergram,
   link_models,
   read_png,
+  snapshot_png: screenshot_png,
   screenshot_png,
   from_png,
   // Lower-level renderers and readers.
@@ -705,6 +718,7 @@ export default {
   render_yearbook,
   render_matrix_new,
   render_enrich,
+  render_clerk,
   buildRowAxisSlice,
   buildColAxisSlice,
   buildCellSlice,

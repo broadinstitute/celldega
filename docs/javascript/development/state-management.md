@@ -170,7 +170,7 @@ The model carries the traits shared with Python.
   `model.save_changes()`. Traits synced this way include `selected_cells`,
   `landscape_state`, `xy_genes` and the Clustergram's `manual_cat`.
 - **Requests and replies:** the Viz API's requests and replies (`get_state`,
-  `apply_state`, `capture_snapshot`, `restore_snapshot`, `capture_raster`, PIC saves)
+  `apply_state`, `capture_snapshot`, `restore_snapshot`, `capture_raster`, SNAP saves)
   travel as one-off `msg:custom` messages instead. That keeps images and observations
   out of the notebook's saved widget state. Each reply carries its request's id.
 

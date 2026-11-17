@@ -162,23 +162,35 @@ yb = dega.viz.Yearbook(
     `celldega.select` query module. Passing `query=` still works but emits a
     `DeprecationWarning`.
 
-## Screenshots and reopening from a PNG
+## Snapshots and reopening from a PNG
 
-`screenshot()` saves one PNG, plus a readable `.md`, that carries what it takes to
-reopen the view: the data's links, constructor options, replay settings and data
-identity, but not the data. `from_png` reopens it as an interactive widget:
+<span id="screenshots-and-reopening-from-a-png"></span>
+
+A **Snapshot** combines a screenshot (raster image of the visualization), a memo,
+and metadata for reproducibility. `snapshot()` saves it as a PNG plus a readable
+`.md` companion. The PNG carries the memo, data links, constructor options, replay
+settings and data identity; the source data must remain available. `from_png`
+reopens it as an interactive widget:
 
 ```python
-shot = landscape.screenshot("Cluster 3 rings the structure.", path="figures/")
-view = dega.viz.from_png(shot.path)    # rebuilds from the recorded links
-view                                   # restores once it renders
-landscape.restore_png(shot.path)       # or restore into a widget already open
+saved = landscape.snapshot(
+    "Cluster 3 rings the structure.", name="Cluster 3", path="figures/"
+)
+```
+
+In a later cell, after the capture finishes:
+
+```python
+view = dega.viz.from_png(saved.path)  # rebuilds from the recorded links
+display(view)                       # restores once it renders
+landscape.restore_png(saved.path)    # or restore into a widget already open
 ```
 
 Pass in-memory inputs back, such as `from_png(path, matrix=mat)` or
 `from_png(path, adata=adata)`. See
-[Screenshots with provenance](../../visualizations/index.md#screenshots) and
-[portable saved views](../../javascript/saved-views.md#reopen-a-png-as-an-interactive-visualization).
+[Snapshots](../../visualizations/index.md#snapshots) and
+[Portable Snapshots](../../javascript/saved-views.md#reopen-a-png-as-an-interactive-visualization).
+The earlier `screenshot()` spelling remains supported for compatibility.
 
 ::: celldega.viz
 

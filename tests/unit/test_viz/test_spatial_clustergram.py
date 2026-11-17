@@ -153,7 +153,7 @@ def test_spatial_clustergram_yearbook_uses_front_end_query():
 
 
 @pytest.mark.parametrize(
-    ("cgm_width", "expected"), [(400, "550px"), (450, "552px"), (700, "802px")]
+    ("cgm_width", "expected"), [(250, "400px"), (350, "452px"), (700, "802px")]
 )
 def test_spatial_clustergram_sizes_clustergram_panel_from_its_own_width(cgm_width, expected):
     spatial = Landscape(base_url="https://example.com/data")
@@ -166,3 +166,23 @@ def test_spatial_clustergram_sizes_clustergram_panel_from_its_own_width(cgm_widt
     # narrower than the control bar, so the gene search is not clipped.
     assert spatial.layout.width == "500px"
     assert cgm.layout.width == expected
+
+
+def test_landscape_cluster_highlights_link_to_cluster_columns_only() -> None:
+    from types import SimpleNamespace
+
+    from celldega.viz import _columns_are_clusters
+
+    cgm = _clustergram()
+    assert cgm.has_trait("highlighted_cols") and cgm.highlighted_cols == []
+    assert Landscape(base_url="https://example.com/data").selected_clusters == []
+    # Columns are clusters unless they are genes, single cells or neighborhoods.
+    for entity, linked in [
+        (None, True),
+        ('{"entity": "cell", "attr": "leiden"}', True),
+        ({"entity": "cell", "attr": "cell_type"}, True),
+        ('{"entity": "cell", "attr": "name"}', False),
+        ('{"entity": "gene", "attr": "name"}', False),
+        ({"entity": "nbhd", "attr": "name"}, False),
+    ]:
+        assert _columns_are_clusters(SimpleNamespace(col_entity=entity)) is linked, entity

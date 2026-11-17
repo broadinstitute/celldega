@@ -94,6 +94,65 @@ describe.each([false, true])('viewport ordering (forced: %s)', (forced) => {
     layers = {};
   });
 
+  test('a programmatic view change leaves subsequent transcript zooms able to repaint', async () => {
+    const storeSource = fs
+      .readFileSync(path.join(__dirname, '../obs_store/obs_store.js'), 'utf8')
+      .replace(/^export const /gm, 'const ');
+    viz.obs_store = new Function(
+      `${storeSource}\nreturn create_obs_store();`
+    )();
+    deck.setProps = jest.fn();
+    const paintedTiles = [];
+    let loadedTile = null;
+    viz.obs_store.deck_ready.subscribe((ready) => {
+      if (ready) paintedTiles.push(loadedTile);
+    });
+    viz.obs_store.deck_check.set({ ...viz.obs_store.deck_check.get() });
+    updateTranscripts.mockImplementation(async (_url, tiles) => {
+      loadedTile = tiles[0].tileX;
+      viz.obs_store.deck_check.set({
+        ...viz.obs_store.deck_check.get(),
+        trx_layer: true,
+        trx_data: true,
+      });
+    });
+    updatePaths.mockImplementation(async () => {
+      viz.obs_store.deck_check.set({
+        ...viz.obs_store.deck_check.get(),
+        path_layer: true,
+        path_data: true,
+      });
+      return true;
+    });
+
+    // Use the actual public camera handler called by Clerk's apply_state.
+    const source = fs.readFileSync(
+      path.join(__dirname, '../viz/landscape_ist.js'),
+      'utf8'
+    );
+    const start = source.indexOf('    update_view_state: async');
+    const end = source.indexOf('    update_layers:', start);
+    const handler = new Function(
+      'viz_state',
+      'deck_ist',
+      'layers_obj',
+      'calc_viewport',
+      `return ({${source.slice(start, end)}}).update_view_state;`
+    )(viz, deck, layers, calc_viewport);
+
+    await handler(view(0), false);
+    // Another camera change within cached tiles must also keep readiness intact.
+    await handler({ ...view(0), zoom: 1 }, viz.close_up);
+    expect(updateTranscripts).toHaveBeenCalledTimes(1);
+
+    // The scientist then zooms into an adjacent region: its transcripts load and
+    // must reach the deck_ready subscriber, which installs layers in deck.gl.
+    await calc_viewport({ ...view(100), zoom: 2 }, deck, layers, viz);
+    expect(updateTranscripts).toHaveBeenCalledTimes(2);
+    expect(paintedTiles.at(-1)).toBe(1);
+    expect(viz.obs_store.deck_ready.get()).toBe(true);
+  });
+
   test('a slow transcript fetch cannot start an obsolete segmentation load', async () => {
     const old = deferred();
     updateTranscripts.mockImplementationOnce(() => old.promise);

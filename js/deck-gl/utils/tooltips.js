@@ -183,6 +183,23 @@ export const make_tooltip = (viz_state, info) => {
       inst_html = `<div>neighborhood: ${inst_name}</div>`;
     }
   }
+  // Pins: the Snapshot's name, memo and a preview of its image (see ui/pins.js).
+  else if (info.layer.id.startsWith('pin-layer')) {
+    const pin = info.object;
+    if (pin) {
+      const memo = pin.description
+        ? `<div style="white-space: pre-wrap; margin-top: 2px;">${escape_html(
+            pin.description
+          )}</div>`
+        : '';
+      // Only plain base64 goes into the image's src.
+      const preview =
+        typeof pin.thumb === 'string' && /^[A-Za-z0-9+/]+=*$/.test(pin.thumb)
+          ? `<img src="data:image/jpeg;base64,${pin.thumb}" alt="" style="display: block; max-width: 200px; max-height: 200px; margin-top: 4px; border: 1px solid #d3d3d3;">`
+          : '';
+      inst_html = `<div><b>${escape_html(pin.name || 'Snapshot')}</b></div>${memo}${preview}`;
+    }
+  }
   // Handle neighborhood-cloud shape tooltips -- GeoJsonLayer hands back the
   // picked feature directly as info.object (not indexed into a separate
   // array like the layers above), and properties differ by mode: gene-shapes

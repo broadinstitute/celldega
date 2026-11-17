@@ -165,6 +165,49 @@ describe('bar plot helpers and shift-click', () => {
   });
 });
 
+describe('pin tooltips', () => {
+  let make_tooltip;
+
+  beforeAll(() => {
+    const shims = `
+      const escape_html = (value) => String(value ?? '').replace(/</g, '&lt;');
+      const gene_info_tooltip_html = () => '';
+      const refresh_gene_tooltip_async = () => {};
+      const get_point_cloud_source_index = () => -1;
+      const has_uniprot_info = () => true;
+    `;
+    ({ make_tooltip } = load('../deck-gl/utils/tooltips.js', shims, [
+      'make_tooltip',
+    ]));
+  });
+
+  const viz_state = { root: document.createElement('div') };
+  const hover = (pin) =>
+    make_tooltip(viz_state, {
+      index: 0,
+      layer: { id: 'pin-layer' },
+      object: pin,
+    }).html;
+
+  it('shows the name, memo and a preview of the Snapshot', () => {
+    const html = hover({
+      name: 'Glomerulus',
+      description: 'Ring',
+      thumb: 'QUJD',
+    });
+    expect(html).toContain('<b>Glomerulus</b>');
+    expect(html).toContain('Ring');
+    expect(html).toContain('<img src="data:image/jpeg;base64,QUJD"');
+  });
+
+  it('leaves out a missing or unsafe preview', () => {
+    expect(hover({ name: 'A' })).not.toContain('<img');
+    expect(hover({ name: 'A', thumb: 'x" onerror="alert(1)' })).not.toContain(
+      '<img'
+    );
+  });
+});
+
 describe('fit_tooltip_in_bounds', () => {
   let fit_tooltip_in_bounds;
 

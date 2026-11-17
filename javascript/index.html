@@ -582,6 +582,8 @@
       
         
       
+        
+      
     
     
     
@@ -985,6 +987,106 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../visualizations/clerk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clerk
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Clerk
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visualizations/clerk/hosting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding Clerk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1003,6 +1105,8 @@
       
         
           
+        
+      
         
       
         
@@ -1089,6 +1193,34 @@
     
   
     align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python/clerk/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clerk
   
 
     
@@ -1378,6 +1510,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1450,6 +1588,149 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="viz-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Viz API: getters, setters, exporters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="saved-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portable Snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="development/state-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -3389,6 +3670,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3455,6 +3747,14 @@ For a saved clustered Matrix, use <code>clustergram(element, {url})</code>.</p>
 <td>Heatmap or dot plot from a network, DegaFiles, or a saved Matrix Zarr</td>
 </tr>
 <tr>
+<td><code>from_png(element, file, options)</code></td>
+<td>Reopen an exported PNG as an interactive visualization using its saved source and state</td>
+</tr>
+<tr>
+<td><code>read_png(file)</code> / <code>snapshot_png(snapshot)</code></td>
+<td>Read embedded Snapshot metadata / export a Snapshot as a PNG</td>
+</tr>
+<tr>
 <td><code>link_models(source, key, target, key)</code></td>
 <td>Link selections between visualizations</td>
 </tr>
@@ -3468,6 +3768,10 @@ For a saved clustered Matrix, use <code>clustergram(element, {url})</code>.</p>
 </tr>
 </tbody>
 </table>
+<p>Each Landscape and Clustergram these return can also be read and driven from code:
+<code>get_state()</code> reports what it shows, <code>apply_state()</code> changes it, and <code>capture_raster()</code>
+captures its image. See the <a href="viz-api/">Viz API</a>, which web apps and AI agents can use
+to inspect a view, show evidence, and keep a reproducible picture of it.</p>
 <p>See the <a href="api/#visualizations-without-python-landscape-clustergram-and-link_models">API reference</a>
 for complete options and a linked Landscape/Clustergram example. Lower-level
 renderers remain available for custom integrations.</p>
@@ -3482,6 +3786,10 @@ renderers remain available for custom integrations.</p>
 </ul>
 <p>See <a href="../getting-started/file_formats/">File Formats</a> for the layouts, and
 the <a href="../gallery/">Gallery</a> for live examples.</p>
+<h2 id="development">Development</h2>
+<p>To add controls or embed Celldega in an application, see
+<a href="development/state-management/">State management</a>: where a visualization's state
+lives, how the observable store works, and how a change becomes a deck.gl redraw.</p>
 
 
 

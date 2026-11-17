@@ -584,6 +584,8 @@
       
         
       
+        
+      
     
     
     
@@ -989,6 +991,106 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../clerk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clerk
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Clerk
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clerk/hosting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding Clerk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1007,6 +1109,8 @@
       
         
           
+        
+      
         
       
         
@@ -1093,6 +1197,34 @@
     
   
     align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/clerk/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clerk
   
 
     
@@ -1380,6 +1512,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1452,6 +1590,149 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/viz-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Viz API: getters, setters, exporters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/saved-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portable Snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/development/state-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -3680,6 +3961,13 @@ its expression. Type several names separated by commas, or <strong>shift-click</
 several bars, to color cells by their <strong>combined</strong> (summed) expression; up to the
 20 highest-expressed genes are combined. Clear the search box, or type
 <code>cluster</code>, to return to cluster colors.</p>
+<p>With two or more genes selected you are comparing them, so their transcripts get
+distinct colors for the comparison (a gene's own color is arbitrary, and two can
+look alike). Genes typed in the search box, or sent by a Clustergram, Clerk or
+<code>apply_state</code>, also turn the gene bars into the comparison's key: just those genes,
+in their colors, with their counts in view. Shift-clicked bars keep every bar, since
+you're picking from the ranking; shift-clicking a gene on a key removes it from the
+comparison. Selecting a single gene, or a cluster, ends the comparison.</p>
 <p><a href="../../assets/img/visualizations/landscape/search_genes.webp"><img alt="Searching for NPHS2 and EMCN to color cells by their combined expression" loading="lazy" src="../../assets/img/visualizations/landscape/search_genes.webp" width="880" /></a></p>
 <p><em>Searching for the podocyte marker NPHS2 and the endothelial marker EMCN lights
 up every glomerulus across the section; zooming into one shows the two genes'
@@ -3849,7 +4137,26 @@ Selections made in the Landscape do not change the Clustergram.</p>
 <li><strong>Updates from Python</strong>: <code>landscape.update_cell_clusters(...)</code> recolors cells
   with new cluster labels, and <code>landscape.highlight_cells(...)</code> highlights cells.</li>
 </ul>
-<p>The zoom, pan, slider positions, and selected genes are not sent back to Python.</p>
+<p>The zoom, pan, slider positions, and selected genes are not sent back to Python
+automatically, but you can ask for them, and set them, from code:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Change what the Landscape shows, as its controls would.</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"clusters"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"4"</span><span class="p">,</span> <span class="s2">"5"</span><span class="p">]})</span>          <span class="c1"># highlight clusters ([] clears)</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"genes"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"MUC2"</span><span class="p">,</span> <span class="s2">"TFF3"</span><span class="p">]})</span>        <span class="c1"># color cells by genes ([] = clusters)</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"zoom_to"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"clusters"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"4"</span><span class="p">]}})</span>  <span class="c1"># frame a cluster (or {"cells": [...]})</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"view"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">],</span> <span class="s2">"zoom"</span><span class="p">:</span> <span class="mi">2</span><span class="p">}})</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"reset_view"</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"space"</span><span class="p">:</span> <span class="s2">"umap"</span><span class="p">})</span>
+
+<span class="c1"># Ask what it shows: space, camera, coloring, selection, and the cells per cluster</span>
+<span class="c1"># and top genes in the current field of view. The reply arrives asynchronously, so</span>
+<span class="c1"># read it in a later cell.</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">request_state</span><span class="p">()</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">latest_state</span>
+
+<span class="c1"># Drawn neighborhoods with each one's cell count and cluster mix.</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">neighborhood_summary</span><span class="p">()</span>
+</code></pre></div>
+<p>Layer toggles and sliders are not settable yet.</p>
 <h2 id="use-it-from-python">Use it from Python</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
 

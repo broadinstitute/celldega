@@ -1,0 +1,4656 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../cell-cloud-clustergram/">
+      
+      
+        <link rel="next" href="hosting/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/img/celldega_logo_32x32_transparent.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Clerk - Celldega Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/css/custom.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#clerk" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Celldega Documentation" class="md-header__button md-logo" aria-label="Celldega Documentation" data-md-component="logo">
+      
+  <img src="../../assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Celldega Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Clerk
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/broadinstitute/celldega" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <!-- @license lucide-static v1.0.0 - ISC -->
+<svg
+  class="lucide lucide-github"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+  <path d="M9 18c-4.51 2-5-2-7-2" />
+</svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Celldega Documentation" class="md-nav__button md-logo" aria-label="Celldega Documentation" data-md-component="logo">
+      
+  <img src="../../assets/img/Celldega_LOGO_Two-Color_Transparent_Logo Mark.png" alt="logo">
+
+    </a>
+    Celldega Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/broadinstitute/celldega" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <!-- @license lucide-static v1.0.0 - ISC -->
+<svg
+  class="lucide lucide-github"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+  <path d="M9 18c-4.51 2-5-2-7-2" />
+</svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../getting-started/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/your-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualize Your Own Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/from-scanpy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From Scanpy & Squidpy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/desktop-app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Desktop App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/technologies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technologies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/file_formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizations
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualizations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../landscape/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Landscape
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../landscape/umap-xy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UMAP and XY
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../landscape/neighborhoods/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Neighborhoods
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../yearbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Yearbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cell-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neighborhood-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NeighborhoodCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../landscape-clustergram-enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape–Clustergram–Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cell-cloud-clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud–Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_11" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="./" class="md-nav__link md-nav__link--active">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clerk
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link md-nav__link--active" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Clerk
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="hosting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding Clerk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../python/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/align/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/clerk/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clerk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/clust/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clust
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/collection/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/dataset/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dataset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/nbhd/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nbhd
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/pre/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pre
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/qc/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    qc
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/select/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    select
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/set/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/viz/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../javascript/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript API
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/viz-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Viz API: getters, setters, exporters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/saved-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portable Snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/development/state-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../gallery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gallery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gallery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Landscapes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Spatial Landscapes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2_1" id="__nav_6_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Atera
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera_kidney/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Kidney non-diseased FFPE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Xenium Breast Cancer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera_hippocampus/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Brain Hippocampus FF + Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera_colorectal_cancer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Colorectal Cancer FF + Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_atera_breast_cancer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Breast Cancer FF + Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2_2" id="__nav_6_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Xenium
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_xenium_mouse_brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Prime Mouse Brain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_xenium_skin_cancer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Prime Human Skin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_broad_allen_mouse_brain_2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad-Allen Dev Mouse Brain E15.5 Slice 35
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_cosmx_human_colon/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CosMx Human Colon CRC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_visium_hd_cell_segmentation_mouse_brain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visium HD Cell Segmentation Mouse Brain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D CellClouds
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    3D CellClouds
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_broad_allen_mouse_brain_3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xenium Broad-Allen Dev Mouse Brain E15.5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_merfish_thick_tissue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MERFISH Thick Tissue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single-Cell Landscapes and Clustergrams
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Single-Cell Landscapes and Clustergrams
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_tabula_sapiens/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabula Sapiens Atlas UMAP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_tabula_sapiens_clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabula Sapiens UMAP and Cell-Type Signatures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/gallery_citeseq_pbmc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CITE-seq PBMC Cell Types (RNA + Protein)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Presentations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Web Presentations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad Retreat 2024
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../examples/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Example Notebooks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Example Notebooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Transcriptomics Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Spatial Transcriptomics Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: default clusters and glomerular gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera human brain hippocampus (non-diseased, fresh frozen) with aligned H&amp;E: Landscape, Yearbook and a Matrix-linked Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera human breast cancer (fresh frozen) with aligned H&amp;E: Landscape, Yearbook and a Matrix-linked Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera human colorectal cancer (fresh frozen) with aligned H&amp;E: Landscape, Yearbook and a Matrix-linked Clustergram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera breast cancer Landscape + Clustergram + Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera breast cancer neighborhood exploration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visium HD human colorectal cancer Landscape + Clustergram + Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scanpy-Squidpy Xenium Pancreas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_2_9" id="__nav_7_2_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Spatial Transcriptomics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    3D Spatial Transcriptomics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad-Allen Developing Mouse Brain E15.5: Align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broad-Allen Developing Mouse Brain E15.5: Viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single Cell Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Single Cell Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Scanpy_Chromium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chromium PBMC 3k: Landscape, Clustergram, and Enrich
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabula Sapiens: the CELLxGENE Atlas UMAP and Cell-Type Signatures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Brief Notebooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Brief Notebooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape_View_Xenium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape View Xenium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape_Local_Server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape from a Local Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Pre-process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Pre-process
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera Pre-process with H&E
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atera kidney: review candidate cells with Yearbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape-3D_thick_MERFISH/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CellCloud Three-dimensional single-cell transcriptome imaging of thick tissues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Landscape-Heatmap-Visium-HD/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landscape-Heatmap Visium-HD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UMAP-Cluster Pancreas Xenium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Custom_Segmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Segmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gradient Neighborhoods: profiling the pancreatic islet microenvironment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-clerk-can-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Clerk can do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements-and-logging-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requirements and logging in
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart-standalone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quickstart (standalone)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-clerk-knows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Clerk knows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What Clerk knows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#briefings-starting-from-earlier-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Briefings: starting from earlier work
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#efficiency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Efficiency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linking-to-other-widgets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linking to other widgets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Linking to other widgets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sidecar-or-wide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sidecar or wide
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-clerk-answers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Clerk answers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-conversation-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The conversation panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-you-can-click" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence you can click
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lookups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lookups
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lookups">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enrichr-results-in-the-conversation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enrichr results in the conversation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recording-cell-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recording cell types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#looking-at-single-cells-in-a-yearbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Looking at single cells in a Yearbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#letting-clerk-change-the-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Letting Clerk change the views
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis-notebooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis notebooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#landscape-raster-capture-a-reusable-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Landscape raster capture (a reusable feature)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#taking-the-record-with-you" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Taking the record with you
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Taking the record with you">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#saving-and-reopening-a-conversation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saving and reopening a conversation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reopening-a-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reopening a case
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saved-views-evidence-and-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saved views, evidence and reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roadmap
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="clerk">Clerk</h1>
+<div class="admonition warning">
+<p class="admonition-title">Experimental</p>
+<p>The Clerk module (<code>celldega.clerk</code> and the <code>celldega.viz.Clerk</code> widget) is
+experimental. It is a proof of concept: its features, API and saved formats may
+change between releases, without deprecation. Check what it tells you against the
+data, as you would any draft.</p>
+</div>
+<p><strong>Clerk</strong> is Celldega's AI tool for exploring and interpreting its visualizations. It
+isn't a separate service or an MCP server. It's a set of prompts, actions and light
+interface components that let Anthropic's <strong>Claude</strong> read and drive the visualizations
+you link to it (a Landscape, Clustergram or Enrich panel) and consult outside tools:
+Enrichr for gene-set enrichment and PubMed for the literature.</p>
+<p>Clerk gathers the evidence (marker genes, enrichment, literature, the tissue image) and
+makes a case for a cell-type label, or answers your question, that <strong>you</strong> rule on. The
+name reads as both a <em>law clerk</em> (gathers evidence and drafts the reasoning; you decide)
+and a <em>bodega clerk</em> (fetches what you ask for).</p>
+<p>Genes, clusters and cited views can be clicked to inspect the evidence in your widgets.
+The conversation can be exported with <a href="../#snapshots">Snapshots</a>: screenshots
+of the linked views, memos and reproducibility metadata, including observed evidence
+and supported replay settings. Full view restoration is not implemented yet. Clerk
+runs through your own Claude account, using the <code>claude</code> command-line tool on the
+machine running your notebook.</p>
+<h2 id="what-clerk-can-do">What Clerk can do</h2>
+<ul>
+<li><strong>Read the visualizations.</strong> With each question, Clerk receives what the linked
+  widgets show: the Landscape's image and state (camera, selection, cells and genes in
+  view), the Clustergram's rows, columns, values and dendrogram groups, and the Enrich
+  panel's results.</li>
+<li><strong>Drive the visualizations.</strong> It can highlight clusters, color cells by genes, zoom,
+  move the Clustergram's marker level, and cite views you open with a click, returning
+  to your own view with <strong>Return</strong>.</li>
+<li><strong>Look things up.</strong> Ranked marker genes and expression values from the Clustergram,
+  enrichment from Enrichr, and the literature from PubMed.</li>
+<li><strong>Look at single cells.</strong> With a linked <a href="#looking-at-single-cells-in-a-yearbook">Yearbook</a>,
+  Clerk sees its cell portraits and can choose which cells it shows. Its main evidence
+  stays the cluster signatures; single cells are small samples it looks at.</li>
+<li><strong>Answer questions from several kinds of evidence at once</strong>: the tissue image, gene
+  expression, enrichment and papers, with the evidence behind each claim.</li>
+<li><strong>Annotate.</strong> It records tentative cell types, offers to label the Clustergram with
+  them, and keeps the views it was shown as <a href="../#snapshots">Snapshots</a>
+  (<code>clerk.snapshots</code>): images with the state to return to them.</li>
+<li><strong>Draft analysis notebooks.</strong> When you ask for new analysis, Clerk writes a Jupyter
+  notebook for it (Scanpy, Squidpy, Celldega); when it thinks one would help, it
+  suggests one and drafts it if you agree. You inspect and run it, or have
+  Claude Code run it in a separate process; its results come back to Clerk to interpret.
+  See <a href="#analysis-notebooks">Analysis notebooks</a>.</li>
+<li><strong>Keep the record.</strong> Save and reopen a conversation, export it as a report, and start
+  later work from an earlier one with a briefing.</li>
+</ul>
+<p>So you and Clerk work on the same data with the same tools and leave the same kinds of
+artifacts: Snapshots for what you saw, notebooks for what you computed. Clerk's own role
+stays interpretation; it never runs code in your notebook, and you decide what to keep.</p>
+<h2 id="requirements-and-logging-in">Requirements and logging in</h2>
+<p>Clerk sends your questions to Claude through the <code>claude</code> command-line tool (Claude
+Code), running on the same machine as your kernel and using your own Claude account. You
+need:</p>
+<ul>
+<li><strong>Claude Code installed</strong> on the machine running the kernel; see the
+  <a href="https://code.claude.com/docs/en/setup">setup guide</a>.</li>
+<li><strong>A Claude plan that includes Claude Code</strong> (Pro or higher), or an Anthropic Console
+  account billed per use. The free plan doesn't include Claude Code.</li>
+</ul>
+<p>Log in once:</p>
+<ol>
+<li>Open a terminal on the machine running the kernel (JupyterLab: <em>File → New →
+   Terminal</em>; VS Code: <em>Terminal → New Terminal</em>).</li>
+<li>Run <code>claude auth login</code> (add <code>--console</code> to use a Console account instead of a Claude
+   plan).</li>
+<li>Sign in on the page that opens. If no browser opens, open the link it prints, sign in,
+   and paste the code it shows back into the terminal.</li>
+</ol>
+<p>The CLI remembers the login (in the macOS keychain, or its own credentials file on
+Linux), so no terminal needs to stay open afterwards. Celldega never sees or stores it.
+If the kernel runs on a remote server (e.g. JupyterHub), log in from a terminal on that
+server.</p>
+<p>Check from Python, without calling the model:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
+
+<span class="n">dega</span><span class="o">.</span><span class="n">clerk</span><span class="o">.</span><span class="n">claude_auth_status</span><span class="p">()</span>
+<span class="c1"># {'logged_in': True, 'auth_method': 'claude.ai', 'subscription_type': 'pro'}</span>
+</code></pre></div>
+<p>If you ask a question while logged out, Clerk replies with these instructions instead of
+the CLI's raw error.</p>
+<h2 id="quickstart-standalone">Quickstart (standalone)</h2>
+<p>Ask a question directly, passing whatever evidence you have:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">celldega</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dega</span>
+
+<span class="n">answer</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">clerk</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span>
+    <span class="s2">"What cell type is this cluster?"</span><span class="p">,</span>
+    <span class="n">gene_list</span><span class="o">=</span><span class="p">[</span><span class="s2">"CD3D"</span><span class="p">,</span> <span class="s2">"CD8A"</span><span class="p">,</span> <span class="s2">"CD2"</span><span class="p">,</span> <span class="s2">"TRAC"</span><span class="p">],</span>
+    <span class="n">info</span><span class="o">=</span><span class="s2">"Cluster 5, Xenium human lung"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">answer</span><span class="p">)</span>
+</code></pre></div>
+<p>Or use the widget for an interactive chat panel:</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clerk</span><span class="p">(</span><span class="n">gene_list</span><span class="o">=</span><span class="p">[</span><span class="s2">"CD3D"</span><span class="p">,</span> <span class="s2">"CD8A"</span><span class="p">,</span> <span class="s2">"CD2"</span><span class="p">,</span> <span class="s2">"TRAC"</span><span class="p">])</span>
+<span class="n">clerk</span>
+</code></pre></div>
+<p>Clerk pre-gathers <strong>Enrichr</strong> enrichment terms for the gene list (reusing Celldega's
+existing Enrichr integration) and folds them into the prompt as evidence — the model
+itself uses no tools, so results are fast and predictable.</p>
+<p>Each question also carries the recent conversation, so follow-up questions keep their
+context: the last <code>clerk.history_questions</code> questions (default 10) with Clerk's replies
+and actions, within <code>clerk.history_chars</code> characters (default 40,000, about 10k
+tokens). It's sent once per question, so a longer memory costs little; screenshots and
+lookup results from earlier questions aren't included, only the text. Questions run in
+the background: the notebook stays usable while Clerk thinks.</p>
+<h2 id="what-clerk-knows">What Clerk knows</h2>
+<p>Clerk only knows what each question sends it, so you can tell where an answer came from:</p>
+<ul>
+<li>its instructions (<code>dega.clerk.SYSTEM_PROMPT</code>), whose examples use placeholders
+  (cluster "A", GENE1) rather than real tissues or genes, so they can't hint at an
+  answer;</li>
+<li>the evidence gathered for the question (the linked views, your gene list and
+  context, and the lookups Clerk asks for);</li>
+<li>the recent conversation in this panel (see <code>history_questions</code> above). A new <code>Clerk</code>
+  starts with none;</li>
+<li>a briefing, if you load one (below).</li>
+</ul>
+<h3 id="briefings-starting-from-earlier-work">Briefings: starting from earlier work</h3>
+<p>To give Clerk earlier conclusions to build on, load a briefing. It goes with every
+question under "Earlier work", introduced as claims to check rather than evidence, and
+the panel shows a "Briefing: …" line so it's always clear what Clerk was told:</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span><span class="o">.</span><span class="n">load_briefing</span><span class="p">(</span><span class="s2">"clerk_files/kidney-exploration"</span><span class="p">)</span>  <span class="c1"># an exported report folder</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">load_briefing</span><span class="p">(</span><span class="s2">"case1/record.json"</span><span class="p">,</span> <span class="s2">"notes.md"</span><span class="p">)</span>     <span class="c1"># several sources</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">load_briefing</span><span class="p">(</span><span class="n">other_clerk</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>            <span class="c1"># another panel's conversation</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">load_briefing</span><span class="p">(</span><span class="s2">"celldega_files/snapshots"</span><span class="p">)</span>        <span class="c1"># manual Snapshots</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">load_briefing</span><span class="p">(</span><span class="s2">"clerk_files/screenshots"</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># Clerk's Snapshots</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">briefing</span> <span class="o">=</span> <span class="s2">"Cluster 7 looked mixed last time."</span>     <span class="c1"># or plain text</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">briefing</span> <span class="o">=</span> <span class="s2">""</span>                                      <span class="c1"># clear it</span>
+</code></pre></div>
+<p>A record is summarized as each question with Clerk's final answer and the latest cell
+types; screenshots and lookup results are left out. Exported reports show the briefing
+Clerk was given. To carry over the visible conversation itself instead, copy it:
+<code>clerk.messages = other_clerk.messages</code>.</p>
+<p>Every call is isolated from your own Claude Code setup: Clerk uses its own system
+prompt, no tools or MCP servers, none of your settings or hooks, the CLI's switches
+that turn off memory and <code>CLAUDE.md</code> files, and a throwaway working directory. Nothing
+from your other Claude Code sessions, memory or projects reaches it; only the CLI login
+is shared. The CLI itself adds your account's email address and today's date to each
+call.</p>
+<p>The model's general training knowledge is the one thing you can't switch off. It may
+know public datasets and papers, so for a fair test of Clerk's reasoning use
+unpublished data, or leave dataset names out of <code>context_info</code>.</p>
+<h2 id="efficiency">Efficiency</h2>
+<p>A conversation runs in one CLI session. The first question sends all the evidence.
+Each later call resumes the session and sends only what is new:</p>
+<ul>
+<li><strong>A follow-up round</strong> (after a lookup, or a view change Clerk asked to see) sends
+  the lookup results, any view that changed, and a screenshot only if the view moved.</li>
+<li><strong>A new question</strong> sends only the linked views whose state changed since Clerk last
+  saw them, and names the others as unchanged. It also sends what happened in the
+  panel in between, such as labels applied or an analysis that ran. The Landscape's
+  screenshot goes only with a changed Landscape. "Sent with" under your question marks
+  the views that weren't resent "(unchanged)".</li>
+</ul>
+<p>The API caches the conversation so far, so each later call re-reads it at about a
+tenth of the price. In a test with a 34k-token prompt, a follow-up cost $0.008 instead
+of $0.12. After <code>clerk.max_session_questions</code> questions (default 10), or when the
+context or briefing changes, the next question starts a new session. It sends
+everything again, with a text summary of the conversation so far. Reopening a saved
+conversation also starts a new session. Set <code>clerk.continue_conversation = False</code> to
+start a new session for every question.</p>
+<p>The CLI saves the session's transcript so it can be resumed. Clerk deletes it when the
+conversation's session ends: a new session, a reopened conversation, or closing the
+widget. Transcripts left by a crashed kernel are removed after an hour.</p>
+<p>Token use per question (and the CLI's cost estimate, which is notional on a Claude
+plan) is recorded in <code>clerk.record[i]["usage"]</code> and shown in exported reports.</p>
+<p>Pick a model by alias (<code>"opus"</code>, <code>"sonnet"</code>, <code>"haiku"</code>) or full id; a smaller model is
+cheaper and faster for routine questions:</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clerk</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"haiku"</span><span class="p">)</span>   <span class="c1"># "" (default) inherits the CLI default</span>
+</code></pre></div>
+<p>Reasoning effort is a separate setting (<code>"low"</code>, <code>"medium"</code>, <code>"high"</code>, <code>"xhigh"</code>,
+<code>"max"</code>): higher effort is slower and uses more tokens. Both have pickers next to the
+<strong>Ask</strong> button, or set them from Python:</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="s2">"opus"</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">effort</span> <span class="o">=</span> <span class="s2">"high"</span>
+</code></pre></div>
+<h2 id="linking-to-other-widgets">Linking to other widgets</h2>
+<p>Clerk is <strong>standalone and wide by default</strong>, and you link it to whatever widgets you
+have — they can live in other notebook cells. Widgets are modular and swappable; the
+usual case is Landscape + Clustergram (optionally Enrich). Link from the constructor:</p>
+<div class="highlight"><pre><span></span><code><span class="n">landscape</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Landscape</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">"..."</span><span class="p">,</span> <span class="n">adata</span><span class="o">=</span><span class="n">adata</span><span class="p">)</span>
+<span class="n">cgm</span>       <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clustergram</span><span class="p">(</span><span class="n">adata</span><span class="o">=</span><span class="n">adata</span><span class="p">)</span>
+
+<span class="n">clerk</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clerk</span><span class="p">(</span><span class="n">landscape</span><span class="o">=</span><span class="n">landscape</span><span class="p">,</span> <span class="n">clustergram</span><span class="o">=</span><span class="n">cgm</span><span class="p">)</span>
+<span class="n">clerk</span>   <span class="c1"># display the wide Clerk panel wherever you like</span>
+</code></pre></div>
+<p>or after the fact with <code>link_clerk</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clerk</span><span class="p">()</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">link_clerk</span><span class="p">(</span><span class="n">clerk</span><span class="p">,</span> <span class="n">landscape</span><span class="o">=</span><span class="n">landscape</span><span class="p">,</span> <span class="n">clustergram</span><span class="o">=</span><span class="n">cgm</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="sidecar-or-wide">Sidecar or wide</h3>
+<p>To lay Clerk out with the views, linked, pass it to <code>spatial_clustergram</code>. By default it
+becomes a <strong>sidecar</strong>: a narrow column at the end of the row, the row's height, the way
+an Enrich panel sits beside the Clustergram. <code>clerk_layout="wide"</code> puts it full width
+under the row instead.</p>
+<div class="highlight"><pre><span></span><code><span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spatial_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">clerk</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>                 <span class="c1"># sidecar</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spatial_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">clerk</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>    <span class="c1"># with Enrich</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">spatial_clustergram</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">cgm</span><span class="p">,</span> <span class="n">clerk</span><span class="o">=</span><span class="n">clerk</span><span class="p">,</span> <span class="n">clerk_layout</span><span class="o">=</span><span class="s2">"wide"</span><span class="p">)</span>
+</code></pre></div>
+<p><code>clerk=True</code> creates a Clerk (pass its options as <code>clerk_kwargs</code>), or pass one you made.
+A sidecar sizes itself: it takes the room the row leaves, between 240 and 300 px, and
+the Landscape, Clustergram and Enrich keep their full widths. A row wider than the
+notebook scrolls sideways, with room under it for the scrollbar. A Clerk with its own
+<code>width</code> keeps it. When the panel is narrow, the question box takes its own line, with
+the model and effort pickers below.</p>
+<p>Once linked:</p>
+<ul>
+<li>selecting a cluster/gene set in the <strong>Clustergram</strong> flows the genes into
+  <code>clerk.gene_list</code>;</li>
+<li>each time you ask a question, the current <strong>Landscape</strong> view is captured and sent
+  as image evidence, including the exact zoom/pan (see below). Pan and zoom, then ask
+  "what's in this field of view?"</li>
+</ul>
+<p>Clerk only sees the widgets you link. In the conversation, each question shows the
+Landscape and Clustergram Snapshot previews, side by side, and a "Sent with"
+line listing the rest, so you can see exactly what Clerk received. If a linked widget doesn't reply (for example, it isn't
+displayed), Clerk is told so and says it rather than guessing.</p>
+<p>With a linked <strong>Enrich</strong> panel, each question carries the enrichment results on screen:
+the library, input genes and their source, the top terms with combined score, adjusted
+p-value, odds ratio and overlapping genes, the selected term, and the Enrichr link.
+Clerk then stops running its own Enrichr query.</p>
+<p>With a linked <strong>Clustergram</strong>, each question also carries a state summary of what the
+Clustergram shows: the clusters and genes on screen (with their attributes, such as
+<code>leiden</code>, <code>cell_type</code> or <code>leiden_marker</code>), each axis's order, the marker level (DIM
+slider), the dendrogram groups at the current cut, the selection, and a capped table of
+values and dot sizes for what's on screen. Genes you name in a question, or that Clerk
+named in its previous answer, are added to that table when the Clustergram has them, so
+"check MUC2 and TFF3 across clusters" works even if they're off screen. Choose what it
+describes with
+<code>clerk.clustergram_options</code>, e.g. <code>{"rows": "ranked", "max_rows": 25}</code> for the top of the
+current order instead of what's on screen.</p>
+<p>The same state summary is available on its own:</p>
+<div class="highlight"><pre><span></span><code><span class="n">cgm</span><span class="o">.</span><span class="n">request_state</span><span class="p">()</span>                       <span class="c1"># rows/cols on screen</span>
+<span class="n">cgm</span><span class="o">.</span><span class="n">request_state</span><span class="p">(</span><span class="n">rows</span><span class="o">=</span><span class="s2">"ranked"</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="p">[</span><span class="s2">"4"</span><span class="p">,</span> <span class="s2">"5"</span><span class="p">],</span> <span class="n">max_rows</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+<span class="c1"># ...in a later cell, once the browser has replied:</span>
+<span class="n">cgm</span><span class="o">.</span><span class="n">latest_state</span>                          <span class="c1"># plain dict; never saved into the notebook</span>
+</code></pre></div>
+<p>In JavaScript (e.g. a web app embedding Celldega), the Clustergram instance returned by
+<code>matrix_viz</code> exposes the same state summary synchronously as <code>matrix.get_state(options)</code>.</p>
+<h2 id="how-clerk-answers">How Clerk answers</h2>
+<p>Clerk is instructed to be very brief: the answer in a sentence or two, then an optional
+<strong>Evidence</strong> list of at most five bullets, which the panel shows collapsed. It is also
+conservative: before naming a cell type it checks each relevant cluster's top ~25 ranked
+markers, canonical markers for the candidate type and its alternatives, and enrichment
+in more than one library, and it states a confidence. It starts from morphology and
+anatomy, treats the sample's diagnosis (e.g. "colorectal cancer") as a description of
+the whole sample rather than of the region in view, does not call a region abnormal
+without evidence specific to that, and says when a canonical marker isn't in the panel
+(unmeasured is not absent). The instructions are in <code>celldega/clerk/prompts.py</code>
+(<code>dega.clerk.SYSTEM_PROMPT</code>).</p>
+<h2 id="the-conversation-panel">The conversation panel</h2>
+<p>Each question is a collapsible turn:</p>
+<ul>
+<li>the question, with Landscape and Clustergram Snapshot previews and a "Sent with" line;</li>
+<li><strong>Work · N steps</strong> (collapsed): the lookups and view changes Clerk made and any interim
+  replies; open while Clerk is working;</li>
+<li>Clerk's answer, with its <strong>Evidence</strong> collapsed;</li>
+<li>Enrichr results, each folded under a title such as "Enrichr · Cluster 4 upregulated";</li>
+<li>what Clerk recorded or changed alongside the answer (one short ↻ line each, with the
+  details, such as each cluster's cell type, in the turn's Evidence), and any errors.</li>
+</ul>
+<p>Genes selected in the linked views still go with your next question. Enrichr results
+appear in the conversation alongside Clerk's answer.</p>
+<p>If the answer ends with a yes/no question ("Check cluster 7's top 25 markers?"),
+<strong>Yes</strong> and <strong>No</strong> buttons answer it. <strong>Expand</strong> / <strong>Collapse</strong> open or close every turn,
+work log and evidence section at once (handy before searching the page), and the panel
+remembers the ones you opened or closed. <strong>Report</strong> saves the conversation as a report
+(see <a href="#taking-the-record-with-you">Taking the record with you</a>).</p>
+<h2 id="evidence-you-can-click">Evidence you can click</h2>
+<p>Everything Clerk cites can be replayed in the linked widgets, right away and even while
+it's still answering:</p>
+<ul>
+<li><strong>Snapshot previews</strong>: <strong>Show this view</strong> below a preview returns that widget
+  (the Landscape or the Clustergram) to the view Clerk was sent, and <strong>Show both views</strong>
+  restores both. You can navigate elsewhere and use these links to revisit the
+  images' state. <strong>Return</strong> returns to
+  where you were before following the link. These links are kept when saving and
+  reopening the conversation; older images without a saved state have no link.</li>
+<li><strong>Genes</strong> (blue, dotted underline): hover for the UniProt name and description, as in
+  the other widgets; click to color the Landscape by the gene, mark it in the
+  Clustergram (blue row label) and zoom the Clustergram to it. Shift-click adds or
+  removes genes, to compare several; clicking the only gene shown again returns to
+  cluster colors.</li>
+<li><strong>Clusters</strong> ("cluster 4", "clusters 4, 5 and 12"): hover for the label you or Clerk
+  gave it; click to highlight it in the Landscape, shift-click to add more.</li>
+<li><strong>Gene lists</strong> in Clerk's work log ("Looked up 16 genes"): hover to list them, click
+  to show them in the Landscape (up to 20).</li>
+<li><strong>Cited views</strong> ("[Fig 1A]"): for a point that needs a particular view (a zoom, genes
+  together, a marker level, a dendrogram group), Clerk defines the view and links it
+  like a figure. Hover for its caption and what it shows; click to apply it to the
+  Landscape and Clustergram. Nothing changes until you click. Genes and clusters named
+  inside a cited view's link are still links of their own.</li>
+<li><strong>Dendrogram groups</strong>: when Clerk discusses a group ("group 39"), it can cite a view
+  that selects it again. The view keeps the dendrogram cut the group was seen at, so the
+  group's name and members still match when you click it later.</li>
+</ul>
+<p>Before the first link, Clerk saves the supported Landscape and Clustergram settings.
+<strong>Return</strong> reapplies them, including Clustergram pan/zoom, crop and order,
+and Landscape layers, channels and sliders. See the remaining
+<a href="../../javascript/viz-api/#replaying-supported-settings">replay limitations</a>. In an exported
+report, each cited view becomes a numbered figure under the answer with the
+<code>apply_state</code> code that applies its settings, and the "[Fig 1A]" link jumps to it.
+Cited views do not yet get their own rendered images on export.</p>
+<p>Back now validates the saved view's data fingerprint and waits for browser completion.
+If a dataset has changed or restoration fails, Clerk keeps the saved view for retry.
+Within the same session it checks loaded data without re-downloading remote assets.
+Conversation captures include portable Snapshot envelopes, so reports can use
+<code>restore_snapshot</code> when reopening evidence on compatible, freshly constructed widgets.
+The <a href="hosting/">host contract</a> describes the widget-independent loop and celldega-app
+integration points.</p>
+<h2 id="lookups">Lookups</h2>
+<p>While answering, Clerk can look things up without changing anything you see; each lookup
+appears in the conversation as a "↻" line:</p>
+<ul>
+<li><strong>Ranked markers</strong>: a cluster's top-N up-regulated genes (<code>rank_genes_groups</code>) with
+  their value and dot size, whatever the DIM slider shows. The Matrix sends each
+  cluster's ranked markers to the Clustergram front end for this.</li>
+<li><strong>Genes</strong>: specific genes' values and dot sizes across all clusters.</li>
+<li><strong>Enrichr</strong>: a cluster's top markers, or any gene list, against Enrichr libraries
+  (<code>CellMarker_2024</code> and <code>PanglaoDB_Augmented_2021</code> by default). This calls the Enrichr
+  web service directly; the Enrich panel is not changed.</li>
+<li><strong>PubMed</strong>: literature searches through NCBI's public E-utilities (titles and abstract
+  excerpts); Clerk cites PMIDs as links.</li>
+</ul>
+<p>From Python, <code>cgm.request_state(markers={"clusters": ["4"], "n": 25})</code> reads the same
+ranked markers, and <code>dega.clerk.lookups.enrichr(...)</code> / <code>dega.clerk.lookups.pubmed(...)</code>
+run the web lookups.</p>
+<h3 id="enrichr-results-in-the-conversation">Enrichr results in the conversation</h3>
+<p>Enrichr results are drawn in the conversation, under the answer, like the Enrich panel
+and folded under a title ("Cluster 4 upregulated", "6 selected genes"): a library picker,
+a scrolling bar graph of the top 20 terms by combined score, a paragraph of the genes
+tested, and a <strong>View full results on Enrichr</strong> link to the same list on the Enrichr
+website. Hover a bar for its statistics; click it to color the paragraph as Enrich does
+(the term's genes blue, the rest dark gray) and show the term's genes on the Landscape
+and Clustergram, and click again to clear. Picking another library asks Enrichr from
+the browser. Genes in the paragraph work like Clerk's other gene links. This covers both
+Clerk's own Enrichr lookups and the panel's Enrichr results for the selected genes,
+shown once per gene list. The model reads the top 8 terms as text, with the Enrichr
+link, which it can cite; the drawing is for you.</p>
+<p>Enrichr and PubMed results are cached. Later questions see earlier Enrichr results in
+the conversation's history, so Clerk reuses them rather than asking again, and every
+result is kept on disk in <code>&lt;output_dir&gt;/lookup_cache</code> (<code>clerk_files/lookup_cache</code> by
+default). A lookup made in an earlier session is read from there instead of sent to
+Enrichr or PubMed again. Set <code>clerk.lookup_cache = None</code> to keep results for the
+session only.</p>
+<h2 id="recording-cell-types">Recording cell types</h2>
+<p>When Clerk proposes cell types (for example when you ask what a cluster might be), it
+records them, together with the marker genes it relied on: "↻ Recorded tentative cell
+types for 3 clusters", with each cluster's cell type in the turn's Evidence. With a
+Clustergram linked, Clerk then asks <strong>Label these clusters in the Clustergram
+(cell_type)?</strong>; <strong>Label</strong> makes the cell types tentative column labels (in the manual
+column category, or <code>clerk_cell_type</code> if none is set up) and marks the marker genes with
+their cell type on the rows (the manual row category, or <code>clerk_marker</code>), in the same
+color as the column. If you asked Clerk to label the clusters, it labels them right
+away. Labels you set yourself are never overwritten, and when Clerk relabels a cluster
+it clears the marks it made for the old label. <code>clerk.label_clustergram = True</code> always
+labels right away, and <code>False</code> never labels.</p>
+<p>Get the cell types as a table or write them to an AnnData (cell-level, or the
+cluster-level signature AnnData behind a Clustergram):</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span><span class="o">.</span><span class="n">findings_df</span><span class="p">()</span>          <span class="c1"># cluster, label, confidence, markers, notes, question, time</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">write_cell_types</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">groupby</span><span class="o">=</span><span class="s2">"leiden"</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="s2">"clerk_cell_type"</span><span class="p">)</span>
+</code></pre></div>
+<p><code>write_cell_types</code> only adds a column (pass <code>overwrite=True</code> to replace one), fills
+clusters without a proposal with <code>Unassigned</code>, and records the labels used in
+<code>adata.uns["clerk_cell_types"]</code>.</p>
+<h2 id="looking-at-single-cells-in-a-yearbook">Looking at single cells in a Yearbook</h2>
+<p>Link a <a href="../yearbook/">Yearbook</a> and each question also sends Clerk its portraits: the
+query, page, the cells on screen and an image of them, shown under your question. Clerk
+can choose which cells the Yearbook shows, in one of two ways:</p>
+<ul>
+<li><strong>The Yearbook's own query</strong>: a cluster's cells, ranked by a gene's expression. The
+  Yearbook runs it in the browser, so no AnnData is needed.</li>
+<li><strong>A <code>celldega.select</code> selection</strong>, from a single-cell AnnData you give Clerk: any
+  combination of cell attributes and genes, sampled at random, ranked, by quantile
+  bin, or evenly across categories.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clerk</span><span class="p">(</span><span class="n">adata</span><span class="o">=</span><span class="s2">"data/cells.h5ad"</span><span class="p">)</span>   <span class="c1"># or a .zarr path or URL, or an AnnData</span>
+<span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">link_clerk</span><span class="p">(</span><span class="n">clerk</span><span class="p">,</span> <span class="n">landscape</span><span class="o">=</span><span class="n">landscape</span><span class="p">,</span> <span class="n">clustergram</span><span class="o">=</span><span class="n">cgm</span><span class="p">,</span> <span class="n">yearbook</span><span class="o">=</span><span class="n">yearbook</span><span class="p">)</span>
+</code></pre></div>
+<p>Clerk works mainly from the cluster signatures (the Clustergram's pseudo-bulk
+expression) and uses selections to look at small samples of single cells: 60 by
+default, at most 200. It never sees the AnnData's values. It gets a short description
+(its size, gene names, and each <code>obs</code> column's categories or range) and writes the
+query and sampler as JSON. The Clerk widget rebuilds them in the kernel
+(<code>dega.select.query_from_dict</code>, <code>sampler_from_dict</code>; no code Clerk writes is run) and
+runs them. Clerk then learns how many cells matched and sees the chosen ones in the
+Yearbook. The selection is stored with the Yearbook (<code>yearbook.selection</code>), so the
+report records how its cells were chosen.</p>
+<p>An AnnData link is read the first time Clerk needs it (a local <code>.h5ad</code> in backed mode).
+It also tells the <a href="#analysis-notebooks">analysis notebooks</a> Clerk drafts where the
+data is. Without one, Clerk uses a linked Landscape's AnnData if it has one.</p>
+<h2 id="letting-clerk-change-the-views">Letting Clerk change the views</h2>
+<p>Clerk can show you its evidence: highlight the clusters it is discussing in the
+Landscape, color it by genes, zoom to a cluster, or move the Clustergram's DIM slider.
+It uses the same setters you can call yourself (<code>landscape.apply_state</code>,
+<code>cgm.apply_state</code>; see the <a href="../landscape/">Landscape</a> and
+<a href="../clustergram/">Clustergram</a> pages), and each change appears in the
+conversation as a "↻ Changed …" line. Cell types Clerk records can also be written to
+the Clustergram's manual column category, when you accept its offer to (see
+<a href="#recording-cell-types">Recording cell types</a>); labels you set yourself are never
+overwritten.</p>
+<p>Reading and changing are separate. Clerk can look up any gene in the Clustergram (values
+and dot sizes across clusters) without changing what you see, even genes hidden by the
+DIM slider or off screen; the browser holds the whole matrix, and DIM, crop and zoom only
+filter what's displayed. Such lookups appear as "↻ Looked up EPCAM, PTPRC in the
+Clustergram (view unchanged)".</p>
+<p>Clerk cites views rather than changing them (see above), and changes the linked views
+directly only when you ask it to show something now, for example "show more marker
+genes" moves the DIM slider. A view change ends Clerk's
+reply, unless Clerk asked to look at the result and continue (<code>"continue": true</code> in its
+actions); lookups always continue with their results. Lookup results add up over a
+question, so Clerk remembers what it already checked, and an action identical to the
+previous one is not repeated.</p>
+<p>Each lookup or change is one round, and Clerk makes at most <code>clerk.max_action_rounds</code>
+(default 6) per question. At that point it pauses with a <strong>Continue</strong> button rather
+than stopping: click it to let Clerk carry on with a fresh budget, or ask something
+else.</p>
+<p>The same changes are available from Python:</p>
+<div class="highlight"><pre><span></span><code><span class="n">cgm</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"marker_level"</span><span class="p">:</span> <span class="mi">10</span><span class="p">})</span>         <span class="c1"># DIM slider; "all" for every row</span>
+<span class="n">cgm</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"mode"</span><span class="p">:</span> <span class="s2">"dotplot"</span><span class="p">,</span> <span class="s2">"size"</span><span class="p">:</span> <span class="s2">"unit"</span><span class="p">})</span>
+<span class="n">cgm</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"focus_gene"</span><span class="p">:</span> <span class="s2">"MUC2"</span><span class="p">})</span>        <span class="c1"># zoom to a gene, like the search box</span>
+<span class="n">cgm</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"order"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"row"</span><span class="p">:</span> <span class="s2">"rank"</span><span class="p">},</span> <span class="s2">"crop"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"col"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"4"</span><span class="p">,</span> <span class="s2">"5"</span><span class="p">]}})</span>
+<span class="n">cgm</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"view"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="p">[</span><span class="mi">250</span><span class="p">,</span> <span class="mi">250</span><span class="p">],</span> <span class="s2">"zoom"</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]}})</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">apply_state</span><span class="p">({</span><span class="s2">"layers"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"image"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"cells"</span><span class="p">:</span> <span class="kc">False</span><span class="p">}})</span>
+</code></pre></div>
+<p>Landscape also exposes image channels, layer sliders and the image source selector.
+See <a href="../../javascript/viz-api/">Viz API</a> for the complete shapes. Dendrogram cut and
+linked selections remain future controls.</p>
+<p>For a simple side-by-side layout of one Landscape + Clerk:</p>
+<div class="highlight"><pre><span></span><code><span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">landscape_clerk</span><span class="p">(</span><span class="n">landscape</span><span class="p">,</span> <span class="n">clerk</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="analysis-notebooks">Analysis notebooks</h2>
+<p>Clerk interprets; it doesn't run analysis. When a question needs new analysis (scoring
+a cell-type signature, a differential expression test, a neighborhood statistic), Clerk
+can draft a Jupyter notebook for it instead of guessing. The notebook is the analysis
+counterpart of a Snapshot: an artifact you can inspect, change, rerun and share.</p>
+<ol>
+<li><strong>Clerk drafts it, when you want it.</strong> If you asked for the analysis ("write a
+   notebook that scores…"), Clerk drafts it right away. Otherwise Clerk only suggests
+   one: "↻ Suggested an analysis notebook", with what it would do and a <strong>Draft
+   notebook</strong> button; nothing is written until you click it. Once drafted, the line
+   shows the file's path (under <code>clerk_files/analyses/</code>). The notebook opens with who
+   drafted it, the question it answers, where its data lives, and a reminder to inspect
+   it.
+   Its cells use Scanpy, Squidpy or Celldega; they read the inputs and write any new
+   results (for example an AnnData with new columns) as new files next to the notebook.</li>
+<li><strong>You inspect it</strong>, in Jupyter like any notebook, and edit it if you like.</li>
+<li><strong>You run it</strong>, yourself, or with <strong>Run with Claude Code</strong> on its line. Claude Code
+   runs it in a separate process with <code>jupyter nbconvert</code>, saving the outputs in the
+   notebook. It may fix a small, clear error (a typo, a misspelled column) and rerun,
+   and it writes a short summary next to the notebook. It can do nothing else: other
+   tools and commands are refused, and your Claude Code settings, hooks and MCP
+   servers aren't loaded.</li>
+<li><strong>Clerk interprets the results.</strong> Claude Code's summary appears in the
+   conversation, so your next question can ask what it means.</li>
+</ol>
+<p>Tell Clerk where the data lives when the linked widgets don't say (for example an
+AnnData file behind an in-memory Landscape):</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span><span class="o">.</span><span class="n">analysis_data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"adata"</span><span class="p">:</span> <span class="s2">"data/cells.h5ad"</span><span class="p">}</span>
+
+<span class="n">clerk</span><span class="o">.</span><span class="n">draft_notebook</span><span class="p">()</span>        <span class="c1"># draft the latest suggestion (the panel's Draft notebook)</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">analyses</span>                <span class="c1"># the notebooks Clerk drafted: title, path, status, summary</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">run_analysis</span><span class="p">()</span>          <span class="c1"># the latest, with Claude Code (in the background)</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">run_analysis</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># one in particular; wait for its result</span>
+
+<span class="n">clerk</span><span class="o">.</span><span class="n">draft_notebooks</span> <span class="o">=</span> <span class="kc">True</span>   <span class="c1"># draft suggestions too, without asking ("ask" by default)</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">draft_notebooks</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># never draft notebooks</span>
+</code></pre></div>
+<p>Clerk never runs a notebook: drafting one you didn't ask for, and running any, is
+always your choice.</p>
+<h2 id="landscape-raster-capture-a-reusable-feature">Landscape raster capture (a reusable feature)</h2>
+<p>Clerk needed to see the view, so <code>Landscape</code> gained a general raster capture: the
+screenshot component of a <a href="../../javascript/saved-views/#terms-and-scope">Snapshot</a>.
+Request a capture; when the browser replies, the image and the exact view state are
+set on the widget (in memory only — captures are
+never saved into the notebook):</p>
+<div class="highlight"><pre><span></span><code><span class="n">landscape</span><span class="o">.</span><span class="n">request_raster</span><span class="p">()</span>      <span class="c1"># asks the browser to capture the current view</span>
+<span class="c1"># ...in a later cell, once the browser has replied:</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">raster_png</span>            <span class="c1"># base64 PNG (no data: prefix), longest side &lt;= 1024 px</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">raster_thumb</span>          <span class="c1"># small preview</span>
+<span class="n">landscape</span><span class="o">.</span><span class="n">raster_view_state</span>     <span class="c1"># {"target": [...], "zoom": ..., ...} for reproducibility</span>
+</code></pre></div>
+<p>The reply arrives asynchronously, so read these in a later cell or <code>observe</code> them; a
+cell that requests a capture can't wait for it.</p>
+<h2 id="snapshots">Snapshots</h2>
+<p><span id="screenshots"></span></p>
+<p>Ask Clerk to save evidence ("save a Snapshot of this for the report") and it takes a
+<a href="../#snapshots">Snapshot</a> of the linked views after any requested changes.
+The screenshot, Clerk's memo and reproducibility metadata are saved together.
+Snapshots are written to <code>clerk_files/screenshots/</code> (or <code>clerk.screenshot_dir</code>),
+marked as made by Clerk, listed
+in <code>clerk.screenshots</code>, and recorded in the conversation. Manual exports from
+<strong>SNAP</strong> or <code>widget.snapshot()</code> default to <code>celldega_files/snapshots/</code>. Either
+folder can be loaded as a briefing or configured to use a shared location. Clerk's
+<code>screenshot_dir</code> and <code>screenshots</code> attributes and its <code>screenshots/</code> folder retain
+their existing names.</p>
+<h2 id="taking-the-record-with-you">Taking the record with you</h2>
+<p>Clerk writes exported reports to <code>clerk_files/&lt;report name&gt;/</code> and Snapshots to
+<code>clerk_files/screenshots/</code>; change the parent folder with <code>clerk.output_dir</code>.
+Manual visualization exports use <code>celldega_files/snapshots/</code> and the widget's
+<code>snapshot_dir</code>. Both default output directories are ignored by Git.</p>
+<p>A law clerk who brings evidence also says how it was found and how to check it.
+<code>clerk.export()</code> (or the panel's <strong>Report</strong> button) writes the conversation to a folder.
+The button opens an optional <strong>Report name</strong> field. The name becomes the report's
+heading and its folder name (<code>Kidney exploration</code> -&gt; <code>clerk_files/kidney-exploration/</code>);
+leave it blank to use <code>report</code>. The date is recorded in <code>record.json</code>. An existing
+report is never overwritten: if the name is taken, the new one is saved as
+<code>kidney-exploration-2</code> (then <code>-3</code>...), and the panel says so.</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">"hcrc_clerk"</span><span class="p">)</span>                               <span class="c1"># into the folder hcrc_clerk</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="s2">"hcrc_clerk"</span><span class="p">,</span> <span class="n">adata</span><span class="o">=</span><span class="n">adata</span><span class="p">,</span> <span class="n">groupby</span><span class="o">=</span><span class="s2">"leiden"</span><span class="p">)</span>  <span class="c1"># also annotate an AnnData</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">export</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"Kidney exploration"</span><span class="p">)</span>                 <span class="c1"># named report under clerk_files/</span>
+</code></pre></div>
+<ul>
+<li><code>report.html</code>: the whole conversation as one self-contained page with static images.
+  Each Landscape and Clustergram Snapshot sits under code to replay its supported
+  settings on widgets with the same data loaded, e.g.
+  <code>landscape.apply_state({"space": "spatial", "view": {...}, "clusters": ["4"]})</code> and
+  <code>cgm.apply_state({"marker_level": 25})</code>; Clerk's work and evidence are collapsed.</li>
+<li><code>report.ipynb</code>: the same as a notebook, to re-run the reproduction code against your
+  own widgets.</li>
+<li><code>record.json</code>: every question with its model, effort, what was sent, each step
+  (lookups and their results, view changes, replies), each capture's observed evidence
+  (<code>observations</code>), available widget sources and partial replay settings.</li>
+<li><code>screenshots/</code>: each capture as a
+  <a href="../#snapshots">Snapshot</a>, one per widget (<code>q1_1.png</code> for the
+  Landscape, <code>q1_1_clustergram.png</code> for the Clustergram). Like SNAP's, each PNG carries
+  the record to reopen its view, e.g. <code>dega.viz.from_png("report/screenshots/q1_1.png")</code>.</li>
+<li><code>findings.csv</code>: the cell types Clerk proposed.</li>
+<li>With <code>adata=</code> and <code>groupby=</code>: the latest cell types written into
+  <code>adata.obs["clerk_cell_type"]</code> (a column Clerk wrote earlier is replaced) and
+  <code>cell_types.csv</code>; add <code>write_h5ad=True</code> to save the AnnData too.</li>
+</ul>
+<p>The record is also available as <code>clerk.record</code> (a list of dicts, one per question). The
+HTML needs <code>nbconvert</code>; without it the other files are still written.</p>
+<h3 id="saving-and-reopening-a-conversation">Saving and reopening a conversation</h3>
+<p>The panel's <strong>Save</strong> button (or <code>clerk.save_conversation()</code>) saves the conversation to
+reopen later, the way SNAP saves a view. It writes one JSON file to
+<code>clerk_files/conversations/</code>, holding:</p>
+<ul>
+<li>the messages, with their gene, cluster and view links and Enrichr results;</li>
+<li>the record of each question, with the replay settings of its captures;</li>
+<li>Clerk's proposed cell types and the context;</li>
+<li>links to the data the linked widgets show.</li>
+</ul>
+<p>Each question's Snapshot preview is kept, but full-size captures are left out to keep
+the file light; <strong>Write report</strong> keeps those.</p>
+<p><strong>Open</strong> (or <code>clerk.load_conversation(path)</code>) puts a saved conversation back in the
+panel, replacing the current one. It also opens an exported report folder. Saved
+conversations are named after their title (<code>kidney-walkthrough.json</code>), with <code>-2</code> and so
+on when the name is taken.</p>
+<div class="highlight"><pre><span></span><code><span class="n">saved</span> <span class="o">=</span> <span class="n">clerk</span><span class="o">.</span><span class="n">save_conversation</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"kidney walkthrough"</span><span class="p">)</span>
+<span class="c1"># ...later, in a notebook with the same data linked:</span>
+<span class="n">clerk</span><span class="o">.</span><span class="n">load_conversation</span><span class="p">(</span><span class="n">saved</span><span class="p">)</span>          <span class="c1"># or the panel's Open button</span>
+</code></pre></div>
+<p>Reading a saved conversation needs no Claude, so it shows what a session looked like:
+click through the genes, clusters and cited views (<code>[Fig 1A]</code>) and they change the linked
+widgets, as they did when Clerk answered. The links need the same data loaded in those
+widgets. A new question continues the conversation, with the loaded one as its history.</p>
+<h3 id="reopening-a-case">Reopening a case</h3>
+<p><code>Clerk(clerk_files=...)</code> (or <code>clerk.open_case(...)</code>) reopens a saved case: a report
+folder, a saved conversation, or a folder of them such as <code>clerk_files</code>, which opens the
+most recent. Use it to read back through a case, like a record you scroll through, or to
+keep working on it:</p>
+<div class="highlight"><pre><span></span><code><span class="n">clerk</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clerk</span><span class="p">(</span>
+    <span class="n">clerk_files</span><span class="o">=</span><span class="s2">"clerk_files"</span><span class="p">,</span>   <span class="c1"># the most recent case; or "clerk_files/kidney-exploration"</span>
+    <span class="n">landscape</span><span class="o">=</span><span class="n">landscape</span><span class="p">,</span> <span class="n">clustergram</span><span class="o">=</span><span class="n">cgm</span><span class="p">,</span> <span class="n">yearbook</span><span class="o">=</span><span class="n">yearbook</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>It needs no Claude. The panel shows the conversation, findings and evidence; their genes,
+clusters and cited views change the linked widgets, and the case's views become pins on
+the Landscape (<strong>PINS</strong>: hover a pin for its question and a preview, click it to return
+to that view). Asking a question continues the case (that needs Claude), and new reports
+are saved beside it.</p>
+<h2 id="saved-views-evidence-and-reports">Saved views, evidence and reports</h2>
+<p>The Viz API preserves an interactive observation as a Snapshot. A Snapshot becomes
+an <strong>evidence artifact</strong> when Clerk cites it to support or contradict a
+claim. The report collects those artifacts with questions, lookups, reasoning and
+findings; that organization belongs to Clerk, not the visualization API.</p>
+<p>Use <code>clerk.export(...)</code> and <code>clerk.load_briefing(...)</code> to save and reuse this record.
+Manual exports use the same underlying saved-view contract without constructing a
+Clerk. See <a href="../../javascript/saved-views/">Portable Snapshots</a>.</p>
+<h2 id="roadmap">Roadmap</h2>
+<p>Planned next steps include a one-click "label my clusters" pass (evidence gathered by
+code, one model call), counting the cell types in view at mid zoom without loading
+transcripts, and running Clerk on the Claude Agent SDK
+so lookups are real tools. See <code>celldega/clerk/ROADMAP.md</code> for the full plan.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/broadinstitute/celldega" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://bsky.app/profile/stp-broad.bsky.social" target="_blank" rel="noopener" title="bsky.app" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M407.8 294.7c-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3M288 227.1c-26.1-50.7-97.1-145.2-163.1-191.8C61.6-9.4 37.5-1.7 21.6 5.5 3.3 13.8 0 41.9 0 58.4S9.1 194 15 213.9c19.5 65.7 89.1 87.9 153.2 80.7 3.3-.5 6.6-.9 10-1.4-3.3.5-6.6 1-10 1.4-93.9 14-177.3 48.2-67.9 169.9C220.6 589.1 265.1 437.8 288 361.1c22.9 76.7 49.2 222.5 185.6 103.4 102.4-103.4 28.1-156-65.8-169.9-3.3-.4-6.7-.8-10-1.3 3.4.4 6.7.9 10 1.3 64.1 7.1 133.6-15.1 153.2-80.7C566.9 194 576 75 576 58.4s-3.3-44.7-21.6-52.9c-15.8-7.1-40-14.9-103.2 29.8C385.1 81.9 314.1 176.4 288 227.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../assets/js/gallery_tabula_sapiens.js" type="module"></script>
+      
+        <script src="../../assets/js/index.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_mouse_brain.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_skin_cancer.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_cosmx_colon.js" type="module"></script>
+      
+        <script src="../../assets/js/google-analytics.js"></script>
+      
+        <script src="../../assets/js/hide_notebook_sidebar.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_visium_hd_cell_segmentation_mouse_brain.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_atera.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_atera_kidney.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_atera_linked.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_broad_allen_mouse_brain_3d.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_broad_allen_mouse_brain_2d.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_merfish_thick_tissue.js" type="module"></script>
+      
+        <script src="../../assets/js/visualization_previews.js" type="module"></script>
+      
+        <script src="../../assets/js/gallery_citeseq_pbmc.js" type="module"></script>
+      
+        <script src="../../js/open_in_new_tab.js"></script>
+      
+    
+  </body>
+</html>

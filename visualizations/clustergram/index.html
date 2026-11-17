@@ -584,6 +584,8 @@
       
         
       
+        
+      
     
     
     
@@ -1343,6 +1345,106 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_11" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../clerk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clerk
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Clerk
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clerk/hosting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding Clerk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1361,6 +1463,8 @@
       
         
           
+        
+      
         
       
         
@@ -1447,6 +1551,34 @@
     
   
     align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/clerk/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clerk
   
 
     
@@ -1734,6 +1866,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1806,6 +1944,149 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/viz-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Viz API: getters, setters, exporters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/saved-views/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portable Snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../javascript/development/state-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -4345,7 +4626,17 @@ Clustergram drives the other views:</p>
 <td>—</td>
 </tr>
 <tr>
+<td>Shift-click column labels</td>
+<td>Selects those clusters' cells (shift-click again to remove one)</td>
+<td>Receives their top marker genes</td>
+</tr>
+<tr>
 <td>Click a row dendrogram branch, or crop rows</td>
+<td>Colors cells by the genes' combined expression</td>
+<td>Receives those genes</td>
+</tr>
+<tr>
+<td>Shift-click gene labels</td>
 <td>Colors cells by the genes' combined expression</td>
 <td>Receives those genes</td>
 </tr>
@@ -4357,8 +4648,11 @@ Clustergram drives the other views:</p>
 </tbody>
 </table>
 <p>Selecting an Enrich term turns its genes' labels blue in the Clustergram, and
-clicking a gene in Enrich zooms the Clustergram to it. Selections made in a
-Landscape do not change the Clustergram. See
+clicking a gene in Enrich zooms the Clustergram to it. Shift-clicked labels are blue
+too, until a plain click starts over. With <code>dega.viz.spatial_clustergram</code>, the clusters
+highlighted in the Landscape (from its cluster bars, a Clustergram click or a Clerk
+link) turn their column labels blue (<code>cgm.highlighted_cols</code>); other Landscape
+selections do not change the Clustergram. See
 <a href="../landscape-clustergram-enrich/">Landscape–Clustergram–Enrich</a> for a complete
 linked example.</p>
 <h2 id="widget-python-backed-interactions">Widget: Python-backed interactions</h2>
@@ -4370,7 +4664,27 @@ linked example.</p>
 <li><strong>Annotations</strong>: categories assigned in the manual category editor are in
   <code>cgm.manual_cat</code>.</li>
 <li><strong>Updates from Python</strong>: for example, <code>cgm.viz_mode = "heatmap"</code> switches a
-  dot plot to a heatmap.</li>
+  dot plot to a heatmap. <code>cgm.apply_state({...})</code> sets controls by name:
+  <code>marker_level</code> (the DIM slider, or <code>"all"</code>), <code>mode</code> (<code>"heatmap"</code> /
+  <code>"dotplot"</code>), <code>size</code> (<code>"prop"</code> / <code>"unit"</code>), <code>focus_gene</code> (zoom to a gene, like
+  the search box), and <code>categories</code> (see below).</li>
+<li><strong>Annotations from Python</strong>: <code>cgm.set_categories({"4": "Goblet cells", "5":
+  "Plasma cells"})</code> labels columns in the manual category, exactly as the editor
+  would; the strips, bars and <code>cgm.manual_cat</code> update. Pass <code>axis="row"</code> for rows,
+  <code>attribute=...</code> to choose or create the category, <code>colors={...}</code> for colors, and
+  <code>replace=True</code> to clear the axis's other labels first.</li>
+<li><strong>State queries</strong>: <code>cgm.request_state()</code> asks the browser what is shown (rows and
+  columns on screen, order, marker level, dendrogram groups, attributes, selection,
+  values); <code>cgm.request_state(markers={"clusters": ["4"], "n": 25})</code> also returns
+  a cluster's ranked <code>rank_genes_groups</code> markers. Read <code>cgm.latest_state</code> in a
+  later cell.</li>
+<li><strong>Images</strong>: <code>cgm.request_raster()</code> captures the heatmap (with its labels and
+  category strips) as a PNG, like the Landscape's; read <code>cgm.raster_png</code> (and the
+  <code>cgm.raster_thumb</code> preview) in a later cell. Captures stay in memory and are never
+  saved into the notebook. In JavaScript, <code>matrix.capture_raster()</code> returns the same.</li>
+<li><strong>Snapshots</strong>: <code>cgm.snapshot(description="...", name="...")</code> saves the screenshot
+  together with a memo and reproducibility metadata in a PNG that can be reopened.
+  See <a href="../#snapshots">Snapshots</a>.</li>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="n">cgm</span> <span class="o">=</span> <span class="n">dega</span><span class="o">.</span><span class="n">viz</span><span class="o">.</span><span class="n">Clustergram</span><span class="p">(</span><span class="n">matrix</span><span class="o">=</span><span class="n">mat</span><span class="p">,</span> <span class="n">manual_col_cat</span><span class="o">=</span><span class="s2">"cell_type"</span><span class="p">)</span>
 <span class="n">cgm</span>

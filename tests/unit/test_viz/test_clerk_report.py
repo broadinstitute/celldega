@@ -228,8 +228,8 @@ def test_panel_export_button_writes_a_report(tmp_path, monkeypatch, title, stem)
     w.request = {"id": "e1", "export": True, "report_title": title}
     note = w.messages[-1]
     assert note["role"] == "note"
-    assert f"Saved this conversation to clerk_files/{stem}_" in note["content"]
-    saved = next(tmp_path.glob(f"clerk_files/{stem}_*/record.json"))
+    assert f"Saved this conversation to clerk_files/{stem}/" in note["content"]
+    saved = tmp_path / "clerk_files" / stem / "record.json"
     assert json.loads(saved.read_text())["meta"]["title"] == title
     notebook = json.loads((saved.parent / "report.ipynb").read_text())
     assert "".join(notebook["cells"][0]["source"]).startswith(f"# {title or 'Clerk report'}\n")
@@ -246,7 +246,7 @@ def test_report_name_cannot_change_the_output_directory(tmp_path) -> None:
     w.output_dir = tmp_path / "reports"
     written = w.export(title="../../Kidney / comparison", html=False)
     assert written["record"].parent.parent == tmp_path / "reports"
-    assert written["record"].parent.name.startswith("kidney-comparison_")
+    assert written["record"].parent.name == "kidney-comparison"
     assert json.loads(written["record"].read_text())["meta"]["title"] == "../../Kidney / comparison"
 
 
@@ -376,3 +376,82 @@ def test_capture_dedup_preserves_changed_data_identity():
     assert len(steps) == 2
     assert steps[0]["snapshots"]["clustergram"]["identity"]["rows"]["hash"] == "a" * 14
     assert steps[1]["snapshots"]["clustergram"]["identity"]["rows"]["hash"] == "b" * 14
+
+
+def test_reports_and_conversations_keep_their_names(tmp_path) -> None:
+    w = Clerk()
+    w.output_dir = tmp_path
+    w.record, w.findings = _record()
+    first = w.export(title="Kidney", html=False)["record"].parent
+    # The name is taken: the next report gets the next free one, and says so.
+    with pytest.warns(UserWarning, match="kidney already exists, so this one is kidney-2"):
+        second = w.export(title="Kidney", html=False)["record"].parent
+    assert (first.name, second.name) == ("kidney", "kidney-2")
+    assert w.messages[-1]["content"].startswith("A report named kidney already exists")
+    assert json.loads((first / "record.json").read_text())["meta"]["exported"]
+    saved = w.save_conversation(title="Kidney")
+    with pytest.warns(UserWarning, match="kidney.json already exists"):
+        again = w.save_conversation(title="Kidney")
+    assert (saved.name, again.name) == ("kidney.json", "kidney-2.json")
+
+
+def test_a_case_reopens_from_clerk_files_without_claude(tmp_path, monkeypatch) -> None:
+    import os
+    import time as _time
+
+    w = Clerk()
+    w.output_dir = tmp_path
+    w.record, w.findings = _record()
+    older = w.export(title="Older", html=False)["record"]
+    newer = w.export(title="Newer", html=False)["record"]
+    past = _time.time() - 60
+    os.utime(older, (past, past))
+    monkeypatch.setattr(clerk_llm, "ask", lambda *a, **k: pytest.fail("no Claude needed"))
+
+    # A clerk_files folder opens its most recent case; a case folder opens that one.
+    fresh = Clerk(clerk_files=tmp_path)
+    assert fresh._case["path"] == str(newer)
+    assert fresh.findings and [m for m in fresh.messages if m["role"] == "user"]
+    assert fresh.messages[-1]["content"].startswith("Reopened Newer")
+    assert fresh.output_dir == str(tmp_path)  # new reports go beside it
+    chosen = Clerk(clerk_files=older.parent)
+    assert chosen._case["path"] == str(older)
+    with pytest.raises(FileNotFoundError, match="No saved Clerk case"):
+        Clerk(clerk_files=tmp_path / "missing")
+
+
+def test_a_reopened_case_pins_its_views_on_the_landscape(tmp_path) -> None:
+    import warnings
+
+    from celldega.viz import Landscape, link_clerk
+
+    w = Clerk()
+    w.output_dir = tmp_path
+    w.record, w.findings = _record()
+    w.record[0]["steps"][0]["snapshots"] = {
+        "landscape": {
+            "schema": "celldega.view",
+            "version": 2,
+            "kind": "landscape",
+            "state": {"space": "spatial", "view": {"target": [10, 20, 0], "zoom": -1}},
+            "identity": {"cells": {"count": 3, "names": "abc"}},
+            "source": {"widget": "Landscape", "base_url": "https://example.com/data"},
+        }
+    }
+    w.export(title="Pinned", html=False)
+
+    def landscape():
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            return Landscape(base_url="https://example.com/data")
+
+    # Linked from the constructor: each question's view is a pin, with its question.
+    first = landscape()
+    reopened = Clerk(clerk_files=tmp_path, landscape=first)
+    assert [p["name"] for p in first.pins] == ["Q1 Landscape"]
+    assert first.pins[0]["description"] == "What is cluster 4?" and first.pins[0]["thumb"]
+    assert "its views are pins on the Landscape" in reopened.messages[-1]["content"]
+    # Or linked later (e.g. by spatial_clustergram).
+    later = landscape()
+    link_clerk(Clerk(clerk_files=tmp_path), landscape=later)
+    assert [p["name"] for p in later.pins] == ["Q1 Landscape"]

@@ -1,5 +1,8 @@
 """Clerk -- Celldega's AI tool for exploring and interpreting its visualizations.
 
+.. warning:: Experimental. Clerk is a proof of concept: its features, API and saved
+   formats may change between releases, without deprecation.
+
 Not an MCP server: the prompts, actions and lookups that let Claude read and drive
 linked Celldega widgets and consult outside tools (Enrichr, PubMed).
 
@@ -10,8 +13,9 @@ renders it.
 
 Clerk talks to Claude via the local ``claude`` CLI (kernel-side, no API key). It reasons
 from evidence that Celldega gathers -- the linked views' state, a Landscape screenshot,
-lookups it asks for, and free-text context. Each question is one CLI session: follow-up
-rounds resume it, so the conversation so far is read from the API's cache.
+lookups it asks for, and free-text context. A conversation continues in one CLI session:
+follow-up rounds and later questions resume it and send only what changed, so the
+conversation so far is read from the API's cache.
 
 Example::
 

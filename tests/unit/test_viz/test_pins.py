@@ -71,6 +71,8 @@ def test_snapshots_become_pins_at_their_view_centers(tmp_path):
     assert pins[1]["target"] == [30.0, 40.0]
     assert pins[0]["snapshot"]["state"]["clusters"] == ["4"]
     assert "image" not in pins[0]["snapshot"]  # the saved view only, no pixels
+    # A small JPEG of the Snapshot's image, for the pin's tooltip.
+    assert base64.b64decode(pins[0]["thumb"]).startswith(b"\xff\xd8")
 
     # Paths, named collections and repeated names.
     named = Snapshots({"Start here": glom, "Then": medulla})

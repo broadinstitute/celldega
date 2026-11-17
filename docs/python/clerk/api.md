@@ -1,5 +1,9 @@
 # Clerk Module API Reference
 
+!!! warning "Experimental"
+    The Clerk module is experimental: its features, API and saved formats may change
+    between releases, without deprecation.
+
 The `clerk` module is the backend for **Clerk**, Celldega's AI tool for exploring and
 interpreting its visualizations. It isn't an MCP server: it's the prompts, actions and
 lookups that let Claude read and drive linked Celldega widgets and consult outside tools

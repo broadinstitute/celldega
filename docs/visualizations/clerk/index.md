@@ -1,7 +1,10 @@
 # Clerk
 
-!!! note "Experimental"
-    Clerk is a proof of concept: its features and API may change between releases.
+!!! warning "Experimental"
+    The Clerk module (`celldega.clerk` and the `celldega.viz.Clerk` widget) is
+    experimental. It is a proof of concept: its features, API and saved formats may
+    change between releases, without deprecation. Check what it tells you against the
+    data, as you would any draft.
 
 **Clerk** is Celldega's AI tool for exploring and interpreting its visualizations. It
 isn't a separate service or an MCP server. It's a set of prompts, actions and light
@@ -142,7 +145,7 @@ question under "Earlier work", introduced as claims to check rather than evidenc
 the panel shows a "Briefing: …" line so it's always clear what Clerk was told:
 
 ```python
-clerk.load_briefing("clerk_files/report_20261107-101500")  # an exported report folder
+clerk.load_briefing("clerk_files/kidney-exploration")  # an exported report folder
 clerk.load_briefing("case1/record.json", "notes.md")     # several sources
 clerk.load_briefing(other_clerk, append=True)            # another panel's conversation
 clerk.load_briefing("celldega_files/snapshots")        # manual Snapshots
@@ -601,7 +604,7 @@ their existing names.
 
 ## Taking the record with you
 
-Clerk writes exported reports to `clerk_files/report_<time>/` and Snapshots to
+Clerk writes exported reports to `clerk_files/<report name>/` and Snapshots to
 `clerk_files/screenshots/`; change the parent folder with `clerk.output_dir`.
 Manual visualization exports use `celldega_files/snapshots/` and the widget's
 `snapshot_dir`. Both default output directories are ignored by Git.
@@ -609,11 +612,13 @@ Manual visualization exports use `celldega_files/snapshots/` and the widget's
 A law clerk who brings evidence also says how it was found and how to check it.
 `clerk.export()` (or the panel's **Report** button) writes the conversation to a folder.
 The button opens an optional **Report name** field. The name becomes the report's
-heading and its folder name, followed by a timestamp. Leave it blank to use
-`report_<time>`.
+heading and its folder name (`Kidney exploration` -> `clerk_files/kidney-exploration/`);
+leave it blank to use `report`. The date is recorded in `record.json`. An existing
+report is never overwritten: if the name is taken, the new one is saved as
+`kidney-exploration-2` (then `-3`...), and the panel says so.
 
 ```python
-clerk.export("hcrc_clerk")                               # default: clerk_files/report_<time>
+clerk.export("hcrc_clerk")                               # into the folder hcrc_clerk
 clerk.export("hcrc_clerk", adata=adata, groupby="leiden")  # also annotate an AnnData
 clerk.export(title="Kidney exploration")                 # named report under clerk_files/
 ```
@@ -655,7 +660,9 @@ Each question's Snapshot preview is kept, but full-size captures are left out to
 the file light; **Write report** keeps those.
 
 **Open** (or `clerk.load_conversation(path)`) puts a saved conversation back in the
-panel, replacing the current one. It also opens an exported report folder.
+panel, replacing the current one. It also opens an exported report folder. Saved
+conversations are named after their title (`kidney-walkthrough.json`), with `-2` and so
+on when the name is taken.
 
 ```python
 saved = clerk.save_conversation(title="kidney walkthrough")
@@ -667,6 +674,26 @@ Reading a saved conversation needs no Claude, so it shows what a session looked 
 click through the genes, clusters and cited views (`[Fig 1A]`) and they change the linked
 widgets, as they did when Clerk answered. The links need the same data loaded in those
 widgets. A new question continues the conversation, with the loaded one as its history.
+
+### Reopening a case
+
+`Clerk(clerk_files=...)` (or `clerk.open_case(...)`) reopens a saved case: a report
+folder, a saved conversation, or a folder of them such as `clerk_files`, which opens the
+most recent. Use it to read back through a case, like a record you scroll through, or to
+keep working on it:
+
+```python
+clerk = dega.viz.Clerk(
+    clerk_files="clerk_files",   # the most recent case; or "clerk_files/kidney-exploration"
+    landscape=landscape, clustergram=cgm, yearbook=yearbook,
+)
+```
+
+It needs no Claude. The panel shows the conversation, findings and evidence; their genes,
+clusters and cited views change the linked widgets, and the case's views become pins on
+the Landscape (**PINS**: hover a pin for its question and a preview, click it to return
+to that view). Asking a question continues the case (that needs Claude), and new reports
+are saved beside it.
 
 ## Saved views, evidence and reports
 

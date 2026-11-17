@@ -1841,6 +1841,9 @@ class Enrich(_StateGetter, CelldegaWidget):
 class Clerk(CelldegaWidget):
     """Clerk -- Celldega's AI tool for exploring and interpreting its visualizations.
 
+    .. warning:: Experimental. Clerk is a proof of concept: its features, API and
+       saved formats may change between releases, without deprecation.
+
     Works like :class:`Enrich`, but instead of the Enrichr API it talks to Claude via
     the local ``claude`` CLI (kernel-side, no API key). The scientist asks free-form
     questions in a chat box; Celldega bundles the available evidence -- the gene list,
@@ -1947,6 +1950,7 @@ class Clerk(CelldegaWidget):
         }
         capture_on_select = kwargs.pop("capture_on_select", True)
         adata = kwargs.pop("adata", None)
+        clerk_files = kwargs.pop("clerk_files", None)
 
         super().__init__(name=name, registry_key=registry_key, **kwargs)
         # Single-cell AnnData Clerk may select Yearbook cells from (celldega.select,
@@ -1958,6 +1962,8 @@ class Clerk(CelldegaWidget):
         # The Claude session the conversation continues in, and what Clerk was last
         # sent (see continue_conversation).
         self._conversation: dict | None = None
+        # The saved case this Clerk reopened (see open_case), if any.
+        self._case: dict | None = None
         self._last_request_id = None
         self._linked_widgets = {}
         self._worker: threading.Thread | None = None
@@ -2003,6 +2009,8 @@ class Clerk(CelldegaWidget):
             from . import link_clerk
 
             link_clerk(self, capture_on_select=capture_on_select, **link_targets)
+        if clerk_files is not None:
+            self.open_case(clerk_files)
 
     def _on_image(self, change):
         self.has_image = bool(change["new"])
@@ -3551,7 +3559,7 @@ class Clerk(CelldegaWidget):
             + (f" (of {matched} matching)" if matched is not None else "")
         )
 
-    #: Folder for everything Clerk writes: exported reports (``report_<time>``) and
+    #: Folder for everything Clerk writes: exported reports (named after their title) and
     #: its screenshots (``screenshots``), so one ignore rule covers them.
     output_dir = "clerk_files"
     #: Folder for screenshots Clerk takes (default: ``<output_dir>/screenshots``).
@@ -4130,8 +4138,10 @@ class Clerk(CelldegaWidget):
     ) -> dict[str, Path]:
         """Save a record of this conversation that you can take with you.
 
-        Writes into ``folder`` (default ``<output_dir>/report_<date>-<time>``, i.e.
-        ``clerk_files/report_...``):
+        Writes into ``folder`` (default ``<output_dir>/<title>``, e.g.
+        ``clerk_files/kidney-exploration``, or ``clerk_files/report`` untitled; a name
+        already taken gets ``-2``, ``-3``..., and the panel says so; the date is in
+        ``record.json``):
 
         - ``report.html``: the whole conversation as one page. Each screenshot sits
           under the code that recreates that view (``landscape.apply_state(...)``,
@@ -4149,7 +4159,7 @@ class Clerk(CelldegaWidget):
 
         Args:
             title: Optional report name, shown as its heading and used in the
-                default folder name (followed by a timestamp).
+                default folder name.
             names: Variable names for the reproduction code, default
                 ``{"landscape": "landscape", "clustergram": "cgm"}``.
             html: Also render ``report.html`` (needs ``nbconvert``).
@@ -4161,7 +4171,15 @@ class Clerk(CelldegaWidget):
 
         title = " ".join(title.split())
         stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").lower()[:50] or "report"
-        folder = Path(folder or Path(self.output_dir) / f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}")
+        if folder:
+            folder = Path(folder)
+        else:
+            # Named after its title; the date is in record.json. An earlier report
+            # of that name is kept: this one gets the next free name.
+            default = Path(self.output_dir) / stem
+            folder = _unused_path(default)
+            if folder != default:
+                self._say_renamed("report", default, folder)
         try:
             celldega_version = importlib.metadata.version("celldega")
         except importlib.metadata.PackageNotFoundError:
@@ -4446,7 +4464,10 @@ class Clerk(CelldegaWidget):
             target = location
         else:
             stem = re.sub(r"[^A-Za-z0-9]+", "-", title).strip("-").lower()[:50] or "conversation"
-            target = location / f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}.json"
+            default = location / f"{stem}.json"
+            target = _unused_path(default)
+            if target != default:
+                self._say_renamed("conversation", default, target)
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             celldega_version = importlib.metadata.version("celldega")
@@ -4484,7 +4505,67 @@ class Clerk(CelldegaWidget):
         target.write_text(json.dumps(payload, default=str), encoding="utf-8")
         return target
 
-    def load_conversation(self, path: str | Path) -> dict:
+    def _say_renamed(self, what: str, default: Path, used: Path) -> None:
+        """Tell the scientist an earlier save kept its name, so this one has another."""
+        message = f"A {what} named {default.name} already exists, so this one is {used.name}."
+        warnings.warn(message, stacklevel=3)
+        self._append({"role": "note", "content": message})
+
+    def open_case(self, clerk_files: str | Path | None = None) -> dict:
+        """Reopen a saved Clerk case, to explore it or keep working on it.
+
+        ``clerk_files`` is a report folder (from :meth:`export` or the panel's Report
+        button), a saved conversation (``.json``), or a folder of them such as
+        ``clerk_files`` (the default, :attr:`output_dir`), which opens the most
+        recent. Same as ``Clerk(clerk_files=...)``.
+
+        The panel shows the conversation as it was: its findings and evidence, with
+        genes, clusters and cited views that change the linked widgets (which need
+        the same data loaded). Its views become pins on a linked Landscape that has
+        none yet (**PINS**). None of this needs Claude; a new question continues the
+        case (that needs Claude), and new reports are saved beside it.
+
+        Returns:
+            dict: What was saved (see :meth:`load_conversation`), plus ``path``.
+        """
+        found = _case_file(Path(clerk_files) if clerk_files else Path(self.output_dir))
+        info = self.load_conversation(found)
+        info["path"] = str(found)
+        # Keep working beside it: the clerk_files folder holding the case.
+        parent = found.parent
+        self.output_dir = str(
+            parent.parent
+            if found.name == "record.json" or parent.name == "conversations"
+            else parent
+        )
+        self._case = info
+        pinned = self._pin_case()
+        name = info.get("title") or (
+            found.parent.name if found.name == "record.json" else found.stem
+        )
+        saved = f" (saved {info['saved']})" if info.get("saved") else ""
+        self._append(
+            {
+                "role": "note",
+                "content": f"Reopened {name}{saved}. Click its genes, clusters and views "
+                "to see them"
+                + ("; its views are pins on the Landscape (PINS)" if pinned else "")
+                + ". Ask a question to keep working on it (that needs Claude).",
+            }
+        )
+        return info
+
+    def _pin_case(self) -> bool:
+        """Pin a reopened case's Landscape views on the linked Landscape (if it has no
+        pins yet). Returns whether any were pinned."""
+        landscape = self._linked_widgets.get("landscape")
+        if self._case is None or landscape is None or not hasattr(landscape, "pin_data"):
+            return False
+        if not landscape.pin_data:
+            landscape.pins = self.snapshots
+        return bool(landscape.pin_data)
+
+    def load_conversation(self, path: str | Path | None = None) -> dict:
         """Reopen a saved conversation in the panel, without Claude.
 
         Opens a file from :meth:`save_conversation` (or the panel's SAVE button), or a
@@ -4496,15 +4577,15 @@ class Clerk(CelldegaWidget):
         Replaces the current conversation, record and proposed cell types.
 
         Args:
-            path: The conversation ``.json``, or an export folder or its ``record.json``.
+            path: The conversation ``.json``, or an export folder or its ``record.json``;
+                a folder of them (default :attr:`output_dir`) opens the most recent.
+                To also pin its views on the Landscape, use :meth:`open_case`.
 
         Returns:
             dict: What was saved: ``title``, ``saved``, ``celldega``, ``context_info``
             and ``sources`` (the data the original widgets showed).
         """
-        path = Path(path)
-        if path.is_dir():
-            path = path / "record.json"
+        path = _case_file(Path(path) if path else Path(self.output_dir))
         data = json.loads(path.read_text(encoding="utf-8"))
         return self._load_conversation_data(data, path.parent)
 
@@ -4729,6 +4810,35 @@ def _ask(question: str, call: dict) -> str:
     from .. import clerk
 
     return clerk.ask(question, **{k: v for k, v in call.items() if k not in _CLERK_CALL_ONLY})
+
+
+def _unused_path(path: Path) -> Path:
+    """``path``, or the first of ``name-2``, ``name-3``... not taken yet."""
+    candidate, n = path, 2
+    while candidate.exists():
+        candidate = path.with_name(f"{path.stem}-{n}{path.suffix}")
+        n += 1
+    return candidate
+
+
+def _case_file(path: Path) -> Path:
+    """The saved Clerk case at ``path``: a conversation ``.json`` or ``record.json``
+    as given, a report folder's ``record.json``, or in a folder of them (such as
+    ``clerk_files``) the most recently saved."""
+    path = Path(path).expanduser()
+    if path.is_file():
+        return path
+    if (path / "record.json").is_file():
+        return path / "record.json"
+    if path.is_dir():
+        found = [*path.glob("*/record.json"), *path.glob("conversations/*.json")]
+        if found:
+            return max(found, key=lambda p: p.stat().st_mtime)
+        raise FileNotFoundError(
+            f"No saved Clerk case in {path}: no report folders (with a record.json) "
+            "or saved conversations (conversations/*.json)"
+        )
+    raise FileNotFoundError(f"No saved Clerk case at {path}")
 
 
 # What a question sent Clerk, compared with the next question's (see _views_since).

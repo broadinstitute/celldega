@@ -629,6 +629,8 @@ def link_clerk(
     if yearbook is not None:
         linked["yearbook"] = yearbook
     clerk._linked_widgets = linked
+    if landscape is not None and getattr(clerk, "_case", None) is not None:
+        clerk._pin_case()  # a reopened case's views, as pins on this Landscape
     return clerk
 
 

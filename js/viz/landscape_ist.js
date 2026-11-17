@@ -105,6 +105,7 @@ import {
 //   getVersion as getParquetWasmVersion,
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { show_loading } from '../ui/loading';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { add_pic_button } from '../ui/pic_button';
 import { add_pins_control } from '../ui/pins';
@@ -140,6 +141,7 @@ import {
 import {
   wait_for_canvas,
   wait_for_operation,
+  wait_until_ready,
   create_snapshot_api,
   landscape_identity,
   landscape_source,
@@ -1669,6 +1671,10 @@ export const landscape_ist = async (
         await wait_for_canvas(deck_ist, () => finalized);
         await wait_for_operation(() => wait_for_expression(viz_state));
       },
+      // While a saved view (a Snapshot card, a pin, Clerk's evidence) loads: the
+      // visualization dims under the Celldega mark until its layers are ready.
+      busy: () => show_loading(root, { overlay: true, delay: 150 }),
+      settled: () => wait_until_ready(viz_state.obs_store.deck_ready),
       kind: 'landscape',
       get_state: landscape.get_state,
       capture_raster: landscape.capture_raster,

@@ -13,9 +13,12 @@ describe('anywidget render lifecycle', () => {
       path.join(__dirname, '../celldega.js'),
       'utf8'
     );
-    const start = source.indexOf('async function render({ model, el })');
+    const start = source.indexOf('async function render(');
     const end = source.indexOf('/**\n * Load and render a Clustergram', start);
     const render_source = source.slice(start, end);
+    const held_source = fs
+      .readFileSync(path.join(__dirname, '../utils/held_messages.js'), 'utf8')
+      .replace(/^export const /gm, 'const ');
 
     visualization_cleanup = jest.fn();
     const visualization = { finalize: visualization_cleanup };
@@ -31,7 +34,7 @@ describe('anywidget render lifecycle', () => {
       'handleAsyncError',
       'show_loading',
       'LOADING_DELAY_MS',
-      `${render_source}; return render;`
+      `${held_source}\n${render_source}; return render;`
     );
     render = factory(
       renderer,
@@ -67,6 +70,15 @@ describe('anywidget render lifecycle', () => {
     expect(visualization_cleanup).toHaveBeenCalledTimes(1);
     expect(model.off).toHaveBeenCalledTimes(1);
     expect(listeners.has('msg:custom')).toBe(false);
+  });
+
+  test('a request sent while rendering reaches the rendered widget', async () => {
+    // The renderer resolves on a later tick; Python closes the widget first.
+    const pending = render({ model, el: document.createElement('div') });
+    listeners.get('msg:custom')({ event: 'finalize' });
+    expect(visualization_cleanup).not.toHaveBeenCalled();
+    await pending;
+    expect(visualization_cleanup).toHaveBeenCalledTimes(1);
   });
 
   test('explicit finalize and later view disposal share one cleanup', async () => {

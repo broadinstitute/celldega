@@ -82,13 +82,10 @@ class Snapshot(anywidget.AnyWidget):
         self._observer = None
         self._closed = False
         key = None
-        if (
-            isinstance(snapshot, str)
-            and self._linked is not None
-            and snapshot in getattr(self._linked, "snap", {})
-        ):
-            key = snapshot
-            snapshot = self._linked.snap[key]
+        if isinstance(snapshot, str) and self._linked is not None:
+            found = _named_snapshot(self._linked, snapshot)
+            if found is not None:
+                key, snapshot = snapshot, found
         if isinstance(snapshot, Screenshot):
             if not snapshot.done or snapshot.error:
                 raise ValueError(
@@ -104,6 +101,8 @@ class Snapshot(anywidget.AnyWidget):
                 path = Path(record["_path"])
         elif isinstance(snapshot, str | Path):
             path = Path(snapshot).expanduser()
+            if not path.is_file():
+                raise FileNotFoundError(_missing_snapshot(snapshot, path, self._linked))
         else:
             raise ValueError("snapshot must be a PNG path, a capture dictionary, or a saved name")
 
@@ -431,9 +430,91 @@ class Snapshots:
                     "target": [x, y],
                     "space": space,
                     "snapshot": restore_spec(view),
+                    # A preview for the pin's tooltip.
+                    "thumb": _thumbnail(record),
                 }
             )
         return out
+
+
+#: Longest side of a pin's preview image, in pixels.
+PIN_THUMB_SIZE = 200
+
+
+def _thumbnail(record: dict, size: int = PIN_THUMB_SIZE) -> str:
+    """A small JPEG (base64) of a Snapshot's image, from its PNG file or its
+    in-memory capture; "" when there is no image."""
+    data = None
+    if record.get("_path"):
+        try:
+            data = Path(record["_path"]).read_bytes()
+        except OSError:
+            data = None
+    if data is None:
+        image = record.get("image") or {}
+        png = image.get("png") if isinstance(image, dict) else None
+        if png:
+            try:
+                data = base64.b64decode(png, validate=True)
+            except ValueError:
+                data = None
+    if not data:
+        return ""
+    try:
+        with Image.open(io.BytesIO(data)) as opened:
+            image = opened.convert("RGBA")
+        image.thumbnail((size, size))
+        flat = Image.new("RGB", image.size, "white")
+        flat.paste(image, mask=image.split()[3])
+        out = io.BytesIO()
+        flat.save(out, "JPEG", quality=80)
+    except Exception:  # not an image Pillow can read: no preview
+        return ""
+    return base64.b64encode(out.getvalue()).decode()
+
+
+def _named_snapshot(viewer, name: str):
+    """A Snapshot a viewer knows by name: one saved through it in this session
+    (``viewer.snap``), else one in its Snapshot folder (``viewer.snapshot_dir``),
+    e.g. saved in an earlier session. ``None`` if neither has it."""
+    saved = getattr(viewer, "snap", None) or {}
+    if name in saved:
+        return saved[name]
+    folder = _snapshot_folder(viewer)
+    if folder is not None:
+        collection = Snapshots(folder)
+        if name in collection:
+            return collection[name]
+    return None
+
+
+def _snapshot_folder(viewer) -> Path | None:
+    folder = getattr(viewer, "snapshot_dir", None)
+    if not folder:
+        return None
+    folder = Path(folder).expanduser()
+    return folder if folder.is_dir() else None
+
+
+def _missing_snapshot(snapshot, path: Path, viewer) -> str:
+    """Why a Snapshot named or pathed ``snapshot`` wasn't found, and what was."""
+    message = f"No Snapshot file {str(path)!r}"
+    if viewer is None:
+        return message + " (pass a Snapshot PNG's path, or link a viewer to open one by name)"
+    names = list(getattr(viewer, "snap", None) or {})
+    folder = _snapshot_folder(viewer)
+    if folder is not None:
+        names += [n for n in Snapshots(folder).names() if n not in names]
+    where = f"saved through this {type(viewer).__name__}" + (
+        f" or in its snapshot_dir ({folder})" if folder is not None else ""
+    )
+    shown = ", ".join(repr(n) for n in names[:20]) + (" ..." if len(names) > 20 else "")
+    return (
+        f"{message}, and no Snapshot named {snapshot!r} {where}"
+        + (f"; names: {shown}" if names else "")
+        + ". For a Snapshot folder elsewhere, use "
+        "dega.viz.Snapshots(folder).card(name, landscape=...)."
+    )
 
 
 def _looks_like_record(value: dict) -> bool:

@@ -38,9 +38,21 @@ def test_named_capture_registers_record_and_memo(landscape, saved):
     assert saved.path.with_suffix(".md").exists()
     assert entry["widgets"][0]["snapshot"]["state"]["view"] == LANDSCAPE_STATE["view_state"]
     assert "snap" not in landscape.get_state()  # Do not duplicate images in the main viewer.
+    # The file is the Snapshot's name; saving the name again replaces it and its memo.
+    assert saved.path.name == "glomerulus.png"
     other = landscape.snapshot(name="Glomerulus", description="Another view")
-    assert other.done
-    assert list(landscape.snap) == ["Glomerulus", "Glomerulus (2)"]
+    assert other.done and other.path == saved.path
+    assert list(landscape.snap) == ["Glomerulus"]
+    assert landscape.snap["Glomerulus"]["description"] == "Another view"
+    assert "Another view" in saved.path.with_suffix(".md").read_text()
+    assert sorted(p.name for p in saved.path.parent.iterdir()) == [
+        "glomerulus.md",
+        "glomerulus.png",
+    ]
+    # Unnamed Snapshots are named after the data and the time, so they never
+    # replace each other.
+    first, second = landscape.snapshot(), landscape.snapshot()
+    assert first.path != second.path and first.path.stem.split("_")[-1][:2] == "20"
 
 
 def test_named_and_path_cards_coexist(landscape, saved):
@@ -61,6 +73,25 @@ def test_named_and_path_cards_coexist(landscape, saved):
     finally:
         for card in cards:
             card.close()
+
+
+def test_named_cards_open_snapshots_saved_in_the_viewers_folder(landscape, saved):
+    # A Landscape made again (a new kernel, or the cell re-run) knows no names yet,
+    # but its snapshot_dir still holds the Snapshots saved there.
+    again = _landscape()
+    again.snapshot_dir = saved.path.parent
+    card = Snapshot(landscape=again, snapshot="Glomerulus")
+    try:
+        assert card.name == "Glomerulus" and card.can_restore
+        assert base64.b64decode(card.image) == saved.path.read_bytes()
+    finally:
+        card.close()
+        again.close()
+    # A name nobody knows, and no such file: say which names there are.
+    with pytest.raises(FileNotFoundError, match=r"no Snapshot named 'Tubule'.*'Glomerulus'"):
+        Snapshot(landscape=landscape, snapshot="Tubule")
+    with pytest.raises(FileNotFoundError, match="link a viewer"):
+        Snapshot("Tubule")
 
 
 def test_card_waits_for_exact_ack_and_surfaces_errors(landscape, saved):

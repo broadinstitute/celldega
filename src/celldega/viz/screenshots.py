@@ -345,17 +345,25 @@ def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-").lower()[:60] or "screenshot"
 
 
-def resolve_path(path: str | Path | None, hint: str) -> Path:
-    """Where to write: a ``.png`` path as given, else an auto-named file in a folder."""
+def resolve_path(path: str | Path | None, hint: str, *, named: bool = False) -> Path:
+    """Where to write: a ``.png`` path as given, else a file in a folder.
+
+    A named Snapshot's file is its name (``"Cluster 3"`` -> ``cluster-3.png``), so
+    saving that name again replaces it (and its memo). Unnamed ones are named after
+    ``hint`` (e.g. the dataset) and the time, so they never replace each other.
+    """
     if path and str(path).lower().endswith(".png"):
         target = Path(path)
     else:
         folder = Path(path) if path else Path(DEFAULT_DIR)
-        target = folder / f"{_slug(hint)}_{time.strftime('%Y%m%d-%H%M%S')}.png"
-        n = 2
-        while target.exists():
-            target = target.with_name(f"{target.stem.rsplit('_v', 1)[0]}_v{n}.png")
-            n += 1
+        if named:
+            target = folder / f"{_slug(hint)}.png"
+        else:
+            target = folder / f"{_slug(hint)}_{time.strftime('%Y%m%d-%H%M%S')}.png"
+            n = 2
+            while target.exists():
+                target = target.with_name(f"{target.stem.rsplit('_v', 1)[0]}_v{n}.png")
+                n += 1
     target.parent.mkdir(parents=True, exist_ok=True)
     return target
 
@@ -471,7 +479,7 @@ def write_screenshot(
         (s["source"].get("dataset_name") for s in shots if s.get("source", {}).get("dataset_name")),
         "-".join(s["source"]["widget"] for s in shots),
     )
-    target = resolve_path(path, hint)
+    target = resolve_path(path, hint, named=bool(title))
     try:
         celldega_version = version("celldega")
     except PackageNotFoundError:
@@ -820,8 +828,18 @@ def screenshot(
 
 
 def _remember_snapshot(widget, path: Path, record: dict, *, panel: int = 0) -> str:
-    """Keep a named record locally, without syncing the viewer's collection."""
+    """Keep a named record locally, without syncing the viewer's collection.
+
+    A Snapshot saved again under its name replaces its file, so it replaces its entry
+    here too rather than adding a second one.
+    """
     entries = dict(getattr(widget, "snap", {}) or {})
+    resolved = str(path.resolve())
+    for existing, entry in entries.items():
+        if entry.get("_path") == resolved and entry.get("_panel", 0) == panel:
+            entries[existing] = {**deepcopy(record), "_path": resolved, "_panel": panel}
+            widget.snap = entries
+            return existing
     name = str(record.get("title") or path.stem)
     key, suffix = name, 2
     while key in entries:

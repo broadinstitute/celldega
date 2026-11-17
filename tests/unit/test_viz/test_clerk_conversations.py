@@ -80,7 +80,7 @@ def _talked(clerk_name="talked"):
 
 def test_a_saved_conversation_reopens_as_it_was_without_claude(tmp_path, monkeypatch):
     saved = _talked().save_conversation(tmp_path, title="Kidney demo")
-    assert saved.parent == tmp_path and saved.name.startswith("kidney-demo_")
+    assert saved == tmp_path / "kidney-demo.json"
     _no_claude(monkeypatch)
     fresh = Clerk(name="fresh")
     info = fresh.load_conversation(saved)

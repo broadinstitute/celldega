@@ -15,6 +15,7 @@ import {
   handleValidationWarning,
 } from './temp_utils/errorHandler';
 import { show_loading } from './ui/loading';
+import { hold_custom_messages } from './utils/held_messages';
 import { link_models, make_options_model } from './utils/options_model';
 import { create_from_png } from './viz/from_png';
 import { landmark } from './viz/landmark';
@@ -384,13 +385,18 @@ const render_matrix_new = async ({ model, el }) => {
 };
 
 // Main render function - no export keyword
-async function render({ model, el }) {
+async function render({ model: widget_model, el }) {
+  // Requests Python sends while this view renders (e.g. apply_state run right after
+  // the cell that displays it) are held, then delivered once it has rendered.
+  const messages = hold_custom_messages(widget_model);
+  const { model } = messages;
   let cleanup = null;
   let finalized = false;
 
   const finalize = () => {
     if (finalized) return;
     finalized = true;
+    messages.close();
 
     try {
       if (typeof cleanup === 'function') {
@@ -471,6 +477,8 @@ async function render({ model, el }) {
       if (msg.event === 'finalize') finalize();
     };
     model.on('msg:custom', on_finalize_message);
+    // Every handler is listening now: deliver what arrived while rendering.
+    messages.open();
 
     // anywidget invokes the function returned by render whenever this view is
     // removed or rerendered. Keep the explicit custom-message path above for

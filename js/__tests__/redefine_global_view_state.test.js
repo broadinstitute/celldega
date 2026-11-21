@@ -42,6 +42,7 @@ describe('redefine_global_view_state', () => {
       zoom: { ini_zoom_x: 0, ini_zoom_y: 0 },
       viz: {
         label_row_x: 15,
+        rows_target_x: 19,
         label_col_y: 25,
         cols_target_y: 31,
         col_region: 60,
@@ -59,7 +60,10 @@ describe('redefine_global_view_state', () => {
     );
 
     expect(view_state.matrix.target).toEqual([111, 222]);
-    expect(view_state.rows.target).toEqual([15, 222]);
+    // The rows view (and its bars' titles) may sit right of label_row_x so
+    // three or more row bars fit (matrix/geometry.js); its dendrogram doesn't.
+    expect(view_state.rows.target).toEqual([19, 222]);
+    expect(view_state.row_attr_labels.target).toEqual([19, 30]);
     expect(view_state.cols.target).toEqual([111, 31]);
     expect(view_state.dendro_rows.target).toEqual([15, 222]);
     expect(view_state.dendro_cols.target).toEqual([111, 25]);

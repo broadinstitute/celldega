@@ -50,12 +50,12 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
-import { is_current_gene_load } from '../global_variables/select_genes';
 import { force_set_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { setup_cell_attribute_controls } from '../ui/cell_attribute_controls';
 import { show_loading } from '../ui/loading';
 import { add_pic_button } from '../ui/pic_button';
 import { set_image_layer_sliders } from '../ui/sliders';
@@ -69,7 +69,7 @@ import {
 } from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
-import { run_ui_cleanups } from '../utils/ui_cleanup';
+import { register_ui_cleanup, run_ui_cleanups } from '../utils/ui_cleanup';
 
 import { handle_snapshot_message, consume_initial_snapshot } from './snapshot';
 import { compute_portrait_centers } from './yearbook_portrait_centers';
@@ -1068,99 +1068,90 @@ export const yearbook = async (
   });
 
   // Handle query changes from UI
-  const handle_query_change = tracked(async (new_query) => {
+  const same_query = (a, b) =>
+    JSON.stringify(a || {}) === JSON.stringify(b || {});
+  const same_cells = (a = [], b = []) =>
+    a.length === b.length &&
+    a.every((cell, i) => String(cell) === String(b[i]));
+
+  // A query from the query box, the API or Python (front_end_query). The cells
+  // are found and the gene's expression loaded together, then the coloring and
+  // the portraits change at once (not the old portraits recolored first). A
+  // newer query supersedes one still loading.
+  let query_id = 0;
+  const run_query = async (new_query) => {
+    const id = (query_id += 1);
+    // Queries name clusters: leave another per-cell attribute for them.
+    viz_state.show_clusters_attribute?.();
     viz_state.yearbook.query = new_query;
-
-    // Update status in UI
-    if (viz_state.yearbook.query_ui) {
-      viz_state.yearbook.query_ui.update_status('Searching...');
+    const { query_ui } = viz_state.yearbook;
+    if (query_ui) {
+      query_ui.cluster_input.value = new_query.cluster?.value || '';
+      query_ui.gene_input.value = new_query.gene || '';
+      query_ui.update_status('Searching...');
     }
+    const inst_gene = new_query.gene;
+    const [queried_cells, applied] = await Promise.all([
+      process_query(new_query),
+      inst_gene
+        ? update_cell_exp_array(
+            viz_state.cats,
+            viz_state.genes,
+            viz_state.global_base_url,
+            inst_gene,
+            viz_state.seg.version,
+            viz_state.vector_name_integer,
+            viz_state.aws,
+            viz_state.row_group_readers?.cbg
+          )
+        : false,
+    ]);
+    if (id !== query_id) return; // a newer query replaced this one
 
+    if (!inst_gene) {
+      // Cluster colors; clears genes.selected_gene_ids so the trx layer stops
+      // focusing / dimming transcripts.
+      update_cat(viz_state.cats, 'cluster');
+      force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
+      viz_state.cats.selected_cats = [];
+      viz_state.obs_store.selected_cats.set([]);
+    } else if (applied) {
+      // Colored by the gene, unless a newer gene selection replaced its
+      // expression while it loaded (the query's cells still update). Forced
+      // (no toggling); genes.selected_gene_ids focuses its transcripts.
+      update_cat(viz_state.cats, inst_gene);
+      force_set_selected_genes(
+        viz_state.genes,
+        [inst_gene],
+        viz_state.obs_store
+      );
+      viz_state.cats.selected_cats = [inst_gene];
+      viz_state.obs_store.selected_cats.set([inst_gene]);
+    }
+    refresh_layer(viz_state, layers_obj, 'cell_layer');
+    refresh_layer(viz_state, layers_obj, 'trx_layer');
+
+    // The cells, from the first page; set here first, so the model listeners
+    // below see them as already shown.
+    viz_state.yearbook.cells = queried_cells;
+    viz_state.yearbook.current_page = 0;
+    query_ui?.update_status(`Found ${queried_cells.length} cells`);
+    if (viz_state.model && typeof viz_state.model.set === 'function') {
+      viz_state.model.set('cells', queried_cells);
+      viz_state.model.set('front_end_query', new_query);
+      viz_state.model.set('current_page', 0);
+      viz_state.model.save_changes();
+    }
+    await update_all_portraits();
+    initViewStates();
+    viz_state.yearbook.update_pagination_ui?.();
+  };
+
+  const handle_query_change = tracked(async (new_query) => {
     try {
-      // Update gene state if query includes a gene
-      if (new_query.gene) {
-        const inst_gene = new_query.gene;
-
-        // Update category to gene mode
-        update_cat(viz_state.cats, inst_gene);
-
-        // Force-set selected genes (bypass toggle behavior). Goes through
-        // force_set_selected_genes so genes.selected_gene_ids is updated too --
-        // the trx layer reads that Set to focus the queried gene's transcripts.
-        force_set_selected_genes(
-          viz_state.genes,
-          [inst_gene],
-          viz_state.obs_store
-        );
-
-        // Load gene expression data for cell coloring
-        const applied = await update_cell_exp_array(
-          viz_state.cats,
-          viz_state.genes,
-          viz_state.global_base_url,
-          inst_gene,
-          viz_state.seg.version,
-          viz_state.vector_name_integer,
-          viz_state.aws,
-          viz_state.row_group_readers?.cbg
-        );
-
-        // Unless a newer selection replaced this one while its expression
-        // loaded (the query's cells below still update).
-        if (is_current_gene_load(viz_state.cats, applied, inst_gene)) {
-          // Force-set selected_cats (bypass toggle behavior)
-          viz_state.cats.selected_cats = [inst_gene];
-          viz_state.obs_store.selected_cats.set([inst_gene]);
-
-          // Refresh layers to apply gene filtering/coloring
-          refresh_layer(viz_state, layers_obj, 'cell_layer');
-          refresh_layer(viz_state, layers_obj, 'trx_layer');
-        }
-      } else {
-        // No gene - reset to cluster mode
-        update_cat(viz_state.cats, 'cluster');
-
-        // Force-clear selections (also clears genes.selected_gene_ids so the
-        // trx layer stops focusing / dimming transcripts).
-        force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
-        viz_state.cats.selected_cats = [];
-        viz_state.obs_store.selected_cats.set([]);
-
-        // Refresh layers to reset to cluster mode
-        refresh_layer(viz_state, layers_obj, 'cell_layer');
-        refresh_layer(viz_state, layers_obj, 'trx_layer');
-      }
-
-      const queried_cells = await process_query(new_query);
-      viz_state.yearbook.cells = queried_cells;
-
-      // Update status with result count
-      if (viz_state.yearbook.query_ui) {
-        const count = queried_cells.length;
-        viz_state.yearbook.query_ui.update_status(`Found ${count} cells`);
-      }
-
-      // Sync to model if available
-      if (viz_state.model && typeof viz_state.model.set === 'function') {
-        viz_state.model.set('cells', queried_cells);
-        viz_state.model.set('front_end_query', new_query);
-        viz_state.model.set('current_page', 0);
-        viz_state.model.save_changes();
-      }
-
-      // Reset to first page and update portraits
-      viz_state.yearbook.current_page = 0;
-      await update_all_portraits();
-      initViewStates();
-
-      if (viz_state.yearbook.update_pagination_ui) {
-        viz_state.yearbook.update_pagination_ui();
-      }
+      await run_query(new_query);
     } catch {
-      // Handle query failure gracefully
-      if (viz_state.yearbook.query_ui) {
-        viz_state.yearbook.query_ui.update_status('Query failed');
-      }
+      viz_state.yearbook.query_ui?.update_status('Query failed');
     }
   });
 
@@ -1173,6 +1164,50 @@ export const yearbook = async (
     handle_page_change,
     handle_query_change
   );
+
+  // The ▾ beside CELL: show cells by their clusters, another per-cell attribute
+  // or a label set, as in the Landscape (ui/cell_attribute_controls.js).
+  if (viz_state.buttons?.buttons?.cell) {
+    const attribute_cleanups = [];
+    setup_cell_attribute_controls(
+      viz_state,
+      {
+        cell_button:
+          viz_state.buttons.buttons.cell.node?.() ??
+          viz_state.buttons.buttons.cell,
+        slider: viz_state.sliders?.cell,
+        // Repaint as a selection change does (below).
+        refresh_colors: () => {
+          const id = `cell-layer-${viz_state.cats.selected_cats.join('-')}-sel-${viz_state.selection_token}`;
+          if (
+            !refresh_point_cloud_cell_layer_data(layers_obj, viz_state, { id })
+          )
+            refresh_cell_layer_data(layers_obj, viz_state, { id });
+          layers_obj.path_layer = layers_obj.path_layer.clone({
+            updateTriggers: {
+              getColor: [
+                viz_state.cats.selected_cats,
+                viz_state.cats.cat,
+                viz_state.selection_token,
+              ],
+            },
+          });
+          refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'path_layer');
+        },
+        // The cells in the portraits, by the new categories.
+        recount_bars: () => {
+          viz_state.yearbook.lastCellBarData = null;
+          update_bar_graphs();
+        },
+        redraw_bars: () => viz_state.redraw_cell_bars?.(),
+      },
+      attribute_cleanups
+    );
+    attribute_cleanups.forEach((cleanup) =>
+      register_ui_cleanup(viz_state, cleanup)
+    );
+  }
 
   // Listen for model changes
   if (Object.keys(viz_state.model).length > 0) {
@@ -1190,7 +1225,10 @@ export const yearbook = async (
       'change:cells',
       tracked(async () => {
         if (viz_state.yearbook.restoring) return;
-        viz_state.yearbook.cells = viz_state.model.get('cells');
+        const model_cells = viz_state.model.get('cells') || [];
+        // Written back by a query just run here: already shown.
+        if (same_cells(model_cells, viz_state.yearbook.cells)) return;
+        viz_state.yearbook.cells = model_cells;
         await update_all_portraits();
         initViewStates();
       })
@@ -1209,104 +1247,22 @@ export const yearbook = async (
       tracked(async () => {
         if (viz_state.yearbook.restoring) return;
         const new_query = viz_state.model.get('front_end_query') || {};
-        viz_state.yearbook.query = new_query;
-
-        // Update query UI inputs to reflect the new query
-        if (viz_state.yearbook.query_ui) {
-          const { cluster_input, gene_input, update_status } =
-            viz_state.yearbook.query_ui;
-          if (new_query.cluster) {
-            cluster_input.value = new_query.cluster.value || '';
-          } else {
-            cluster_input.value = '';
+        // Written back by a query just run here: already shown (running it
+        // again drew a second random sample of a cluster's cells).
+        if (same_query(new_query, viz_state.yearbook.query)) return;
+        if (!Object.keys(new_query).length) {
+          viz_state.yearbook.query = new_query;
+          const { query_ui } = viz_state.yearbook;
+          if (query_ui) {
+            query_ui.cluster_input.value = '';
+            query_ui.gene_input.value = '';
           }
-          if (new_query.gene) {
-            gene_input.value = new_query.gene || '';
-          } else {
-            gene_input.value = '';
-          }
-          update_status('Searching...');
+          return;
         }
-
-        // Execute the new query
-        if (Object.keys(new_query).length > 0) {
-          // Update gene state if query includes a gene
-          if (new_query.gene) {
-            const inst_gene = new_query.gene;
-
-            // Update category to gene mode
-            update_cat(viz_state.cats, inst_gene);
-
-            // Force-set selected genes (bypass toggle behavior). Uses
-            // force_set_selected_genes so genes.selected_gene_ids stays in sync and
-            // the trx layer focuses the queried gene's transcripts.
-            force_set_selected_genes(
-              viz_state.genes,
-              [inst_gene],
-              viz_state.obs_store
-            );
-
-            // Load gene expression data for cell coloring
-            const applied = await update_cell_exp_array(
-              viz_state.cats,
-              viz_state.genes,
-              viz_state.global_base_url,
-              inst_gene,
-              viz_state.seg.version,
-              viz_state.vector_name_integer,
-              viz_state.aws
-            );
-
-            // Unless a newer selection replaced this one while its expression
-            // loaded (the query's cells below still update).
-            if (is_current_gene_load(viz_state.cats, applied, inst_gene)) {
-              // Force-set selected_cats (bypass toggle behavior)
-              viz_state.cats.selected_cats = [inst_gene];
-              viz_state.obs_store.selected_cats.set([inst_gene]);
-
-              // Refresh layers to apply gene filtering/coloring
-              refresh_layer(viz_state, layers_obj, 'cell_layer');
-              refresh_layer(viz_state, layers_obj, 'trx_layer');
-            }
-          } else {
-            // No gene - reset to cluster mode
-            update_cat(viz_state.cats, 'cluster');
-
-            // Force-clear selections
-            // Force-clear selections (also clears genes.selected_gene_ids).
-            force_set_selected_genes(viz_state.genes, [], viz_state.obs_store);
-            viz_state.cats.selected_cats = [];
-            viz_state.obs_store.selected_cats.set([]);
-
-            // Refresh layers to reset to cluster mode
-            refresh_layer(viz_state, layers_obj, 'cell_layer');
-            refresh_layer(viz_state, layers_obj, 'trx_layer');
-          }
-
-          const queried_cells = await process_query(new_query);
-          viz_state.yearbook.cells = queried_cells;
-
-          // Update status
-          if (viz_state.yearbook.query_ui) {
-            viz_state.yearbook.query_ui.update_status(
-              `Found ${queried_cells.length} cells`
-            );
-          }
-
-          // Sync cells back to model
-          viz_state.model.set('cells', queried_cells);
-          viz_state.model.save_changes();
-
-          // Reset to first page and update portraits
-          viz_state.yearbook.current_page = 0;
-          viz_state.model.set('current_page', 0);
-
-          await update_all_portraits();
-          initViewStates();
-
-          if (viz_state.yearbook.update_pagination_ui) {
-            viz_state.yearbook.update_pagination_ui();
-          }
+        try {
+          await run_query(new_query);
+        } catch {
+          viz_state.yearbook.query_ui?.update_status('Query failed');
         }
       })
     );

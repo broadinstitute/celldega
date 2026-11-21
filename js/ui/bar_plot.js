@@ -12,6 +12,10 @@ import {
 } from '../deck-gl/layers/nbhd_cloud_shapes_layer';
 import { toggle_trx_layer_visibility } from '../deck-gl/layers/trx_layer';
 import { update_cat, update_selected_cats } from '../global_variables/cat';
+import {
+  active_labels,
+  clusters_of_bar,
+} from '../global_variables/cell_attributes';
 import { select_genes } from '../global_variables/select_genes';
 import { update_selected_genes } from '../global_variables/selected_genes';
 import { escape_html, make_gene_hover_tooltip } from '../ui/gene_info';
@@ -65,7 +69,10 @@ export const toggle_bar_name = (selected_names, name) => {
  * @param {{multi_select?: boolean}} [options]
  * @returns {string}
  */
-export const cluster_bar_tooltip_html = (d, { multi_select = false } = {}) => {
+export const cluster_bar_tooltip_html = (
+  d,
+  { multi_select = false, clusters = null } = {}
+) => {
   const count = Number(d?.value);
   const count_line = Number.isFinite(count)
     ? `<br>cells: ${count.toLocaleString()}`
@@ -73,6 +80,10 @@ export const cluster_bar_tooltip_html = (d, { multi_select = false } = {}) => {
   const hint = multi_select
     ? '<br><i>Shift-click to select multiple clusters</i>'
     : '';
+  // A label's bar (a label set shown): the clusters it covers.
+  if (clusters) {
+    return `<span style="color: #7fb0ff;">${escape_html(d?.name)}</span><br>clusters: ${clusters.map(escape_html).join(', ')}${count_line}${hint}`;
+  }
   return `<span style="color: #7fb0ff;">cluster: ${escape_html(d?.name)}</span>${count_line}${hint}`;
 };
 
@@ -116,6 +127,9 @@ export const attach_bar_tooltip = (bars, kind, viz_state) => {
         tooltip.show_html(
           cluster_bar_tooltip_html(d, {
             multi_select: supports_cluster_multi_select(viz_state),
+            clusters: active_labels(viz_state)
+              ? clusters_of_bar(viz_state, d.name)
+              : null,
           }),
           event
         );
@@ -200,9 +214,19 @@ export const bar_callback_cat = (
     Boolean(_event?.shiftKey) && supports_cluster_multi_select(_viz_state);
   const current_clusters =
     _viz_state.cats.cat === 'cluster' ? _viz_state.cats.selected_cats : [];
-  const new_selected_cats = multi_select
-    ? toggle_bar_name(current_clusters, d.name)
-    : [d.name];
+  // Under a label set a bar is a label: it selects all of its clusters.
+  const clusters = clusters_of_bar(_viz_state, d.name);
+  let new_selected_cats;
+  if (!multi_select) {
+    new_selected_cats = clusters;
+  } else if (clusters.length === 1) {
+    new_selected_cats = toggle_bar_name(current_clusters, clusters[0]);
+  } else {
+    const current = current_clusters.map(String);
+    new_selected_cats = clusters.every((c) => current.includes(c))
+      ? current.filter((c) => !clusters.includes(c))
+      : [...new Set([...current, ...clusters])];
+  }
 
   update_cat(_viz_state.cats, 'cluster');
   update_selected_cats(

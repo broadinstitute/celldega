@@ -170,6 +170,8 @@ export const update_ist_landscape_from_cgm = async (
   if (!click_type) {
     return;
   }
+  // Clustergram clicks are about its clusters: leave another per-cell attribute.
+  viz_state.show_clusters_attribute?.();
 
   let inst_gene;
   let new_cat;

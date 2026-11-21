@@ -1,14 +1,20 @@
 /**
- * The Landscape's view modes (SPATIAL, UMAP, XY) as a small menu: only the current
- * mode shows, with a caret; clicking the caret lists the others. Frees room in the
- * image row for IMG, the image source, SNAP and PINS.
+ * The Landscape's view modes (SPATIAL, UMAP, XY) as one dropdown, like the
+ * Clustergram's order control: a native <select> showing the current mode in
+ * bold blue text (no arrow); picking another mode switches to it. Frees room in
+ * the image row for IMG, the image source, SNAP and PINS.
  *
- * The mode buttons themselves are unchanged (their handlers and colors still
- * belong to text_buttons.js and umap/expression_scatter.js); this only moves them
- * into one place and hides the ones not in use.
+ * The mode buttons keep their handlers and colors (text_buttons.js and
+ * umap/expression_scatter.js): they're kept, hidden, and picking a mode clicks
+ * its button, so e.g. XY still takes the selected genes as its axes.
  */
 
+import { CONTROL_FONT_SIZE } from './control_style';
+
 const MODES = ['spatial', 'umap', 'xy'];
+
+const FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const element_of = (button) => button?.node?.() ?? button ?? null;
 
@@ -31,57 +37,55 @@ export const collapse_view_modes = (viz_state, row) => {
     alignItems: 'baseline',
     flexShrink: '0',
   });
-  const caret = document.createElement('div');
-  caret.className = 'view_mode_caret';
-  caret.textContent = '▾';
-  caret.setAttribute('role', 'button');
-  caret.tabIndex = 0;
-  Object.assign(caret.style, {
+  const select = document.createElement('select');
+  select.className = 'view_mode_select';
+  select.title = 'View';
+  select.setAttribute('aria-label', 'View');
+  present.forEach((mode) => {
+    const option = document.createElement('option');
+    option.value = mode;
+    option.textContent = mode.toUpperCase();
+    if (buttons[mode].title) option.title = buttons[mode].title;
+    select.appendChild(option);
+  });
+  Object.assign(select.style, {
+    appearance: 'none',
+    webkitAppearance: 'none',
+    MozAppearance: 'none',
+    border: 'none',
+    background: 'transparent',
+    padding: '0',
+    margin: '5px 0 0 5px',
+    fontFamily: FONT_FAMILY,
+    fontSize: CONTROL_FONT_SIZE,
+    fontWeight: 'bold',
+    color: 'blue',
     cursor: 'pointer',
-    fontSize: '9px',
-    color: 'gray',
-    margin: '5px 0 0 2px',
+    outline: 'none',
     userSelect: 'none',
   });
+  // The buttons stay in the page (their handlers, colors and other code use
+  // them) but out of sight.
+  const hidden = document.createElement('div');
+  hidden.style.display = 'none';
+  present.forEach((mode) => hidden.appendChild(buttons[mode]));
+  menu.append(select, hidden);
   row.insertBefore(menu, row.firstChild);
-  present.forEach((mode) => menu.appendChild(buttons[mode]));
-  menu.appendChild(caret);
 
-  let open = false;
   const current = () => {
     const view = viz_state.obs_store.landscape_view?.get?.() || 'spatial';
     return present.includes(view) ? view : present[0];
   };
   const sync = () => {
-    const active = current();
-    present.forEach((mode) => {
-      buttons[mode].style.display = open || mode === active ? '' : 'none';
-    });
-    caret.textContent = open ? '◂' : '▾';
-    caret.title = open
-      ? 'Hide the other views'
-      : `Other views: ${present
-          .filter((mode) => mode !== active)
-          .map((mode) => mode.toUpperCase())
-          .join(', ')}`;
+    select.value = current();
   };
-  const toggle = () => {
-    open = !open;
+  const on_change = () => {
+    const mode = select.value;
+    // Show the current mode until the switch lands (sync runs on the change).
     sync();
+    buttons[mode].click();
   };
-  caret.addEventListener('click', toggle);
-  caret.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggle();
-    }
-  });
-  // Picking a mode closes the menu (after the button's own handler runs).
-  const close = () => {
-    open = false;
-    setTimeout(sync, 0);
-  };
-  present.forEach((mode) => buttons[mode].addEventListener('click', close));
+  select.addEventListener('change', on_change);
   const unsubscribe = viz_state.obs_store.landscape_view?.subscribe?.(sync, {
     immediate: false,
   });
@@ -89,8 +93,6 @@ export const collapse_view_modes = (viz_state, row) => {
 
   return () => {
     unsubscribe?.();
-    present.forEach((mode) =>
-      buttons[mode].removeEventListener('click', close)
-    );
+    select.removeEventListener('change', on_change);
   };
 };

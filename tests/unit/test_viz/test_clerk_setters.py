@@ -117,6 +117,7 @@ def test_clerk_asks_before_labeling_and_keeps_scientist_labels(monkeypatch) -> N
         {"col": {"cell_type": {"values": {"5": "My plasma label"}, "colors": {}}}}
     )
     w = Clerk(clustergram=cgm)
+    w.label_clustergram = "ask"  # offer first (the default labels right away)
     w.snapshot_timeout = 0.05
     sent = []
     monkeypatch.setattr(cgm, "send", sent.append)

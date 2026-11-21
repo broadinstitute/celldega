@@ -35,6 +35,8 @@ describe('matrix geometry', () => {
       label_buffer: 1,
       dendrogram_width: 15,
       label_col_y: 25,
+      label_row_x: 15,
+      cat_shift_row: 30,
     },
   });
 
@@ -128,5 +130,36 @@ describe('matrix geometry', () => {
     const viz_state = make_viz_state({ col_attrs: 6 });
     compute_geometry(viz_state);
     expect(viz_state.viz.cols_target_y).toBe(31);
+  });
+
+  // The `rows` view centers its target, so a world x lands at
+  // row_region / 2 + (x - rows_target_x) inside the view. The last bar's title
+  // (10 px text, rotated) reaches 5 px past its center.
+  const last_row_extent_in_view = ({ viz }, num_attrs) => {
+    const bar_center =
+      viz.row_cat_offset * (num_attrs - 1 + 0.5) + 20 + viz.cat_shift_row;
+    return viz.row_region / 2 + bar_center + 5 - viz.rows_target_x;
+  };
+
+  it.each([1, 2, 3, 4, 6, 10])(
+    'keeps the last of %i row bars and its title inside the rows view',
+    (num_attrs) => {
+      const viz_state = make_viz_state({ row_attrs: num_attrs });
+      compute_geometry(viz_state);
+      const { viz } = viz_state;
+      expect(last_row_extent_in_view(viz_state, num_attrs)).toBeLessThanOrEqual(
+        viz.row_region
+      );
+      // Only as far as needed: the row labels keep their room.
+      expect(viz.rows_target_x - viz.label_row_x).toBeLessThan(
+        num_attrs * 2.5 + 3.5
+      );
+    }
+  );
+
+  it('leaves the rows view in place without row bars', () => {
+    const viz_state = make_viz_state({ row_attrs: 0 });
+    compute_geometry(viz_state);
+    expect(viz_state.viz.rows_target_x).toBe(15);
   });
 });

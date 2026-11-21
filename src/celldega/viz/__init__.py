@@ -22,7 +22,7 @@ from .screenshots import (
 )
 from .snapshot_widget import Snapshot, Snapshots
 from .snapshots import fingerprint_dataset
-from .widget import Clerk, Clustergram, Composition, Enrich, Landscape, Yearbook
+from .widget import _MANUAL_FILL_VALUE, Clerk, Clustergram, Composition, Enrich, Landscape, Yearbook
 
 
 def _clustergram_col_attr(cgm: "Clustergram", default: str = "leiden") -> str:
@@ -159,6 +159,8 @@ def spatial_clustergram(
     if isinstance(spatial, Yearbook):
         attr = cluster_attr or _clustergram_col_attr(mat)
         _link_clustergram_to_yearbook(mat, spatial, attr)
+        if _columns_are_clusters(mat):
+            _link_clustergram_labels(mat, spatial)  # its cell types (CELL ▾)
 
         mat.layout = Layout(width=width)
         spatial.layout = Layout(width="100%", height=height)
@@ -174,6 +176,9 @@ def spatial_clustergram(
     # Clerk link) show as blue column labels when the columns are those clusters.
     if spatial.has_trait("selected_clusters") and _columns_are_clusters(mat):
         jsdlink((spatial, "selected_clusters"), (mat, "highlighted_cols"))
+    # Its column categories (cell types) name the Landscape's clusters too.
+    if hasattr(spatial, "set_labels") and _columns_are_clusters(mat):
+        _link_clustergram_labels(mat, spatial)
 
     # Layouts
     mat.layout = Layout(width=_clustergram_panel_width(mat))
@@ -434,6 +439,42 @@ def landscape_yearbook(
     return VBox([landscape, yearbook])
 
 
+def _link_clustergram_labels(cgm: Clustergram, widget) -> None:
+    """Offer a Clustergram's column categories (e.g. cell types named in its
+    category editor, or Clerk's) to a Landscape or Yearbook as label sets, so the
+    ▾ beside its CELL can show cells by them. Kept up to date as they're edited;
+    linking the same pair again does nothing.
+    """
+    linked = getattr(widget, "_label_clustergrams", None)
+    if linked is None:
+        linked = widget._label_clustergrams = []
+    if any(other is cgm for other in linked):
+        return
+    linked.append(cgm)
+    owned: set[str] = set()
+
+    def sync(_change=None):
+        payload = cgm.manual_cat_dict.get("col") or {}
+        names = set()
+        for attribute, spec in payload.items():
+            spec = spec or {}
+            values = {
+                cluster: label
+                for cluster, label in (spec.get("values") or {}).items()
+                if label not in (None, "", _MANUAL_FILL_VALUE)
+            }
+            if values:
+                widget.set_labels(str(attribute), values, spec.get("colors"))
+                names.add(str(attribute))
+        for gone in owned - names:
+            widget.set_labels(gone, None)
+        owned.clear()
+        owned.update(names)
+
+    cgm.observe(sync, names="manual_cat")
+    sync()
+
+
 def _link_clustergram_to_yearbook(cgm: Clustergram, yearbook: Yearbook, attr: str) -> None:
     """Observe a Clustergram's ``click_info`` and translate it into a Yearbook
     ``front_end_query`` (cluster selection or gene ranking). Shared by
@@ -573,6 +614,17 @@ def _feed_clustergram_genes_to_clerk(cgm: Clustergram, clerk: Clerk) -> None:
     cgm.observe(_on_selected_genes, names="selected_genes")
 
 
+def _feed_clustergram_clusters_to_clerk(cgm: Clustergram, clerk: Clerk) -> None:
+    """Keep the clusters Clerk links in its messages in step with the Clustergram's
+    columns, which the browser fills in once the Clustergram is drawn."""
+
+    def _on_col_names(_change):
+        if clerk._linked_widgets.get("clustergram") is cgm:
+            clerk._refresh_cluster_links()
+
+    cgm.observe(_on_col_names, names="col_names")
+
+
 def link_clerk(
     clerk: Clerk,
     *,
@@ -629,6 +681,22 @@ def link_clerk(
     if yearbook is not None:
         linked["yearbook"] = yearbook
     clerk._linked_widgets = linked
+    if clustergram is not None:
+        _feed_clustergram_clusters_to_clerk(clustergram, clerk)
+        clerk._refresh_cluster_links()  # if it's already drawn
+    # The Clustergram's cell types (Clerk's and yours) on Clerk's other views.
+    cgm = linked.get("clustergram")
+    if cgm is not None and _columns_are_clusters(cgm):
+        for name in ("landscape", "yearbook"):
+            if hasattr(linked.get(name), "set_labels"):
+                _link_clustergram_labels(cgm, linked[name])
+    if hasattr(clerk, "_restore_annotations") and (
+        clustergram is not None or landscape is not None or yearbook is not None
+    ):
+        # A reopened case's cell types and labels, on widgets linked after it opened.
+        clerk._restore_annotations()
+        if landscape is not None or yearbook is not None:
+            clerk._share_cell_types()  # without a Clustergram: as a label set
     if landscape is not None and getattr(clerk, "_case", None) is not None:
         clerk._pin_case()  # a reopened case's views, as pins on this Landscape
     return clerk

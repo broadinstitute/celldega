@@ -1267,7 +1267,7 @@ export const landscape_ist = async (
     }),
   });
   const on_pic_message = (msg) => pic.on_message(msg);
-  viz_state.model.on('msg:custom', on_pic_message);
+  viz_state.model?.on?.('msg:custom', on_pic_message);
   cleanup_callbacks.push(() => {
     viz_state.model.off?.('msg:custom', on_pic_message);
     pic.dispose();

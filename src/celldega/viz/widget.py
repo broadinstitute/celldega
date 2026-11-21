@@ -2049,6 +2049,9 @@ class Clerk(CelldegaWidget):
         self._paused: dict | None = None
         # Labels Clerk put on the Clustergram, per axis, so it never overwrites yours.
         self._clerk_marks: dict[str, dict] = {}
+        # A reopened case's saved annotations, and the Clustergram they went on.
+        self._case_annotations: dict | None = None
+        self._annotated_clustergram = None
         self._saved_view: dict | None = None
         # Screenshots Clerk saved (paths), newest last.
         self.screenshots: list[str] = []
@@ -2768,11 +2771,12 @@ class Clerk(CelldegaWidget):
             if labeled:
                 self._append({"role": "action", "content": labeled[0], "detail": labeled[1]})
 
-    # Recorded cell types can label the linked Clustergram's columns (a manual
-    # category) and mark the marker genes Clerk relied on (rows) with the same label.
-    # "ask" offers this as a button under the recorded types; True labels right away;
-    # False never labels.
-    label_clustergram: "bool | Literal['ask']" = "ask"
+    # Recorded cell types label the linked Clustergram's columns (its manual
+    # category, the same one the scientist edits, so the scientist's own labels win)
+    # and mark the marker genes Clerk relied on (rows) with the same label. A linked
+    # Landscape shows that category too (the ▾ beside its CELL). True labels right
+    # away; "ask" offers it as a button under the recorded types; False never labels.
+    label_clustergram: "bool | Literal['ask']" = True
     # Attributes used when the Clustergram has no manual category set up on an axis.
     clustergram_label_attribute = "clerk_cell_type"
     clustergram_marker_attribute = "clerk_marker"
@@ -3227,21 +3231,80 @@ class Clerk(CelldegaWidget):
         return labels
 
     def _share_cell_types(self) -> None:
-        """Offer the proposed cell types to a linked Landscape as the
-        ``clerk_cell_type`` label set (the ▾ beside its CELL can show cells by them).
+        """Offer the proposed cell types to a linked Landscape without a Clustergram,
+        as a label set (the ▾ beside its CELL can show cells by them).
 
-        Once a linked Clustergram holds them as its ``clerk_cell_type`` category
-        (LABEL), that one, with any edits made there, is shown instead.
+        With a Clustergram they go into its manual column category instead (see
+        :attr:`label_clustergram`), which the Landscape shows, with the scientist's
+        own labels.
         """
         landscape = self._linked_widgets.get("landscape")
         if not hasattr(landscape, "set_labels"):
             return
-        name = self.clustergram_label_attribute
-        cgm = self._linked_widgets.get("clustergram")
-        manual = getattr(cgm, "manual_cat_dict", None) or {}
-        if ((manual.get("col") or {}).get(name) or {}).get("values"):
+        if hasattr(self._linked_widgets.get("clustergram"), "set_categories"):
             return
-        landscape.set_labels(name, self._latest_cell_types())
+        landscape.set_labels(self.clustergram_label_attribute, self._latest_cell_types())
+
+    def _annotations(self) -> dict:
+        """The linked Clustergram's manual categories (Clerk's cell types and the
+        scientist's own labels) and which labels are Clerk's, to save with a case."""
+        cgm = self._linked_widgets.get("clustergram")
+        manual = {
+            axis: spec
+            for axis, spec in (getattr(cgm, "manual_cat_dict", None) or {}).items()
+            if axis in ("row", "col") and spec
+        }
+        if not manual:
+            return {}
+        return {"manual_cat": manual, "clerk_marks": deepcopy(self._clerk_marks)}
+
+    def _restore_annotations(self, annotations: dict | None = None) -> None:
+        """Put a saved case's annotations back on the linked Clustergram (so on a
+        linked Landscape too). A case saved without them (before 0.29.1) is labeled
+        with its proposed cell types, as :attr:`label_clustergram` would."""
+        if annotations is not None:
+            self._case_annotations = annotations if isinstance(annotations, dict) else {}
+        annotations = self._case_annotations
+        if annotations is None:
+            return  # no case loaded
+        cgm = self._linked_widgets.get("clustergram")
+        if not hasattr(cgm, "set_categories"):
+            self._share_cell_types()
+            return
+        if self._annotated_clustergram is cgm:
+            return  # already on this one
+        self._annotated_clustergram = cgm
+        self._clerk_marks = {
+            axis: {str(k): str(v) for k, v in (marks or {}).items()}
+            for axis, marks in (annotations.get("clerk_marks") or {}).items()
+            if axis in ("row", "col") and isinstance(marks, dict)
+        }
+        restored = False
+        for axis in ("col", "row"):
+            saved = (annotations.get("manual_cat") or {}).get(axis) or {}
+            if not saved:
+                continue
+            try:
+                _axis, target = cgm._category_target(axis, None)
+            except ValueError:
+                target = next(iter(saved))
+            # One manual category per axis: the saved one goes into this one.
+            spec = saved.get(target) or next(iter(saved.values())) or {}
+            values = {
+                str(name): str(label)
+                for name, label in (spec.get("values") or {}).items()
+                if label not in (None, "", _MANUAL_FILL_VALUE)
+            }
+            if values:
+                cgm.set_categories(
+                    values, axis=axis, attribute=target, colors=spec.get("colors") or {}
+                )
+                restored = True
+        if not restored and self.findings and self.label_clustergram is not False:
+            with contextlib.suppress(ValueError):
+                self._label_axis(
+                    cgm, "col", self._latest_cell_types(), self.clustergram_label_attribute
+                )
 
     def _append(self, message: dict) -> None:
         with self._messages_lock:
@@ -4313,6 +4376,9 @@ class Clerk(CelldegaWidget):
             # The clusters the panel links, so a reopened report links them at once.
             "cluster_names": list(self.cluster_names),
             "cluster_labels": dict(self.cluster_labels),
+            # The Clustergram's cell types and other manual labels (Clerk's and
+            # yours), restored when the report is reopened.
+            "annotations": self._annotations(),
         }
         written = report.write_report(
             folder,
@@ -4650,6 +4716,8 @@ class Clerk(CelldegaWidget):
             "effort": self.effort,
             "cluster_names": list(self.cluster_names),
             "cluster_labels": dict(self.cluster_labels),
+            # The Clustergram's cell types and other manual labels (Clerk's and yours).
+            "annotations": self._annotations(),
             "sources": {name: widget_source(w) for name, w in self._linked_widgets.items()},
             "messages": [dict(m) for m in self.messages],
             "record": record,
@@ -4768,6 +4836,7 @@ class Clerk(CelldegaWidget):
                 "findings": data.get("findings") or [],
                 "cluster_names": meta.get("cluster_names") or [],
                 "cluster_labels": meta.get("cluster_labels") or {},
+                "annotations": meta.get("annotations") or {},
             }
         else:
             raise ValueError("Not a saved Clerk conversation or exported report")
@@ -4785,7 +4854,8 @@ class Clerk(CelldegaWidget):
         self._end_conversation()
         self.record = list(saved.get("record") or [])
         self.findings = list(saved.get("findings") or [])
-        self._share_cell_types()
+        self._annotated_clustergram = None
+        self._restore_annotations(saved.get("annotations") or {})
         # Keep what this session already knows; fill in what it doesn't.
         if saved.get("context_info") and not self.context_info:
             self.context_info = saved["context_info"]
@@ -6149,6 +6219,8 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         """
         axis, attribute = self._category_target(axis, attribute)
         self._check_category_names(axis, values)
+        values = {str(k): (None if v in (None, "") else str(v)) for k, v in values.items()}
+        colors = {str(k): str(v) for k, v in (colors or {}).items()}
         self._category_request_id = getattr(self, "_category_request_id", 0) + 1
         self.send(
             {
@@ -6156,12 +6228,50 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 "id": self._category_request_id,
                 "axis": axis,
                 "attribute": attribute,
-                "values": {str(k): (None if v is None else str(v)) for k, v in values.items()},
-                "colors": {str(k): str(v) for k, v in (colors or {}).items()},
+                "values": values,
+                "colors": colors,
                 "replace": bool(replace),
             }
         )
+        # Also in the synced state, so they show when a Clustergram not displayed yet
+        # is (e.g. a reopened Clerk case); a displayed one syncs its own back.
+        self._seed_categories(axis, attribute, values, colors, replace=replace)
         return self._category_request_id
+
+    def _seed_categories(
+        self, axis: str, attribute: str, values: dict, colors: dict, *, replace: bool
+    ) -> None:
+        """Write category assignments into :attr:`manual_cat` (and switch the axis's
+        manual category on), as the browser would after applying them."""
+        flag = f"manual_{axis}_cat"
+        if not getattr(self, flag):
+            setattr(self, flag, attribute)
+        try:
+            config = json.loads(self.manual_cat_config or "{}") or {}
+        except json.JSONDecodeError:
+            config = {}
+        if (config.get(axis) or {}).get("attribute") != attribute:
+            config[axis] = {
+                **(config.get(axis) or {"preferred": [], "locked": True}),
+                "attribute": attribute,
+            }
+            config.setdefault("row" if axis == "col" else "col", None)
+            self.manual_cat_config = json.dumps(config)
+        payload = self.manual_cat_dict
+        axis_payload = payload.get(axis) or {}
+        # One manual attribute per axis, as in the browser.
+        spec = axis_payload.get(attribute) or {}
+        current = {} if replace else dict(spec.get("values") or {})
+        for name, value in values.items():
+            if value is None:
+                current.pop(name, None)
+            else:
+                current[name] = value
+        payload[axis] = {
+            attribute: {"values": current, "colors": {**(spec.get("colors") or {}), **colors}}
+        }
+        payload.setdefault("row" if axis == "col" else "col", {})
+        self.manual_cat = json.dumps(payload)
 
     def _on_categories_msg(self, _widget, content, _buffers) -> None:
         if not isinstance(content, dict):
@@ -6411,16 +6521,18 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         # ------------------------------------------------------------------
         config = {"row": None, "col": None}
 
-        if manual_row_flag:
+        # The traits' names, not the flags: ``True`` means the default name
+        # (``manual_cat``), not an attribute called "True".
+        if manual_row_flag and self.manual_row_cat:
             config["row"] = {
-                "attribute": str(manual_row_flag),
+                "attribute": self.manual_row_cat,
                 "preferred": [],
                 "locked": True,
             }
 
-        if manual_col_flag:
+        if manual_col_flag and self.manual_col_cat:
             config["col"] = {
-                "attribute": str(manual_col_flag),
+                "attribute": self.manual_col_cat,
                 "preferred": [],
                 "locked": True,
             }

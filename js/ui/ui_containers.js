@@ -1236,22 +1236,30 @@ export const make_ist_ui_container = (
       }
     };
 
+  // The cell bars as last drawn: the whole dataset's counts until the view
+  // publishes its own (zoomed out it doesn't), so a label set can regroup them.
+  let last_cell_bars = viz_state.cats.cluster_counts || [];
+  const draw_cell_bars = subscriber_new_bar_data({
+    svg: viz_state.cats.svg_bar_cluster,
+    color_dict: viz_state.cats.color_dict_cluster,
+    // Read at draw time: the colors and selection change in place.
+    color_of: (name) => viz_state.cats.color_dict_cluster?.[name],
+    selected_array: [],
+    selected_of: () =>
+      selected_bar_names(viz_state, viz_state.cats.selected_cats || []),
+    group: (bars) => group_bar_data(viz_state, bars),
+    bar_callback: bar_callback_cat,
+    container: viz_state.containers.bar_cluster,
+    tooltip: 'cluster',
+  });
   viz_state.obs_store.new_cell_bar_data.subscribe(
-    subscriber_new_bar_data({
-      svg: viz_state.cats.svg_bar_cluster,
-      color_dict: viz_state.cats.color_dict_cluster,
-      // Read at draw time: the colors and selection change in place.
-      color_of: (name) => viz_state.cats.color_dict_cluster?.[name],
-      selected_array: [],
-      selected_of: () =>
-        selected_bar_names(viz_state, viz_state.cats.selected_cats || []),
-      group: (bars) => group_bar_data(viz_state, bars),
-      bar_callback: bar_callback_cat,
-      container: viz_state.containers.bar_cluster,
-      tooltip: 'cluster',
-    }),
+    (bars) => {
+      last_cell_bars = bars || [];
+      draw_cell_bars(last_cell_bars);
+    },
     { immediate: false }
   );
+  viz_state.redraw_cell_bars = () => draw_cell_bars(last_cell_bars);
 
   // Gene bars, which become the key while genes are compared: just those genes,
   // in their comparison colors (see gene_comparison.js).

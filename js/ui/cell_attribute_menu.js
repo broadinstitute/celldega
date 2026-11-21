@@ -8,26 +8,38 @@ import { cell_attribute_options } from '../global_variables/cell_attributes';
 
 import { CONTROL_FONT_SIZE } from './control_style';
 
+// The CELL slider's width beside the caret (sliders are 75px).
+const CELL_SLIDER_WIDTH = '60px';
+
 /**
  * @param {object} viz_state - Landscape state (`cats`, `model`).
  * @param {HTMLElement} cell_button - The CELL button; the caret goes after it.
  * @param {(name: string) => void} on_pick - Called with the picked attribute.
+ * @param {{slider?: HTMLElement}} [options] - The CELL slider, narrowed to make
+ *   room while the caret shows.
  * @returns {{update: () => void, element: HTMLElement}}
  */
-export const make_cell_attribute_menu = (viz_state, cell_button, on_pick) => {
+export const make_cell_attribute_menu = (
+  viz_state,
+  cell_button,
+  on_pick,
+  { slider = null } = {}
+) => {
+  const slider_width = slider?.style.width || '';
   const menu = document.createElement('div');
   menu.className = 'cell_attribute_menu';
   Object.assign(menu.style, {
     position: 'relative',
     display: 'inline-block',
     flexShrink: '0',
-    margin: '5px 0 0 -4px',
+    margin: '3px 0 0 -3px',
   });
   const caret = document.createElement('div');
   caret.textContent = '▾';
   caret.setAttribute('aria-hidden', 'true');
   Object.assign(caret.style, {
-    fontSize: CONTROL_FONT_SIZE,
+    fontSize: '12px',
+    lineHeight: '1',
     fontWeight: 'bold',
     color: 'blue',
     padding: '0 3px',
@@ -65,9 +77,11 @@ export const make_cell_attribute_menu = (viz_state, cell_button, on_pick) => {
       })
     );
     select.value = options.some((o) => o.value === current) ? current : '';
-    const shown = options.find((o) => o.value === select.value)?.label;
-    select.title = `Show cells by: ${shown} (click for other attributes)`;
-    menu.style.display = options.length > 1 ? 'inline-block' : 'none';
+    const label = options.find((o) => o.value === select.value)?.label;
+    select.title = `Show cells by: ${label} (click for other attributes)`;
+    const shown = options.length > 1;
+    menu.style.display = shown ? 'inline-block' : 'none';
+    if (slider) slider.style.width = shown ? CELL_SLIDER_WIDTH : slider_width;
   };
   select.addEventListener('change', () => {
     const picked = select.value;

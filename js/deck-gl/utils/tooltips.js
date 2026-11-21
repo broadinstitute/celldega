@@ -1,4 +1,5 @@
 import { has_uniprot_info } from '../../external_apis/uniprot_api';
+import { active_labels } from '../../global_variables/cell_attributes';
 import {
   escape_html,
   gene_info_tooltip_html,
@@ -137,10 +138,23 @@ export const make_tooltip = (viz_state, info) => {
       inst_cat = viz_state.cats.dict_cell_cats?.[inst_name];
       cellIndex = viz_state.cats.cell_name_to_index_map?.get(String(inst_name));
     }
-    inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>${cell_expression_html(
-      viz_state.cats,
-      cellIndex
-    )}`;
+    // The attribute cells are shown by (the ▾ beside CELL), then the cluster.
+    let shown_html = '';
+    const { attribute, attribute_kind } = viz_state.cats;
+    if (attribute && attribute_kind === 'cell') {
+      // The categories are that attribute's; the clusters are kept aside.
+      shown_html = `<div>${escape_html(attribute)}: ${escape_html(inst_cat)}</div>`;
+      inst_cat =
+        viz_state.cats.base?.cell_cats?.[cellIndex] ?? inst_cat ?? 'N.A.';
+    } else if (attribute && attribute_kind === 'labels') {
+      const label = active_labels(viz_state)?.[String(inst_cat)];
+      shown_html = `<div>${escape_html(attribute)}: ${
+        label ? escape_html(label) : '<i>unlabeled</i>'
+      }</div>`;
+    }
+    inst_html = `<div>cell: ${escape_html(inst_name)}</div>${shown_html}<div>cluster: ${escape_html(
+      inst_cat
+    )}</div>${cell_expression_html(viz_state.cats, cellIndex)}`;
 
     viz_state.tooltip_cat_cell = inst_cat;
   }

@@ -1491,17 +1491,18 @@ export const landscape_ist = async (
         },
       });
       refresh_layer(viz_state, layers_obj, 'path_layer');
-      // Bars: recount a per-cell attribute; regroup the clusters' counts.
+      // Bars: a per-cell attribute's own counts (the view's, in close-up); a
+      // label set regroups the clusters' bars as last drawn.
       if (viz_state.viewport_cache)
         viz_state.viewport_cache.lastCellBarData = null;
-      if (changed_categories && viz_state.refresh_viewport)
-        viz_state.refresh_viewport();
-      else
-        viz_state.obs_store.new_cell_bar_data.set([
-          ...(viz_state.obs_store.new_cell_bar_data.get() ||
-            viz_state.cats.cluster_counts ||
-            []),
-        ]);
+      if (changed_categories) {
+        viz_state.obs_store.new_cell_bar_data.set(
+          viz_state.cats.cluster_counts || []
+        );
+        viz_state.refresh_viewport?.();
+      } else {
+        viz_state.redraw_cell_bars?.();
+      }
       menu?.update();
       const value = viz_state.cats.attribute || '';
       if (publish && viz_state.model?.get?.('cell_attribute') !== value) {
@@ -1518,7 +1519,8 @@ export const landscape_ist = async (
     viz_state.cell_attribute_menu = make_cell_attribute_menu(
       viz_state,
       viz_state.buttons.buttons.cell.node?.() ?? viz_state.buttons.buttons.cell,
-      (name) => show_cell_attribute(name)
+      (name) => show_cell_attribute(name),
+      { slider: viz_state.sliders?.cell }
     );
     menu = viz_state.cell_attribute_menu;
     const known = (name) =>

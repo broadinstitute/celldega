@@ -301,3 +301,66 @@ describe('clicking a label bar selects its clusters', () => {
     ).toContain('clusters: 4, 7');
   });
 });
+
+test('the CELL slider narrows while the caret shows', () => {
+  const viz_state = make_viz_state();
+  const cell = document.createElement('div');
+  document.createElement('div').appendChild(cell);
+  const slider = document.createElement('input');
+  slider.style.width = '75px';
+  const menu = api.make_cell_attribute_menu(viz_state, cell, () => {}, {
+    slider,
+  });
+  expect(slider.style.width).toBe('75px'); // only the clusters: no caret
+  viz_state.model.set('label_sets', CELL_TYPES);
+  menu.update();
+  expect(slider.style.width).toBe('60px');
+  expect(menu.element.firstChild.style.fontSize).toBe('12px');
+  viz_state.model.set('label_sets', {});
+  menu.update();
+  expect(slider.style.width).toBe('75px');
+});
+
+describe('the cell tooltip names the attribute shown', () => {
+  const { make_tooltip, set_cell_attribute } = new Function(
+    `${SHIMS}
+     const escape_html = (value) => String(value ?? '').replace(/</g, '&lt;');
+     const gene_info_tooltip_html = () => '';
+     const refresh_gene_tooltip_async = () => {};
+     const has_uniprot_info = () => false;
+     const get_point_cloud_source_index = (viz_state, index) => index;
+     const is_cluster_color_mode = (cats) => !cats.cat || cats.cat === 'cluster';
+     ${strip('../global_variables/cell_attributes.js')}
+     ${strip('../deck-gl/utils/tooltips.js')}
+     return { make_tooltip, set_cell_attribute };`
+  )();
+  const hover = (viz_state, index) => {
+    viz_state.root ??= document.createElement('div');
+    return make_tooltip(viz_state, { index, layer: { id: 'cell-layer-x' } })
+      ?.html;
+  };
+
+  test('clusters: just the cluster', () => {
+    const html = hover(make_viz_state({ label_sets: CELL_TYPES }), 0);
+    expect(html).toContain('cell: a');
+    expect(html).toContain('cluster: 4');
+    expect(html).not.toContain('cell_type');
+  });
+
+  test('a label set: its label (or unlabeled), then the cluster', () => {
+    const viz_state = make_viz_state({ label_sets: CELL_TYPES });
+    set_cell_attribute(viz_state, 'cell_type');
+    expect(hover(viz_state, 2)).toContain(
+      '<div>cell_type: Goblet</div><div>cluster: 7</div>'
+    );
+    expect(hover(viz_state, 3)).toContain('cell_type: <i>unlabeled</i>');
+  });
+
+  test("a per-cell attribute: its value, then the cell's cluster", () => {
+    const viz_state = make_viz_state({ meta_cell: true });
+    set_cell_attribute(viz_state, 'cell_type');
+    expect(hover(viz_state, 1)).toContain(
+      '<div>cell_type: T</div><div>cluster: 4</div>'
+    );
+  });
+});

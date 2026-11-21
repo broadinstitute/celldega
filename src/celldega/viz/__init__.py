@@ -675,8 +675,13 @@ def link_clerk(
     if clustergram is not None:
         _feed_clustergram_clusters_to_clerk(clustergram, clerk)
         clerk._refresh_cluster_links()  # if it's already drawn
-    if landscape is not None and hasattr(clerk, "_share_cell_types"):
-        clerk._share_cell_types()  # its proposed cell types, as a label set
+    if hasattr(clerk, "_restore_annotations") and (
+        clustergram is not None or landscape is not None
+    ):
+        # A reopened case's cell types and labels, on widgets linked after it opened.
+        clerk._restore_annotations()
+        if landscape is not None:
+            clerk._share_cell_types()  # without a Clustergram: as a label set
     if landscape is not None and getattr(clerk, "_case", None) is not None:
         clerk._pin_case()  # a reopened case's views, as pins on this Landscape
     return clerk

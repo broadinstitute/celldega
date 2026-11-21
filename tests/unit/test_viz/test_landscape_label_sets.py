@@ -83,35 +83,107 @@ def test_clustergram_cell_types_become_landscape_label_sets() -> None:
     assert set(ls.label_sets) == {"mine"}
 
 
-def test_clerk_cell_types_become_a_label_set_until_the_clustergram_has_them() -> None:
-    ls, cgm = _landscape(), _clustergram()
-    clerk = Clerk(landscape=ls, clustergram=cgm, capture_on_select=False)
-    clerk.label_clustergram = False
+def _record(clerk, *pairs):
     clerk._record_findings(
-        {"cell_types": [{"cluster": "4", "label": "Goblet"}, {"cluster": "7", "label": "Tuft"}]},
-        "What are 4 and 7?",
+        {"cell_types": [{"cluster": c, "label": label} for c, label in pairs]}, "q"
     )
-    assert ls.label_sets["clerk_cell_type"] == {"labels": {"4": "Goblet", "7": "Tuft"}}
-    # A later proposal wins.
-    clerk._record_findings({"cell_types": [{"cluster": "7", "label": "Goblet"}]}, "And 7?")
-    assert ls.label_sets["clerk_cell_type"]["labels"] == {"4": "Goblet", "7": "Goblet"}
-
-    # Accepted into the Clustergram (LABEL), its version (with edits) is shown.
-    spatial_clustergram(ls, cgm)
-    _manual(cgm, "clerk_cell_type", {"4": "Goblet", "7": "Goblet (edited)"})
-    clerk._record_findings({"cell_types": [{"cluster": "9", "label": "Plasma"}]}, "9?")
-    assert ls.label_sets["clerk_cell_type"]["labels"] == {"4": "Goblet", "7": "Goblet (edited)"}
 
 
-def test_a_reopened_case_offers_its_cell_types(tmp_path) -> None:
-    clerk = Clerk()
-    clerk.output_dir = tmp_path
-    clerk._record_findings({"cell_types": [{"cluster": "4", "label": "Goblet"}]}, "q")
-    clerk.messages = [{"role": "user", "content": "q"}]
-    path = clerk.save_conversation(tmp_path / "case.json")
+def test_clerk_and_manual_labels_share_one_clustergram_category() -> None:
+    """Clerk's cell types go into the Clustergram's manual column category (the one
+    the scientist edits), which the Landscape shows; the scientist's labels win."""
+    ls, cgm = _landscape(), _clustergram()
+    cgm.manual_col_cat = True
+    clerk = Clerk(capture_on_select=False)
+    spatial_clustergram(ls, cgm, clerk=clerk)
+    cgm.send = lambda msg: None  # no browser
+
+    _record(clerk, ("4", "Goblet"), ("7", "Tuft"))
+    manual = cgm.manual_cat_dict["col"]
+    assert manual == {"manual_cat": {"values": {"4": "Goblet", "7": "Tuft"}, "colors": {}}}
+    assert ls.label_sets == {"manual_cat": {"labels": {"4": "Goblet", "7": "Tuft"}}}
+
+    # The scientist relabels 7; Clerk's next proposal for 7 doesn't overwrite it.
+    cgm.set_categories({"7": "My tuft"})
+    _record(clerk, ("7", "Enteroendocrine"), ("9", "Plasma"))
+    assert ls.label_sets["manual_cat"]["labels"] == {"4": "Goblet", "7": "My tuft", "9": "Plasma"}
+
+
+def test_without_a_clustergram_clerk_cell_types_are_a_label_set() -> None:
     ls = _landscape()
-    Clerk(clerk_files=path, landscape=ls)
+    clerk = Clerk(landscape=ls, capture_on_select=False)
+    _record(clerk, ("4", "Goblet"), ("7", "Tuft"))
+    _record(clerk, ("7", "Goblet"))  # a later proposal wins
+    assert ls.label_sets == {"clerk_cell_type": {"labels": {"4": "Goblet", "7": "Goblet"}}}
+
+
+@pytest.mark.parametrize("kind", ["conversation", "report"])
+def test_a_reopened_case_restores_its_annotations(tmp_path, kind) -> None:
+    ls, cgm = _landscape(), _clustergram()
+    cgm.manual_col_cat = "cell_type"
+    clerk = Clerk(capture_on_select=False)
+    clerk.output_dir = tmp_path
+    spatial_clustergram(ls, cgm, clerk=clerk)
+    cgm.send = lambda msg: None
+    _record(clerk, ("4", "Goblet"), ("7", "Tuft"))
+    cgm.set_categories({"7": "My tuft", "9": "Plasma"}, colors={"Plasma": "#ff00ff"})
+    clerk.messages = [*clerk.messages, {"role": "user", "content": "q"}]
+    path = (
+        clerk.save_conversation(tmp_path / "case.json")
+        if kind == "conversation"
+        else clerk.export(title="Case", html=False)["record"]
+    )
+
+    # A fresh session: the Clustergram isn't displayed yet when the case opens.
+    ls2, cgm2 = _landscape(), _clustergram()
+    cgm2.manual_col_cat = "cell_type"
+    sent = []
+    cgm2.send = sent.append
+    reopened = Clerk(clerk_files=path, landscape=ls2, clustergram=cgm2)
+    spatial_clustergram(ls2, cgm2, clerk=reopened)
+    expected = {"4": "Goblet", "7": "My tuft", "9": "Plasma"}
+    # In its synced state (shown when it is displayed) and sent to a displayed one.
+    assert cgm2.manual_cat_dict["col"]["cell_type"]["values"] == expected
+    assert cgm2.manual_cat_dict["col"]["cell_type"]["colors"] == {"Plasma": "#ff00ff"}
+    assert [m["values"] for m in sent if m["event"] == "set_categories"] == [expected]
+    assert ls2.label_sets["cell_type"]["labels"] == expected
+    # Which labels are Clerk's survives: its next proposal for 7 leaves yours.
+    _record(reopened, ("7", "Enteroendocrine"), ("4", "Enterocyte"))
+    assert cgm2.manual_cat_dict["col"]["cell_type"]["values"] == {
+        "4": "Enterocyte",
+        "7": "My tuft",
+        "9": "Plasma",
+    }
+
+
+def test_a_case_saved_without_annotations_labels_the_clustergram(tmp_path) -> None:
+    clerk = Clerk()
+    _record(clerk, ("4", "Goblet"))
+    clerk.messages = [{"role": "user", "content": "q"}]
+    path = clerk.save_conversation(tmp_path / "old.json")
+    data = json.loads(path.read_text())
+    data.pop("annotations")
+    path.write_text(json.dumps(data))
+    ls, cgm = _landscape(), _clustergram()
+    cgm.send = lambda msg: None
+    reopened = Clerk(clerk_files=path, landscape=ls, clustergram=cgm)
+    spatial_clustergram(ls, cgm, clerk=reopened)
+    assert cgm.manual_cat_dict["col"]["clerk_cell_type"]["values"] == {"4": "Goblet"}
     assert ls.label_sets == {"clerk_cell_type": {"labels": {"4": "Goblet"}}}
+
+
+def test_set_categories_before_display_shows_when_displayed() -> None:
+    cgm = _clustergram()
+    cgm.send = lambda msg: None
+    cgm.set_categories({"4": "Goblet"}, attribute="cell_type", colors={"Goblet": "#00ff00"})
+    cgm.set_categories({"7": "Tuft", "4": None})
+    assert cgm.manual_col_cat == "cell_type"
+    assert json.loads(cgm.manual_cat_config)["col"]["attribute"] == "cell_type"
+    assert cgm.manual_cat_dict["col"] == {
+        "cell_type": {"values": {"7": "Tuft"}, "colors": {"Goblet": "#00ff00"}}
+    }
+    cgm.set_categories({"9": "Plasma"}, replace=True)
+    assert cgm.manual_cat_dict["col"]["cell_type"]["values"] == {"9": "Plasma"}
 
 
 def test_anndata_cell_attr_colors_come_from_uns() -> None:
@@ -138,3 +210,16 @@ def test_link_clerk_shares_cell_types_with_a_landscape_linked_later() -> None:
     ls = _landscape()
     link_clerk(clerk, landscape=ls, capture_on_select=False)
     assert ls.label_sets["clerk_cell_type"]["labels"] == {"4": "Goblet"}
+
+
+def test_manual_category_flags_name_the_category() -> None:
+    """``True`` turns manual categories on under the default name, not "True"."""
+    df = pd.DataFrame(np.ones((2, 3)), index=["a", "b"], columns=["4", "7", "9"])
+    mat = Matrix(df)
+    mat.cluster()
+    config = json.loads(
+        Clustergram(matrix=mat, manual_row_cat=True, manual_col_cat="cell_type").manual_cat_config
+    )
+    assert config["row"]["attribute"] == "manual_cat"
+    assert config["col"]["attribute"] == "cell_type"
+    assert Clustergram(matrix=mat).manual_cat_config == "{}"

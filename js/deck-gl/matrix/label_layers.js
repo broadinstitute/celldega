@@ -61,12 +61,13 @@ const LABEL_EDGE_PAD = 3;
  * fixed, so this only changes with the layout.
  */
 export const row_label_room_px = (viz_state) => {
-  const { row_region, label_row_x } = viz_state.viz || {};
+  const { row_region, label_row_x, rows_target_x } = viz_state.viz || {};
   // Without a layout yet, nothing is shortened (NaN fails fit_label's check).
   if (row_region === undefined) return Number.NaN;
+  const target_x = rows_target_x ?? label_row_x;
   return (
     row_region / 2 +
-    (ROW_LABEL_X - label_row_x) * 2 ** (viz_state.zoom?.ini_zoom_x ?? 0) -
+    (ROW_LABEL_X - target_x) * 2 ** (viz_state.zoom?.ini_zoom_x ?? 0) -
     LABEL_EDGE_PAD
   );
 };

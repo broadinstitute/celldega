@@ -131,3 +131,13 @@ test('a failed load releases the model sync guard', async () => {
   );
   expect(state.yearbook.restoring).toBe(false);
 });
+
+test('a saved view keeps what cells are shown by (the CELL ▾)', async () => {
+  const { api, state, apply } = setup();
+  const saved = {
+    ...api.get_replay_state(),
+    display: { genes: ['G1'], cell_attribute: 'cell_type' },
+  };
+  await api.apply_state(saved);
+  expect(apply).toHaveBeenCalledWith(state, expect.any(Object), saved.display);
+});

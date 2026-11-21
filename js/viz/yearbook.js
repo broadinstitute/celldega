@@ -56,6 +56,7 @@ import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
 import { ImageRowGroupReader } from '../read_parquet/image_row_group_reader';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { setup_cell_attribute_controls } from '../ui/cell_attribute_controls';
 import { show_loading } from '../ui/loading';
 import { add_pic_button } from '../ui/pic_button';
 import { set_image_layer_sliders } from '../ui/sliders';
@@ -69,7 +70,7 @@ import {
 } from '../utils/compact_data';
 import { refresh_layer } from '../utils/refresh_layer';
 import { create_scale_bar, PIXEL_SIZE_MICRONS } from '../utils/scale_bar';
-import { run_ui_cleanups } from '../utils/ui_cleanup';
+import { register_ui_cleanup, run_ui_cleanups } from '../utils/ui_cleanup';
 
 import { handle_snapshot_message, consume_initial_snapshot } from './snapshot';
 import { compute_portrait_centers } from './yearbook_portrait_centers';
@@ -1069,6 +1070,8 @@ export const yearbook = async (
 
   // Handle query changes from UI
   const handle_query_change = tracked(async (new_query) => {
+    // Queries name clusters: leave another per-cell attribute for them.
+    viz_state.show_clusters_attribute?.();
     viz_state.yearbook.query = new_query;
 
     // Update status in UI
@@ -1173,6 +1176,50 @@ export const yearbook = async (
     handle_page_change,
     handle_query_change
   );
+
+  // The ▾ beside CELL: show cells by their clusters, another per-cell attribute
+  // or a label set, as in the Landscape (ui/cell_attribute_controls.js).
+  if (viz_state.buttons?.buttons?.cell) {
+    const attribute_cleanups = [];
+    setup_cell_attribute_controls(
+      viz_state,
+      {
+        cell_button:
+          viz_state.buttons.buttons.cell.node?.() ??
+          viz_state.buttons.buttons.cell,
+        slider: viz_state.sliders?.cell,
+        // Repaint as a selection change does (below).
+        refresh_colors: () => {
+          const id = `cell-layer-${viz_state.cats.selected_cats.join('-')}-sel-${viz_state.selection_token}`;
+          if (
+            !refresh_point_cloud_cell_layer_data(layers_obj, viz_state, { id })
+          )
+            refresh_cell_layer_data(layers_obj, viz_state, { id });
+          layers_obj.path_layer = layers_obj.path_layer.clone({
+            updateTriggers: {
+              getColor: [
+                viz_state.cats.selected_cats,
+                viz_state.cats.cat,
+                viz_state.selection_token,
+              ],
+            },
+          });
+          refresh_layer(viz_state, layers_obj, 'cell_layer');
+          refresh_layer(viz_state, layers_obj, 'path_layer');
+        },
+        // The cells in the portraits, by the new categories.
+        recount_bars: () => {
+          viz_state.yearbook.lastCellBarData = null;
+          update_bar_graphs();
+        },
+        redraw_bars: () => viz_state.redraw_cell_bars?.(),
+      },
+      attribute_cleanups
+    );
+    attribute_cleanups.forEach((cleanup) =>
+      register_ui_cleanup(viz_state, cleanup)
+    );
+  }
 
   // Listen for model changes
   if (Object.keys(viz_state.model).length > 0) {

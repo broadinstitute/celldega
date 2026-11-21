@@ -737,7 +737,59 @@ class _StateSnapshots(_StateGetter):
         self.apply_capture_id = reply_id
 
 
-class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
+class _CellAttributes(traitlets.HasTraits):
+    """Mixin: what a spatial widget's cells are shown by (the ▾ beside CELL).
+
+    Their clusters, another per-cell ``cell_attr`` column, or a label set that
+    names the clusters (Landscape and Yearbook).
+    """
+
+    #: ``{attribute: {category: hex}}`` for the other ``cell_attr`` columns (from
+    #: AnnData's ``uns[f"{attr}_colors"]``); uncolored ones get evenly spaced hues.
+    cell_attr_colors = traitlets.Dict({}).tag(sync=True)
+    #: Named labelings of the clusters, ``{name: {"labels": {cluster: label},
+    #: "colors": {label: hex}}}``, e.g. Clustergram cell types or Clerk's proposed
+    #: ones (set with :meth:`set_labels`). The ▾ beside CELL shows cells by one.
+    label_sets = traitlets.Dict({}).tag(sync=True)
+    #: What cells are shown by: ``""`` (their clusters), another ``cell_attr``
+    #: column, or a label set's name. The ▾ beside CELL sets it too.
+    cell_attribute = traitlets.Unicode("").tag(sync=True)
+
+    def set_labels(self, name: str, labels: dict | None, colors: dict | None = None) -> None:
+        """Name the clusters, as a label set the ▾ beside CELL can show cells by.
+
+        For example ``landscape.set_labels("cell_type", {"4": "Goblet cells", "7":
+        "Goblet cells"})``. Shown by it, each labeled cluster takes its label's color
+        (from ``colors``, else that of its first cluster) and the bar graph has one
+        bar per label; clicking one selects its clusters. Cells stay clusters, so
+        cluster links and saved views keep working.
+
+        A linked Clustergram's column categories and Clerk's proposed cell types
+        (``clerk_cell_type``) arrive as label sets on their own.
+
+        Args:
+            name: The set's name, shown in the menu.
+            labels: ``{cluster: label}``; empty labels are left out. ``None`` (or
+                nothing left) removes the set.
+            colors: Optional ``{label: hex}``.
+        """
+        name = str(name)
+        if not name:
+            raise ValueError("a label set needs a name")
+        sets = dict(self.label_sets)
+        labels = {str(k): str(v) for k, v in (labels or {}).items() if v not in (None, "")}
+        if labels:
+            entry: dict = {"labels": labels}
+            if colors:
+                entry["colors"] = {str(k): str(v) for k, v in colors.items()}
+            sets[name] = entry
+        else:
+            sets.pop(name, None)
+        if sets != self.label_sets:
+            self.label_sets = sets
+
+
+class Landscape(Screenshots, _RasterCapture, _StateSnapshots, _CellAttributes, CelldegaWidget):
     """
     Interactive spatial tissue and low dimensional embedding landscapes.
 
@@ -940,16 +992,6 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
     # obs column driving the cluster color legend/meta_cluster_parquet key field
     cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
-    #: ``{attribute: {category: hex}}`` for the other ``cell_attr`` columns (from
-    #: AnnData's ``uns[f"{attr}_colors"]``); uncolored ones get evenly spaced hues.
-    cell_attr_colors = traitlets.Dict({}).tag(sync=True)
-    #: Named labelings of the clusters, ``{name: {"labels": {cluster: label},
-    #: "colors": {label: hex}}}``, e.g. Clustergram cell types or Clerk's proposed
-    #: ones (set with :meth:`set_labels`). The ▾ beside CELL shows cells by one.
-    label_sets = traitlets.Dict({}).tag(sync=True)
-    #: What cells are shown by: ``""`` (their clusters), another ``cell_attr``
-    #: column, or a label set's name. The ▾ beside CELL sets it too.
-    cell_attribute = traitlets.Unicode("").tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -1568,39 +1610,6 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     def update_cell_clusters(self, new_clusters):
         """Update cell clusters with new data."""
         self.cell_clusters = new_clusters
-
-    def set_labels(self, name: str, labels: dict | None, colors: dict | None = None) -> None:
-        """Name the clusters, as a label set the ▾ beside CELL can show cells by.
-
-        For example ``landscape.set_labels("cell_type", {"4": "Goblet cells", "7":
-        "Goblet cells"})``. Shown by it, each labeled cluster takes its label's color
-        (from ``colors``, else that of its first cluster) and the bar graph has one
-        bar per label; clicking one selects its clusters. Cells stay clusters, so
-        cluster links and saved views keep working.
-
-        A linked Clustergram's column categories and Clerk's proposed cell types
-        (``clerk_cell_type``) arrive as label sets on their own.
-
-        Args:
-            name: The set's name, shown in the menu.
-            labels: ``{cluster: label}``; empty labels are left out. ``None`` (or
-                nothing left) removes the set.
-            colors: Optional ``{label: hex}``.
-        """
-        name = str(name)
-        if not name:
-            raise ValueError("a label set needs a name")
-        sets = dict(self.label_sets)
-        labels = {str(k): str(v) for k, v in (labels or {}).items() if v not in (None, "")}
-        if labels:
-            entry: dict = {"labels": labels}
-            if colors:
-                entry["colors"] = {str(k): str(v) for k, v in colors.items()}
-            sets[name] = entry
-        else:
-            sets.pop(name, None)
-        if sets != self.label_sets:
-            self.label_sets = sets
 
     def highlight_cells(self, cell_ids):
         """Highlight specific cells by their identifiers."""
@@ -3231,19 +3240,20 @@ class Clerk(CelldegaWidget):
         return labels
 
     def _share_cell_types(self) -> None:
-        """Offer the proposed cell types to a linked Landscape without a Clustergram,
-        as a label set (the ▾ beside its CELL can show cells by them).
+        """Offer the proposed cell types to a linked Landscape and Yearbook when no
+        Clustergram is linked, as a label set (the ▾ beside their CELL can show
+        cells by them).
 
         With a Clustergram they go into its manual column category instead (see
-        :attr:`label_clustergram`), which the Landscape shows, with the scientist's
+        :attr:`label_clustergram`), which those widgets show, with the scientist's
         own labels.
         """
-        landscape = self._linked_widgets.get("landscape")
-        if not hasattr(landscape, "set_labels"):
-            return
         if hasattr(self._linked_widgets.get("clustergram"), "set_categories"):
             return
-        landscape.set_labels(self.clustergram_label_attribute, self._latest_cell_types())
+        for name in ("landscape", "yearbook"):
+            widget = self._linked_widgets.get(name)
+            if hasattr(widget, "set_labels"):
+                widget.set_labels(self.clustergram_label_attribute, self._latest_cell_types())
 
     def _annotations(self) -> dict:
         """The linked Clustergram's manual categories (Clerk's cell types and the
@@ -5586,7 +5596,7 @@ def _composition_matrix_inputs(
     }
 
 
-class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
+class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, _CellAttributes, CelldegaWidget):
     """
     A widget for visualizing cell portraits in a yearbook-style grid layout.
 
@@ -5783,6 +5793,7 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         cluster_attr = kwargs.pop("cluster_attr", "leiden")
         if cluster_attr not in cell_attr:
             cell_attr.append(cluster_attr)
+        cell_attr_colors: dict = {}
 
         # Get cell_name_prefix setting (same as Landscape)
         cell_name_prefix_setting = kwargs.get("cell_name_prefix", False)
@@ -5806,6 +5817,9 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
             cell_attr = [c for c in cell_attr if c in obs.columns]
             meta_cell_df = obs[cell_attr].copy()
+            cell_attr_colors = _obs_category_colors(
+                adata, [c for c in cell_attr if c not in (cluster_attr, "color")]
+            )
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -5860,6 +5874,8 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         super().__init__(**kwargs)
 
         self.cluster_attr = cluster_attr
+        if cell_attr_colors:
+            self.cell_attr_colors = cell_attr_colors
 
         # store DataFrames locally without syncing to the frontend
         self.meta_cell = meta_cell_df

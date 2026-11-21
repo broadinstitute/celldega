@@ -223,3 +223,49 @@ def test_manual_category_flags_name_the_category() -> None:
     assert config["row"]["attribute"] == "manual_cat"
     assert config["col"]["attribute"] == "cell_type"
     assert Clustergram(matrix=mat).manual_cat_config == "{}"
+
+
+def _yearbook(**kwargs):
+    from celldega.viz import Yearbook
+
+    return Yearbook(base_url="https://example.com/data", cells=["c1"], **kwargs)
+
+
+def test_the_yearbook_shows_the_same_cell_types() -> None:
+    """Linked through Clerk (as in a notebook's Clerk(..., yearbook=...)), the
+    Yearbook gets the Clustergram's cell types like the Landscape."""
+    ls, cgm, yb = _landscape(), _clustergram(), _yearbook()
+    cgm.manual_col_cat = True
+    cgm.send = lambda msg: None
+    clerk = Clerk(landscape=ls, clustergram=cgm, yearbook=yb, capture_on_select=False)
+    # Linking again (e.g. spatial_clustergram with clerk=) doesn't double up.
+    spatial_clustergram(ls, cgm, clerk=clerk)
+    calls = []
+    original = yb.set_labels
+    yb.set_labels = lambda *args, **kwargs: (calls.append(args), original(*args, **kwargs))
+    _record(clerk, ("4", "Goblet"))
+    assert yb.label_sets == ls.label_sets == {"manual_cat": {"labels": {"4": "Goblet"}}}
+    assert len(calls) == 1
+
+
+def test_a_yearbook_linked_to_the_clustergram_or_alone() -> None:
+    cgm, yb = _clustergram(), _yearbook()
+    spatial_clustergram(yb, cgm)
+    _manual(cgm, "cell_type", {"9": "Plasma"})
+    assert yb.label_sets == {"cell_type": {"labels": {"9": "Plasma"}}}
+
+    alone = _yearbook()
+    clerk = Clerk(yearbook=alone)
+    _record(clerk, ("4", "Goblet"))
+    assert alone.label_sets == {"clerk_cell_type": {"labels": {"4": "Goblet"}}}
+
+
+def test_yearbook_cell_attr_colors_come_from_uns() -> None:
+    obs = pd.DataFrame(
+        {"leiden": pd.Categorical(["0", "1"]), "cell_type": pd.Categorical(["B", "T"])},
+        index=["c1", "c2"],
+    )
+    adata = ad.AnnData(np.ones((2, 1), dtype=np.float32), obs=obs)
+    adata.uns["cell_type_colors"] = ["#0000ff", "#ff0000"]
+    yb = _yearbook(adata=adata, cell_attr=["leiden", "cell_type"])
+    assert yb.cell_attr_colors == {"cell_type": {"B": "#0000ff", "T": "#ff0000"}}

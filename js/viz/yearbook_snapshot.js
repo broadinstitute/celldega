@@ -76,6 +76,7 @@ export const create_yearbook_snapshot_api = ({
       'channels',
       'sliders',
       'image_source',
+      'cell_attribute',
     ];
     if (Object.keys(saved.display).some((key) => !display_keys.includes(key)))
       throw new Error('Unsupported Yearbook display setting');

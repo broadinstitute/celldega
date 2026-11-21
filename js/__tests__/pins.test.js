@@ -199,14 +199,18 @@ describe('PINS', () => {
 
 describe('view-mode menu', () => {
   const { collapse_view_modes } = new Function(
-    `${strip('../ui/view_mode_menu.js')}\nreturn { collapse_view_modes };`
+    `${strip('../ui/control_style.js')}
+     ${strip('../ui/view_mode_menu.js')}
+     return { collapse_view_modes };`
   )();
 
   const make = () => {
     const row = document.createElement('div');
+    const clicks = [];
     const button = (text) => {
       const el = document.createElement('div');
       el.textContent = text;
+      el.addEventListener('click', () => clicks.push(text));
       row.appendChild(el);
       return el;
     };
@@ -214,46 +218,48 @@ describe('view-mode menu', () => {
     const spatial = button('SPATIAL');
     const img = button('IMG');
     const xy = button('XY');
+    xy.title = 'Plot expression of two genes';
     const view = observable('spatial');
     const viz_state = {
       buttons: { buttons: { spatial: { node: () => spatial }, umap, xy } },
       obs_store: { landscape_view: view },
     };
     collapse_view_modes(viz_state, row);
-    return { row, spatial, umap, xy, img, view };
+    const select = row.querySelector('select');
+    return { row, select, spatial, umap, xy, img, view, clicks };
   };
 
-  test('only the current mode shows; the caret lists the others', () => {
-    const { row, spatial, umap, xy, img } = make();
-    const menu = row.firstChild;
-    expect(menu.className).toBe('view_mode_menu');
-    expect([...menu.children].map((c) => c.textContent)).toEqual([
+  const pick = (select, mode) => {
+    select.value = mode;
+    select.dispatchEvent(new Event('change'));
+  };
+
+  test('one dropdown shows the current mode, like the Clustergram order', () => {
+    const { row, select, spatial, umap, xy, img } = make();
+    expect(row.firstChild.className).toBe('view_mode_menu');
+    expect(row.children[1]).toBe(img); // IMG and the rest stay after the menu
+    expect([...select.options].map((o) => o.textContent)).toEqual([
       'SPATIAL',
       'UMAP',
       'XY',
-      '▾',
     ]);
-    expect(row.children[1]).toBe(img); // IMG and the rest stay after the menu
-    expect([spatial, umap, xy].map((b) => b.style.display)).toEqual([
-      '',
-      'none',
-      'none',
-    ]);
-    menu.lastChild.click();
-    expect([spatial, umap, xy].map((b) => b.style.display)).toEqual([
-      '',
-      '',
-      '',
-    ]);
+    expect(select.options[2].title).toBe('Plot expression of two genes');
+    expect(select.value).toBe('spatial');
+    expect(select.style.appearance).toBe('none'); // no arrow
+    // The mode buttons are kept (their handlers), out of sight.
+    [spatial, umap, xy].forEach((b) =>
+      expect(b.parentNode.style.display).toBe('none')
+    );
   });
 
-  test('switching modes shows the new one and closes the menu', async () => {
-    const { row, spatial, umap, view } = make();
-    row.firstChild.lastChild.click();
-    umap.click();
-    view.set('umap');
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(umap.style.display).toBe('');
-    expect(spatial.style.display).toBe('none');
+  test('picking a mode runs its button; the dropdown follows the view', () => {
+    const { select, view, clicks } = make();
+    pick(select, 'xy');
+    expect(clicks).toEqual(['XY']);
+    expect(select.value).toBe('spatial'); // until the switch lands
+    view.set('xy');
+    expect(select.value).toBe('xy');
+    view.set('umap'); // e.g. from Python or a restored view
+    expect(select.value).toBe('umap');
   });
 });

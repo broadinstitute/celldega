@@ -8,6 +8,10 @@
  * comma-separated search box, and moving the camera.
  */
 import { force_set_selected_cats, update_cat } from '../global_variables/cat';
+import {
+  cell_attribute_options,
+  normalize_cell_attribute,
+} from '../global_variables/cell_attributes';
 import { select_genes } from '../global_variables/select_genes';
 import { force_set_selected_genes } from '../global_variables/selected_genes';
 import { refresh_layer } from '../utils/refresh_layer';
@@ -34,6 +38,7 @@ export const LANDSCAPE_APPLY_KEYS = [
   'image_source',
   'selected_cells',
   'xy',
+  'cell_attribute',
 ];
 // Margin around a zoom_to target, and the share of cells kept per axis (drops
 // stray outliers so one far-off cell doesn't zoom the view all the way out).
@@ -101,6 +106,10 @@ export const get_landscape_state = (
     },
     // 'cluster', a gene name, or 'g1 + g2' when colored by several genes.
     color_by,
+    // Shown by another cell attribute or a label set (else the clusters).
+    ...(viz_state.cats?.attribute
+      ? { cell_attribute: viz_state.cats.attribute }
+      : {}),
     selected_clusters:
       color_by === 'cluster'
         ? (viz_state.cats?.selected_cats || []).map(String)
@@ -144,6 +153,9 @@ export const get_landscape_replay_state = (viz_state) => {
       ...(viz_state.obs_store?.selected_cells?.get?.() || []),
     ].map(String),
     ...(viz_state.expression_scatter_enabled ? { xy: observed.xy } : {}),
+    ...(observed.cell_attribute
+      ? { cell_attribute: observed.cell_attribute }
+      : {}),
   };
 };
 
@@ -408,6 +420,29 @@ export const apply_landscape_state = async (
       if (!is_orbit_view(viz_state) && changes.view[key] !== 0)
         throw new Error('Camera rotation requires an orbit view');
     }
+  }
+  if ('cell_attribute' in changes) {
+    if (typeof changes.cell_attribute !== 'string')
+      throw new Error('cell_attribute must be a string');
+    let name = normalize_cell_attribute(viz_state, changes.cell_attribute);
+    const options = viz_state.show_cell_attribute
+      ? cell_attribute_options(viz_state)
+      : [{ value: '' }];
+    // Label sets come and go (e.g. a saved view's set isn't defined here yet):
+    // show the clusters rather than fail the rest of the view.
+    if (!options.some((option) => option.value === name)) {
+      done.push(
+        `cell attribute ${changes.cell_attribute} isn't available here; showing clusters`
+      );
+      name = '';
+    }
+    if (name !== (viz_state.cats.attribute || '')) {
+      viz_state.show_cell_attribute(name);
+      done.push(`showed cells by ${name || 'cluster'}`);
+    }
+  } else if ('clusters' in changes || changes.zoom_to?.clusters) {
+    // Clusters named here need the clusters, not another per-cell attribute.
+    viz_state.show_clusters_attribute?.();
   }
   let framed = null;
   if ('zoom_to' in changes) {

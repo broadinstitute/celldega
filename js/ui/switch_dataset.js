@@ -14,6 +14,7 @@ import {
   update_cat,
   update_selected_cats,
 } from '../global_variables/cat';
+import { reset_cell_attribute } from '../global_variables/cell_attributes';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import {
   set_cell_names_array,
@@ -288,6 +289,12 @@ export const switch_dataset = async (
           )
         : null,
     ]);
+    // The new dataset is shown by its clusters.
+    reset_cell_attribute(viz_state.cats);
+    if (viz_state.model?.get?.('cell_attribute')) {
+      viz_state.model.set('cell_attribute', '');
+      viz_state.model.save_changes?.();
+    }
     if (identity_table) {
       set_indexed_cell_names_array(
         viz_state.cats,
@@ -339,6 +346,7 @@ export const switch_dataset = async (
 
     // Update cell bar data
     viz_state.obs_store.new_cell_bar_data.set(viz_state.cats.cluster_counts);
+    viz_state.cell_attribute_menu?.update();
 
     // Rebuild cell scatter data objects
     const new_cell_names_array = viz_state.cats.cell_names_array;

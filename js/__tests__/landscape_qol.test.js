@@ -70,6 +70,9 @@ describe('bar plot helpers and shift-click', () => {
       const register_ui_cleanup = () => {};
       const make_gene_hover_tooltip = () => ({});
       const escape_html = (value) => String(value ?? '').replace(/</g, '&lt;');
+      // No label set: a bar is its cluster (cell_attributes.test.js has the rest).
+      const active_labels = () => null;
+      const clusters_of_bar = (viz_state, name) => [name];
     `;
     bar_plot = load('../ui/bar_plot.js', shims, [
       'bar_svg_height',

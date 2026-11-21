@@ -71,7 +71,17 @@ import {
 } from '../deck-gl/layers/trx_layer';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import { ini_cache } from '../global_variables/cache';
-import { update_cat, update_selected_cats } from '../global_variables/cat';
+import {
+  force_set_selected_cats,
+  set_dict_cell_cats,
+  update_cat,
+  update_selected_cats,
+} from '../global_variables/cat';
+import {
+  cell_attribute_options,
+  normalize_cell_attribute,
+  set_cell_attribute,
+} from '../global_variables/cell_attributes';
 import { update_cell_exp_array } from '../global_variables/cell_exp_array';
 import { options, set_options } from '../global_variables/fetch_options';
 import { set_global_base_url } from '../global_variables/global_base_url';
@@ -105,6 +115,7 @@ import {
 //   getVersion as getParquetWasmVersion,
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { make_cell_attribute_menu } from '../ui/cell_attribute_menu';
 import { show_loading } from '../ui/loading';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { add_pic_button } from '../ui/pic_button';
@@ -119,6 +130,7 @@ import { umap_world_size } from '../umap/scale_umap_data';
 import { initialize_viewport_summary } from '../umap/viewport_summary';
 import { capture_deck } from '../utils/canvas_capture';
 import {
+  buildCellCompactData,
   createEmptyCellCompact,
   createEmptyTrxCompact,
 } from '../utils/compact_data';
@@ -1238,8 +1250,10 @@ export const landscape_ist = async (
   const publish_selected_clusters = () => {
     const { model } = viz_state;
     if (typeof model?.set !== 'function') return;
+    // Another per-cell attribute's values aren't clusters.
     const clusters =
-      viz_state.cats?.cat === 'cluster'
+      viz_state.cats?.cat === 'cluster' &&
+      viz_state.cats.attribute_kind !== 'cell'
         ? (viz_state.obs_store.selected_cats.get() || []).map(String)
         : [];
     const now = model.get('selected_clusters') || [];
@@ -1444,6 +1458,99 @@ export const landscape_ist = async (
       );
     cleanup_callbacks.push(initialize_viewport_summary(viz_state));
     schedule_timeout(() => viz_state.refresh_viewport(), 0);
+  }
+
+  // The ▾ beside CELL: show cells by their clusters, another per-cell attribute
+  // or a label set (see global_variables/cell_attributes.js).
+  if (!viz_state.nbhd_cloud?.is_nbhd_cloud && viz_state.buttons.buttons.cell) {
+    let menu = null;
+    const show_cell_attribute = (name, { publish = true } = {}) => {
+      const { changed_categories } = set_cell_attribute(viz_state, name);
+      if (changed_categories) {
+        // Selections named the other attribute's values.
+        force_set_selected_cats(viz_state.cats, [], viz_state.obs_store);
+        if (!is_orbit_technology(currentTechnology)) {
+          set_dict_cell_cats(viz_state.cats);
+          viz_state.combo_data.cell_compact = buildCellCompactData(
+            viz_state.cats.cell_names_array,
+            viz_state.combo_data.cell_compact?.positions || new Float64Array(),
+            viz_state.combo_data.cell_compact?.size || 2,
+            viz_state.cats.dict_cell_cats
+          );
+        }
+      }
+      viz_state.selection_token += 1;
+      refresh_cell_layer();
+      layers_obj.path_layer = layers_obj.path_layer.clone({
+        updateTriggers: {
+          getColor: [
+            viz_state.cats.selected_cats,
+            viz_state.cats.cat,
+            viz_state.selection_token,
+          ],
+        },
+      });
+      refresh_layer(viz_state, layers_obj, 'path_layer');
+      // Bars: recount a per-cell attribute; regroup the clusters' counts.
+      if (viz_state.viewport_cache)
+        viz_state.viewport_cache.lastCellBarData = null;
+      if (changed_categories && viz_state.refresh_viewport)
+        viz_state.refresh_viewport();
+      else
+        viz_state.obs_store.new_cell_bar_data.set([
+          ...(viz_state.obs_store.new_cell_bar_data.get() ||
+            viz_state.cats.cluster_counts ||
+            []),
+        ]);
+      menu?.update();
+      const value = viz_state.cats.attribute || '';
+      if (publish && viz_state.model?.get?.('cell_attribute') !== value) {
+        viz_state.model.set('cell_attribute', value);
+        viz_state.model.save_changes?.();
+      }
+    };
+    viz_state.show_cell_attribute = show_cell_attribute;
+    // A cluster selection from elsewhere (a Clustergram, Clerk, a saved view)
+    // needs the clusters, not another per-cell attribute.
+    viz_state.show_clusters_attribute = () => {
+      if (viz_state.cats.attribute_kind === 'cell') show_cell_attribute('');
+    };
+    viz_state.cell_attribute_menu = make_cell_attribute_menu(
+      viz_state,
+      viz_state.buttons.buttons.cell.node?.() ?? viz_state.buttons.buttons.cell,
+      (name) => show_cell_attribute(name)
+    );
+    menu = viz_state.cell_attribute_menu;
+    const known = (name) =>
+      cell_attribute_options(viz_state).some(
+        (option) => option.value === normalize_cell_attribute(viz_state, name)
+      );
+    const on_cell_attribute = () => {
+      const name = viz_state.model.get('cell_attribute') || '';
+      if (
+        normalize_cell_attribute(viz_state, name) ===
+        (viz_state.cats.attribute || '')
+      )
+        return;
+      if (known(name)) show_cell_attribute(name, { publish: false });
+    };
+    const on_label_sets = () => {
+      const shown = viz_state.cats.attribute || '';
+      // The shown set changed (relabeled clusters) or went away.
+      if (viz_state.cats.attribute_kind === 'labels')
+        show_cell_attribute(known(shown) ? shown : '');
+      else menu.update();
+      on_cell_attribute(); // a set the model asked for may have just arrived
+    };
+    if (viz_state.model?.on) {
+      viz_state.model.on('change:cell_attribute', on_cell_attribute);
+      viz_state.model.on('change:label_sets', on_label_sets);
+      cleanup_callbacks.push(() => {
+        viz_state.model.off?.('change:cell_attribute', on_cell_attribute);
+        viz_state.model.off?.('change:label_sets', on_label_sets);
+      });
+      on_cell_attribute();
+    }
   }
 
   // Callback registries for external listeners

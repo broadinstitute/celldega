@@ -110,6 +110,22 @@ def _hsv_to_hex(h: float) -> str:
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
+def _obs_category_colors(adata, columns) -> dict:
+    """``{column: {category: hex}}`` from AnnData's stored palettes
+    (``uns[f"{column}_colors"]``), for the categorical columns that have one."""
+    out = {}
+    for column in columns:
+        colors = adata.uns.get(f"{column}_colors")
+        series = adata.obs[column]
+        if colors is None or not isinstance(series.dtype, pd.CategoricalDtype):
+            continue
+        out[str(column)] = {
+            str(category): str(color)
+            for category, color in zip(series.cat.categories, colors, strict=False)
+        }
+    return out
+
+
 def _describe_anndata(adata) -> str:
     from celldega.clerk import describe_anndata
 
@@ -924,6 +940,16 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
     # obs column driving the cluster color legend/meta_cluster_parquet key field
     cluster_attr = traitlets.Unicode("leiden").tag(sync=True)
+    #: ``{attribute: {category: hex}}`` for the other ``cell_attr`` columns (from
+    #: AnnData's ``uns[f"{attr}_colors"]``); uncolored ones get evenly spaced hues.
+    cell_attr_colors = traitlets.Dict({}).tag(sync=True)
+    #: Named labelings of the clusters, ``{name: {"labels": {cluster: label},
+    #: "colors": {label: hex}}}``, e.g. Clustergram cell types or Clerk's proposed
+    #: ones (set with :meth:`set_labels`). The ▾ beside CELL shows cells by one.
+    label_sets = traitlets.Dict({}).tag(sync=True)
+    #: What cells are shown by: ``""`` (their clusters), another ``cell_attr``
+    #: column, or a label set's name. The ▾ beside CELL sets it too.
+    cell_attribute = traitlets.Unicode("").tag(sync=True)
 
     segmentation = traitlets.Unicode("default").tag(sync=True)
 
@@ -953,6 +979,7 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         "image_source",
         "selected_cells",
         "xy",
+        "cell_attribute",
     )
 
     def request_state(self, max_bars: int = 25) -> int:
@@ -1001,6 +1028,10 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 - ``channels``: ``{name: {"visible": bool, "intensity": 0..100}}``.
                 - ``sliders``: cell/nbhd values and ``trx: {"size": ..., "opacity": ...}``.
                 - ``image_source``: ``"primary"`` or ``"he"`` (when available).
+                - ``cell_attribute``: what cells are shown by: ``""`` (their
+                  clusters), another ``cell_attr`` column, or a label set's name
+                  (see :attr:`label_sets`). One that isn't available shows the
+                  clusters.
 
         Returns:
             list[str]: What was submitted; not confirmation that the browser applied it.
@@ -1034,6 +1065,11 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 raise ValueError("image_source must be 'primary' or 'he'")
             browser["image_source"] = changes["image_source"]
             described.append("updated image_source")
+        if "cell_attribute" in changes:
+            if not isinstance(changes["cell_attribute"], str):
+                raise ValueError("cell_attribute must be a string ('' for the clusters)")
+            browser["cell_attribute"] = changes["cell_attribute"]
+            described.append(f"showed cells by {changes['cell_attribute'] or 'cluster'}")
         if "clusters" in changes:
             browser["clusters"] = _names("clusters")
             described.append(
@@ -1196,6 +1232,7 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         cluster_attr = kwargs.pop("cluster_attr", "leiden")
         if cluster_attr not in cell_attr:
             cell_attr.append(cluster_attr)
+        cell_attr_colors: dict = {}
 
         nbhd_gdf, meta_nbhd_df = _coerce_nbhd_for_landscape(nbhd_gdf, meta_nbhd_df)
 
@@ -1344,6 +1381,9 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
             cell_attr = [c for c in cell_attr if c in obs.columns]
             meta_cell_df = obs[cell_attr].copy()
+            cell_attr_colors = _obs_category_colors(
+                adata, [c for c in cell_attr if c not in (cluster_attr, "color")]
+            )
 
             if meta_cell_df.index.name is None:
                 meta_cell_df.index.name = "cell_id"
@@ -1468,6 +1508,8 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
         self.cell_attr = cell_attr
         self.cluster_attr = cluster_attr
+        if cell_attr_colors:
+            self.cell_attr_colors = cell_attr_colors
         self.centroids_url = centroids_url
 
         # store DataFrames locally without syncing to the frontend
@@ -1526,6 +1568,39 @@ class Landscape(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     def update_cell_clusters(self, new_clusters):
         """Update cell clusters with new data."""
         self.cell_clusters = new_clusters
+
+    def set_labels(self, name: str, labels: dict | None, colors: dict | None = None) -> None:
+        """Name the clusters, as a label set the ▾ beside CELL can show cells by.
+
+        For example ``landscape.set_labels("cell_type", {"4": "Goblet cells", "7":
+        "Goblet cells"})``. Shown by it, each labeled cluster takes its label's color
+        (from ``colors``, else that of its first cluster) and the bar graph has one
+        bar per label; clicking one selects its clusters. Cells stay clusters, so
+        cluster links and saved views keep working.
+
+        A linked Clustergram's column categories and Clerk's proposed cell types
+        (``clerk_cell_type``) arrive as label sets on their own.
+
+        Args:
+            name: The set's name, shown in the menu.
+            labels: ``{cluster: label}``; empty labels are left out. ``None`` (or
+                nothing left) removes the set.
+            colors: Optional ``{label: hex}``.
+        """
+        name = str(name)
+        if not name:
+            raise ValueError("a label set needs a name")
+        sets = dict(self.label_sets)
+        labels = {str(k): str(v) for k, v in (labels or {}).items() if v not in (None, "")}
+        if labels:
+            entry: dict = {"labels": labels}
+            if colors:
+                entry["colors"] = {str(k): str(v) for k, v in colors.items()}
+            sets[name] = entry
+        else:
+            sets.pop(name, None)
+        if sets != self.label_sets:
+            self.label_sets = sets
 
     def highlight_cells(self, cell_ids):
         """Highlight specific cells by their identifiers."""
@@ -2298,14 +2373,25 @@ class Clerk(CelldegaWidget):
         """
         found = self._find_names([text], self._known_genes(), limit=500)
         found += [str(g) for g in genes if str(g) not in found]
+        self._refresh_cluster_links()
+        return {"genes": found} if found else {}
+
+    def _refresh_cluster_links(self) -> None:
+        """Update :attr:`cluster_names` / :attr:`cluster_labels` from the linked views.
+
+        The panel links these clusters in every message, so a reopened case's links
+        appear once its Clustergram has drawn. Until the views know their clusters
+        (e.g. a Clustergram not displayed yet), the names a case was saved with stay.
+        """
         known = self._known_clusters()
+        if not known:
+            return
         if known != list(self.cluster_names):
             self.cluster_names = known
         labels = self._cluster_labels()
         labels = {c: labels[c] for c in known if c in labels}
         if labels != dict(self.cluster_labels):
             self.cluster_labels = labels
-        return {"genes": found} if found else {}
 
     # "[MYH11]" (brackets without a link target): Markdown leaves the brackets.
     _BRACKETED = re.compile(r"\[([A-Za-z0-9][A-Za-z0-9._/-]*)\](?!\()")
@@ -2643,6 +2729,7 @@ class Clerk(CelldegaWidget):
             recorded.append(f"{entry['cluster']} → {entry['label']}{confidence}")
         if not recorded:
             return
+        self._share_cell_types()
         latest = self.findings[-len(recorded) :]
         n = len(recorded)
         # One short line in the chat; the per-cluster list is in its Evidence.
@@ -3122,9 +3209,7 @@ class Clerk(CelldegaWidget):
             raise KeyError(f"{groupby!r} is not a column of adata.obs")
         if key in adata.obs and not overwrite:
             raise ValueError(f"adata.obs already has {key!r}; pass overwrite=True to replace it")
-        labels: dict[str, str] = {}
-        for finding in self.findings:  # later proposals win
-            labels[finding["cluster"]] = finding["label"]
+        labels = self._latest_cell_types()
         values = adata.obs[groupby].astype(str).map(labels).fillna(unassigned)
         adata.obs[key] = pd.Categorical(values)
         adata.uns.setdefault("clerk_cell_types", {})[key] = {
@@ -3133,6 +3218,30 @@ class Clerk(CelldegaWidget):
             "written": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
         return adata.obs[key]
+
+    def _latest_cell_types(self) -> dict[str, str]:
+        """``{cluster: label}``: the latest cell type Clerk proposed for each cluster."""
+        labels: dict[str, str] = {}
+        for finding in self.findings:  # later proposals win
+            labels[finding["cluster"]] = finding["label"]
+        return labels
+
+    def _share_cell_types(self) -> None:
+        """Offer the proposed cell types to a linked Landscape as the
+        ``clerk_cell_type`` label set (the ▾ beside its CELL can show cells by them).
+
+        Once a linked Clustergram holds them as its ``clerk_cell_type`` category
+        (LABEL), that one, with any edits made there, is shown instead.
+        """
+        landscape = self._linked_widgets.get("landscape")
+        if not hasattr(landscape, "set_labels"):
+            return
+        name = self.clustergram_label_attribute
+        cgm = self._linked_widgets.get("clustergram")
+        manual = getattr(cgm, "manual_cat_dict", None) or {}
+        if ((manual.get("col") or {}).get(name) or {}).get("values"):
+            return
+        landscape.set_labels(name, self._latest_cell_types())
 
     def _append(self, message: dict) -> None:
         with self._messages_lock:
@@ -4201,6 +4310,9 @@ class Clerk(CelldegaWidget):
             "models": sorted({e["model"] or "default" for e in self.record}),
             "briefing": self.briefing,
             "briefing_sources": list(self.briefing_sources),
+            # The clusters the panel links, so a reopened report links them at once.
+            "cluster_names": list(self.cluster_names),
+            "cluster_labels": dict(self.cluster_labels),
         }
         written = report.write_report(
             folder,
@@ -4654,6 +4766,8 @@ class Clerk(CelldegaWidget):
                 "messages": data.get("messages") or self._messages_from_record(record),
                 "record": record,
                 "findings": data.get("findings") or [],
+                "cluster_names": meta.get("cluster_names") or [],
+                "cluster_labels": meta.get("cluster_labels") or {},
             }
         else:
             raise ValueError("Not a saved Clerk conversation or exported report")
@@ -4671,6 +4785,7 @@ class Clerk(CelldegaWidget):
         self._end_conversation()
         self.record = list(saved.get("record") or [])
         self.findings = list(saved.get("findings") or [])
+        self._share_cell_types()
         # Keep what this session already knows; fill in what it doesn't.
         if saved.get("context_info") and not self.context_info:
             self.context_info = saved["context_info"]

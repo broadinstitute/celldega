@@ -2113,18 +2113,27 @@ class Clerk(CelldegaWidget):
         # Evidence clicked in the conversation (works while Clerk is still answering):
         # genes, clusters and cited views, shown right away in the linked widgets.
         # The scientist's own view is saved first, so "Back" can restore it.
+        # Only the views a link changes are saved: an unrelated widget can't block it.
         if req.get("show_genes") is not None:
-            self._follow_evidence(self._show_genes, req["show_genes"], focus=req.get("focus"))
+            self._follow_evidence(
+                self._show_genes,
+                req["show_genes"],
+                focus=req.get("focus"),
+                changes=("landscape", "clustergram"),
+            )
             return
         if req.get("show_clusters") is not None:
-            self._follow_evidence(self._show_clusters, req["show_clusters"])
+            self._follow_evidence(self._show_clusters, req["show_clusters"], changes=("landscape",))
             return
-        if req.get("apply_view") is not None:
-            self._follow_evidence(self._apply_view, req["apply_view"])
-            return
-        if req.get("show_snapshot") is not None:
-            self._follow_evidence(self._show_snapshot, req["show_snapshot"])
-            return
+        for key, show in (("apply_view", self._apply_view), ("show_snapshot", self._show_snapshot)):
+            value = req.get(key)
+            if value is not None:
+                # A cited view or a saved image changes the widgets it names.
+                changes = [
+                    n for n in self._EVIDENCE_WIDGETS if isinstance(value, dict) and value.get(n)
+                ]
+                self._follow_evidence(show, value, changes=changes)
+                return
         if req.get("restore_view"):
             self._queue_evidence(self._restore_view)
             return
@@ -4229,27 +4238,51 @@ class Clerk(CelldegaWidget):
         self._last_evidence = self._evidence_executor.submit(task, *args, **kwargs)
         return self._last_evidence
 
-    def _follow_evidence(self, show, *args, **kwargs) -> concurrent.futures.Future:
+    # Widgets an evidence link can change, in restore order.
+    _EVIDENCE_WIDGETS = ("yearbook", "clustergram", "landscape")
+
+    def _follow_evidence(
+        self, show, *args, changes: Sequence[str] = (), **kwargs
+    ) -> concurrent.futures.Future:
+        """Save the views ``changes`` names (for Back), then run ``show``."""
+
         def task():
-            if self._saved_view is None:
-                self._save_view()
-                if self._saved_view is None:
-                    if self.error:
-                        self._append({"role": "error", "content": self.error})
-                    return
+            if not self._save_view(changes):
+                self._append({"role": "error", "content": self.error})
+                return
             show(*args, **kwargs)
 
         return self._queue_evidence(task)
 
-    def _save_view(self) -> None:
-        """Remember coordinated, identified views before following an evidence link."""
+    def _save_view(self, changes: Sequence[str]) -> bool:
+        """Remember the views an evidence link will change, so Back can restore them.
+
+        Only those views are saved: a linked widget the link leaves alone (e.g. a
+        Yearbook that isn't displayed) never blocks it. A view is saved once, before
+        the first link that changes it, until Back. Returns False (with ``error``
+        set) when a view the link would change can't be saved; the link then
+        isn't followed, so nothing is lost.
+        """
         from .snapshots import restore_spec
 
+        names = set(changes)
+        # Each of a linked Landscape and Clustergram can change the other.
+        if names & {"landscape", "clustergram"}:
+            names |= {"landscape", "clustergram"}
+        saved = self._saved_view or {"snapshots": {}}
+        todo = [
+            name
+            for name in self._EVIDENCE_WIDGETS
+            if name in names
+            and name not in saved["snapshots"]
+            and hasattr(self._linked_widgets.get(name), "request_snapshot")
+        ]
+        if not todo:
+            return True
+
         requests, ids = [], {}
-        for name in ("yearbook", "clustergram", "landscape"):
-            widget = self._linked_widgets.get(name)
-            if not hasattr(widget, "request_snapshot"):
-                continue
+        for name in todo:
+            widget = self._linked_widgets[name]
 
             def send(widget=widget, name=name):
                 options = (
@@ -4262,21 +4295,29 @@ class Clerk(CelldegaWidget):
 
             requests.append((widget, "snapshot_capture_id", send))
         self._request_and_wait(requests)
-        saved = {"snapshots": {}}
-        for name, rid in ids.items():
-            widget = self._linked_widgets[name]
-            reply = widget._snapshot_replies.get(rid, {})
+        new = {}
+        for name in todo:
+            reply = self._linked_widgets[name]._snapshot_replies.get(ids.get(name), {})
             snapshot = reply.get("snapshot")
             if not snapshot or reply.get("error"):
-                self.error = f"Couldn't save your {name} view before following the evidence link"
-                return
+                reason = reply.get("error") or (
+                    f"no reply within {self.snapshot_timeout:g} s (is it displayed?)"
+                )
+                self.error = (
+                    f"Couldn't save your {name.title()} view before following the "
+                    f"evidence link: {reason}"
+                )
+                return False
+            new[name] = snapshot
+        saved = deepcopy(saved)
+        for name, snapshot in new.items():
             saved[name] = deepcopy(snapshot["state"])
             saved["snapshots"][name] = restore_spec(snapshot)
-        cgm = self._linked_widgets.get("clustergram")
-        if cgm is not None:
-            saved["highlighted_genes"] = list(cgm.highlighted_genes)
+        if "clustergram" in new:
+            saved["highlighted_genes"] = list(self._linked_widgets["clustergram"].highlighted_genes)
         self._saved_view = saved
-        self.can_restore = bool(saved["snapshots"])
+        self.can_restore = True
+        return True
 
     def _restore_captured_widget(self, name: str, snapshot: dict) -> None:
         """Restore one identified capture and wait for its exact browser reply."""

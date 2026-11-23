@@ -1,9 +1,10 @@
-"""MuData-backed schema containers for Celldega collection objects.
+"""The base class of Celldega's collections, for entities above the single cell.
 
-Celldega treats each ``AnnData`` modality as one feature matrix and ``MuData``
-as the unit of a collection. The classes in this module are thin typed wrappers
-around a ``MuData`` object, plus Celldega conventions for entity typing,
-provenance, geometry, and view-linking metadata.
+A collection holds one kind of higher-level biological entity (sets of cells,
+neighborhoods, or datasets) as its observations, and each feature space
+calculated for them as a modality. It is a thin wrapper around one ``MuData``:
+each feature space is an ``AnnData`` modality, plus Celldega conventions for
+entity types, provenance, geometry, and view-linking metadata.
 """
 
 from __future__ import annotations
@@ -116,15 +117,22 @@ def _align_mod_to_obs(adata: AnnData, obs: pd.DataFrame) -> AnnData:
 
 
 class CelldegaCollection:
-    """Base Celldega collection profile backed by ``MuData``.
+    """Base class for collections of entities above the single cell, backed by ``MuData``.
 
-    Celldega defines new biological entities (datasets, neighborhoods, and more
-    in the future), which requires both *constructing* the entity and
-    *calculating* its feature spaces — neither of which is free for entities
-    above the single-cell level. For single-cell data both steps come straight
-    off the instrument; for higher-order entities ``DatasetCollection`` and
-    ``NeighborhoodCollection`` build the observation axis and attach the feature
-    modalities themselves.
+    Spatial biology works with entities above the single cell: sets of cells
+    (such as clusters), neighborhoods (such as functional tissue units), and
+    datasets (such as the samples of a cohort). Each is described in several
+    feature spaces at once; a dataset, for example, by its cell-type population
+    or by the expression signature of its B cells. Neither the entities nor
+    their feature spaces come off the instrument, so a collection constructs
+    the entities from cell-level data and stores each calculated feature space
+    as a modality over them.
+
+    ``SetCollection``, ``NeighborhoodCollection`` and ``DatasetCollection``
+    subclass it. Each wraps one ``MuData``: every feature space is an ordinary
+    ``AnnData`` modality over the shared observations, and the collection
+    stays linked to the cell-level data it summarizes through shared IDs
+    rather than storing a copy of it.
 
     Attributes:
         mdata: The underlying multimodal object.

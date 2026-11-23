@@ -5,9 +5,9 @@ explore them in linked widgets. It fits downstream of single-cell and spatial
 workflows such as Scanpy and Squidpy: most analysis functions accept standard
 `AnnData`, `MuData`, and `GeoDataFrame` objects.
 
-You can start with these objects directly. Celldega's collection classes are
-useful when you want to keep several feature spaces, metadata, and relationships
-organized around the same datasets, neighborhoods, or cell sets.
+You can start with these objects directly. Celldega's collection classes
+organize the entities above the single cell (sets of cells, neighborhoods, and
+datasets) together with the feature spaces that describe them.
 
 ## How the modules support the visualizations
 
@@ -35,9 +35,10 @@ a visualization displays:
   and calculates their attributes, such as cell-type composition and expression.
   Neighborhoods display in Landscape and NeighborhoodCloud; their summaries
   cluster into Clustergrams.
-- **Collections** (`collection`, `dataset`, `set`) are data structures for
-  higher-level biological entities, such as neighborhoods, samples, and sets of
-  cells, that keep several feature spaces together.
+- **Collections** (`collection`, `set`, `dataset`, and `NeighborhoodCollection`
+  in `nbhd`) are data structures for the entities above the single cell: sets of
+  cells, neighborhoods, and datasets. Each holds one kind of entity and every
+  feature space calculated for it, such as composition or expression signatures.
 - **`select`** chooses and ranks cells for review in Yearbook.
 - **`align`** aligns the cells of serial sections into a 3D stack, using the
   clusters they share, for CellCloud and NeighborhoodCloud.
@@ -55,7 +56,7 @@ widget are available to these modules for the next step of the analysis.
 | [viz](viz/api.md) | Display and link interactive views | Prepared spatial data, analysis objects, or saved matrices → notebook widgets |
 | [clust](clust/api.md) | Find patterns through hierarchical bi-clustering | Expression or other feature matrices → clustered `Matrix`, heatmaps, and dot plots |
 | [nbhd](nbhd/api.md) | Define spatial neighborhoods and summarize their contents | Cell coordinates and polygons → neighborhood geometry, expression, composition, and relationships |
-| [collection](collection/api.md) | Store multiple feature spaces on one observation axis | MuData-backed `CelldegaCollection`, the shared base for collection classes |
+| [collection](collection/api.md) | Organize entities above the single cell and their feature spaces | MuData-backed `CelldegaCollection`, the base of `SetCollection`, `NeighborhoodCollection` and `DatasetCollection` |
 | [dataset](dataset/api.md) | Compare samples or datasets | Cell-level data → `DatasetCollection` with sample metadata, population composition, and signatures |
 | [set](set/api.md) | Represent and compare groups defined by cell membership | Cell labels → `SetCollection`, signatures, composition, and overlap |
 | [select](select/api.md) | Choose, rank, and sample observations | Metadata/expression queries → an ordered `Selection` for inspection or visualization |
@@ -147,13 +148,17 @@ functions and attach their results to the collection.
 and [pancreas islet gradients](../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb).
 **Reference:** [nbhd API](nbhd/api.md).
 
-## collection: keep related feature spaces together
+## collection: entities above the single cell
 
-`CelldegaCollection` is the common MuData-backed storage model used by the
-collection classes. One observation axis can have several feature modalities,
-shared annotations, pairwise relationships, and provenance. For example, the
-same neighborhoods can have both gene-expression and cell-population summaries.
-The collection stores these results; analysis and visualization functions use them.
+Spatial biology works with entities above the single cell: sets of cells (such
+as clusters), neighborhoods (such as functional tissue units), and datasets
+(such as the samples of a cohort). Each is described in several feature spaces:
+a dataset, for example, by its cell-type population or by the expression
+signature of its B cells. `CelldegaCollection` organizes one kind of entity and
+its feature spaces, and is the base of `SetCollection`, `NeighborhoodCollection`
+and `DatasetCollection`. It is a thin wrapper around MuData: each feature space
+is an `AnnData` modality over the shared entities, alongside shared annotations,
+pairwise relationships, and provenance.
 
 **Example:** [Pancreas islet gradients](../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb)
 stores gradient geometry, population and expression summaries, and a bordering

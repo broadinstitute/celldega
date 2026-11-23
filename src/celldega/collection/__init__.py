@@ -1,4 +1,4 @@
-"""MuData-backed Celldega collection schema objects."""
+"""The base class of Celldega's collections of entities above the single cell, backed by MuData."""
 
 from celldega.collection.collection import (
     CELLDEGA_SCHEMA_VERSION,

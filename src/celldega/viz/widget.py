@@ -5737,6 +5737,11 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, _CellAttributes, Ce
             list of cell ids. Yearbook uses its ids as the
             portrait cell order and stores the JSON-ready payload for provenance.
             Pass either ``selection`` or ``cells``, not both.
+        genes (list[str], optional): Genes to highlight: their transcripts are
+            shown in every portrait, each gene in its own color, as if typed
+            into the gene search box (up to 20 genes). Use it to show a cell's
+            own marker beside an unexpected gene, e.g. ``["EMCN", "NPHS2"]``.
+            Assign a new list to change the highlighted genes from Python.
         front_end_query (dict, optional): Stateless query evaluated in the browser
             against DegaFiles (no Python/AnnData required). Supports the
             following formats:
@@ -5811,6 +5816,9 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, _CellAttributes, Ce
 
     # JSON-ready selector output used to populate cells and preserve provenance.
     selection = traitlets.Dict({}).tag(sync=True)
+
+    # Genes whose transcripts every portrait highlights (as typed in the search box).
+    genes = traitlets.List(trait=traitlets.Unicode(), default_value=[]).tag(sync=True)
 
     # Grid configuration
     num_rows = traitlets.Int(2).tag(sync=True)
@@ -5897,6 +5905,9 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, _CellAttributes, Ce
             kwargs["cells"] = [str(name) for name in selection_payload["ids"]]
             kwargs["selection"] = selection_payload
             kwargs["current_page"] = 0
+
+        if kwargs.get("genes") is not None:
+            kwargs["genes"] = [str(gene) for gene in kwargs["genes"]]
 
         adata = kwargs.pop("adata", None) or kwargs.pop("AnnData", None)
         pq_meta_cell = kwargs.pop("meta_cell_parquet", None)

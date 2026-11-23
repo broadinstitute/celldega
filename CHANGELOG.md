@@ -4,6 +4,74 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [0.29.1] - 2026-11-23
+
+Fixes that make the features released in 0.29.0 work as intended, mostly in
+Clerk, Yearbook and linked views, with documentation for people and AI agents
+getting started.
+
+### Fixed
+
+#### Clerk
+
+- Saved conversations reopen with their cell-type labels, both yours and
+  Clerk's, on the Clustergram, including conversations saved in the earlier
+  format. `Clerk.cell_types()` lists the labels and who set them, and exported
+  reports include `cluster_labels.csv`.
+- Clerk and manual labels share one Clustergram category. Without a
+  Clustergram, Clerk's cell types become a label set on the Landscape.
+- Evidence links (genes, clusters, cited views and **Show this view**) work
+  without a running kernel, for example in a saved notebook or on a docs page.
+  The panel then opens read-only.
+- **Show this view** restores the Clustergram before the Landscape, so a saved
+  crop or dendrogram selection no longer overrides the genes the Landscape was
+  saved with. A question whose Landscape view didn't change shows the earlier
+  view.
+- Restoring a saved dendrogram selection no longer opens the manual category
+  editor.
+- A widget that a link leaves alone can no longer block the link, and a later
+  link saves the views the first one left alone.
+- Reopened conversations show pins for their questions' views.
+- Shift-clicking a gene or cluster link no longer selects text.
+
+#### Yearbook
+
+- Portraits no longer flash the previous cells or colors while a query or a new
+  page loads.
+- The control panel matches the Landscape's: the **CELL ▾** menu shows cells by
+  clusters, per-cell attributes or label sets, shared with a linked
+  Clustergram, with colors from `uns`.
+
+#### Landscape and gallery pages
+
+- A Landscape on a gallery page (with no widget model) loads again; it failed
+  with `model.on is not a function`.
+- Gene information falls back to UniProt search when the EBI service fails, and
+  retries a failed lookup later.
+- The cell tooltip names the attribute the cells are shown by.
+
+### Changed
+
+- The Landscape and Yearbook image controls are one dropdown (**IMG**, **FLR**,
+  **H&E** or **NONE**), and the view mode is a dropdown that follows the view.
+- `Yearbook(genes=[...])` highlights genes' transcripts from Python, as typing
+  them into the gene search box does.
+- `celldega.qc` is in development: it is hidden from the documentation, and
+  `qc_segmentation` and `orthogonal_expression_calc` warn when called.
+
+### Documentation
+
+- `help(celldega)` and each module's docstring map its widgets and functions,
+  with examples on the main entry points. The docs site publishes `llms.txt`,
+  an index for AI agents, and the repository has an `AGENTS.md` brief.
+- New motivation for collections (entities above the single cell: sets of
+  cells, neighborhoods and datasets), `nbhd`, `pre` (including work with the
+  SpatialData developers on tiled points and shapes) and `select`. The `align`
+  docs now describe stacking serial sections in 3D.
+- New tutorials: reviewing a low-quality cell filter and reviewing ectopic
+  expression with `select` and Yearbook on the Atera kidney dataset, and a
+  DatasetCollection in two feature spaces with a Composition view.
+
 ## [0.29.0] - 2026-11-16
 
 This release adds the **Viz API** (read and change visualizations from code),

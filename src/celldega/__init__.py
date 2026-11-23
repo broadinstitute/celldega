@@ -37,7 +37,6 @@ Analysis modules:
 - ``select``: ``Selector`` queries and samples cells, for example for Yearbook.
 - ``align``: stacks serial sections in 3D using the clusters they share.
 - ``clerk``: the prompts and model calls behind the ``Clerk`` widget.
-- ``qc``: segmentation and transcript-assignment metrics.
 
 Example: a tissue linked to a heatmap of cluster signatures::
 

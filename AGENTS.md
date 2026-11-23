@@ -18,15 +18,15 @@ in Jupyter with deck.gl. To get oriented:
 
 ## Layout
 
-| Path                                              | Contents                                                                                                                     |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `src/celldega/<module>/`                          | Python modules: `pre`, `clust`, `nbhd`, `collection`, `dataset`, `set`, `select`, `align`, `clerk`, `qc`, `viz`              |
-| `src/celldega/viz/widget.py`                      | The widget classes (`Landscape`, `Clustergram`, `Yearbook`, `Clerk`, ...) and their synced traits                            |
-| `src/celldega/viz/__init__.py`                    | Linking helpers (`spatial_clustergram`, `link_clerk`, ...)                                                                   |
-| `js/celldega.js`                                  | Front-end entry: each widget's `render`, plus the standalone JavaScript API used by docs gallery pages                       |
-| `js/viz/`, `js/widgets/`, `js/ui/`, `js/deck-gl/` | Visualizations (`landscape_ist.js`, `matrix_viz.js`, `yearbook.js`), panel widgets (Clerk, Enrich), controls, deck.gl layers |
-| `tests/unit/test_<module>/`, `js/__tests__/`      | pytest and Jest tests                                                                                                        |
-| `docs/`, `mkdocs.yaml`, `scripts/*.py` hooks      | MkDocs site, its nav, and build hooks                                                                                        |
+| Path                                              | Contents                                                                                                                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/celldega/<module>/`                          | Python modules: `pre`, `clust`, `nbhd`, `collection`, `dataset`, `set`, `select`, `align`, `clerk`, `viz`, and `qc` (in development, hidden from the docs) |
+| `src/celldega/viz/widget.py`                      | The widget classes (`Landscape`, `Clustergram`, `Yearbook`, `Clerk`, ...) and their synced traits                                                          |
+| `src/celldega/viz/__init__.py`                    | Linking helpers (`spatial_clustergram`, `link_clerk`, ...)                                                                                                 |
+| `js/celldega.js`                                  | Front-end entry: each widget's `render`, plus the standalone JavaScript API used by docs gallery pages                                                     |
+| `js/viz/`, `js/widgets/`, `js/ui/`, `js/deck-gl/` | Visualizations (`landscape_ist.js`, `matrix_viz.js`, `yearbook.js`), panel widgets (Clerk, Enrich), controls, deck.gl layers                               |
+| `tests/unit/test_<module>/`, `js/__tests__/`      | pytest and Jest tests                                                                                                                                      |
+| `docs/`, `mkdocs.yaml`, `scripts/*.py` hooks      | MkDocs site, its nav, and build hooks                                                                                                                      |
 
 ## Commands
 

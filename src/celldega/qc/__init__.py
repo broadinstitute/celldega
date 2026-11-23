@@ -1,14 +1,25 @@
-"""Segmentation quality metrics from instrument output.
+"""Segmentation quality metrics from instrument output (in development).
+
+.. warning:: In development and hidden from the documentation. These functions may
+   change or be removed without deprecation; calling ``qc_segmentation`` or
+   ``orthogonal_expression_calc`` raises a ``UserWarning``.
 
 ``qc_segmentation`` writes cell-level and gene-level metrics (transcript
 assignment, cell counts and areas, transcripts and genes per cell) for one
 segmentation of a Xenium, MERSCOPE or custom dataset. ``orthogonal_expression_calc``
 compares segmentations by how often cells of one type contain transcripts of
 another type's marker genes.
+
+Future direction: rebuild the module around *ectopic expression* (cells expressing
+another cell type's markers), calculated from ``AnnData`` as a cell type x marker set
+matrix with spatial-neighbor context, shown as a Clustergram and reviewed in a linked
+Yearbook. The plan is on the unlisted docs page ``docs/python/qc/api.md``.
 """
 
+import functools
 import json
 from pathlib import Path
+import warnings
 
 import geopandas as gpd
 import numpy as np
@@ -18,6 +29,22 @@ from shapely.geometry import MultiPolygon
 from ..pre import write_xenium_transform
 from ..pre.boundary_tile import get_cell_polygons
 from ..pre.landscape import read_cbg_mtx
+
+
+_IN_DEVELOPMENT = (
+    "celldega.qc is in development: {name} may change or be removed without deprecation."
+)
+
+
+def _in_development(func):
+    """Warn on each call that the function belongs to the in-development qc module."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        warnings.warn(_IN_DEVELOPMENT.format(name=func.__name__), UserWarning, stacklevel=2)
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def _get_largest_polygon(geometry):
@@ -273,6 +300,7 @@ def _save_qc_results(base_path, metrics, gene_specific_metrics_df, segmentation_
     gene_specific_metrics_df.to_csv(Path(base_path) / "gene_specific_qc.csv")
 
 
+@_in_development
 def qc_segmentation(base_path, technology=None, dataset_name=None):
     """
     Calculate segmentation quality control (QC) metrics for imaging spatial transcriptomics data.
@@ -498,6 +526,7 @@ def _build_orthogonal_summary_df(
     return pd.concat([technology_series, category_series, count_series], axis=1)
 
 
+@_in_development
 def orthogonal_expression_calc(
     base_paths,
     cell_type_a_specific_genes,

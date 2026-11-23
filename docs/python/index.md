@@ -61,7 +61,6 @@ widget are available to these modules for the next step of the analysis.
 | [set](set/api.md) | Represent and compare groups defined by cell membership | Cell labels → `SetCollection`, signatures, composition, and overlap |
 | [select](select/api.md) | Choose, rank, and sample observations | Metadata/expression queries → an ordered `Selection` for inspection or visualization |
 | [align](align/api.md) | Align serial sections into a 3D stack of cells | Jointly clustered cells of serial sections → per-section transforms and 3D cell coordinates |
-| [qc](qc/api.md) | Inspect segmentation and transcript-assignment quality | Instrument output and segmentation assignments → summary and gene-level QC metrics |
 
 ## Start with an example
 
@@ -227,14 +226,3 @@ followed by [CellCloud visualization](../examples/tutorial_notebooks/Broad-Allen
 For importing an already aligned image, use the separate
 [aligned H&E workflow](aligned_he.md).
 
-## qc: assess segmentation and transcript assignment
-
-`qc` computes metrics such as the fraction of assigned transcripts, cell counts,
-cell areas, and gene-level assignment statistics. Use these to inspect instrument
-segmentations or compare a custom segmentation before interpreting the resulting
-expression measurements. `qc_segmentation` writes summary and gene-level CSV files.
-
-**Reference:** [segmentation QC API](qc/api.md).
-For the related preparation workflow, see the
-[custom segmentation example](../examples/brief_notebooks/Custom_Segmentation.ipynb);
-that notebook demonstrates importing a segmentation, rather than running QC.

@@ -135,6 +135,11 @@ yb = dega.viz.Yearbook(
 yb
 ```
 
+To highlight genes in every portrait, pass `genes`: only those genes' transcripts
+are shown, each in its own color, as if typed into the gene search box. For
+example, `genes=["EMCN", "NPHS2"]` shows an endothelial marker beside a podocyte
+marker found in endothelial cells.
+
 For constructor arguments, see the [Viz Module API reference](../python/viz/api.md).
 
 ## Examples
@@ -144,6 +149,11 @@ includes a Yearbook for inspecting individual cells alongside a Landscape. The
 [Atera kidney Yearbook review](../examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb)
 uses `dega.select` to build a candidate queue, inspect portraits across pages,
 and retrieve checked cell IDs for follow-up.
+Two short tutorials use the same dataset to check analysis decisions by eye:
+[review a low-quality cell filter](../examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb)
+before applying it, and
+[review ectopic expression](../examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb)
+to judge whether it looks like spillover from neighboring cells.
 
 ## Screenshot sources
 

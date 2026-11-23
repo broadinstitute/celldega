@@ -92,3 +92,16 @@ def test_get_checked_cells_returns_copied_anndata_subset(yearbook):
     assert adata.X[0, 0] == 0
     yearbook.selected_cells = []
     assert yearbook.get_selected_cells(adata).shape == (0, 2)
+
+
+def test_genes_to_highlight_sync_and_accept_any_sequence():
+    widget = Yearbook(base_url="https://example.org/data", genes=("EMCN", "NPHS2"))
+    try:
+        assert widget.genes == ["EMCN", "NPHS2"]
+        assert widget.traits()["genes"].metadata["sync"]
+        assert widget.get_state()["genes"] == ["EMCN", "NPHS2"]
+        widget.genes = ["NPHS2"]
+        assert widget.get_state()["genes"] == ["NPHS2"]
+    finally:
+        widget.close()
+    assert Yearbook(base_url="https://example.org/data").genes == []

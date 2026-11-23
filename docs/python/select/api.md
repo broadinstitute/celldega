@@ -1,5 +1,68 @@
 # Select API
 
+## Motivation
+
+One advantage spatial techniques have over non-spatial single-cell techniques
+is that you can look at individual cells. In principle, that lets you check by
+eye what numbers alone can't show: cell morphology, segmentation defects,
+transcripts spilling over from neighboring cells, protein staining. In
+practice it has been hard to do. Panning and zooming around a tissue to find
+representative cells is slow, and the cells you happen to find are not an
+unbiased sample.
+
+Celldega's [Yearbook](../../visualizations/yearbook.md) shows single cells and
+their neighbors efficiently, as a grid of yearbook-style portraits. To use it
+well, you need to find the cells you are interested in (filter) and choose
+from large sets of cells in a controllable, reproducible way (sample at random,
+rank to find outliers, sample across categories or quantiles). The `select`
+module does both: it filters an `AnnData` by metadata and gene expression,
+samples or ranks the matching cells, and records the query and sampler so the
+selection can be reproduced. You then review the cells in a Yearbook and flag
+those that don't match your expectations.
+
+## Use cases
+
+**Check a quality filter before applying it.** Cells with low counts and a
+small area are often filtered out as low quality. Before you filter, sample a
+representative set of the cells you are about to remove and look at them.
+Flag the ones that look like healthy cells, then decide with a measured false
+positive rate: "I inspected 100 representative cells we plan to filter out as
+low quality and found 3 that should be kept; that false positive rate is
+acceptable, so we keep these thresholds."
+
+```python
+selector = dega.select.Selector(adata)
+low_quality = (selector.attr("total_counts") < 100) & (selector.attr("cell_area") < 20)
+review = selector.select(query=low_quality, sampler=selector.samplers.random(n=100, seed=0))
+
+yearbook = dega.viz.Yearbook(base_url=degafiles_url, cells=review.names())
+yearbook
+# ... check the portraits of cells that look healthy, then:
+false_positive_rate = len(yearbook.selected_cells) / len(review)
+```
+
+**Confirm that ectopic expression looks like spillover.** A gene shows up in a
+cell type that shouldn't express it, such as a podocyte marker in endothelial
+cells. To check whether the transcripts come from neighboring cells, select
+the cells of that type with high expression of the unexpected gene, rank them
+by it, and review the top cells in a Yearbook with one marker of the cell's
+own type and the ectopic gene highlighted. Transcripts of the ectopic gene
+clustered along the edge shared with a neighboring cell suggest spillover.
+
+```python
+ectopic = (selector.attr("cell_type") == "Endothelial") & (selector.gene("NPHS2") >= 2)
+review = selector.select(
+    query=ectopic, sampler=selector.samplers.rank(attr=selector.gene("NPHS2"), n=50, by="high")
+)
+dega.viz.Yearbook(base_url=degafiles_url, cells=review.names(), genes=["EMCN", "NPHS2"])
+```
+
+Tutorials on the Atera human kidney dataset walk through both:
+[review a low-quality cell filter](../../examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb)
+and [review ectopic expression](../../examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb).
+
+## Overview
+
 The `select` module provides a small query and sampling layer over AnnData. It is designed to answer questions like:
 
 - Which entities match this metadata/gene filter?

@@ -50,6 +50,7 @@ import {
 import { set_landscape_parameters } from '../global_variables/landscape_parameters';
 import { set_cluster_metadata } from '../global_variables/meta_cluster';
 import { set_meta_gene } from '../global_variables/meta_gene';
+import { select_genes } from '../global_variables/select_genes';
 import { force_set_selected_genes } from '../global_variables/selected_genes';
 import { create_obs_store } from '../obs_store/obs_store';
 import { CBGRowGroupReader } from '../read_parquet/cbg_row_group_reader';
@@ -1394,6 +1395,27 @@ export const yearbook = async (
     pic.dispose();
     viz_state.model?.off?.('msg:custom', snapshot_message);
   });
+  // Genes to highlight, from Python's `genes=[...]`: their transcripts are
+  // shown, each in its own color, as if typed into the gene search box. Applied
+  // before an initial snapshot, which restores its own view over it.
+  const model_genes = () =>
+    (typeof viz_state.model?.get === 'function'
+      ? viz_state.model.get('genes')
+      : null) || [];
+  const show_model_genes = tracked(async () => {
+    const genes = model_genes().map(String);
+    const current = viz_state.genes.selected_genes ?? [];
+    const same =
+      genes.length === current.length &&
+      genes.every((gene, index) => gene === current[index]);
+    if (!same) await select_genes(viz_state, genes);
+  });
+  if (model_genes().length) await show_model_genes();
+  viz_state.model?.on?.('change:genes', show_model_genes);
+  snapshot_cleanups.push(() =>
+    viz_state.model?.off?.('change:genes', show_model_genes)
+  );
+
   await consume_initial_snapshot(viz_state.model, yearbook_api, el);
   return yearbook_api;
 };

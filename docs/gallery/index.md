@@ -21,9 +21,9 @@ clusters:
 
 <div class="grid cards" markdown>
 
-- [Atera Brain Hippocampus non-diseased FF](gallery_atera_hippocampus.md)
-- [Atera Colorectal Cancer FF](gallery_atera_colorectal_cancer.md)
-- [Atera Breast Cancer FF](gallery_atera_breast_cancer.md)
+- [Atera Brain Hippocampus non-diseased FF ![Default cell clusters in Atera brain hippocampus](../assets/img/atera_hippocampus_ff_default_clusters.png)](gallery_atera_hippocampus.md)
+- [Atera Colorectal Cancer FF ![Default cell clusters in Atera colorectal cancer](../assets/img/atera_colorectal_cancer_ff_default_clusters.png)](gallery_atera_colorectal_cancer.md)
+- [Atera Breast Cancer FF ![Default cell clusters in Atera breast cancer FF](../assets/img/atera_breast_cancer_ff_default_clusters.png)](gallery_atera_breast_cancer.md)
 
 </div>
 

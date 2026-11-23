@@ -1,15 +1,28 @@
 import celldega from './celldega.js';
 
 // A saved Clerk case on the Atera kidney section, read in the browser without
-// Python: the conversation (with the Clustergram's cell-type labels) and the
-// clustered Matrix are copied into docs/assets/data/clerk_atera_kidney/ by
-// notebooks/clerk/Clerk_Atera_Kidney_Reopen_Case.ipynb (git ignores them for now);
-// the tissue streams from the DegaFiles on GitHub.
-const DATA = new URL('../data/clerk_atera_kidney/', import.meta.url);
-const BASE_URL =
+// Python. The case folder on Hugging Face holds the conversation (with the
+// Clustergram's cell-type labels) and the clustered Matrix; the tissue streams from
+// the DegaFiles on GitHub that the case recorded. To read another copy of a case
+// folder (for example one being tested), add ?case=<folder URL> to the page address.
+const HF_CASE =
+  'https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/' +
+  'resolve/main/clerk/atera_kidney/';
+const FALLBACK_BASE_URL =
   'https://raw.githubusercontent.com/broadinstitute/' +
   'Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE/' +
   '3a46ab4db67821eef3b8ff8d1c3704fb7b3bb48f';
+
+const case_folder = () => {
+  const requested = new URLSearchParams(window.location.search).get('case');
+  const folder = new URL(requested || HF_CASE, window.location.href);
+  if (!folder.pathname.endsWith('/')) folder.pathname += '/';
+  return folder;
+};
+
+// A URL the case recorded, if a browser can read it (not a local file path).
+const web_url = (value) =>
+  typeof value === 'string' && /^https?:\/\//.test(value) ? value : null;
 
 async function initializeClerkGallery() {
   const root = document.querySelector('[data-clerk-gallery="atera-kidney"]');
@@ -24,9 +37,12 @@ async function initializeClerkGallery() {
     console.error(`Unable to load the Clerk gallery ${name}`, error);
   };
 
+  const CASE = case_folder();
   let conversation;
   try {
-    const response = await fetch(new URL('conversation.json', DATA));
+    const response = await fetch(
+      new URL('conversations/conversation.json', CASE)
+    );
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     conversation = await response.json();
   } catch (error) {
@@ -61,7 +77,9 @@ async function initializeClerkGallery() {
   const [landscape, clustergram] = await Promise.all([
     load('landscape', 'tissue view', () =>
       celldega.landscape(root.querySelector('[data-clerk-landscape]'), {
-        base_url: BASE_URL,
+        base_url:
+          web_url(conversation.sources?.landscape?.base_url) ||
+          FALLBACK_BASE_URL,
         technology: 'Xenium',
         dataset_name: 'Atera kidney — default clusters',
         ini_x: 28322,
@@ -72,7 +90,7 @@ async function initializeClerkGallery() {
     ),
     load('clustergram', 'Clustergram', () =>
       celldega.clustergram(root.querySelector('[data-clerk-clustergram]'), {
-        url: new URL('kidney_leiden_markers.zarr', DATA).href,
+        url: new URL('kidney_leiden_markers.zarr', CASE).href,
         ...clustergram_size,
         viz_mode: 'dotplot',
         rank_dim: 10,

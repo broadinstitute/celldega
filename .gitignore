@@ -19,6 +19,9 @@ dist
 !docs/examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb
 !docs/examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb
 !docs/examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb
+!docs/examples/brief_notebooks/SetCollection_Compare_Clusterings.ipynb
+!docs/examples/brief_notebooks/SetCollection_Signatures.ipynb
+!docs/examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb
 !notebooks/clerk/Snapshots_and_Pins.ipynb

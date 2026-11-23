@@ -20,6 +20,19 @@ samples or ranks the matching cells, and records the query and sampler so the
 selection can be reproduced. You then review the cells in a Yearbook and flag
 those that don't match your expectations.
 
+## Demo notebooks
+
+On the Atera human kidney dataset:
+
+- [Review a low-quality cell filter](../../examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb):
+  sample the cells a filter would remove, flag the healthy-looking ones, and
+  measure the false positive rate.
+- [Review ectopic expression](../../examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb):
+  rank endothelial cells by a podocyte marker and judge whether it looks like
+  spillover.
+- [Review candidate cells](../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb): large
+  endothelial cells with podocin transcripts, possible segmentation merges.
+
 ## Use cases
 
 **Check a quality filter before applying it.** Cells with low counts and a
@@ -56,10 +69,6 @@ review = selector.select(
 )
 dega.viz.Yearbook(base_url=degafiles_url, cells=review.names(), genes=["EMCN", "NPHS2"])
 ```
-
-Tutorials on the Atera human kidney dataset walk through both:
-[review a low-quality cell filter](../../examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb)
-and [review ectopic expression](../../examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb).
 
 ## Overview
 

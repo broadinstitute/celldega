@@ -13,9 +13,16 @@ come off the instrument; they have to be built from cell-level data.
 (such as patient and condition), and stores each feature space calculated for
 them as a modality, so the spaces can be clustered and compared side by side.
 Like Celldega's other collections, it is a thin wrapper around MuData; see
-[Collections](../collection/api.md) for the shared model, and
-[Compare samples in two feature spaces](../../examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb)
-for a brief example with a Composition view.
+[Collections](../collection/api.md) for the shared model.
+
+## Demo notebooks
+
+- [Compare samples in two feature spaces](../../examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb):
+  a simulated cohort's samples by cell-type composition, in a Composition view,
+  and by their B cells' expression, in a Clustergram.
+
+To compare group composition interactively, see the
+[Composition guide](../../visualizations/composition.md).
 
 ## Overview
 

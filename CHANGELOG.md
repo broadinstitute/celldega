@@ -56,6 +56,10 @@ getting started.
   **H&E** or **NONE**), and the view mode is a dropdown that follows the view.
 - `Yearbook(genes=[...])` highlights genes' transcripts from Python, as typing
   them into the gene search box does.
+- A saved Clerk case can be reopened from a URL, such as a case folder on
+  Hugging Face: `Clerk(clerk_files=<URL>)`, `open_case` and `load_conversation`
+  read a saved conversation's `.json`, or a case folder's
+  `conversations/conversation.json`.
 - `celldega.qc` is in development: it is hidden from the documentation, and
   `qc_segmentation` and `orthogonal_expression_calc` warn when called.
 
@@ -69,8 +73,12 @@ getting started.
   SpatialData developers on tiled points and shapes) and `select`. The `align`
   docs now describe stacking serial sections in 3D.
 - New tutorials: reviewing a low-quality cell filter and reviewing ectopic
-  expression with `select` and Yearbook on the Atera kidney dataset, and a
-  DatasetCollection in two feature spaces with a Composition view.
+  expression with `select` and Yearbook on the Atera kidney dataset.
+- New demo notebooks on simulated data: a DatasetCollection in two feature
+  spaces with a Composition view, comparing two clusterings and set signatures
+  as a dot plot with SetCollection, and hexagonal niches with
+  NeighborhoodCollection. Each Python API page lists its demo notebooks below
+  its motivation.
 
 ## [0.29.0] - 2026-11-16
 

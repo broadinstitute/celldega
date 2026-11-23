@@ -16,6 +16,20 @@ Parquet and image files, so they can be hosted anywhere that serves files
 (GitHub, Hugging Face, cloud storage or a local server) and read directly by the
 browser, with no server doing computation.
 
+## Demo notebooks
+
+- [Atera pre-process](../../examples/brief_notebooks/Atera_Pre-process.ipynb): DegaFiles from a 10x Atera
+  output bundle.
+- [Atera pre-process with H&E](../../examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb): adds the
+  post-run H&E image as an aligned background.
+- [Custom segmentation](../../examples/brief_notebooks/Custom_Segmentation.ipynb): imports a different
+  segmentation into DegaFiles.
+- [Landscape from a local server](../../examples/brief_notebooks/Landscape_Local_Server.ipynb): views
+  DegaFiles stored on your own machine.
+
+**Tutorial:** [Broad–Allen mouse brain preprocessing and alignment](../../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb)
+writes 3D point-cloud DegaFiles for CellCloud.
+
 ## Tiling in SpatialData
 
 [SpatialData](https://spatialdata.scverse.org/) is the established data format
@@ -41,8 +55,6 @@ AnnData Zarr store directly.
 
 Prepare instrument output for Landscape with the
 [DegaFiles preparation and hosting guide](../../getting-started/usage/index.md#prepare-degafiles-from-instrument-output).
-Examples include [Atera preprocessing](../../examples/brief_notebooks/Atera_Pre-process.ipynb)
-and [custom segmentation](../../examples/brief_notebooks/Custom_Segmentation.ipynb).
 
 See [Add aligned H&E to DegaFiles](../aligned_he.md) for importing an optional
 histology background into Landscape and Yearbook.

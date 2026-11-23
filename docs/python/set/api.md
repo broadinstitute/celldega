@@ -15,6 +15,15 @@ which cells belong to each set, as its defining modality and derives the other
 feature spaces from it. Like Celldega's other collections, it is a thin wrapper
 around MuData; see [Collections](../collection/api.md) for the shared model.
 
+## Demo notebooks
+
+- [Compare two clusterings](../../examples/brief_notebooks/SetCollection_Compare_Clusterings.ipynb): the
+  overlap between two clusterings' sets shows which clusters match, merge or
+  split, and `concat_sets` finds the groups they agree on.
+- [Set signatures as a dot plot](../../examples/brief_notebooks/SetCollection_Signatures.ipynb): each cell
+  type's expression and fraction expressing, with marker ranks, in one
+  Clustergram.
+
 ## Overview
 
 The `set` module provides `SetCollection`, the set-level Celldega collection.

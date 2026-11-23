@@ -92,7 +92,17 @@ IMAGE_FALLBACK_PERCENTILE = 99.9
 IMAGE_DISPLAY_MAX_FACTOR = 5.0
 
 
-def main(*args, **kwargs):
+def main(
+    sample,
+    data_root_dir,
+    tile_size,
+    image_tile_layer="all",
+    path_dega_files="",
+    use_int_index=True,
+    max_workers=1,
+    use_row_groups=False,
+    max_row_groups_per_file=400,
+):
     """Pre-process a Xenium (including Atera) or MERSCOPE output directory into DegaFiles.
 
     Writes tiled images, cell boundaries and transcripts, per-gene expression,
@@ -125,7 +135,17 @@ def main(*args, **kwargs):
     """
     from .run_pre_processing import main as _main
 
-    return _main(*args, **kwargs)
+    return _main(
+        sample,
+        data_root_dir,
+        tile_size,
+        image_tile_layer=image_tile_layer,
+        path_dega_files=path_dega_files,
+        use_int_index=use_int_index,
+        max_workers=max_workers,
+        use_row_groups=use_row_groups,
+        max_row_groups_per_file=max_row_groups_per_file,
+    )
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):

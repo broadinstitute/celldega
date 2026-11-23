@@ -4855,6 +4855,11 @@ class Clerk(CelldegaWidget):
         ``clerk_files`` (the default, :attr:`output_dir`), which opens the most
         recent. Same as ``Clerk(clerk_files=...)``.
 
+        It can also be an ``http(s)`` URL, for a case shared online (for example on
+        Hugging Face): a saved conversation's ``.json``, or a case folder holding
+        ``conversations/conversation.json``. New saves then go to the local
+        :attr:`output_dir`.
+
         The panel shows the conversation as it was: its findings and evidence, with
         genes, clusters and cited views that change the linked widgets (which need
         the same data loaded). Its views become pins on a linked Landscape that has
@@ -4864,21 +4869,27 @@ class Clerk(CelldegaWidget):
         Returns:
             dict: What was saved (see :meth:`load_conversation`), plus ``path``.
         """
-        found = _case_file(Path(clerk_files) if clerk_files else Path(self.output_dir))
-        info = self.load_conversation(found)
-        info["path"] = str(found)
-        # Keep working beside it: the clerk_files folder holding the case.
-        parent = found.parent
-        self.output_dir = str(
-            parent.parent
-            if found.name == "record.json" or parent.name == "conversations"
-            else parent
-        )
+        if _is_url(clerk_files):
+            data, url = _read_case_url(str(clerk_files))
+            info = self._load_conversation_data(data, None)
+            info["path"] = url
+            name = info.get("title") or url.rstrip("/").rsplit("/", 1)[-1]
+        else:
+            found = _case_file(Path(clerk_files) if clerk_files else Path(self.output_dir))
+            info = self.load_conversation(found)
+            info["path"] = str(found)
+            # Keep working beside it: the clerk_files folder holding the case.
+            parent = found.parent
+            self.output_dir = str(
+                parent.parent
+                if found.name == "record.json" or parent.name == "conversations"
+                else parent
+            )
+            name = info.get("title") or (
+                found.parent.name if found.name == "record.json" else found.stem
+            )
         self._case = info
         pinned = self._pin_case()
-        name = info.get("title") or (
-            found.parent.name if found.name == "record.json" else found.stem
-        )
         saved = f" (saved {info['saved']})" if info.get("saved") else ""
         self._append(
             {
@@ -4915,12 +4926,17 @@ class Clerk(CelldegaWidget):
         Args:
             path: The conversation ``.json``, or an export folder or its ``record.json``;
                 a folder of them (default :attr:`output_dir`) opens the most recent.
+                An ``http(s)`` URL to a saved conversation, or to a case folder
+                holding ``conversations/conversation.json``, reads it online.
                 To also pin its views on the Landscape, use :meth:`open_case`.
 
         Returns:
             dict: What was saved: ``title``, ``saved``, ``celldega``, ``context_info``
             and ``sources`` (the data the original widgets showed).
         """
+        if _is_url(path):
+            data, _url = _read_case_url(str(path))
+            return self._load_conversation_data(data, None)
         path = _case_file(Path(path) if path else Path(self.output_dir))
         data = json.loads(path.read_text(encoding="utf-8"))
         return self._load_conversation_data(data, path.parent)
@@ -5172,6 +5188,38 @@ def _unused_path(path: Path) -> Path:
         candidate = path.with_name(f"{path.stem}-{n}{path.suffix}")
         n += 1
     return candidate
+
+
+def _is_url(value) -> bool:
+    return isinstance(value, str) and value.startswith(("http://", "https://"))
+
+
+def _read_case_url(url: str) -> tuple[dict, str]:
+    """A saved Clerk case read from a URL, and the URL it was read from.
+
+    ``url`` is a saved conversation's ``.json`` (or an export's ``record.json``),
+    or a case folder: there is no folder listing over HTTP, so a folder is read
+    from its ``conversations/conversation.json``, then its ``record.json``.
+    """
+    import urllib.error
+    import urllib.request
+
+    base = url.split("?", 1)[0]
+    if base.endswith(".json"):
+        candidates = [url]
+    else:
+        folder = url.rstrip("/")
+        candidates = [f"{folder}/conversations/conversation.json", f"{folder}/record.json"]
+    tried = []
+    for candidate in candidates:
+        try:
+            with urllib.request.urlopen(candidate, timeout=60) as response:
+                return json.loads(response.read().decode("utf-8")), candidate
+        except urllib.error.HTTPError as error:
+            if error.code not in (403, 404):
+                raise
+            tried.append(f"{candidate} ({error.code})")
+    raise FileNotFoundError(f"No saved Clerk case at {url}; tried " + ", ".join(tried))
 
 
 def _case_file(path: Path) -> Path:

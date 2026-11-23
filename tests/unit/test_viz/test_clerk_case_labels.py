@@ -182,3 +182,43 @@ def test_the_panel_finds_out_whether_a_kernel_answers():
     clerk.send = sent.append
     clerk._on_panel_msg(clerk, {"event": "ping"}, [])
     assert sent == [{"event": "pong"}]
+
+
+@pytest.fixture
+def served(tmp_path):
+    """Serve tmp_path over HTTP, as a case shared online (e.g. on Hugging Face)."""
+    import functools
+    import http.server
+    import threading
+
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(tmp_path))
+    handler.log_message = lambda *args: None
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield tmp_path, f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()
+
+
+def test_a_case_shared_online_reopens_from_its_folder_or_file_url(served, monkeypatch):
+    root, url = served
+    clerk, _cgm = _labeled_case()
+    clerk.save_conversation(root / "atera_kidney" / "conversations" / "conversation.json")
+    _no_claude(monkeypatch)
+
+    cgm = _clustergram()
+    fresh = Clerk(name="online", clustergram=cgm, clerk_files=f"{url}/atera_kidney/")
+    assert _column_labels(cgm) == {"4": "Goblet cells", "5": "Plasma cells"}
+    assert fresh.cell_types()["set_by"].tolist() == SET_BY
+    assert fresh._case["path"] == f"{url}/atera_kidney/conversations/conversation.json"
+    assert fresh.output_dir == "clerk_files"  # new saves stay local
+
+    by_file = Clerk(name="online-file")
+    by_file.load_conversation(f"{url}/atera_kidney/conversations/conversation.json")
+    assert by_file.cell_types()["label"].tolist() == ["Goblet cells", "Plasma cells", ""]
+
+
+def test_a_missing_online_case_says_where_it_looked(served):
+    _root, url = served
+    with pytest.raises(FileNotFoundError, match=r"conversations/conversation\.json"):
+        Clerk(name="missing", clerk_files=f"{url}/no_such_case")

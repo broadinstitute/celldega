@@ -13,7 +13,7 @@ Example::
     mat.cluster()
     dega.viz.Clustergram(matrix=mat)
 
-``to_cluster`` cuts the dendrogram into labels. ``compute_marker_ranks`` and the
+``cut_tree`` cuts the dendrogram into labels. ``compute_marker_ranks`` and the
 ``marker_ranks_*`` helpers run and store Scanpy's ``rank_genes_groups`` in a tidy
 form. ``AxisEntity`` records what the rows and columns represent (genes, cells,
 clusters, neighborhoods), which is how linked widgets know what a click means.

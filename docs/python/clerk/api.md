@@ -15,4 +15,6 @@ linked views with `dega.viz.spatial_clustergram(..., clerk=True)`.
 
 See the [Clerk guide](../../visualizations/clerk/index.md) for a walkthrough and code snippets.
 
+## API
+
 ::: celldega.clerk

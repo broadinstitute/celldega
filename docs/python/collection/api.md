@@ -53,9 +53,23 @@ dset.mod["b_cells_signature"]   # samples x genes, from each sample's B cells
 dega.viz.Composition(dset, group_attrs=["patient_id"])
 ```
 
-[Compare samples in two feature spaces](../../examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb)
-runs this on a small simulated cohort, with an interactive Composition view of
-the population space and a Clustergram of the B cell signature space.
+## Demo notebooks
+
+Each runs in a minute on simulated data:
+
+- [Compare samples in two feature spaces](../../examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb):
+  a DatasetCollection's samples by cell-type composition, in a Composition view,
+  and by their B cells' expression, in a Clustergram.
+- [Compare two clusterings](../../examples/brief_notebooks/SetCollection_Compare_Clusterings.ipynb): a
+  SetCollection's overlap between clusterings shows matches, merges and splits.
+- [Set signatures as a dot plot](../../examples/brief_notebooks/SetCollection_Signatures.ipynb): each set's
+  expression and fraction expressing in one Clustergram.
+- [Find niches with hexagonal neighborhoods](../../examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb):
+  a NeighborhoodCollection of hexagons clustered by composition into niches.
+
+**Tutorial:** [pancreas islet gradients](../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb)
+stores rings around real islets, with their composition and expression, in a
+NeighborhoodCollection.
 
 ## A thin wrapper around MuData
 

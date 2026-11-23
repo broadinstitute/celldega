@@ -29,6 +29,9 @@ view it was asked about. This is a saved conversation: nothing here is sent to C
 </div>
 
 Clerk's cell types are tentative: each is its reading of the evidence it was shown,
-recorded with a confidence for the scientist to accept, edit or reject. The tissue
-view streams images, cell boundaries, transcripts and gene expression from
-[DegaFiles on GitHub](https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE).
+recorded with a confidence for the scientist to accept, edit or reject. The
+conversation and the Clustergram's Matrix load from the
+[case folder on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/clerk/atera_kidney),
+which you can also reopen in Python with `dega.viz.Clerk(clerk_files=<folder URL>)`.
+The tissue view streams images, cell boundaries, transcripts and gene expression
+from [DegaFiles on GitHub](https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE).

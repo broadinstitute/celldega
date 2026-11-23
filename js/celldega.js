@@ -727,8 +727,10 @@ const matrix_from_zarr = (el, options = {}) => clustergram(el, options);
  * needs a notebook. Link it to a Landscape and Clustergram with `link_models`:
  * `link_models(clerk.model, 'landscape_request', ls.model, 'view_request')` and
  * `link_models(clerk.model, 'clustergram_request', cgm.model, 'view_request')`.
- * Pass the case's `clustergram_categories` to `clustergram({manual_cat})` to show
- * its cell-type labels.
+ * Pass the case's labels, `annotations.manual_cat` (`clustergram_categories` in
+ * cases saved before 0.29.1), to `clustergram({manual_cat})` to show its cell
+ * types. The `url` can be on any host that allows cross-origin reads, such as
+ * Hugging Face.
  *
  * @param {HTMLElement} el - Container element for the panel
  * @param {object} options

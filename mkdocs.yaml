@@ -28,8 +28,7 @@ not_in_nav: |
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
   # Companion to python/aligned_he.md; source: notebooks/Xenium_Aligned_HE.ipynb.
   examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb
-  # A saved Clerk conversation beside its views; its data are copied into docs/assets/data by
-  # notebooks/clerk/Clerk_Atera_Kidney_Reopen_Case.ipynb (not committed yet).
+  # A saved Clerk case read beside its views; in development until its data load from Hugging Face.
   gallery/gallery_clerk_atera_kidney.md
   # In development: the qc module and its planned ectopic-expression redesign.
   python/qc/api.md
@@ -169,6 +168,9 @@ nav:
       - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
       - DatasetCollection Feature Spaces: examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb
+      - SetCollection Compare Clusterings: examples/brief_notebooks/SetCollection_Compare_Clusterings.ipynb
+      - SetCollection Signatures Dot Plot: examples/brief_notebooks/SetCollection_Signatures.ipynb
+      - NeighborhoodCollection Hexagonal Niches: examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb
     # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
     # - CCLE Multi-omics Tutorials:
     #   - Overview: examples/ccle_multiomics.md

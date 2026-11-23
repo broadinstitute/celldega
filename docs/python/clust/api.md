@@ -1,10 +1,22 @@
 # Clust Module API Reference
 
-For complete workflows, see the
-[Chromium PBMC notebook](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)
-and [Atera breast cancer notebook](../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb).
-The [Clustergram guide](../../visualizations/clustergram.md#advanced-usage)
+`Matrix` hierarchically bi-clusters any feature matrix, such as cluster
+signatures, neighborhood composition or a collection's modality, for display in
+a Clustergram.
+
+## Demo notebooks
+
+- [Set signatures as a dot plot](../../examples/brief_notebooks/SetCollection_Signatures.ipynb): a dot plot
+  Matrix of expression and fraction expressing, from simulated cells.
+- [Landscape-Heatmap Visium HD](../../examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb): a Visium
+  HD tissue linked to a Clustergram of its clusters.
+
+**Tutorials:** [Chromium PBMC](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb) and
+[Atera breast cancer](../../examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram.ipynb). The
+[Clustergram guide](../../visualizations/clustergram.md#advanced-usage)
 explains marker dot plots and precomputed views.
+
+## Overview
 
 `Matrix` preserves supplied values during construction. For general standalone
 datasets, filtering and normalization are explicit operations, so the data

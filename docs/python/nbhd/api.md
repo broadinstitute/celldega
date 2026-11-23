@@ -16,6 +16,17 @@ these spaces come off the instrument. The `nbhd` module builds neighborhoods
 from cells, calculates their feature spaces, and keeps them together in a
 `NeighborhoodCollection`.
 
+## Demo notebooks
+
+- [Find niches with hexagonal neighborhoods](../../examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb):
+  a simulated tissue's hexagons, clustered by composition into niches.
+- [Pancreas islet gradients](../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb):
+  rings around real islets, with their composition and expression, stored in a
+  NeighborhoodCollection.
+
+**Tutorial:** [Atera breast cancer neighborhoods](../../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb)
+compares hextile niches and alpha shapes.
+
 ## NeighborhoodCollection
 
 A `NeighborhoodCollection` holds a set of neighborhoods and everything
@@ -120,13 +131,6 @@ modality and returns a `MuData` of neighborhood-level modalities; pass
 `modality=` to aggregate just one. In the `calc_nbhd_*` functions and
 `calc_gradient`, any object exposing `to_geodataframe()` can stand in for the
 neighborhood `GeoDataFrame`.
-
-## Examples
-
-- [Atera breast cancer neighborhoods](../../examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration.ipynb):
-  hextile niches and alpha-shape comparisons.
-- [Pancreas islet gradients](../../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb):
-  a complete gradient analysis stored in a `NeighborhoodCollection`.
 
 ## API
 

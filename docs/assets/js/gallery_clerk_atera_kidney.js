@@ -34,6 +34,17 @@ async function initializeClerkGallery() {
     return;
   }
 
+  // The Clustergram at the size its saved views were taken at, so a question's
+  // "Show this view" puts it back where it was (its camera is in canvas pixels).
+  // A saved view's canvas is the Clustergram's width and height plus its 100px
+  // margin for labels and dendrograms.
+  const saved_canvas = (conversation.messages || [])
+    .map((message) => message.snapshots?.clustergram?.viewport)
+    .find((viewport) => viewport?.width && viewport?.height);
+  const clustergram_size = saved_canvas
+    ? { width: saved_canvas.width - 100, height: saved_canvas.height - 100 }
+    : { width: 400, height: 500 };
+
   // Keep each component usable if another fails to load.
   const load = async (name, what, render) => {
     try {
@@ -62,8 +73,7 @@ async function initializeClerkGallery() {
     load('clustergram', 'Clustergram', () =>
       celldega.clustergram(root.querySelector('[data-clerk-clustergram]'), {
         url: new URL('kidney_leiden_markers.zarr', DATA).href,
-        width: 400,
-        height: 450,
+        ...clustergram_size,
         viz_mode: 'dotplot',
         rank_dim: 10,
         // The case's cell types (columns) and the marker genes behind them (rows),
@@ -99,23 +109,27 @@ async function initializeClerkGallery() {
     })
   );
   // The conversation's genes, clusters, cited views and screenshots change the
-  // views it was about.
-  if (clerk && landscape) {
+  // views it was about. Each view's answer comes back, so the panel changes them
+  // one at a time: the Clustergram first (its selection also changes the
+  // Landscape), then the Landscape.
+  [
+    ['landscape', landscape],
+    ['clustergram', clustergram],
+  ].forEach(([name, viz]) => {
+    if (!clerk || !viz) return;
     celldega.link_models(
       clerk.model,
-      'landscape_request',
-      landscape.model,
+      `${name}_request`,
+      viz.model,
       'view_request'
     );
-  }
-  if (clerk && clustergram) {
     celldega.link_models(
+      viz.model,
+      'view_result',
       clerk.model,
-      'clustergram_request',
-      clustergram.model,
-      'view_request'
+      `${name}_result`
     );
-  }
+  });
 }
 
 if (document.readyState === 'loading') {

@@ -39,8 +39,8 @@ a visualization displays:
   higher-level biological entities, such as neighborhoods, samples, and sets of
   cells, that keep several feature spaces together.
 - **`select`** chooses and ranks cells for review in Yearbook.
-- **`align`** quickly aligns serial sections into 3D coordinates for CellCloud
-  and NeighborhoodCloud.
+- **`align`** aligns the cells of serial sections into a 3D stack, using the
+  clusters they share, for CellCloud and NeighborhoodCloud.
 - **`pre`** turns instrument output into DegaFiles that the browser loads a
   piece at a time.
 
@@ -59,7 +59,7 @@ widget are available to these modules for the next step of the analysis.
 | [dataset](dataset/api.md) | Compare samples or datasets | Cell-level data → `DatasetCollection` with sample metadata, population composition, and signatures |
 | [set](set/api.md) | Represent and compare groups defined by cell membership | Cell labels → `SetCollection`, signatures, composition, and overlap |
 | [select](select/api.md) | Choose, rank, and sample observations | Metadata/expression queries → an ordered `Selection` for inspection or visualization |
-| [align](align/api.md) | Register tissue slices in physical space | Landmarks and cell coordinates → reusable transforms and aligned coordinates |
+| [align](align/api.md) | Align serial sections into a 3D stack of cells | Jointly clustered cells of serial sections → per-section transforms and 3D cell coordinates |
 | [qc](qc/api.md) | Inspect segmentation and transcript-assignment quality | Instrument output and segmentation assignments → summary and gene-level QC metrics |
 
 ## Start with an example
@@ -195,14 +195,25 @@ assembling ID lists.
 **Examples and reference:** [Selector queries and samplers](select/api.md) and
 [choosing cells for Yearbook](../visualizations/yearbook.md#choosing-which-cells-to-show).
 
-## align: register tissue coordinates
+## align: stack serial sections in 3D
 
-`align` provides a landmark-based serial-slice workflow: calculate landmarks,
-fit rigid or thin-plate-spline transforms, inspect the fit, and apply the
-transforms to cell positions or other points in the same coordinate system.
-Save a fitted transform for reuse, then write the aligned coordinates as
-point-cloud DegaFiles for CellCloud. These are transformations of physical
-coordinates; expression-space integration remains part of the upstream analysis.
+`align` builds a 3D point cloud from serial sections. Each section's cell
+centroids start in their own 2D frame; when the cells of all sections are
+clustered together, the clusters they share line the sections up in two steps:
+
+1. **Cluster centroids:** `calc_landmarks` places a landmark at each cluster's
+   centroid in each section, and `calc_alignment_transform` fits a rigid
+   transform per section, working outward from a reference section.
+2. **Neighborhood overlap:** `neighborhood_alignment` refines each section's
+   transform so that the clusters' neighborhood polygons (e.g. alpha shapes from
+   `nbhd.alpha_shape_cell_clusters_by_slice`) overlap as much as possible across
+   neighboring sections.
+
+Apply the result to the cells with `align_serial_slices` (or to other points of
+the same sections), save it for reuse, and write the aligned cells as point-cloud
+DegaFiles for CellCloud. These are transformations of physical coordinates; the
+clustering itself (expression-space integration) is part of the upstream
+analysis.
 
 **Reference:** [alignment API](align/api.md).
 **Notebook:** [Broad–Allen mouse-brain preprocessing and alignment](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb),

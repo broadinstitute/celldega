@@ -1,13 +1,10 @@
 """Generic 2D transform fitting from paired points.
 
-Deliberately decoupled from *how* the paired points were obtained (shared
-cluster centroids in :mod:`celldega.align.serial_slices` today; manually
-placed landmarks from :class:`~celldega.viz.Landmark` also) so the
-same fit/apply code can be reused across alignment contexts, and from
-*which orchestration* calls it (chain-walking slices, atlas registration,
-modality registration), so new fitting algorithms plug in as another
-``fit(source, target) -> Transform`` callable rather than requiring changes
-to the callers. Two fitters are provided: :func:`fit_transform_procrustes`
+Decoupled from *how* the paired points were obtained (shared cluster centroids
+in :mod:`celldega.align.serial_slices`; manually placed landmarks from
+:class:`~celldega.viz.Landmark` also) and from the code that walks the slices,
+so a fitting algorithm is just a ``fit(source, target) -> Transform``
+callable. Two fitters are provided: :func:`fit_transform_procrustes`
 (rigid/similarity Procrustes: one global rotation, scale, and translation)
 and :func:`fit_transform_tps` (non-rigid: a smooth deformation that
 matches the landmarks locally, for cases a single global transform can't

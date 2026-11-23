@@ -9,6 +9,16 @@ describe('Clerk panel', () => {
   let contain_scroll;
   let enrichr;
 
+  // How long the panel waits between a link's requests (see clerk_widget.js).
+  const panel_source = require('fs').readFileSync(
+    require('path').join(__dirname, '../widgets/clerk_widget.js'),
+    'utf8'
+  );
+  const SETTLE = Number(/const SETTLE_MS = (\d+)/.exec(panel_source)[1]);
+  const RESULT_WAIT = Number(
+    /const RESULT_WAIT_MS = (\d+)/.exec(panel_source)[1]
+  );
+
   // A kernel answers the panel's ping (as Python's Clerk does); without one (a
   // saved notebook, a docs page) nothing does.
   const make_model = (initial, { kernel = true, page = false } = {}) => {
@@ -873,64 +883,148 @@ describe('Clerk panel', () => {
   });
 
   test('without a kernel, links change the linked widgets in the browser', async () => {
-    const views = {
-      '1A': {
-        landscape: { clusters: ['16'], reset_view: true, caption: 'Fig 1A' },
-        clustergram: { focus_gene: 'PODXL', dendrogram_group: { axis: 'col' } },
-      },
-    };
-    const snapshots = { landscape: { kind: 'landscape', state: {} } };
-    const { el, model } = await render(
-      {
-        cluster_names: ['16'],
-        messages: [
-          { role: 'user', content: 'q', image: 'VEhN', snapshots },
-          {
-            role: 'assistant',
-            content: 'PODXL and NPHS2 mark cluster 16 ([Fig 1A](view:1A)).',
-            genes: ['PODXL', 'NPHS2'],
-            views,
+    jest.useFakeTimers();
+    try {
+      const views = {
+        '1A': {
+          landscape: { clusters: ['16'], reset_view: true, caption: 'Fig 1A' },
+          clustergram: {
+            focus_gene: 'PODXL',
+            dendrogram_group: { axis: 'col' },
           },
-        ],
-      },
-      { kernel: false }
-    );
-    el.querySelector('.clerk-gene').click();
-    expect(model.get('request')).toBeUndefined();
-    expect(model.get('landscape_request')).toMatchObject({
-      changes: { genes: ['PODXL'] },
-    });
-    // The Clustergram marks the gene and zooms to it.
-    expect(model.get('clustergram_request')).toMatchObject({
-      changes: {
-        selection: { highlighted_genes: ['PODXL'] },
+        },
+      };
+      const snapshots = {
+        landscape: { kind: 'landscape', state: {} },
+        clustergram: { kind: 'clustergram', state: {} },
+      };
+      const { el, model } = await render(
+        {
+          cluster_names: ['16'],
+          messages: [
+            {
+              role: 'user',
+              content: 'q',
+              image: 'VEhN',
+              clustergram_image: 'Q0dN',
+              snapshots,
+            },
+            {
+              role: 'assistant',
+              content: 'PODXL and NPHS2 mark cluster 16 ([Fig 1A](view:1A)).',
+              genes: ['PODXL', 'NPHS2'],
+              views,
+            },
+          ],
+        },
+        { kernel: false }
+      );
+      // The widget answers in view_result, linked back as <widget>_result.
+      const answer = (widget) =>
+        model.set(`${widget}_result`, {
+          id: model.get(`${widget}_request`).id,
+          shown: '',
+        });
+
+      // A gene: the Clustergram first (marks it and zooms to it) ...
+      el.querySelector('.clerk-gene').click();
+      expect(model.get('request')).toBeUndefined();
+      expect(model.get('clustergram_request')).toMatchObject({
+        changes: {
+          selection: { highlighted_genes: ['PODXL'] },
+          focus_gene: 'PODXL',
+        },
+      });
+      expect(model.get('landscape_request')).toBeUndefined();
+      // ... then, once it has answered and settled, the Landscape, last.
+      answer('clustergram');
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request')).toMatchObject({
+        changes: { genes: ['PODXL'] },
+      });
+      // Requests carry when they were made, so a reloaded page doesn't replay them.
+      expect(model.get('landscape_request').at).toEqual(expect.any(Number));
+      answer('landscape');
+      jest.advanceTimersByTime(SETTLE);
+
+      el.querySelector('.clerk-cluster').click();
+      expect(model.get('landscape_request')).toMatchObject({
+        changes: { clusters: ['16'] },
+      });
+      answer('landscape');
+      jest.advanceTimersByTime(SETTLE);
+
+      // A cited view sends only the settings a view may change.
+      el.querySelector('a.clerk-view').click();
+      expect(model.get('clustergram_request').changes).toEqual({
         focus_gene: 'PODXL',
-      },
-    });
-    // Requests carry when they were made, so a reloaded page doesn't replay them.
-    expect(model.get('landscape_request').at).toEqual(expect.any(Number));
+      });
+      answer('clustergram');
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request').changes).toEqual({
+        clusters: ['16'],
+        reset_view: true,
+      });
+      answer('landscape');
+      jest.advanceTimersByTime(SETTLE);
 
-    el.querySelector('.clerk-cluster').click();
-    expect(model.get('landscape_request')).toMatchObject({
-      changes: { clusters: ['16'] },
-    });
+      // Both of a question's views: the Clustergram's restored first, since its
+      // selection can change the Landscape, then the Landscape's.
+      [...el.querySelectorAll('a.clerk-image-view')]
+        .find((link) => link.textContent === 'Show both views')
+        .click();
+      expect(model.get('clustergram_request')).toMatchObject({
+        snapshot: snapshots.clustergram,
+      });
+      const before = model.get('landscape_request');
+      // Without an answer, the next request still goes, later.
+      jest.advanceTimersByTime(RESULT_WAIT);
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request')).not.toBe(before);
+      expect(model.get('landscape_request')).toMatchObject({
+        snapshot: snapshots.landscape,
+      });
+      expect(model.get('request')).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 
-    // A cited view sends only the settings a view may change.
-    el.querySelector('a.clerk-view').click();
-    expect(model.get('landscape_request').changes).toEqual({
-      clusters: ['16'],
-      reset_view: true,
+  test('a question asked with the Landscape unchanged shows the earlier view', async () => {
+    const earlier = { kind: 'landscape', state: { genes: ['WT1'] } };
+    const clustergram = { kind: 'clustergram', state: {} };
+    const { el, model } = await render({
+      messages: [
+        {
+          role: 'user',
+          content: 'q1',
+          image: 'VEhN',
+          snapshots: { landscape: earlier },
+        },
+        { role: 'assistant', content: 'a1' },
+        {
+          role: 'user',
+          content: 'q2',
+          clustergram_image: 'Q0dN',
+          snapshots: { clustergram },
+          evidence: ['Landscape view (unchanged)', 'Clustergram: 4 rows'],
+        },
+        { role: 'assistant', content: 'a2' },
+      ],
     });
-    expect(model.get('clustergram_request').changes).toEqual({
-      focus_gene: 'PODXL',
+    const second = el.querySelectorAll('details.clerk-turn')[1];
+    const images = [...second.querySelectorAll('.clerk-sent-image img')];
+    expect(images.map((img) => img.title)).toEqual([
+      'Landscape view, unchanged since an earlier question',
+      'Clustergram view sent with this question',
+    ]);
+    [...second.querySelectorAll('a.clerk-image-view')]
+      .find((link) => link.textContent === 'Show both views')
+      .click();
+    expect(model.get('request').show_snapshot).toEqual({
+      landscape: earlier,
+      clustergram,
     });
-
-    // A question's screenshot reopens its saved view.
-    el.querySelector('a.clerk-image-view').click();
-    expect(model.get('landscape_request')).toMatchObject({
-      snapshot: snapshots.landscape,
-    });
-    expect(model.get('request')).toBeUndefined();
   });
 
   test('without a kernel, the panel is a record to read', async () => {

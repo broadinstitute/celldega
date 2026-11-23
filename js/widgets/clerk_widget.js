@@ -37,6 +37,13 @@ const NARROW_PANEL_WIDTH = 480;
 // saved record (a saved notebook, a docs page): a busy kernel answers later.
 const NO_KERNEL_MS = 3000;
 
+// Without a kernel, a link's requests go one widget at a time: the next once the
+// last widget has answered (its view_result, linked back as <widget>_result) and a
+// moment more for what it set off (e.g. a Clustergram selection's link to the
+// Landscape); without an answer, after RESULT_WAIT_MS.
+const RESULT_WAIT_MS = 8000;
+const SETTLE_MS = 300;
+
 // The settings a cited view may change, per widget (as Python's VIEW_KEYS, with a
 // Clustergram's resolved dendrogram group); sent as apply_state changes.
 const VIEW_SETTINGS = {
@@ -82,20 +89,21 @@ export const browser_requests = (fields) => {
   const requests = [];
   if (Array.isArray(fields.show_genes)) {
     const genes = fields.show_genes;
-    requests.push(['landscape', { changes: { genes } }]);
     const clustergram = { selection: { highlighted_genes: genes } };
     // Zoom to a single gene clicked; several genes keep the current focus.
     if (genes.length === 1 && fields.focus === genes[0]) {
       clustergram.focus_gene = genes[0];
     } else if (!genes.length) clustergram.focus_gene = '';
     requests.push(['clustergram', { changes: clustergram }]);
+    requests.push(['landscape', { changes: { genes } }]);
   } else if (Array.isArray(fields.show_clusters)) {
     requests.push([
       'landscape',
       { changes: { clusters: fields.show_clusters } },
     ]);
   } else if (fields.apply_view) {
-    // The Clustergram first: its focus can move a linked Landscape.
+    // Always the Clustergram first: its focus, selection or crop can change a
+    // linked Landscape, which then gets its own settings last.
     ['clustergram', 'landscape'].forEach((name) => {
       const changes = pick_settings(
         fields.apply_view[name],
@@ -110,6 +118,36 @@ export const browser_requests = (fields) => {
     });
   }
   return requests;
+};
+
+/**
+ * A question sent with "Landscape view (unchanged)" has no Landscape preview or
+ * saved view of its own: the Landscape was as sent with an earlier question. Fill
+ * them in from the latest earlier question that has them, so the question's Show
+ * links return the Landscape to what the scientist saw.
+ * @param {object[]} messages - The panel's messages.
+ * @returns {object[]} The messages, those questions with `landscape_unchanged`.
+ */
+export const with_unchanged_views = (messages) => {
+  let last = null;
+  return messages.map((message) => {
+    if (message?.role !== 'user') return message;
+    const landscape = message.snapshots?.landscape;
+    if (message.image && landscape) {
+      last = { image: message.image, snapshot: landscape };
+      return message;
+    }
+    const unchanged = (message.evidence || []).some((line) =>
+      /^Landscape view \(unchanged\)/.test(String(line))
+    );
+    if (!unchanged || !last || message.image) return message;
+    return {
+      ...message,
+      image: last.image,
+      snapshots: { ...(message.snapshots || {}), landscape: last.snapshot },
+      landscape_unchanged: true,
+    };
+  });
 };
 
 // Styles for rendered Markdown, scoped to the panel's class so they can't leak into
@@ -425,7 +463,9 @@ export const render_clerk = async ({ model, el }) => {
         img.title =
           message.role === 'view'
             ? `${label} view Clerk showed`
-            : `${label} view sent with this question`;
+            : name === 'landscape' && message.landscape_unchanged
+              ? 'Landscape view, unchanged since an earlier question'
+              : `${label} view sent with this question`;
         figure.appendChild(img);
         if (snapshots[name]) {
           figure.appendChild(
@@ -591,21 +631,49 @@ export const render_clerk = async ({ model, el }) => {
 
   // Evidence links: through Python with a kernel (which also saves the view for
   // RETURN), else straight to the linked widgets in the browser.
+  const queued = [];
+  let sending = false;
+  let wait_timer = null;
+  let stop_waiting = null;
+  const send_next = () => {
+    const next = queued.shift();
+    if (!next) {
+      sending = false;
+      return;
+    }
+    sending = true;
+    const [widget, request] = next;
+    requestCounter += 1;
+    const id = `${Date.now()}-${requestCounter}`;
+    const event = `change:${widget}_result`;
+    let answered = null;
+    const done = () => {
+      clearTimeout(wait_timer);
+      model.off?.(event, answered);
+      stop_waiting = null;
+      wait_timer = setTimeout(send_next, SETTLE_MS);
+    };
+    answered = () => {
+      if ((model.get(`${widget}_result`) || {}).id === id) done();
+    };
+    stop_waiting = () => model.off?.(event, answered);
+    model.on(event, answered);
+    wait_timer = setTimeout(done, RESULT_WAIT_MS);
+    model.set(`${widget}_request`, {
+      id,
+      at: Date.now(),
+      name: '',
+      ...request,
+    });
+    model.save_changes();
+  };
   const follow = (fields) => {
     if (kernel) {
       send_now(fields);
       return;
     }
-    browser_requests(fields).forEach(([widget, request]) => {
-      requestCounter += 1;
-      model.set(`${widget}_request`, {
-        id: `${Date.now()}-${requestCounter}`,
-        at: Date.now(),
-        name: '',
-        ...request,
-      });
-    });
-    model.save_changes();
+    queued.push(...browser_requests(fields));
+    if (!sending) send_next();
   };
 
   // Hovering a gene shows its UniProt name and description, as in the other
@@ -1180,7 +1248,7 @@ export const render_clerk = async ({ model, el }) => {
       messagesPane.appendChild(empty);
     }
 
-    const turns = group_turns(messages, pending);
+    const turns = group_turns(with_unchanged_views(messages), pending);
     turns.forEach((turn, index) => {
       messagesPane.appendChild(
         renderTurn(turn, index, index === turns.length - 1)
@@ -1427,6 +1495,9 @@ export const render_clerk = async ({ model, el }) => {
   return {
     finalize: () => {
       if (no_kernel_timer) clearTimeout(no_kernel_timer);
+      clearTimeout(wait_timer);
+      stop_waiting?.();
+      queued.length = 0;
       kernel_listeners.length = 0;
       model.off?.('msg:custom', on_custom);
       resize_observer?.disconnect();

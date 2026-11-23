@@ -690,10 +690,13 @@ def link_clerk(
     for name, widget in (("landscape", landscape), ("clustergram", clustergram)):
         if widget is None or not getattr(type(widget), "_JS_VIEW_LINK", False):
             continue
-        old = view_links.pop(name, None)
-        if old is not None:
+        for old in view_links.pop(name, ()):
             old.unlink()
-        view_links[name] = jsdlink((clerk, f"{name}_request"), (widget, "view_request"))
+        view_links[name] = (
+            jsdlink((clerk, f"{name}_request"), (widget, "view_request")),
+            # The widget's answer comes back, so the panel can send the next request.
+            jsdlink((widget, "view_result"), (clerk, f"{name}_result")),
+        )
     if clustergram is not None:
         _feed_clustergram_clusters_to_clerk(clustergram, clerk)
         clerk._refresh_cluster_links()  # if it's already drawn

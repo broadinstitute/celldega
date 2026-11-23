@@ -1,10 +1,9 @@
 """Cluster-centroid landmarks for alignment.
 
-Computes one landmark per cluster label, decoupled from any particular
-alignment orchestration (:mod:`celldega.align.serial_slices` today; a future
-reference/atlas-registration method tomorrow, matching a query dataset's
-cluster centroids onto a reference dataset's). The output shape is the same
-one manually- or semi-manually-defined landmarks (e.g. from
+Computes one landmark per cluster label in each slice: the first step of a
+serial-slice alignment (:mod:`celldega.align.serial_slices`), where clusters
+shared across slices tie neighboring slices together. The output shape is the
+same one manually- or semi-manually-defined landmarks (e.g. from
 :class:`~celldega.viz.Landmark`) use, so the two are directly
 ``pandas.concat``-able. A plain ``DataFrame`` (rather than a ``GeoDataFrame``
 of shapely geometry) keeps this trivially disk-portable

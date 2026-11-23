@@ -758,7 +758,9 @@ const apply_single_click_selection = (
   layers_mat,
   viz_state,
   axis,
-  polygon_props
+  polygon_props,
+  // The manual-category editor opens for a scientist's click, not a restored view.
+  { open_editor = true } = {}
 ) => {
   const selected_names = polygon_props.all_names || [];
   let is_unselecting = false;
@@ -848,7 +850,7 @@ const apply_single_click_selection = (
     }
   }
 
-  if (!is_unselecting) {
+  if (!is_unselecting && open_editor) {
     maybe_open_dendro_editor(viz_state, axis, selected_names);
   }
 
@@ -1180,6 +1182,7 @@ export const restore_dendro_selection = (deck, layers, state, selection) => {
     layers,
     state,
     selection.axis,
-    polygon.properties
+    polygon.properties,
+    { open_editor: false }
   );
 };

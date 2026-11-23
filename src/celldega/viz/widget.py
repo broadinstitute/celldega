@@ -2027,6 +2027,11 @@ class Clerk(CelldegaWidget):
     # With a kernel, links go through Python instead (which also offers RETURN).
     landscape_request = traitlets.Dict(default_value={}).tag(sync=True)
     clustergram_request = traitlets.Dict(default_value={}).tag(sync=True)
+    # Their answers (each widget's ``view_result``, linked back in the browser): the
+    # panel sends a link's next request once the last is answered, the Clustergram
+    # first, since its selection can change a linked Landscape.
+    landscape_result = traitlets.Dict(default_value={}).tag(sync=True)
+    clustergram_result = traitlets.Dict(default_value={}).tag(sync=True)
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", None)

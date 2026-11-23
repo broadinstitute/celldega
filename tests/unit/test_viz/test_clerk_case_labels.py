@@ -163,9 +163,14 @@ def test_evidence_links_reach_the_widgets_in_the_browser():
     link_clerk(clerk, landscape=landscape, clustergram=cgm)
     links = dict(clerk._view_links)
     assert set(links) == {"landscape", "clustergram"}
-    assert links["landscape"].source == (clerk, "landscape_request")
-    assert links["landscape"].target == (landscape, "view_request")
-    assert links["clustergram"].target == (cgm, "view_request")
+    request, answer = links["landscape"]
+    assert request.source == (clerk, "landscape_request")
+    assert request.target == (landscape, "view_request")
+    # Each widget's answer comes back, so the panel sends the next request in turn.
+    assert answer.source == (landscape, "view_result")
+    assert answer.target == (clerk, "landscape_result")
+    assert links["clustergram"][0].target == (cgm, "view_request")
+    assert links["clustergram"][1].target == (clerk, "clustergram_result")
     # Linking again replaces the links rather than adding more.
     link_clerk(clerk, clustergram=cgm)
     assert clerk._view_links["clustergram"] is not links["clustergram"]

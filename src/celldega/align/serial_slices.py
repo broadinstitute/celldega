@@ -1,27 +1,28 @@
 """Alignment of serial 3D slices at single-cell resolution.
 
 Serial tissue sections are typically imaged and segmented independently, so
-even adjacent slices can be offset, rotated, or warped relative to each
-other. This module splits registering them into three composable steps:
+even adjacent slices can be offset and rotated relative to each other. This
+module fits and applies the per-slice transforms that stack them in 3D:
 
 1. :func:`~celldega.align.landmarks.calc_landmarks` — corresponding points
-   per slice, from shared cluster labels (or manually placed, or both).
+   per slice: the centroids of clusters shared across slices (manually placed
+   landmarks can be added).
 2. :func:`calc_alignment_transform` — fits a transform between corresponding
    landmarks (chain-walking outward from a reference slice, since physical
    section-to-section deformation accumulates between neighbors rather than
    between a slice and a distant reference) and returns a
-   :class:`SerialAlignmentTransform` — a first-class, reusable object, not a
-   byproduct that only lives inside one alignment call.
-3. :func:`align_serial_slices` — applies a given :class:`SerialAlignmentTransform`
-   to a specific set of ``AnnData``, aligning ``obsm["spatial"]`` and
-   assigning a Z coordinate.
+   :class:`SerialAlignmentTransform`. Usually refined next by
+   :func:`~celldega.align.neighborhood.neighborhood_alignment`, which returns
+   another one.
+3. :func:`align_serial_slices` — applies a :class:`SerialAlignmentTransform`
+   to the cells' ``AnnData``, aligning ``obsm["spatial"]`` and assigning a Z
+   coordinate.
 
-Splitting fit from apply means the fitted transform can be reused directly
-on *other* point data tied to the same slices (segmentation-polygon
-vertices, transcript coordinates, eventually raster image sampling grids —
-anything reducible to an ``(n, 2)`` array of points), and persisted
-independently of any one ``AnnData`` (:meth:`SerialAlignmentTransform.save`/
-:meth:`~SerialAlignmentTransform.load`).
+Because fitting is separate from applying, a fitted transform can also be
+applied to other points of the same slices (segmentation-polygon vertices,
+transcript coordinates — anything reducible to an ``(n, 2)`` array of points)
+and saved independently of any one ``AnnData``
+(:meth:`SerialAlignmentTransform.save`/:meth:`~SerialAlignmentTransform.load`).
 
 Because these are physical sections of the same tissue block, alignment is
 always rigid when ``method="procrustes"`` — any apparent size difference

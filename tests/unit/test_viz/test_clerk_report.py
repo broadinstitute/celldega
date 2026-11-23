@@ -134,7 +134,14 @@ def test_export_writes_html_notebook_record_and_findings(tmp_path) -> None:
 
     written = w.export(tmp_path / "out", adata=adata, groupby="leiden")
 
-    assert set(written) == {"record", "findings", "notebook", "html", "cell_types"}
+    assert set(written) == {
+        "record",
+        "findings",
+        "notebook",
+        "html",
+        "cell_types",
+        "cluster_labels",
+    }
     page = written["html"].read_text()
     text = re.sub(r"<[^>]+>", "", page)  # code is syntax-highlighted
     assert "What is cluster 4?" in page

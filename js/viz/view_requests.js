@@ -24,29 +24,39 @@ export const announce_view = (model, shown) => {
 };
 
 /**
+ * A request holds either a saved view (`snapshot`) or settings to change
+ * (`changes`, as the viewer's `apply_state` takes them): Clerk's evidence links
+ * (a gene, a cluster, a cited view) send those without a kernel too.
  * @param {object} model - The viewer's widget model.
  * @param {(snapshot: object) => Promise<unknown>} restore - Opens a saved view.
- * @param {{since?: number}} [options] - Requests made before `since` (ms) are
- *   ignored: when a page reloads, its links copy each card's last request into the
- *   viewer, which must not reopen old views.
+ * @param {{since?: number, apply?: (changes: object) => unknown}} [options] -
+ *   Requests made before `since` (ms) are ignored: when a page reloads, its links
+ *   copy each card's last request into the viewer, which must not reopen old
+ *   views. `apply` changes the viewer's settings (requests with `changes` are
+ *   ignored without it).
  * @returns {() => void} Stop listening.
  */
 export const listen_for_view_requests = (
   model,
   restore,
-  { since = Date.now() } = {}
+  { since = Date.now(), apply = null } = {}
 ) => {
   if (typeof model?.on !== 'function') return () => {};
   let last = '';
   const on_request = async () => {
     const request = model.get('view_request') || {};
-    if (!request.id || request.id === last || !request.snapshot) return;
+    const changes =
+      request.changes && typeof request.changes === 'object' && apply
+        ? request.changes
+        : null;
+    if (!request.id || request.id === last || !(request.snapshot || changes))
+      return;
     if (Number.isFinite(request.at) && request.at < since) return;
     last = request.id;
     const shown = String(request.name || '');
     let result = { id: request.id, shown };
     try {
-      await restore(request.snapshot);
+      await (request.snapshot ? restore(request.snapshot) : apply(changes));
     } catch (error) {
       result = {
         id: request.id,

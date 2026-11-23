@@ -1276,13 +1276,18 @@ export const landscape_ist = async (
     pic.dispose();
   });
 
-  // Snapshot cards linked to this Landscape open their view here, in the browser.
+  // Snapshot cards linked to this Landscape open their view here, in the browser,
+  // and Clerk's evidence links (genes, clusters, cited views) change it.
   cleanup_callbacks.push(
-    listen_for_view_requests(viz_state.model, (snapshot) => {
-      // A move of ours, not the scientist's (see on_view_state_change).
-      viz_state.programmatic_view_at = Date.now();
-      return landscape.restore_snapshot(snapshot, { allow_resize: true });
-    })
+    listen_for_view_requests(
+      viz_state.model,
+      (snapshot) => {
+        // A move of ours, not the scientist's (see on_view_state_change).
+        viz_state.programmatic_view_at = Date.now();
+        return landscape.restore_snapshot(snapshot, { allow_resize: true });
+      },
+      { apply: (changes) => landscape.apply_state(changes) }
+    )
   );
 
   // PINS: Snapshots pinned on the tissue (landscape.pins); a pin opens its view.

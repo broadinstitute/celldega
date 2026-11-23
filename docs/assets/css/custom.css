@@ -253,3 +253,15 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
 .linked-gallery [data-atera-clustergram] {
     min-height: 650px;
 }
+
+/* Clerk gallery: the Landscape, the Clustergram and a saved Clerk conversation in
+   one row (see gallery_clerk_atera_kidney.js); narrower windows wrap. */
+.clerk-gallery-panel {
+    flex: 1 1 340px;
+    min-width: 300px;
+    max-width: 520px;
+}
+.clerk-gallery .linked-clustergram-panel {
+    /* 400px matrix plus its 100px canvas margin for labels/dendrogram. */
+    flex: 0 0 520px;
+}

@@ -507,6 +507,31 @@ async function render({ model: widget_model, el }) {
   }
 }
 
+// The model values that show saved manual categories: each labeled axis turned on
+// with its (first) attribute, as Python's Clustergram.set_categories leaves them.
+const manual_category_values = (manual_cat) => {
+  let manual = manual_cat || {};
+  if (typeof manual === 'string') {
+    try {
+      manual = JSON.parse(manual || '{}');
+    } catch {
+      manual = {};
+    }
+  }
+  const attribute = (axis) =>
+    Object.keys(manual?.[axis] || {}).find((name) => name) || '';
+  const [row, col] = [attribute('row'), attribute('col')];
+  return {
+    manual_cat: JSON.stringify(manual),
+    manual_row_cat: row,
+    manual_col_cat: col,
+    manual_cat_config: JSON.stringify({
+      row: row ? { attribute: row } : null,
+      col: col ? { attribute: col } : null,
+    }),
+  };
+};
+
 // The widget model a Clustergram renders with when there is no Python kernel.
 const static_matrix_model = (
   network,
@@ -519,6 +544,7 @@ const static_matrix_model = (
     data_revision = '',
     width = 500,
     height = 500,
+    manual_cat = null,
   } = {}
 ) =>
   make_options_model({
@@ -537,6 +563,8 @@ const static_matrix_model = (
     width,
     height,
     data_revision,
+    // Saved labels (Python's Clustergram.manual_cat), drawn when it renders.
+    ...manual_category_values(manual_cat),
   });
 
 /**
@@ -579,6 +607,9 @@ const landscape = async (el, options = {}) => {
  * @param {string} [options.data_revision] - An immutable revision of the data
  *   (a release tag, commit hash or content digest). Saved views record it, and
  *   restoring a view declared for another revision is refused.
+ * @param {object|string} [options.manual_cat] - Row and column labels to show
+ *   (Python's `Clustergram.manual_cat`, e.g. a saved Clerk case's
+ *   `clustergram_categories`): `{axis: {attribute: {values, colors}}}`
  * @param {function} [options.row_label_callback] - Called with a clicked row name
  * @param {function} [options.col_label_callback] - Called with a clicked column name
  * @param {function} [options.col_dendro_callback] - Called on dendrogram selections
@@ -598,6 +629,7 @@ const clustergram = async (
     viz_mode,
     rank_dim = null,
     data_revision = '',
+    manual_cat = null,
     row_label_callback = null,
     col_label_callback = null,
     col_dendro_callback = null,
@@ -623,6 +655,7 @@ const clustergram = async (
     width,
     height,
     data_revision: String(data_revision || ''),
+    manual_cat,
   });
   const viz = await matrix_viz(
     model,
@@ -687,9 +720,67 @@ const matrix_from_dega_files = (
  */
 const matrix_from_zarr = (el, options = {}) => clustergram(el, options);
 
+/**
+ * Render a saved Clerk conversation in a web page, without Python: a case saved
+ * with the panel's Save button (`Clerk.save_conversation`). It's read-only: its
+ * genes, clusters, cited views and screenshots change linked widgets, and asking
+ * needs a notebook. Link it to a Landscape and Clustergram with `link_models`:
+ * `link_models(clerk.model, 'landscape_request', ls.model, 'view_request')` and
+ * `link_models(clerk.model, 'clustergram_request', cgm.model, 'view_request')`.
+ * Pass the case's `clustergram_categories` to `clustergram({manual_cat})` to show
+ * its cell-type labels.
+ *
+ * @param {HTMLElement} el - Container element for the panel
+ * @param {object} options
+ * @param {object} [options.conversation] - The saved conversation (parsed JSON)
+ * @param {string} [options.url] - Or the URL of its JSON file
+ * @param {number} [options.width=0] - Width in px; 0 fills the container
+ * @param {number} [options.height=600] - Height in px
+ * @param {object} [options.fetchOptions] - Options for fetching `url`
+ * @returns {Promise<object>} The panel, with its `model`, the `conversation`,
+ *   and `finalize()`
+ */
+const clerk = async (
+  el,
+  { conversation, url, width = 0, height = 600, fetchOptions = {} } = {}
+) => {
+  if (!conversation === !url) {
+    throw new Error('[clerk] Pass a conversation or its url.');
+  }
+  let saved = conversation;
+  if (!saved) {
+    const response = await fetch(url, fetchOptions);
+    if (!response.ok) {
+      throw new Error(`[clerk] Couldn't load ${url} (${response.status})`);
+    }
+    saved = await response.json();
+  }
+  if (!Array.isArray(saved?.messages)) {
+    throw new Error('[clerk] Not a saved Clerk conversation');
+  }
+  const model = make_options_model({
+    width,
+    height,
+    messages: saved.messages,
+    cluster_names: saved.cluster_names || [],
+    cluster_labels: saved.cluster_labels || {},
+    context_info: saved.context_info || '',
+    model: saved.model || '',
+    effort: saved.effort || '',
+    gene_list: [],
+    pending: false,
+    can_restore: false,
+    fetch_enrichr: false,
+    briefing_label: '',
+  });
+  const viz = await render_clerk({ model, el });
+  return { ...viz, model, conversation: saved };
+};
+
 const from_png = create_from_png({ landscape, clustergram });
 
 export default {
+  clerk,
   // Options-object entry points for web pages without Python.
   landscape,
   clustergram,

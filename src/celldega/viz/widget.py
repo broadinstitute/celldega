@@ -2020,6 +2020,13 @@ class Clerk(CelldegaWidget):
     # True while the scientist's view is saved (evidence links were followed); the
     # panel then offers RETURN.
     can_restore = traitlets.Bool(False).tag(sync=True)
+    # Evidence links followed without a kernel (a saved notebook, a docs page): the
+    # panel writes ``{"id", "at", "changes"}`` (apply_state settings) or ``{"id",
+    # "at", "snapshot"}`` (a saved view) here, and jslinks carry it to the linked
+    # Landscape's and Clustergram's ``view_request`` in the browser (see link_clerk).
+    # With a kernel, links go through Python instead (which also offers RETURN).
+    landscape_request = traitlets.Dict(default_value={}).tag(sync=True)
+    clustergram_request = traitlets.Dict(default_value={}).tag(sync=True)
 
     def __init__(self, **kwargs):
         name = kwargs.pop("name", None)
@@ -3150,6 +3157,17 @@ class Clerk(CelldegaWidget):
         from .snapshot_widget import Snapshots
 
         out = Snapshots()
+        image_keys = ("image", "clustergram_image", "yearbook_image")
+        # A saved conversation leaves out full-size captures; each question's message
+        # keeps the previews of the views it was asked with (its first capture).
+        questions = [m for m in self.messages if m.get("role") == "user"]
+        previews = {
+            number: message
+            for number, (message, entry) in enumerate(
+                zip(questions, self.record, strict=False), start=1
+            )
+            if message.get("content") == entry.get("question")
+        }
         for number, entry in enumerate(self.record, start=1):
             captures = 0
             question = str(entry.get("question") or "")
@@ -3161,25 +3179,27 @@ class Clerk(CelldegaWidget):
                         with contextlib.suppress(ValueError):
                             out.add(path)
                     continue
-                if step.get("kind") != "capture" or not (
-                    step.get("image") or step.get("clustergram_image") or step.get("yearbook_image")
-                ):
+                if step.get("kind") != "capture":
+                    continue
+                images = {key: step.get(key) for key in image_keys}
+                if not any(images.values()) and not captures and step.get("snapshots"):
+                    preview = previews.get(number) or {}
+                    images = {key: preview.get(key) for key in image_keys}
+                if not any(images.values()):
                     continue
                 captures += 1
                 label = f"Q{number}" if captures == 1 else f"Q{number}.{captures}"
-                for key, widget in (
-                    ("image", "landscape"),
-                    ("clustergram_image", "clustergram"),
-                    ("yearbook_image", "yearbook"),
+                for key, widget in zip(
+                    image_keys, ("landscape", "clustergram", "yearbook"), strict=True
                 ):
                     view = (step.get("snapshots") or {}).get(widget)
-                    if not step.get(key) or not view:
+                    if not images[key] or not view:
                         continue
                     name = f"{label} {widget.title()}"
                     out.add(
                         {
                             **deepcopy(view),
-                            "image": {"png": step[key]},
+                            "image": {"png": images[key]},
                             "title": name,
                             "description": question,
                         },
@@ -3231,6 +3251,73 @@ class Clerk(CelldegaWidget):
             "written": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
         return adata.obs[key]
+
+    def _column_labels(self) -> dict[str, str]:
+        """``{cluster: label}`` in the linked Clustergram's manual column category
+        (yours and Clerk's), or a reopened case's until a Clustergram is linked."""
+        cgm = self._linked_widgets.get("clustergram")
+        manual = getattr(cgm, "manual_cat_dict", None) or {}
+        if not manual.get("col"):
+            manual = (self._case_annotations or {}).get("manual_cat") or {}
+        columns = manual.get("col") or {}
+        attribute = None
+        if hasattr(cgm, "_category_target"):
+            try:
+                _axis, attribute = cgm._category_target("col", None)
+            except ValueError:
+                attribute = None
+        if attribute not in columns:
+            attribute = next(iter(columns), None)  # one manual category per axis
+        values = ((columns.get(attribute) or {}).get("values") or {}) if attribute else {}
+        return {
+            str(name): str(label)
+            for name, label in values.items()
+            if label not in (None, "", _MANUAL_FILL_VALUE)
+        }
+
+    def cell_types(self) -> pd.DataFrame:
+        """Cell types per cluster: the linked Clustergram's labels and Clerk's proposals.
+
+        One row per cluster that is labeled on the Clustergram (its manual column
+        category) or that Clerk proposed a cell type for:
+
+        - ``label``: the Clustergram's label, and ``set_by``: ``"you"`` or ``"Clerk"``
+          (labels you edited after Clerk set them count as yours);
+        - ``clerk_proposal`` and ``confidence``: Clerk's latest proposal, whether or
+          not it was put on the Clustergram.
+
+        Both are saved with a case (:meth:`save_conversation`, :meth:`export`, which
+        also writes this table as ``cluster_labels.csv``) and come back when it's
+        reopened.
+        """
+        labels = self._column_labels()
+        mine = self._clerk_marks.get("col") or {}
+        latest = {f["cluster"]: f for f in self.findings}  # later proposals win
+        order = {name: i for i, name in enumerate(self._known_clusters())}
+        clusters = sorted(
+            {*labels, *latest},
+            key=lambda c: (
+                order.get(c, len(order)),
+                not c.isdigit(),
+                int(c) if c.isdigit() else 0,
+                c,
+            ),
+        )
+        rows = []
+        for cluster in clusters:
+            label = labels.get(cluster, "")
+            proposal = latest.get(cluster) or {}
+            rows.append(
+                {
+                    "cluster": cluster,
+                    "label": label,
+                    "set_by": ("Clerk" if mine.get(cluster) == label else "you") if label else "",
+                    "clerk_proposal": proposal.get("label", ""),
+                    "confidence": proposal.get("confidence", ""),
+                }
+            )
+        columns = ["cluster", "label", "set_by", "clerk_proposal", "confidence"]
+        return pd.DataFrame(rows, columns=columns)
 
     def _latest_cell_types(self) -> dict[str, str]:
         """``{cluster: label}``: the latest cell type Clerk proposed for each cluster."""
@@ -4342,6 +4429,8 @@ class Clerk(CelldegaWidget):
         - ``screenshots/``: each capture as a Celldega screenshot (a PNG carrying the
           record to reopen its view with ``dega.viz.from_png``).
         - ``findings.csv``: the cell types Clerk proposed.
+        - ``cluster_labels.csv``: the cell types per cluster (:meth:`cell_types`): the
+          Clustergram's labels, yours and Clerk's, and Clerk's latest proposals.
 
         With ``adata`` and ``groupby``, the latest cell types are also written into
         ``adata.obs[key]`` (see :meth:`write_cell_types`; a column Clerk wrote before
@@ -4399,6 +4488,8 @@ class Clerk(CelldegaWidget):
             html_report=html,
             messages=[dict(m) for m in self.messages],
         )
+        written["cluster_labels"] = folder / "cluster_labels.csv"
+        self.cell_types().to_csv(written["cluster_labels"], index=False)
         if adata is not None:
             if not groupby:
                 raise ValueError("pass groupby= (the cluster column) to annotate adata")
@@ -4865,7 +4956,14 @@ class Clerk(CelldegaWidget):
         self.record = list(saved.get("record") or [])
         self.findings = list(saved.get("findings") or [])
         self._annotated_clustergram = None
-        self._restore_annotations(saved.get("annotations") or {})
+        annotations = saved.get("annotations") or {}
+        if not annotations and data.get("clustergram_categories"):
+            # Saved with the labels as clustergram_categories + clerk_marks.
+            annotations = {
+                "manual_cat": data["clustergram_categories"],
+                "clerk_marks": data.get("clerk_marks") or {},
+            }
+        self._restore_annotations(annotations)
         # Keep what this session already knows; fill in what it doesn't.
         if saved.get("context_info") and not self.context_info:
             self.context_info = saved["context_info"]
@@ -4945,6 +5043,11 @@ class Clerk(CelldegaWidget):
     def _on_panel_msg(self, _widget, content, _buffers) -> None:
         """One-off panel messages: a LABEL offer accepted, or OPEN's saved conversation."""
         if not isinstance(content, dict):
+            return
+        if content.get("event") == "ping":
+            # The panel checks for a kernel: without one (a saved notebook, a docs
+            # page) it follows evidence links in the browser.
+            self.send({"event": "pong"})
             return
         if content.get("event") == "label_clustergram":
             self._label_from_offer(str(content.get("id") or ""))

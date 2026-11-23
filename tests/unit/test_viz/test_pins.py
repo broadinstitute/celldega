@@ -188,3 +188,31 @@ def test_degafiles_snapshots_are_not_pinned_on_a_zarr_landscape(tmp_path):
     assert zarr.pins == []
     # The Landscape normalizes base_url into base_urls; the same URL still matches.
     assert [p["name"] for p in _landscape(snapshots=[glom]).pins] == ["Glomerulus"]
+
+
+def test_a_reopened_conversation_pins_each_question_view(tmp_path):
+    # A saved conversation leaves out full-size captures; each question keeps the
+    # previews of the views it was asked with, which become its pins.
+    from celldega.viz import Clerk
+
+    w = Clerk(name="saver")
+    capture = {
+        "kind": "capture",
+        "text": "When asked",
+        "image": PNG,
+        "clustergram_image": PNG,
+        "snapshots": {"landscape": _view(), "clustergram": _view(kind="clustergram")},
+    }
+    later = dict(capture, text="Changed the Landscape", snapshots={"landscape": _view()})
+    w.messages = [
+        {"role": "user", "content": "What is cluster 4?", "image": PNG, "clustergram_image": PNG},
+        {"role": "assistant", "content": "Goblet cells."},
+    ]
+    w.record = [{"question": "What is cluster 4?", "steps": [capture, later]}]
+    saved = w.save_conversation(tmp_path / "case.json")
+
+    ls = _landscape()
+    reopened = Clerk(name="reopened", landscape=ls, clerk_files=saved)
+    # The question's first capture, from its previews; the later one had no image.
+    assert reopened.snapshots.names() == ["Q1 Landscape", "Q1 Clustergram"]
+    assert [p["name"] for p in ls.pins] == ["Q1 Landscape"]

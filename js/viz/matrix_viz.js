@@ -437,9 +437,12 @@ export const matrix_viz = async (
     }),
   });
 
-  // Snapshot cards linked to this Clustergram open their view here, in the browser.
-  const stop_view_requests = listen_for_view_requests(model, (snapshot) =>
-    matrix.restore_snapshot(snapshot, { allow_resize: true })
+  // Snapshot cards linked to this Clustergram open their view here, in the browser,
+  // and Clerk's evidence links (a gene, a cited view) change it.
+  const stop_view_requests = listen_for_view_requests(
+    model,
+    (snapshot) => matrix.restore_snapshot(snapshot, { allow_resize: true }),
+    { apply: (changes) => matrix.apply_state(changes) }
   );
 
   initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);

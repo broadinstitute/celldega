@@ -104,7 +104,8 @@ describe('standalone clustergram()', () => {
     'utf8'
   );
   const constructors = (rendered) => {
-    const start = source.indexOf('const static_matrix_model = (');
+    // From the helper the model uses (just above it) to the loaders below.
+    const start = source.indexOf('const manual_category_values = (');
     const end = source.indexOf(
       '/**\n * Load and render a Clustergram from DegaFiles'
     );
@@ -146,5 +147,29 @@ describe('standalone clustergram()', () => {
     expect(rendered[2].get('url')).toBe('');
     expect(rendered[2].get('base_url')).toBe('https://example.org/dega');
     expect(rendered[2].get('name')).toBe('leiden');
+  });
+
+  test('saved labels turn on their category axes, so they are drawn', async () => {
+    // e.g. a saved Clerk case's cell types (columns) and marker genes (rows).
+    const rendered = [];
+    const { clustergram } = constructors(rendered);
+    const manual_cat = {
+      col: { cell_type: { values: { 16: 'Podocyte' }, colors: {} } },
+      row: {},
+    };
+    const viz = await clustergram(null, {
+      network: { row_nodes: [], col_nodes: [] },
+      manual_cat,
+    });
+    expect(JSON.parse(viz.model.get('manual_cat'))).toEqual(manual_cat);
+    expect(viz.model.get('manual_col_cat')).toBe('cell_type');
+    expect(viz.model.get('manual_row_cat')).toBe('');
+    expect(JSON.parse(viz.model.get('manual_cat_config'))).toEqual({
+      row: null,
+      col: { attribute: 'cell_type' },
+    });
+    // Without labels, no axis is turned on.
+    await clustergram(null, { network: { row_nodes: [], col_nodes: [] } });
+    expect(rendered[1].get('manual_col_cat')).toBe('');
   });
 });

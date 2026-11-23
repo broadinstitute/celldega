@@ -28,6 +28,9 @@ not_in_nav: |
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
   # Companion to python/aligned_he.md; source: notebooks/Xenium_Aligned_HE.ipynb.
   examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb
+  # A saved Clerk conversation beside its views; its data are copied into docs/assets/data by
+  # notebooks/clerk/Clerk_Atera_Kidney_Reopen_Case.ipynb (not committed yet).
+  gallery/gallery_clerk_atera_kidney.md
 
 hooks:
   - scripts/unlisted_docs.py
@@ -238,6 +241,8 @@ extra_javascript:
   - path: assets/js/visualization_previews.js
     type: module
   - path: assets/js/gallery_citeseq_pbmc.js
+    type: module
+  - path: assets/js/gallery_clerk_atera_kidney.js
     type: module
 
 extra_css:

@@ -265,6 +265,10 @@ export const render_enrichment = (
       tooltip.hide();
       on_gene(gene, event.shiftKey);
     });
+    // Shift-click adds the gene; it shouldn't also extend the text selection.
+    span.addEventListener('mousedown', (event) => {
+      if (event.shiftKey) event.preventDefault();
+    });
     span.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();

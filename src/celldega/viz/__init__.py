@@ -681,6 +681,19 @@ def link_clerk(
     if yearbook is not None:
         linked["yearbook"] = yearbook
     clerk._linked_widgets = linked
+    # Evidence links (genes, clusters, cited views and screenshots) also reach the
+    # Landscape and Clustergram in the browser, for a saved notebook or docs page
+    # without a kernel.
+    view_links = getattr(clerk, "_view_links", None)
+    if view_links is None:
+        view_links = clerk._view_links = {}
+    for name, widget in (("landscape", landscape), ("clustergram", clustergram)):
+        if widget is None or not getattr(type(widget), "_JS_VIEW_LINK", False):
+            continue
+        old = view_links.pop(name, None)
+        if old is not None:
+            old.unlink()
+        view_links[name] = jsdlink((clerk, f"{name}_request"), (widget, "view_request"))
     if clustergram is not None:
         _feed_clustergram_clusters_to_clerk(clustergram, clerk)
         clerk._refresh_cluster_links()  # if it's already drawn

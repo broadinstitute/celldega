@@ -34,6 +34,7 @@ not_in_nav: |
 
 hooks:
   - scripts/unlisted_docs.py
+  - scripts/llms_txt.py
 
 theme:
   name: material
@@ -164,6 +165,7 @@ nav:
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
+      - DatasetCollection Feature Spaces: examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb
     # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
     # - CCLE Multi-omics Tutorials:
     #   - Overview: examples/ccle_multiomics.md

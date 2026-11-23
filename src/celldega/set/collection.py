@@ -200,6 +200,17 @@ class SetCollection(CelldegaCollection):
     (cells) as variables, carrying per-cell spatial coordinates in ``var`` when
     available. Feature spaces (expression signatures) and relations (set-to-set
     overlap) are derived from this membership.
+
+    Example::
+
+        clust = dega.SetCollection(adata, set_col="leiden")
+        clust.calc_signature(adata, modality_name="expression")  # sets x genes
+        clust.calc_population(adata, category="cell_type")        # sets x cell types
+        clust.calc_overlap()                                      # set-to-set overlap
+
+        mat = dega.clust.Matrix(clust.mod["expression"])
+        mat.cluster()
+        dega.viz.Clustergram(matrix=mat)
     """
 
     def __init__(

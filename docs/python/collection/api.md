@@ -49,11 +49,13 @@ dset.calc_signature(adata, category="cell_type", value="B cells")  # B cell expr
 dset.mod["population"]          # samples x cell types
 dset.mod["b_cells_signature"]   # samples x genes, from each sample's B cells
 
-# Each feature space clusters on its own.
-mat = dega.clust.Matrix(dset.mod["population"])
-mat.cluster()
-dega.Clustergram(matrix=mat)
+# Compare the samples' cell-type composition as stacked bars.
+dega.viz.Composition(dset, group_attrs=["patient_id"])
 ```
+
+[Compare samples in two feature spaces](../../examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb)
+runs this on a small simulated cohort, with an interactive Composition view of
+the population space and a Clustergram of the B cell signature space.
 
 ## A thin wrapper around MuData
 

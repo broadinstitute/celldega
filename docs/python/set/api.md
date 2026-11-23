@@ -1,5 +1,22 @@
 # Set Module API Reference
 
+## Motivation
+
+Spatial biology works with entities above the single cell, and the most common
+are sets of cells: Leiden clusters, spatial domains from algorithms such as
+SpaGCN or GraphST, or cell types assigned by hand. Many questions are about the
+sets rather than their cells. What does each set express, at the RNA or protein
+level? What cell types is it made of? How do one clustering's sets correspond
+to another's? Each answer is a feature space over the sets, and the spaces are
+most useful side by side.
+
+A set is defined by its members, so `SetCollection` keeps membership, exactly
+which cells belong to each set, as its defining modality and derives the other
+feature spaces from it. Like Celldega's other collections, it is a thin wrapper
+around MuData; see [Collections](../collection/api.md) for the shared model.
+
+## Overview
+
 The `set` module provides `SetCollection`, the set-level Celldega collection.
 A `SetCollection` represents collections that are *literally defined as sets* of
 some base element (most commonly cells) with no intrinsic geometry of their

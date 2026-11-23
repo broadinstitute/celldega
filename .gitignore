@@ -18,6 +18,7 @@ dist
 !docs/examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb
 !docs/examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb
+!docs/examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb
 !notebooks/clerk/Snapshots_and_Pins.ipynb
 !notebooks/clerk/Snapshots_and_Pins_PBMC3k.ipynb
 !notebooks/clerk/Clerk_Atera_CRC_Landscape-Clustergram-Yearbook.ipynb

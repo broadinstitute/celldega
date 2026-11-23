@@ -1855,6 +1855,15 @@ class Enrich(_StateGetter, CelldegaWidget):
     Allows users to select a gene list, choose an enrichment library, and specify
     the number of terms to display. Automatically replaces older widgets with the
     same name to prevent notebook bloat.
+
+    Example::
+
+        enrich = dega.viz.Enrich(width=650, height=650)
+        enrich.gene_list = ["INS", "GCG", "SST", "CHGA", "PCSK2"]
+        enrich
+
+    Link it to a Clustergram's rows with :func:`celldega.viz.clustergram_enrich`, or
+    pass ``enrich=True`` to :func:`celldega.viz.spatial_clustergram`.
     """
 
     _esm = _WIDGET_ESM
@@ -6023,13 +6032,23 @@ class Yearbook(Screenshots, _RasterCapture, _StateSnapshots, _CellAttributes, Ce
 
 
 class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
-    """
-    Minimal version of the Clustergram widget.
+    """Interactive clustered heatmap of a :class:`celldega.clust.Matrix`.
 
-    - Frontend still gets: matrix/parquet data, row/col names, manual_cat,
-      manual_cat_config, etc.
-    - Manual categories are treated as a simple JSON string.
-    - All the old DataFrame-based manual_cat plumbing is removed.
+    Shows the matrix with its row and column dendrograms, category tracks and
+    controls to reorder, zoom, crop and re-cluster in the browser. Clicking a row
+    (such as a gene) or a column (such as a cluster) reports it in
+    ``click_info``, which linked widgets follow: a Landscape colors cells by the
+    clicked gene or highlights the clicked cluster. Cutting a dendrogram selects
+    a group of rows or columns. With ``manual_col_cat`` / ``manual_row_cat``,
+    columns and rows can be labeled by hand (for example with cell types); the
+    labels sync back to Python in ``manual_cat``.
+
+    Example::
+
+        mat = dega.clust.Matrix(adata, groupby="leiden")
+        mat.cluster()
+        cgm = dega.viz.Clustergram(matrix=mat, width=500, height=500)
+        dega.viz.spatial_clustergram(landscape, cgm)  # link it to a Landscape
 
     Matrix slices (browser is source of truth for ``net_mat``)
         On row/column label and matrix-cell clicks, the front-end first updates

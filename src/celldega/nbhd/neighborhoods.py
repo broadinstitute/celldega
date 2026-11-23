@@ -212,6 +212,12 @@ def calc_nbhd_by_gene(
         neighborhood `cat`/`color` columns when the geometry has them. A MuData
         input without `modality` returns a MuData with one modality per input
         modality.
+
+    Example::
+
+        gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
+        adata_nbg = dega.nbhd.calc_nbhd_by_gene(gdf_hex, "cell", adata)
+        mat = dega.clust.Matrix(adata_nbg)  # cluster the hexagons by expression
     """
     gdf_nbhd, nbhd_col = _as_nbhd_gdf(gdf_nbhd, nbhd_col)
 
@@ -335,6 +341,12 @@ def calc_nbhd_by_pop(
         `uns["output"]`, `var["entity_type"] = "cell_population"`, and category
         colors (`var["color"]`, `uns[f"{category}_colors"]`) when the cell data
         has them.
+
+    Example::
+
+        gdf_hex = dega.nbhd.generate_hextile(adata, diameter=100)
+        adata_nbp = dega.nbhd.calc_nbhd_by_pop(adata, gdf_hex, category="leiden")
+        mat = dega.clust.Matrix(adata_nbp)  # cluster the hexagons by composition
     """
     if gdf_nbhd is None:
         raise ValueError("gdf_nbhd is required to calculate a neighborhood population")

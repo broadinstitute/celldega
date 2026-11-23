@@ -377,6 +377,17 @@ class CellCloud(_SpatialWidget):
     ``celldega.viz.get_local_server()`` address (millions of per-cell centroids
     don't fit through the widget's comm channel); otherwise it falls back to
     syncing them through widget state, fine for smaller datasets.
+
+    Example::
+
+        cloud = dega.viz.CellCloud(
+            base_url=point_cloud_url,  # from pre.write_point_cloud_dataset
+            cluster_attr="cell_type",
+            rotation_x=20,
+        )
+        cloud
+
+    Link it to a Clustergram with :func:`celldega.viz.spatial_clustergram`.
     """
 
     component = traitlets.Unicode("CellCloud").tag(sync=True)
@@ -487,6 +498,14 @@ class NeighborhoodCloud(_SpatialWidget):
     Args:
         base_url (str or list): DegaFiles URL(s), as in ``Landscape``.
         adata (AnnData, optional): Source of cell attributes/metadata.
+
+    Example::
+
+        nbhd_cloud = dega.viz.NeighborhoodCloud(
+            base_url=nbhd_cloud_url,  # from pre.write_nbhd_cloud_dataset
+            adata=adata,
+        )
+        nbhd_cloud
     """
 
     component = traitlets.Unicode("NeighborhoodCloud").tag(sync=True)

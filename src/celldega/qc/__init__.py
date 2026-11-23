@@ -1,3 +1,12 @@
+"""Segmentation quality metrics from instrument output.
+
+``qc_segmentation`` writes cell-level and gene-level metrics (transcript
+assignment, cell counts and areas, transcripts and genes per cell) for one
+segmentation of a Xenium, MERSCOPE or custom dataset. ``orthogonal_expression_calc``
+compares segmentations by how often cells of one type contain transcripts of
+another type's marker genes.
+"""
+
 import json
 from pathlib import Path
 

@@ -1,5 +1,30 @@
-"""
-Module for visualization
+"""Interactive, linkable widgets for Jupyter, and helpers to link and save them.
+
+Widgets:
+
+- ``Landscape``: the tissue (image, cells, transcripts, neighborhoods) from
+  DegaFiles or an AnnData Zarr store, or a UMAP of the same cells.
+- ``Clustergram``: an interactive clustered heatmap of a ``celldega.clust.Matrix``.
+- ``Yearbook``: a paged grid of cell portraits, often fed by ``celldega.select``.
+- ``Composition``: category counts or proportions compared across groups.
+- ``CellCloud`` / ``NeighborhoodCloud``: 3D orbit views of cells and of
+  neighborhood alpha shapes, for example aligned serial sections.
+- ``Enrich``: Enrichr gene-set enrichment of a gene list, such as a Clustergram's rows.
+- ``Clerk``: an AI tool that reads the linked widgets and answers questions with Claude.
+- ``Landmark``: marks corresponding points across serial sections.
+
+Linking: ``spatial_clustergram`` (a spatial widget beside a Clustergram, with
+optional ``enrich`` and ``clerk``), ``landscape_yearbook``,
+``landscape_yearbook_clustergram``, ``clustergram_enrich``, ``link_clerk`` and
+``landscape_clerk``. Linked widgets share selections: clicking a gene or cluster
+in a Clustergram colors the Landscape, and cells drawn on a Landscape come back
+to Python.
+
+Saving views: ``snapshot`` saves a PNG with a memo and the state to recreate it;
+``from_png`` rebuilds the view from that PNG; ``load_snapshots`` reads a folder of
+them. Widgets report their current view as ``latest_state``; ``Landscape``,
+``Clustergram``, ``Composition`` and the 3D views also take ``apply_state`` to
+set it from code.
 """
 
 import contextlib
@@ -151,6 +176,14 @@ def spatial_clustergram(
     Returns:
         HBox: The widgets side by side; with ``clerk_layout="wide"``, a VBox with
         that row above the Clerk.
+
+    Example::
+
+        landscape = dega.viz.Landscape(base_url=degafiles_url, adata=adata)
+        mat = dega.clust.Matrix(adata, groupby="leiden")
+        mat.cluster()
+        cgm = dega.viz.Clustergram(matrix=mat)
+        dega.viz.spatial_clustergram(landscape, cgm, enrich=True)
     """
     if clerk_layout not in ("sidecar", "wide"):
         raise ValueError("clerk_layout must be 'sidecar' or 'wide'")
@@ -353,6 +386,11 @@ def clustergram_enrich(
 
     Returns:
         HBox: Visualization display containing both widgets.
+
+    Example::
+
+        cgm = dega.viz.Clustergram(matrix=mat)
+        dega.viz.clustergram_enrich(cgm)  # enrich the genes of a selected row dendrogram group
     """
     cgm.layout = Layout(width="600px")
 
@@ -665,6 +703,12 @@ def link_clerk(
         enrich (Enrich | None): Source of enrichment-result evidence.
         yearbook (Yearbook | None): Source of single-cell portrait evidence.
         capture_on_select (bool): Re-capture the Landscape raster on each selection.
+
+    Example::
+
+        clerk = dega.viz.Clerk()
+        dega.viz.link_clerk(clerk, landscape=landscape, clustergram=cgm)
+        clerk
     """
     # Remember linked widgets so later features (set-state, evidence sharing) can find
     # them without re-plumbing.

@@ -251,6 +251,13 @@ class DatasetCollection(CelldegaCollection):
     ``DatasetCollection`` is the dataset-level Celldega collection. Its ``obs``
     table is the canonical dataset/sample axis, and feature constructors attach
     clusterable ``AnnData`` modalities directly to ``self.mod``.
+
+    Example::
+
+        dset = dega.DatasetCollection(adata, dataset_col="sample_id", obs_columns=["condition"])
+        dset.calc_population(adata, category="cell_type")                  # samples x cell types
+        dset.calc_signature(adata, category="cell_type", value="B cells")  # samples x genes
+        dega.viz.Composition(dset, group_attrs=["condition"])
     """
 
     def __init__(

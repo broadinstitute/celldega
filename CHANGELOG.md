@@ -49,6 +49,9 @@ getting started.
 - Gene information falls back to UniProt search when the EBI service fails, and
   retries a failed lookup later.
 - The cell tooltip names the attribute the cells are shown by.
+- Hovering or focusing a pin in the **PINS** list shows the pin's card (its name,
+  memo and a preview of its view), as hovering the pin on the tissue does; the
+  list only had a plain text tooltip.
 
 ### Changed
 
@@ -56,6 +59,10 @@ getting started.
   **H&E** or **NONE**), and the view mode is a dropdown that follows the view.
 - `Yearbook(genes=[...])` highlights genes' transcripts from Python, as typing
   them into the gene search box does.
+- Web pages, including the docs gallery, show the pulsing Celldega loading mark
+  while a visualization loads, as notebooks do: `landscape()`, `clustergram()`
+  and `clerk()` take a `loading_label` (or `loading: false`), and the positional
+  `landscape_ist` and `yearbook` show it too.
 - A saved Clerk case can be reopened from a URL, such as a case folder on
   Hugging Face: `Clerk(clerk_files=<URL>)`, `open_case` and `load_conversation`
   read a saved conversation's `.json`, or a case folder's

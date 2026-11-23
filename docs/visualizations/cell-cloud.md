@@ -7,7 +7,7 @@ to see how cell types and gene expression are arranged through the tissue. For
 [Landscape](landscape/index.md).
 
 <div class="viz-preview">
-  <p class="viz-preview-status" role="status">Loading an interactive preview…</p>
+  <p class="viz-preview-status" role="status" hidden>Loading an interactive preview…</p>
   <div id="preview-cell-cloud"></div>
 </div>
 

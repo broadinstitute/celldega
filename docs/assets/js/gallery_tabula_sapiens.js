@@ -17,6 +17,7 @@ async function initializeTabulaGallery() {
       status.hidden = true;
       return viz;
     } catch (error) {
+      status.hidden = false;
       status.textContent = `The ${name === 'landscape' ? 'atlas' : 'Clustergram'} could not load. Reload this page to try again.`;
       console.error(`Unable to load Tabula Sapiens ${name}`, error);
       return null;
@@ -37,17 +38,22 @@ async function initializeTabulaGallery() {
         ini_zoom: linked ? -4.6 : -4.3,
         ini_x: 5000,
         ini_y: 5000,
+        loading_label: 'Loading the atlas… The first load may take a moment.',
       })
     ),
     linked
       ? load('clustergram', () =>
-          celldega.clustergram(root.querySelector('[data-tabula-clustergram]'), {
-            url: `${DATA}/tabula_sapiens_cell_type_markers.zarr`,
-            width: 550,
-            height: 550,
-            viz_mode: 'dotplot',
-            rank_dim: 3,
-          })
+          celldega.clustergram(
+            root.querySelector('[data-tabula-clustergram]'),
+            {
+              url: `${DATA}/tabula_sapiens_cell_type_markers.zarr`,
+              width: 550,
+              height: 550,
+              viz_mode: 'dotplot',
+              rank_dim: 3,
+              loading_label: 'Loading cell-type signatures…',
+            }
+          )
         )
       : Promise.resolve(null),
   ]);

@@ -15,15 +15,15 @@ view it was asked about. This is a saved conversation: nothing here is sent to C
 
 <div class="linked-gallery clerk-gallery" data-clerk-gallery="atera-kidney">
   <div class="linked-landscape-panel">
-    <p data-clerk-status="landscape" role="status">Loading the tissue… The first load may take a moment.</p>
+    <p data-clerk-status="landscape" role="status" hidden>Loading the tissue… The first load may take a moment.</p>
     <div data-clerk-landscape aria-label="Atera kidney tissue view"></div>
   </div>
   <div class="linked-clustergram-panel">
-    <p data-clerk-status="clustergram" role="status">Loading the cluster signatures…</p>
+    <p data-clerk-status="clustergram" role="status" hidden>Loading the cluster signatures…</p>
     <div data-clerk-clustergram aria-label="Atera kidney cluster Clustergram with cell-type labels"></div>
   </div>
   <div class="clerk-gallery-panel">
-    <p data-clerk-status="clerk" role="status">Loading the conversation…</p>
+    <p data-clerk-status="clerk" role="status" hidden>Loading the conversation…</p>
     <div data-clerk-panel aria-label="Saved Clerk conversation"></div>
   </div>
 </div>

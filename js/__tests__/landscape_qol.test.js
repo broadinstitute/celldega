@@ -179,9 +179,16 @@ describe('pin tooltips', () => {
       const get_point_cloud_source_index = () => -1;
       const has_uniprot_info = () => true;
     `;
-    ({ make_tooltip } = load('../deck-gl/utils/tooltips.js', shims, [
-      'make_tooltip',
-    ]));
+    // The pin's card comes from the pin layer, shared with the pins list.
+    const { pin_card_html } = load('../deck-gl/layers/pin_layer.js', '', [
+      'pin_card_html',
+    ]);
+    ({ make_tooltip } = load(
+      '../deck-gl/utils/tooltips.js',
+      shims,
+      ['make_tooltip'],
+      { pin_card_html }
+    ));
   });
 
   const viz_state = { root: document.createElement('div') };

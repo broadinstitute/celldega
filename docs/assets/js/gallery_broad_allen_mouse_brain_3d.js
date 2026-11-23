@@ -33,10 +33,7 @@ async function loadMouseBrainSource(state) {
   const request = ++state.request;
   state.selector?.setAttribute('disabled', '');
   state.root.setAttribute('aria-busy', 'true');
-  if (state.status) {
-    state.status.hidden = false;
-    state.status.textContent = `Loading 3.8 million cells from ${source.label}…`;
-  }
+  if (state.status) state.status.hidden = true;
   state.viz?.finalize?.();
   state.viz = null;
   state.root.replaceChildren();
@@ -54,6 +51,7 @@ async function loadMouseBrainSource(state) {
       rotation_x: 20,
       height: 700,
       cell_size: 10,
+      loading_label: `Loading 3.8 million cells from ${source.label}…`,
     });
     // Navigation can remove this container while its data is still loading.
     if (state.disposed || state.request !== request) {
@@ -65,9 +63,13 @@ async function loadMouseBrainSource(state) {
   } catch (error) {
     if (state.disposed || state.request !== request) return;
     if (state.status) {
+      state.status.hidden = false;
       state.status.textContent = `${source.label} could not load. Try the other data source or reload this page.`;
     }
-    console.error(`Unable to load the 3D mouse brain from ${source.label}`, error);
+    console.error(
+      `Unable to load the 3D mouse brain from ${source.label}`,
+      error
+    );
   } finally {
     if (!state.disposed && state.request === request) {
       state.selector?.removeAttribute('disabled');
@@ -83,7 +85,9 @@ function initializeMouseBrainCloud() {
   if (!root) return;
 
   const selector = document.getElementById('cell-cloud-broad-allen-source');
-  const requestedSource = new URL(window.location.href).searchParams.get('source');
+  const requestedSource = new URL(window.location.href).searchParams.get(
+    'source'
+  );
   if (selector && SOURCES[requestedSource]) selector.value = requestedSource;
   const state = {
     root,

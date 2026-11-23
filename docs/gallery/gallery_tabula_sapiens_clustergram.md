@@ -8,11 +8,11 @@ expression (**purple TRX**).
 
 <div class="tabula-gallery tabula-gallery-linked" data-tabula-gallery="linked">
   <div class="tabula-landscape-panel">
-    <p data-tabula-status="landscape" role="status">Loading the atlas… The first load may take a moment.</p>
+    <p data-tabula-status="landscape" role="status" hidden>Loading the atlas… The first load may take a moment.</p>
     <div data-tabula-landscape aria-label="Tabula Sapiens UMAP"></div>
   </div>
   <div class="tabula-clustergram-panel">
-    <p data-tabula-status="clustergram" role="status">Loading cell-type signatures…</p>
+    <p data-tabula-status="clustergram" role="status" hidden>Loading cell-type signatures…</p>
     <div data-tabula-clustergram aria-label="Tabula Sapiens cell-type Clustergram"></div>
   </div>
 </div>

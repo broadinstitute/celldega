@@ -1,7 +1,7 @@
 # Thick-Tissue MERFISH: 3D { .gallery-title-compact }
 
 <div id="cell-cloud-thick-merfish-container" style="position: relative; display: flex; width: 100%; height: 700px; overflow: hidden; border: 1px solid #ccc;">
-    <p id="cell-cloud-thick-merfish-status" role="status" style="position: absolute; top: 10px; left: 15px; z-index: 1;">Loading 76,356 cells…</p>
+    <p id="cell-cloud-thick-merfish-status" role="status" hidden style="position: absolute; top: 10px; left: 15px; z-index: 1;">Loading 76,356 cells…</p>
     <div id="cell-cloud-thick-merfish" style="height: 700px; width: 100%;"></div>
 </div>
 

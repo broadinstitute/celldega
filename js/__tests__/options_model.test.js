@@ -103,7 +103,11 @@ describe('standalone clustergram()', () => {
     path.join(__dirname, '../celldega.js'),
     'utf8'
   );
-  const constructors = (rendered) => {
+  const constructors = (
+    rendered,
+    show_loading = () => () => {},
+    draw = null
+  ) => {
     // From the helper the model uses (just above it) to the loaders below.
     const start = source.indexOf('const manual_category_values = (');
     const end = source.indexOf(
@@ -114,19 +118,65 @@ describe('standalone clustergram()', () => {
       'matrix_viz',
       'network_from_zarr',
       'networkFromDegaFiles',
+      'show_loading',
+      'LOADING_DELAY_MS',
       // landscape() sits between them in the file; it is never called here.
       `${source.slice(start, end).replace('const landscape = async', 'const _landscape = async')}
        return { clustergram };`
     )(
       make_options_model,
-      async (model) => {
-        rendered.push(model);
-        return {};
-      },
+      draw ??
+        (async (model) => {
+          rendered.push(model);
+          return {};
+        }),
       async () => ({ row_nodes: [], col_nodes: [] }),
-      async () => ({ row_nodes: [], col_nodes: [] })
+      async () => ({ row_nodes: [], col_nodes: [] }),
+      show_loading,
+      150
     );
   };
+
+  test('the loading mark shows while it loads, with its label, then goes', async () => {
+    const remove = jest.fn();
+    const show_loading = jest.fn(() => remove);
+    const el = document.createElement('div');
+    let finish;
+    const drawn = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const { clustergram } = constructors([], show_loading, () => drawn);
+    const loading = clustergram(el, {
+      network: { row_nodes: [], col_nodes: [] },
+      height: 400,
+      loading_label: 'Loading cell-type signatures…',
+    });
+    await Promise.resolve();
+    expect(show_loading).toHaveBeenCalledWith(el, {
+      height: 500, // the matrix and its margins
+      label: 'Loading cell-type signatures…',
+      delay: 150,
+    });
+    expect(remove).not.toHaveBeenCalled();
+    finish({});
+    await loading;
+    expect(remove).toHaveBeenCalledTimes(1);
+
+    // Off on request; and a failed load still removes it.
+    show_loading.mockClear();
+    await constructors([], show_loading).clustergram(el, {
+      network: { row_nodes: [], col_nodes: [] },
+      loading: false,
+    });
+    expect(show_loading).not.toHaveBeenCalled();
+    const failing = constructors([], show_loading, async () => {
+      throw new Error('no data');
+    });
+    await expect(
+      failing.clustergram(el, { network: { row_nodes: [], col_nodes: [] } })
+    ).rejects.toThrow('no data');
+    expect(remove).toHaveBeenCalledTimes(2);
+  });
 
   test('a declared data_revision and the source reach the model saved views read', async () => {
     const rendered = [];

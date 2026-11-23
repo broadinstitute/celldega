@@ -4,14 +4,19 @@
  * The button shows or hides the pins (`show_pins`); it appears only when there are
  * pins. Each pin is drawn in its Snapshot's space, the tissue or the UMAP (none in
  * XY), while the Landscape shows that space. Hovering one shows its
- * Snapshot's name and memo; clicking opens the Snapshot's view.
+ * Snapshot's name, memo and a preview; clicking opens the Snapshot's view.
  *
  * While the pins are shown, a scrolling list of them takes the place of the image
  * channel controls (as the XY axes do): the same pins by name, so the view is led
- * by the Snapshots rather than by image settings.
+ * by the Snapshots rather than by image settings. Hovering or focusing a row shows
+ * the same card as the pin's tooltip, so the list says why each pin is there.
  */
 
-import { make_pin_layer, valid_pins } from '../deck-gl/layers/pin_layer';
+import {
+  make_pin_layer,
+  pin_card_html,
+  valid_pins,
+} from '../deck-gl/layers/pin_layer';
 import { refresh_layer } from '../utils/refresh_layer';
 import { announce_view } from '../viz/view_requests';
 
@@ -27,7 +32,8 @@ const ACTIVE_BACKGROUND = '#e3eef7';
  *   restore: (snapshot: object) => Promise<unknown>}} options - `container` holds
  *   the button (the view-mode row); `restore` opens a saved view (the Landscape's
  *   `restore_snapshot`).
- * @returns {{button: HTMLElement, list: HTMLElement, dispose: () => void}}
+ * @returns {{button: HTMLElement, list: HTMLElement, card: HTMLElement,
+ *   dispose: () => void}} - `card` is the pins list's hover card.
  */
 export const add_pins_control = ({
   viz_state,
@@ -75,6 +81,59 @@ export const add_pins_control = ({
     if (at_top || at_bottom) event.preventDefault();
   });
 
+  // A row's card: the pin's name, memo and preview, as its tooltip on the tissue
+  // shows them (and in the same style), beside the row.
+  const doc = list.ownerDocument || document;
+  const card = doc.createElement('div');
+  card.className = 'pins_card';
+  card.setAttribute('role', 'tooltip');
+  Object.assign(card.style, {
+    position: 'fixed',
+    zIndex: '1000',
+    display: 'none',
+    maxWidth: '260px',
+    padding: '10px',
+    color: '#a0a7b4',
+    backgroundColor: '#29323c',
+    fontFamily: FONT,
+    fontSize: '12px',
+    lineHeight: '16px',
+    overflowWrap: 'break-word',
+    pointerEvents: 'none',
+  });
+  doc.body?.appendChild(card);
+  let card_row = null;
+  const place_card = () => {
+    if (!card_row) return;
+    const gap = 8;
+    const row = card_row.getBoundingClientRect();
+    const view = doc.defaultView;
+    const width = view?.innerWidth ?? Infinity;
+    const height = view?.innerHeight ?? Infinity;
+    let left = row.right + gap;
+    if (left + card.offsetWidth > width - gap) {
+      left = Math.max(gap, row.left - card.offsetWidth - gap);
+    }
+    const top = Math.max(
+      gap,
+      Math.min(row.top, height - card.offsetHeight - gap)
+    );
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+  };
+  const show_card = (row, pin) => {
+    card_row = row;
+    card.innerHTML = pin_card_html(pin);
+    card.style.display = 'block';
+    // The preview changes the card's size once it loads.
+    card.querySelector('img')?.addEventListener('load', place_card);
+    place_card();
+  };
+  const hide_card = () => {
+    card_row = null;
+    card.style.display = 'none';
+  };
+
   let active = '';
   let open = async () => {};
   const pins = () => valid_pins(model?.get?.('pin_data'));
@@ -87,6 +146,7 @@ export const add_pins_control = ({
     pins().filter((pin) => (pin.space || 'spatial') === view());
 
   const draw_list = () => {
+    hide_card();
     list.replaceChildren();
     pins().forEach((pin) => {
       const row = document.createElement('div');
@@ -96,9 +156,12 @@ export const add_pins_control = ({
       const elsewhere = (pin.space || 'spatial') !== view();
       const where = pin.space === 'umap' ? 'UMAP' : 'tissue';
       row.textContent = `${pin.name || 'Snapshot'}${elsewhere ? ` (${where})` : ''}`;
-      row.title = pin.description
-        ? `${pin.name}\n${pin.description}`
-        : pin.name || '';
+      row.setAttribute(
+        'aria-label',
+        pin.description
+          ? `${pin.name || 'Snapshot'}: ${pin.description}`
+          : pin.name || 'Snapshot'
+      );
       row.setAttribute('role', 'button');
       row.tabIndex = 0;
       const is_active = pin.name === active;
@@ -115,6 +178,10 @@ export const add_pins_control = ({
         fontWeight: is_active ? 'bold' : 'normal',
         background: is_active ? ACTIVE_BACKGROUND : '',
       });
+      row.addEventListener('mouseenter', () => show_card(row, pin));
+      row.addEventListener('focus', () => show_card(row, pin));
+      row.addEventListener('mouseleave', hide_card);
+      row.addEventListener('blur', hide_card);
       row.addEventListener('click', () => open(pin));
       row.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -201,11 +268,13 @@ export const add_pins_control = ({
   return {
     button,
     list,
+    card,
     dispose: () => {
       events.forEach((event) => model?.off?.(event, sync));
       unsubscribe?.();
       button.remove();
       list.remove();
+      card.remove();
     },
   };
 };

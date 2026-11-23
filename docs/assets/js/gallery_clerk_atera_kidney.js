@@ -86,6 +86,7 @@ async function initializeClerkGallery() {
         ini_y: 16570,
         ini_zoom: -6.5,
         height: 650,
+        loading_label: 'Loading the tissue… The first load may take a moment.',
       })
     ),
     load('clustergram', 'Clustergram', () =>
@@ -94,6 +95,7 @@ async function initializeClerkGallery() {
         ...clustergram_size,
         viz_mode: 'dotplot',
         rank_dim: 10,
+        loading_label: 'Loading the cluster signatures…',
         // The case's cell types (columns) and the marker genes behind them (rows),
         // as saved (annotations), or by Clerk before 0.29.1 (clustergram_categories).
         manual_cat:
@@ -124,6 +126,7 @@ async function initializeClerkGallery() {
     celldega.clerk(root.querySelector('[data-clerk-panel]'), {
       conversation,
       height: 760,
+      loading_label: 'Loading the conversation…',
     })
   );
   // The conversation's genes, clusters, cited views and screenshots change the

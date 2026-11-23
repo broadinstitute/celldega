@@ -9,7 +9,7 @@
 </p>
 
 <div id="cell-cloud-container" style="position: relative; display: flex; width: 100%; height: 700px; overflow: hidden; border: 1px solid #ccc;">
-    <p id="cell-cloud-broad-allen-status" role="status" style="position: absolute; top: 10px; left: 15px; z-index: 1;">Loading 3.8 million cells…</p>
+    <p id="cell-cloud-broad-allen-status" role="status" hidden style="position: absolute; top: 10px; left: 15px; z-index: 1;">Loading 3.8 million cells…</p>
     <div id="cell-cloud-broad-allen" style="height: 700px; width: 100%;"></div>
 </div>
 

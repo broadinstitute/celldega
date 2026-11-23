@@ -24,7 +24,7 @@ const load = () =>
     `${strip('../ui/control_style.js')}
      ${strip('../deck-gl/layers/pin_layer.js')}
      ${strip('../ui/pins.js')}
-     return { add_pins_control, valid_pins, PIN_ICON };`
+     return { add_pins_control, valid_pins, pin_card_html, PIN_ICON };`
   );
 
 const observable = (value) => {
@@ -176,7 +176,18 @@ describe('PINS', () => {
       'Glomerulus',
       'Medulla',
     ]);
-    expect(rows[0].title).toBe('Glomerulus\nPodocytes around the tuft.');
+    expect(rows[0].getAttribute('aria-label')).toBe(
+      'Glomerulus: Podocytes around the tuft.'
+    );
+    // Hovering a row shows the pin's card beside it, as its tooltip on the tissue.
+    const { card } = control;
+    expect(card.parentNode).toBe(document.body);
+    expect(card.style.display).toBe('none');
+    rows[0].dispatchEvent(new Event('mouseenter'));
+    expect(card.style.display).toBe('block');
+    expect(card.textContent).toBe('GlomerulusPodocytes around the tuft.');
+    rows[0].dispatchEvent(new Event('mouseleave'));
+    expect(card.style.display).toBe('none');
     rows[1].click();
     await Promise.resolve();
     expect(restore).toHaveBeenCalledWith(PIN.snapshot);
@@ -187,6 +198,31 @@ describe('PINS', () => {
     control.button.click();
     expect(control.list.style.display).toBe('none');
     expect(image_controls.style.display).toBe('');
+  });
+
+  test("a pin's card shows its name, memo and preview, safely", () => {
+    const { api, control } = setup();
+    const html = api.pin_card_html({
+      name: '<b>Tuft</b>',
+      description: 'Podocytes & "capillaries"',
+      thumb: 'QUJD',
+    });
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    expect(box.querySelector('b').textContent).toBe('<b>Tuft</b>');
+    expect(box.textContent).toContain('Podocytes & "capillaries"');
+    expect(box.querySelector('img').getAttribute('src')).toBe(
+      'data:image/jpeg;base64,QUJD'
+    );
+    // Only plain base64 becomes an image.
+    expect(
+      api.pin_card_html({ name: 'x', thumb: '" onerror="x' })
+    ).not.toContain('<img');
+    // The card leaves with the control.
+    const cards = () => document.body.querySelectorAll('.pins_card').length;
+    const before = cards();
+    control.dispose();
+    expect(cards()).toBe(before - 1);
   });
 
   test('pins without a position are left out', () => {

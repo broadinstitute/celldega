@@ -7,7 +7,7 @@ Zooming updates the cell-type counts and signature-based gene estimates in view;
 
 <div class="tabula-gallery" data-tabula-gallery="atlas">
   <div class="tabula-landscape-panel">
-    <p data-tabula-status="landscape" role="status">Loading the atlas… The first load may take a moment.</p>
+    <p data-tabula-status="landscape" role="status" hidden>Loading the atlas… The first load may take a moment.</p>
     <div data-tabula-landscape aria-label="Tabula Sapiens UMAP"></div>
   </div>
 </div>

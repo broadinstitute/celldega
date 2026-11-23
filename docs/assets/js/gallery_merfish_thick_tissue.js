@@ -22,11 +22,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       rotation_x: 45,
       rotation_orbit: -30,
       height: 700,
+      loading_label: 'Loading 76,356 cells…',
     });
     if (status) status.hidden = true;
   } catch (error) {
     if (status) {
-      status.textContent = 'The 3D view could not load. Please reload to try again.';
+      status.hidden = false;
+      status.textContent =
+        'The 3D view could not load. Please reload to try again.';
     }
     console.error('Unable to load the thick-tissue MERFISH gallery', error);
   }

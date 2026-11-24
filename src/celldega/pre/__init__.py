@@ -1,5 +1,19 @@
-"""
-Module for pre-processing to generate LandscapeFiles from ST data.
+"""Pre-process instrument output into DegaFiles, the files Celldega's browser widgets stream.
+
+DegaFiles split images, cell boundaries, transcripts and gene expression into
+tiles and per-gene files, so a browser loads only the piece in view. They can be
+hosted anywhere static files are served (GitHub, Hugging Face, a local server).
+
+- ``main``: pre-process a Xenium or MERSCOPE output directory into DegaFiles.
+- ``add_clustering_from_adata``: add cluster labels and colors from an AnnData.
+- ``add_aligned_he``: tile an H&E image aligned to the same coordinates.
+- ``write_point_cloud_dataset`` / ``write_point_cloud_zarr``: cells in 3D (for
+  example aligned serial sections) for ``CellCloud``.
+- ``write_nbhd_cloud_dataset``: neighborhood alpha shapes in 3D for
+  ``NeighborhoodCloud``.
+
+Single-cell AnnData needs no pre-processing: ``Landscape(zarr_url=...)`` reads an
+AnnData Zarr store directly.
 """
 
 try:
@@ -78,10 +92,60 @@ IMAGE_FALLBACK_PERCENTILE = 99.9
 IMAGE_DISPLAY_MAX_FACTOR = 5.0
 
 
-def main(*args, **kwargs):
+def main(
+    sample,
+    data_root_dir,
+    tile_size,
+    image_tile_layer="all",
+    path_dega_files="",
+    use_int_index=True,
+    max_workers=1,
+    use_row_groups=False,
+    max_row_groups_per_file=400,
+):
+    """Pre-process a Xenium (including Atera) or MERSCOPE output directory into DegaFiles.
+
+    Writes tiled images, cell boundaries and transcripts, per-gene expression,
+    and cell and gene metadata to ``path_dega_files``, ready for ``Landscape``.
+    Imports its dependencies on first call.
+
+    Args:
+        sample: Name of the sample directory inside ``data_root_dir`` (e.g.
+            ``"Xenium_V1_human_Pancreas_FFPE_outs"``).
+        data_root_dir: Directory that contains the sample directory.
+        tile_size: Size of the transcript and boundary tiles, in microns.
+        image_tile_layer: Image layers to tile: ``"dapi"`` or ``"all"`` (default).
+        path_dega_files: Directory to write the DegaFiles to.
+        use_int_index: Use integer cell indices for smaller files and faster
+            rendering (default ``True``).
+        max_workers: Worker processes for tiling (default 1, no parallelism).
+        use_row_groups: Store tiles as row groups in chunked Parquet files, so
+            there are fewer files to host (default ``False``).
+        max_row_groups_per_file: Row groups per chunk file with
+            ``use_row_groups`` (default 400).
+
+    Example::
+
+        dega.pre.main(
+            sample="Xenium_Sample",
+            data_root_dir="data/xenium_data",
+            path_dega_files="data/DegaFiles",
+            tile_size=250,
+        )
+    """
     from .run_pre_processing import main as _main
 
-    return _main(*args, **kwargs)
+    return _main(
+        sample,
+        data_root_dir,
+        tile_size,
+        image_tile_layer=image_tile_layer,
+        path_dega_files=path_dega_files,
+        use_int_index=use_int_index,
+        max_workers=max_workers,
+        use_row_groups=use_row_groups,
+        max_row_groups_per_file=max_row_groups_per_file,
+    )
 
 
 def _load_xenium_cluster_data(data_dir, meta_cell):
@@ -1310,14 +1374,14 @@ def make_meta_gene(cbg, path_output):
 
 
 def make_chromium_from_anndata(adata, path_dega_files):
-    """Generate minimal LandscapeFiles from a Chromium AnnData object.
+    """Generate minimal DegaFiles from a Chromium AnnData object.
 
     Parameters
     ----------
     adata : anndata.AnnData
         AnnData object containing scRNA-seq count data.
     path_dega_files : str or Path
-        Directory where LandscapeFiles will be written.
+        Directory where DegaFiles will be written.
 
     Raises
     ------
@@ -1981,10 +2045,10 @@ def add_clustering_from_adata(
     segmentation_name: str | None = None,
 ) -> None:
     """
-    Add cell clustering data from an AnnData object to LandscapeFiles.
+    Add cell clustering data from an AnnData object to DegaFiles.
 
     This function exports clustering assignments and associated colors from an
-    AnnData object to the LandscapeFiles format, enabling the Landscape and
+    AnnData object to the DegaFiles format, enabling the Landscape and
     Yearbook widgets to use custom clustering results.
 
     Parameters
@@ -1993,7 +2057,7 @@ def add_clustering_from_adata(
         AnnData object containing clustering results in `obs[cluster_key]`.
         Colors can be provided in `uns[f"{cluster_key}_colors"]`.
     path_dega_files : str or Path
-        Path to the LandscapeFiles directory.
+        Path to the DegaFiles directory.
     cluster_key : str, default "leiden"
         Column name in `adata.obs` containing cluster assignments.
     segmentation_name : str, optional
@@ -2014,7 +2078,7 @@ def add_clustering_from_adata(
     >>> adata = sc.read_h5ad("my_data.h5ad")
     >>> sc.tl.leiden(adata, resolution=0.5)
     >>>
-    >>> # Add clustering to LandscapeFiles
+    >>> # Add clustering to DegaFiles
     >>> dega.pre.add_clustering_from_adata(
     ...     adata,
     ...     path_dega_files="./my_landscape_files",

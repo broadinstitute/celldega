@@ -253,7 +253,10 @@ export const ini_view_state = (viz_state) => {
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     rows: {
-      target: [viz_state.viz.label_row_x, default_pan_y],
+      target: [
+        viz_state.viz.rows_target_x ?? viz_state.viz.label_row_x,
+        default_pan_y,
+      ],
       zoom: [viz_state.zoom.ini_zoom_x, viz_state.zoom.ini_zoom_y],
     },
     cols: {
@@ -262,7 +265,10 @@ export const ini_view_state = (viz_state) => {
     },
     row_attr_labels: {
       // Match the rows view x-target so bars and labels align horizontally
-      target: [viz_state.viz.label_row_x, viz_state.viz.col_region / 2],
+      target: [
+        viz_state.viz.rows_target_x ?? viz_state.viz.label_row_x,
+        viz_state.viz.col_region / 2,
+      ],
       zoom: [0, 0],
     },
     col_attr_labels: {

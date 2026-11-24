@@ -105,6 +105,7 @@ import {
 //   getVersion as getParquetWasmVersion,
 // } from '../read_parquet/row_group_poc';
 import { RowGroupTileReader } from '../read_parquet/row_group_tile_reader';
+import { setup_cell_attribute_controls } from '../ui/cell_attribute_controls';
 import { show_loading } from '../ui/loading';
 import { initialize_nbhd_editor } from '../ui/nbhd_editor';
 import { add_pic_button } from '../ui/pic_button';
@@ -1238,8 +1239,10 @@ export const landscape_ist = async (
   const publish_selected_clusters = () => {
     const { model } = viz_state;
     if (typeof model?.set !== 'function') return;
+    // Another per-cell attribute's values aren't clusters.
     const clusters =
-      viz_state.cats?.cat === 'cluster'
+      viz_state.cats?.cat === 'cluster' &&
+      viz_state.cats.attribute_kind !== 'cell'
         ? (viz_state.obs_store.selected_cats.get() || []).map(String)
         : [];
     const now = model.get('selected_clusters') || [];
@@ -1273,13 +1276,18 @@ export const landscape_ist = async (
     pic.dispose();
   });
 
-  // Snapshot cards linked to this Landscape open their view here, in the browser.
+  // Snapshot cards linked to this Landscape open their view here, in the browser,
+  // and Clerk's evidence links (genes, clusters, cited views) change it.
   cleanup_callbacks.push(
-    listen_for_view_requests(viz_state.model, (snapshot) => {
-      // A move of ours, not the scientist's (see on_view_state_change).
-      viz_state.programmatic_view_at = Date.now();
-      return landscape.restore_snapshot(snapshot, { allow_resize: true });
-    })
+    listen_for_view_requests(
+      viz_state.model,
+      (snapshot) => {
+        // A move of ours, not the scientist's (see on_view_state_change).
+        viz_state.programmatic_view_at = Date.now();
+        return landscape.restore_snapshot(snapshot, { allow_resize: true });
+      },
+      { apply: (changes) => landscape.apply_state(changes) }
+    )
   );
 
   // PINS: Snapshots pinned on the tissue (landscape.pins); a pin opens its view.
@@ -1444,6 +1452,45 @@ export const landscape_ist = async (
       );
     cleanup_callbacks.push(initialize_viewport_summary(viz_state));
     schedule_timeout(() => viz_state.refresh_viewport(), 0);
+  }
+
+  // The ▾ beside CELL: show cells by their clusters, another per-cell attribute
+  // or a label set (see ui/cell_attribute_controls.js).
+  if (!viz_state.nbhd_cloud?.is_nbhd_cloud && viz_state.buttons.buttons.cell) {
+    setup_cell_attribute_controls(
+      viz_state,
+      {
+        cell_button:
+          viz_state.buttons.buttons.cell.node?.() ??
+          viz_state.buttons.buttons.cell,
+        slider: viz_state.sliders?.cell,
+        compact: !is_orbit_technology(currentTechnology),
+        refresh_colors: () => {
+          refresh_cell_layer();
+          layers_obj.path_layer = layers_obj.path_layer.clone({
+            updateTriggers: {
+              getColor: [
+                viz_state.cats.selected_cats,
+                viz_state.cats.cat,
+                viz_state.selection_token,
+              ],
+            },
+          });
+          refresh_layer(viz_state, layers_obj, 'path_layer');
+          if (viz_state.viewport_cache)
+            viz_state.viewport_cache.lastCellBarData = null;
+        },
+        // The whole dataset's counts, then the view's (in close-up).
+        recount_bars: () => {
+          viz_state.obs_store.new_cell_bar_data.set(
+            viz_state.cats.cluster_counts || []
+          );
+          viz_state.refresh_viewport?.();
+        },
+        redraw_bars: () => viz_state.redraw_cell_bars?.(),
+      },
+      cleanup_callbacks
+    );
   }
 
   // Callback registries for external listeners

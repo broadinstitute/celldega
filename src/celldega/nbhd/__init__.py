@@ -1,8 +1,15 @@
-"""Neighborhood generation and calculation.
+"""Neighborhoods: build tissue regions from cells, and summarize what is in them.
 
-Neighborhoods are ``GeoDataFrame`` objects (one row per neighborhood) built
-from cells (alpha shapes, hextiles, gradient rings) and summarized against
-cell-level ``AnnData``/``MuData`` into new neighborhood-level ``AnnData``.
+Neighborhoods are ``GeoDataFrame`` objects (one row per neighborhood). Build
+them with ``alpha_shape_cell_clusters`` (concave hulls around each cluster's
+cells), ``generate_hextile`` (a hexagonal grid), ``hextile_niche`` (hexagons
+merged by cluster) or ``calc_gradient`` (rings in and out of a region), or draw
+them on a ``Landscape``. Then summarize them against cell-level ``AnnData`` or
+``MuData`` into neighborhood-level ``AnnData`` ready for a Clustergram:
+``calc_nbhd_by_pop`` (composition), ``calc_nbhd_by_gene`` (expression),
+``calc_nbhd_overlap`` and ``calc_nbhd_bordering`` (relations between
+neighborhoods). ``NeighborhoodCollection`` stores a set of neighborhoods with
+their geometry and these summaries.
 """
 
 from .alpha_shapes import (

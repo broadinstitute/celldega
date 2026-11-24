@@ -21,6 +21,10 @@ import { set_dot_size_encoded } from '../deck-gl/matrix/mat_layer';
 import { apply_rank_view } from '../deck-gl/matrix/rank_views';
 import { get_layers_list } from '../deck-gl/utils/layers_ist';
 import {
+  group_bar_data,
+  selected_bar_names,
+} from '../global_variables/cell_attributes';
+import {
   comparison_bar_data,
   comparison_key,
   gene_color,
@@ -1109,11 +1113,14 @@ export const make_ist_ui_container = (
     };
   };
 
+  const style_cluster_bars = make_bar_cat_subscriber(
+    viz_state.cats.svg_bar_cluster,
+    viz_state.containers.bar_cluster
+  );
+  // Under a label set, a label's bar stands for its clusters.
   viz_state.obs_store.selected_cats.subscribe(
-    make_bar_cat_subscriber(
-      viz_state.cats.svg_bar_cluster,
-      viz_state.containers.bar_cluster
-    ),
+    (selected_cats) =>
+      style_cluster_bars(selected_bar_names(viz_state, selected_cats || [])),
     { immediate: false }
   );
 
@@ -1131,11 +1138,16 @@ export const make_ist_ui_container = (
       color_dict,
       color_of = null,
       selected_array,
+      selected_of = null,
+      group = null,
       bar_callback,
       container,
       tooltip,
     }) =>
-    (bar_data) => {
+    (published) => {
+      // e.g. cluster counts grouped by label (see cell_attributes.js).
+      const bar_data = group ? group(published || []) : published;
+      const selected = selected_of ? selected_of() : selected_array;
       const bar_height = BAR_HEIGHT;
       const svg_height = bar_svg_height(bar_data.length);
       svg.attr('height', svg_height);
@@ -1206,9 +1218,7 @@ export const make_ist_ui_container = (
             0, 0, 0,
           ];
           const opacity =
-            selected_array.length === 0 || selected_array.includes(d.name)
-              ? 1
-              : 0.1;
+            selected.length === 0 || selected.includes(d.name) ? 1 : 0.1;
           return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
         });
 
@@ -1226,17 +1236,30 @@ export const make_ist_ui_container = (
       }
     };
 
+  // The cell bars as last drawn: the whole dataset's counts until the view
+  // publishes its own (zoomed out it doesn't), so a label set can regroup them.
+  let last_cell_bars = viz_state.cats.cluster_counts || [];
+  const draw_cell_bars = subscriber_new_bar_data({
+    svg: viz_state.cats.svg_bar_cluster,
+    color_dict: viz_state.cats.color_dict_cluster,
+    // Read at draw time: the colors and selection change in place.
+    color_of: (name) => viz_state.cats.color_dict_cluster?.[name],
+    selected_array: [],
+    selected_of: () =>
+      selected_bar_names(viz_state, viz_state.cats.selected_cats || []),
+    group: (bars) => group_bar_data(viz_state, bars),
+    bar_callback: bar_callback_cat,
+    container: viz_state.containers.bar_cluster,
+    tooltip: 'cluster',
+  });
   viz_state.obs_store.new_cell_bar_data.subscribe(
-    subscriber_new_bar_data({
-      svg: viz_state.cats.svg_bar_cluster,
-      color_dict: viz_state.cats.color_dict_cluster,
-      selected_array: viz_state.cats.selected_cats,
-      bar_callback: bar_callback_cat,
-      container: viz_state.containers.bar_cluster,
-      tooltip: 'cluster',
-    }),
+    (bars) => {
+      last_cell_bars = bars || [];
+      draw_cell_bars(last_cell_bars);
+    },
     { immediate: false }
   );
+  viz_state.redraw_cell_bars = () => draw_cell_bars(last_cell_bars);
 
   // Gene bars, which become the key while genes are compared: just those genes,
   // in their comparison colors (see gene_comparison.js).

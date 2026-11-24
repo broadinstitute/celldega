@@ -129,6 +129,11 @@ def from_png(
     ``None`` means pending, and an ``apply_error`` reply explains a failed restore.
     ``allow_resize=True`` accepts a different canvas extent. This is a partial
     semantic restore, not a guarantee of identical pixels.
+
+    Example::
+
+        view = dega.viz.from_png("figures/fig2.png")  # saved with snapshot()
+        view
     """
     from .cloud import CellCloud, NeighborhoodCloud
     from .widget import Clustergram, Landscape, Yearbook

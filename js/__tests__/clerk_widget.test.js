@@ -9,15 +9,34 @@ describe('Clerk panel', () => {
   let contain_scroll;
   let enrichr;
 
-  const make_model = (initial) => {
+  // How long the panel waits between a link's requests (see clerk_widget.js).
+  const panel_source = require('fs').readFileSync(
+    require('path').join(__dirname, '../widgets/clerk_widget.js'),
+    'utf8'
+  );
+  const SETTLE = Number(/const SETTLE_MS = (\d+)/.exec(panel_source)[1]);
+  const RESULT_WAIT = Number(
+    /const RESULT_WAIT_MS = (\d+)/.exec(panel_source)[1]
+  );
+
+  // A kernel answers the panel's ping (as Python's Clerk does); without one (a
+  // saved notebook, a docs page) nothing does.
+  const make_model = (initial, { kernel = true, page = false } = {}) => {
     const state = { ...initial };
     const listeners = new Map();
-    return {
+    const model = {
       get: (key) => state[key],
       set: (key, value) => {
         state[key] = value;
         (listeners.get(`change:${key}`) || []).forEach((handler) => handler());
       },
+      send: jest.fn((content) => {
+        if (kernel && content?.event === 'ping') {
+          (listeners.get('msg:custom') || []).forEach((handler) =>
+            handler({ event: 'pong' })
+          );
+        }
+      }),
       save_changes: jest.fn(),
       on: (event, handler) => {
         listeners.set(event, [...(listeners.get(event) || []), handler]);
@@ -31,6 +50,9 @@ describe('Clerk panel', () => {
       listener_count: () =>
         [...listeners.values()].reduce((n, handlers) => n + handlers.length, 0),
     };
+    // A web page using the JavaScript API: a model without `send`.
+    if (page) delete model.send;
+    return model;
   };
 
   beforeEach(() => {
@@ -110,16 +132,19 @@ describe('Clerk panel', () => {
     );
   });
 
-  const render = async (initial = {}) => {
-    const model = make_model({
-      width: 0,
-      height: 400,
-      gene_list: [],
-      messages: [],
-      pending: false,
-      model: '',
-      ...initial,
-    });
+  const render = async (initial = {}, options = {}) => {
+    const model = make_model(
+      {
+        width: 0,
+        height: 400,
+        gene_list: [],
+        messages: [],
+        pending: false,
+        model: '',
+        ...initial,
+      },
+      options
+    );
     const el = document.createElement('div');
     const view = await render_clerk({ model, el });
     return { model, el, view, select: el.querySelector('select') };
@@ -590,6 +615,27 @@ describe('Clerk panel', () => {
     expect(model.get('request').show_genes).toEqual([]);
   });
 
+  test('shift-clicking a gene or cluster link never selects text', async () => {
+    const { el } = await render({
+      cluster_names: ['16'],
+      messages: answer_with('PODXL marks cluster 16.', { genes: ['PODXL'] }),
+    });
+    ['.clerk-gene', '.clerk-cluster'].forEach((selector) => {
+      const link = el.querySelector(selector);
+      const shift = new MouseEvent('mousedown', {
+        shiftKey: true,
+        cancelable: true,
+        bubbles: true,
+      });
+      link.dispatchEvent(shift);
+      expect(shift.defaultPrevented).toBe(true);
+      // A plain mousedown keeps its default (focus, ordinary selection).
+      const plain = new MouseEvent('mousedown', { cancelable: true });
+      link.dispatchEvent(plain);
+      expect(plain.defaultPrevented).toBe(false);
+    });
+  });
+
   test('cluster references link to the Landscape, with labels on hover', async () => {
     const { el, model } = await render({
       cluster_names: ['4', '5', '12'],
@@ -834,6 +880,245 @@ describe('Clerk panel', () => {
     // The rest of the link still shows the view.
     view.click();
     expect(model.get('request')).toMatchObject({ apply_view: views['1A'] });
+  });
+
+  test('without a kernel, links change the linked widgets in the browser', async () => {
+    jest.useFakeTimers();
+    try {
+      const views = {
+        '1A': {
+          landscape: { clusters: ['16'], reset_view: true, caption: 'Fig 1A' },
+          clustergram: {
+            focus_gene: 'PODXL',
+            dendrogram_group: { axis: 'col' },
+          },
+        },
+      };
+      const snapshots = {
+        landscape: { kind: 'landscape', state: {} },
+        clustergram: { kind: 'clustergram', state: {} },
+      };
+      const { el, model } = await render(
+        {
+          cluster_names: ['16'],
+          messages: [
+            {
+              role: 'user',
+              content: 'q',
+              image: 'VEhN',
+              clustergram_image: 'Q0dN',
+              snapshots,
+            },
+            {
+              role: 'assistant',
+              content: 'PODXL and NPHS2 mark cluster 16 ([Fig 1A](view:1A)).',
+              genes: ['PODXL', 'NPHS2'],
+              views,
+            },
+          ],
+        },
+        { kernel: false }
+      );
+      // The widget answers in view_result, linked back as <widget>_result.
+      const answer = (widget) =>
+        model.set(`${widget}_result`, {
+          id: model.get(`${widget}_request`).id,
+          shown: '',
+        });
+
+      // A gene: the Clustergram first (marks it and zooms to it) ...
+      el.querySelector('.clerk-gene').click();
+      expect(model.get('request')).toBeUndefined();
+      expect(model.get('clustergram_request')).toMatchObject({
+        changes: {
+          selection: { highlighted_genes: ['PODXL'] },
+          focus_gene: 'PODXL',
+        },
+      });
+      expect(model.get('landscape_request')).toBeUndefined();
+      // ... then, once it has answered and settled, the Landscape, last.
+      answer('clustergram');
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request')).toMatchObject({
+        changes: { genes: ['PODXL'] },
+      });
+      // Requests carry when they were made, so a reloaded page doesn't replay them.
+      expect(model.get('landscape_request').at).toEqual(expect.any(Number));
+      answer('landscape');
+      jest.advanceTimersByTime(SETTLE);
+
+      el.querySelector('.clerk-cluster').click();
+      expect(model.get('landscape_request')).toMatchObject({
+        changes: { clusters: ['16'] },
+      });
+      answer('landscape');
+      jest.advanceTimersByTime(SETTLE);
+
+      // A cited view sends only the settings a view may change.
+      el.querySelector('a.clerk-view').click();
+      expect(model.get('clustergram_request').changes).toEqual({
+        focus_gene: 'PODXL',
+      });
+      answer('clustergram');
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request').changes).toEqual({
+        clusters: ['16'],
+        reset_view: true,
+      });
+      answer('landscape');
+      jest.advanceTimersByTime(SETTLE);
+
+      // Both of a question's views: the Clustergram's restored first, since its
+      // selection can change the Landscape, then the Landscape's.
+      [...el.querySelectorAll('a.clerk-image-view')]
+        .find((link) => link.textContent === 'Show both views')
+        .click();
+      expect(model.get('clustergram_request')).toMatchObject({
+        snapshot: snapshots.clustergram,
+      });
+      const before = model.get('landscape_request');
+      // Without an answer, the next request still goes, later.
+      jest.advanceTimersByTime(RESULT_WAIT);
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request')).not.toBe(before);
+      expect(model.get('landscape_request')).toMatchObject({
+        snapshot: snapshots.landscape,
+      });
+      expect(model.get('request')).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('a question asked with the Landscape unchanged shows the earlier view', async () => {
+    const earlier = { kind: 'landscape', state: { genes: ['WT1'] } };
+    const clustergram = { kind: 'clustergram', state: {} };
+    const { el, model } = await render({
+      messages: [
+        {
+          role: 'user',
+          content: 'q1',
+          image: 'VEhN',
+          snapshots: { landscape: earlier },
+        },
+        { role: 'assistant', content: 'a1' },
+        {
+          role: 'user',
+          content: 'q2',
+          clustergram_image: 'Q0dN',
+          snapshots: { clustergram },
+          evidence: ['Landscape view (unchanged)', 'Clustergram: 4 rows'],
+        },
+        { role: 'assistant', content: 'a2' },
+      ],
+    });
+    const second = el.querySelectorAll('details.clerk-turn')[1];
+    const images = [...second.querySelectorAll('.clerk-sent-image img')];
+    expect(images.map((img) => img.title)).toEqual([
+      'Landscape view, unchanged since an earlier question',
+      'Clustergram view sent with this question',
+    ]);
+    [...second.querySelectorAll('a.clerk-image-view')]
+      .find((link) => link.textContent === 'Show both views')
+      .click();
+    expect(model.get('request').show_snapshot).toEqual({
+      landscape: earlier,
+      clustergram,
+    });
+  });
+
+  test('without a kernel, the panel is a record to read', async () => {
+    jest.useFakeTimers();
+    try {
+      const { el, model } = await render(
+        { can_restore: true, messages: answer_with('Done.') },
+        { kernel: false }
+      );
+      const visible = (text) =>
+        [...el.querySelectorAll('button')].find((b) => b.textContent === text)
+          .style.display !== 'none';
+      // Until the kernel has had time to answer, nothing changes.
+      expect(el.querySelector('textarea').closest('div').style.display).toBe(
+        'flex'
+      );
+      jest.advanceTimersByTime(5000);
+      expect(el.querySelector('textarea').closest('div').style.display).toBe(
+        'none'
+      );
+      expect(['Save', 'Open', 'Report', 'Return'].map(visible)).toEqual([
+        false,
+        false,
+        false,
+        false,
+      ]);
+      expect(visible('Expand')).toBe(true);
+      expect(el.querySelector('.clerk-offline').hidden).toBe(false);
+      expect(model.send).toHaveBeenCalledWith({ event: 'ping' });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('on a web page (no send), the panel is a record from the start', async () => {
+    const offer = {
+      id: 'o1',
+      status: 'offered',
+      attribute: 'cell_type',
+      cell_types: [{ cluster: '16', label: 'Type A', markers: [] }],
+    };
+    const { el } = await render(
+      {
+        messages: [
+          { role: 'user', content: 'q' },
+          { role: 'assistant', content: 'Done.' },
+          { role: 'action', content: 'Recorded', label_offer: offer },
+          {
+            role: 'action',
+            content: 'Drafted a notebook',
+            analysis: { id: 'a1', path: 'x.ipynb', status: 'drafted' },
+          },
+          {
+            role: 'action',
+            content: 'Suggested a notebook',
+            notebook_offer: {
+              id: 'n1',
+              status: 'offered',
+              purpose: 'Check it',
+            },
+          },
+        ],
+      },
+      { page: true }
+    );
+    expect(el.querySelector('.clerk-offline').hidden).toBe(false);
+    expect(el.querySelector('textarea').closest('div').style.display).toBe(
+      'none'
+    );
+    // Label, Run and Draft need Python: no buttons, the record stays readable.
+    const labels = [...el.querySelectorAll('button')].map((b) => b.textContent);
+    expect(labels).not.toEqual(
+      expect.arrayContaining([
+        'Label',
+        'Run with Claude Code',
+        'Draft notebook',
+      ])
+    );
+    expect(el.textContent).toContain('Drafted for the scientist to inspect.');
+    expect(el.textContent).toContain('Check it');
+  });
+
+  test('with a kernel, the panel stays interactive', async () => {
+    jest.useFakeTimers();
+    try {
+      const { el } = await render({ messages: answer_with('Done.') });
+      jest.advanceTimersByTime(5000);
+      expect(el.querySelector('textarea').closest('div').style.display).toBe(
+        'flex'
+      );
+      expect(el.querySelector('.clerk-offline').hidden).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('a view selecting a dendrogram group says so on hover', async () => {

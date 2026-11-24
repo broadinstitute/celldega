@@ -134,7 +134,14 @@ def test_export_writes_html_notebook_record_and_findings(tmp_path) -> None:
 
     written = w.export(tmp_path / "out", adata=adata, groupby="leiden")
 
-    assert set(written) == {"record", "findings", "notebook", "html", "cell_types"}
+    assert set(written) == {
+        "record",
+        "findings",
+        "notebook",
+        "html",
+        "cell_types",
+        "cluster_labels",
+    }
     page = written["html"].read_text()
     text = re.sub(r"<[^>]+>", "", page)  # code is syntax-highlighted
     assert "What is cluster 4?" in page
@@ -455,3 +462,51 @@ def test_a_reopened_case_pins_its_views_on_the_landscape(tmp_path) -> None:
     later = landscape()
     link_clerk(Clerk(clerk_files=tmp_path), landscape=later)
     assert [p["name"] for p in later.pins] == ["Q1 Landscape"]
+
+
+def test_a_reopened_case_links_its_clusters(tmp_path) -> None:
+    """Cluster ids in a reopened case's messages are links: from the report at once,
+    and from the linked Clustergram once the browser has drawn it."""
+    import numpy as np
+
+    from celldega.clust import Matrix
+    from celldega.viz import Clustergram, link_clerk
+
+    w = Clerk()
+    w.output_dir = tmp_path
+    w.record, w.findings = _record()
+    w.cluster_names = ["4", "7"]
+    w.cluster_labels = {"4": "Goblet cells (Clerk, tentative)"}
+    folder = w.export(title="Clusters", html=False)["record"].parent
+    meta = json.loads((folder / "record.json").read_text())["meta"]
+    assert meta["cluster_names"] == ["4", "7"]
+
+    def clustergram():
+        mat = Matrix(pd.DataFrame(np.ones((2, 3)), index=["MUC2", "TFF3"], columns=["4", "7", "9"]))
+        mat.cluster()
+        return Clustergram(matrix=mat)
+
+    # The report's clusters, before the Clustergram is drawn (no col_names yet).
+    cgm = clustergram()
+    assert cgm.col_names == []
+    reopened = Clerk(clerk_files=folder, clustergram=cgm)
+    assert reopened.cluster_names == ["4", "7"]
+    assert reopened.cluster_labels == {"4": "Goblet cells (Clerk, tentative)"}
+    # Drawing it (the browser sets its columns) links the loaded data's clusters.
+    cgm.col_names = ["4", "7", "9"]
+    assert reopened.cluster_names == ["4", "7", "9"]
+    assert reopened.cluster_labels["4"] == "Goblet cells (Clerk, tentative)"
+
+    # A report saved without cluster names (before 0.29.1) links them once drawn,
+    # whether the Clustergram is linked before or after it has drawn.
+    record = json.loads((folder / "record.json").read_text())
+    del record["meta"]["cluster_names"], record["meta"]["cluster_labels"]
+    (folder / "record.json").write_text(json.dumps(record))
+    cgm = clustergram()
+    older = Clerk(clerk_files=folder, clustergram=cgm)
+    assert older.cluster_names == []
+    cgm.col_names = ["4", "7", "9"]
+    assert older.cluster_names == ["4", "7", "9"]
+    drawn = clustergram()
+    drawn.col_names = ["4", "9"]
+    assert link_clerk(Clerk(clerk_files=folder), clustergram=drawn).cluster_names == ["4", "9"]

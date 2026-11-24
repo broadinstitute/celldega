@@ -24,7 +24,7 @@ const load = () =>
     `${strip('../ui/control_style.js')}
      ${strip('../deck-gl/layers/pin_layer.js')}
      ${strip('../ui/pins.js')}
-     return { add_pins_control, valid_pins, PIN_ICON };`
+     return { add_pins_control, valid_pins, pin_card_html, PIN_ICON };`
   );
 
 const observable = (value) => {
@@ -176,7 +176,18 @@ describe('PINS', () => {
       'Glomerulus',
       'Medulla',
     ]);
-    expect(rows[0].title).toBe('Glomerulus\nPodocytes around the tuft.');
+    expect(rows[0].getAttribute('aria-label')).toBe(
+      'Glomerulus: Podocytes around the tuft.'
+    );
+    // Hovering a row shows the pin's card beside it, as its tooltip on the tissue.
+    const { card } = control;
+    expect(card.parentNode).toBe(document.body);
+    expect(card.style.display).toBe('none');
+    rows[0].dispatchEvent(new Event('mouseenter'));
+    expect(card.style.display).toBe('block');
+    expect(card.textContent).toBe('GlomerulusPodocytes around the tuft.');
+    rows[0].dispatchEvent(new Event('mouseleave'));
+    expect(card.style.display).toBe('none');
     rows[1].click();
     await Promise.resolve();
     expect(restore).toHaveBeenCalledWith(PIN.snapshot);
@@ -189,6 +200,31 @@ describe('PINS', () => {
     expect(image_controls.style.display).toBe('');
   });
 
+  test("a pin's card shows its name, memo and preview, safely", () => {
+    const { api, control } = setup();
+    const html = api.pin_card_html({
+      name: '<b>Tuft</b>',
+      description: 'Podocytes & "capillaries"',
+      thumb: 'QUJD',
+    });
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    expect(box.querySelector('b').textContent).toBe('<b>Tuft</b>');
+    expect(box.textContent).toContain('Podocytes & "capillaries"');
+    expect(box.querySelector('img').getAttribute('src')).toBe(
+      'data:image/jpeg;base64,QUJD'
+    );
+    // Only plain base64 becomes an image.
+    expect(
+      api.pin_card_html({ name: 'x', thumb: '" onerror="x' })
+    ).not.toContain('<img');
+    // The card leaves with the control.
+    const cards = () => document.body.querySelectorAll('.pins_card').length;
+    const before = cards();
+    control.dispose();
+    expect(cards()).toBe(before - 1);
+  });
+
   test('pins without a position are left out', () => {
     const { api } = setup();
     expect(
@@ -199,14 +235,18 @@ describe('PINS', () => {
 
 describe('view-mode menu', () => {
   const { collapse_view_modes } = new Function(
-    `${strip('../ui/view_mode_menu.js')}\nreturn { collapse_view_modes };`
+    `${strip('../ui/control_style.js')}
+     ${strip('../ui/view_mode_menu.js')}
+     return { collapse_view_modes };`
   )();
 
   const make = () => {
     const row = document.createElement('div');
+    const clicks = [];
     const button = (text) => {
       const el = document.createElement('div');
       el.textContent = text;
+      el.addEventListener('click', () => clicks.push(text));
       row.appendChild(el);
       return el;
     };
@@ -214,46 +254,48 @@ describe('view-mode menu', () => {
     const spatial = button('SPATIAL');
     const img = button('IMG');
     const xy = button('XY');
+    xy.title = 'Plot expression of two genes';
     const view = observable('spatial');
     const viz_state = {
       buttons: { buttons: { spatial: { node: () => spatial }, umap, xy } },
       obs_store: { landscape_view: view },
     };
     collapse_view_modes(viz_state, row);
-    return { row, spatial, umap, xy, img, view };
+    const select = row.querySelector('select');
+    return { row, select, spatial, umap, xy, img, view, clicks };
   };
 
-  test('only the current mode shows; the caret lists the others', () => {
-    const { row, spatial, umap, xy, img } = make();
-    const menu = row.firstChild;
-    expect(menu.className).toBe('view_mode_menu');
-    expect([...menu.children].map((c) => c.textContent)).toEqual([
+  const pick = (select, mode) => {
+    select.value = mode;
+    select.dispatchEvent(new Event('change'));
+  };
+
+  test('one dropdown shows the current mode, like the Clustergram order', () => {
+    const { row, select, spatial, umap, xy, img } = make();
+    expect(row.firstChild.className).toBe('view_mode_menu');
+    expect(row.children[1]).toBe(img); // IMG and the rest stay after the menu
+    expect([...select.options].map((o) => o.textContent)).toEqual([
       'SPATIAL',
       'UMAP',
       'XY',
-      '▾',
     ]);
-    expect(row.children[1]).toBe(img); // IMG and the rest stay after the menu
-    expect([spatial, umap, xy].map((b) => b.style.display)).toEqual([
-      '',
-      'none',
-      'none',
-    ]);
-    menu.lastChild.click();
-    expect([spatial, umap, xy].map((b) => b.style.display)).toEqual([
-      '',
-      '',
-      '',
-    ]);
+    expect(select.options[2].title).toBe('Plot expression of two genes');
+    expect(select.value).toBe('spatial');
+    expect(select.style.appearance).toBe('none'); // no arrow
+    // The mode buttons are kept (their handlers), out of sight.
+    [spatial, umap, xy].forEach((b) =>
+      expect(b.parentNode.style.display).toBe('none')
+    );
   });
 
-  test('switching modes shows the new one and closes the menu', async () => {
-    const { row, spatial, umap, view } = make();
-    row.firstChild.lastChild.click();
-    umap.click();
-    view.set('umap');
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(umap.style.display).toBe('');
-    expect(spatial.style.display).toBe('none');
+  test('picking a mode runs its button; the dropdown follows the view', () => {
+    const { select, view, clicks } = make();
+    pick(select, 'xy');
+    expect(clicks).toEqual(['XY']);
+    expect(select.value).toBe('spatial'); // until the switch lands
+    view.set('xy');
+    expect(select.value).toBe('xy');
+    view.set('umap'); // e.g. from Python or a restored view
+    expect(select.value).toBe('umap');
   });
 });

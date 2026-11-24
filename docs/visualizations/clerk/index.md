@@ -24,6 +24,10 @@ and supported replay settings. Full view restoration is not implemented yet. Cle
 runs through your own Claude account, using the `claude` command-line tool on the
 machine running your notebook.
 
+To see a saved case, open the [Clerk gallery page](../../gallery/gallery_clerk_atera_kidney.md),
+which needs no Python, or reopen the same case in the
+[Clerk case notebook](../../examples/brief_notebooks/Atera_Kidney_Clerk_Case.ipynb).
+
 ## What Clerk can do
 
 - **Read the visualizations.** With each question, Clerk receives what the linked

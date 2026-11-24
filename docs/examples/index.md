@@ -58,11 +58,18 @@ Focused examples demonstrating specific features:
 - [Atera Pre-process](brief_notebooks/Atera_Pre-process.ipynb) - Making DegaFiles from a 10x Atera output bundle with `dega.pre.main` and viewing them in a Landscape
 - [Atera Pre-process with H&E](brief_notebooks/Atera_Pre-process_with_HE.ipynb) - Downloading a 10x Atera bundle with its post-run H&E image, making DegaFiles (one file per tile for GitHub, or row groups for Hugging Face), and adding the aligned H&E with `dega.pre.add_aligned_he`
 - [Atera Kidney Yearbook Review](brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb) - Find large endothelial cells with podocyte (NPHS2) transcripts using `dega.select`, review their portraits, and get the selected IDs
+- [Atera Kidney Low-Quality Cell Review](brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb) - Sample the cells a low-quality filter would remove with `dega.select` and check them by eye in a Yearbook before applying it
+- [Atera Kidney Ectopic Expression Review](brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb) - Rank one cell type's cells by an unexpected marker and review the strongest in a Yearbook that highlights both genes
+- [Atera Kidney Clerk Case](brief_notebooks/Atera_Kidney_Clerk_Case.ipynb) - Reopen a saved Clerk conversation from Hugging Face, with its cell-type labels on a Clustergram and its views as pins on a Landscape
 - [CellCloud Thick MERFISH](brief_notebooks/Landscape-3D_thick_MERFISH.ipynb) - 3D orbit-camera CellCloud view of thick-tissue MERFISH data
 - [Landscape-Heatmap Visium-HD](brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb) - Combined Landscape and heatmap visualization
 - [UMAP-Cluster Pancreas Xenium](brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb) - UMAP clustering with Xenium pancreas data
 - [Custom Segmentation](brief_notebooks/Custom_Segmentation.ipynb) - Using custom cell segmentation with Celldega
 - [Gradient Neighborhood Pancreas Islets](brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb) - Building inward/outward gradient rings around pancreatic islets and profiling cell-type proportion and hormone expression with distance from the islet edge
+- [DatasetCollection Feature Spaces](brief_notebooks/DatasetCollection_Feature_Spaces.ipynb) - Compare simulated samples by cell-type composition in a Composition view and by their B cells' expression in a Clustergram
+- [SetCollection Compare Clusterings](brief_notebooks/SetCollection_Compare_Clusterings.ipynb) - Overlap two clusterings in a SetCollection to see which clusters match, merge or split
+- [SetCollection Signatures Dot Plot](brief_notebooks/SetCollection_Signatures.ipynb) - Each set's mean expression and fraction expressing in one dot-plot Clustergram
+- [NeighborhoodCollection Hexagonal Niches](brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb) - Cluster a simulated tissue's hexagonal neighborhoods by composition into niches
 
 <!-- CCLE multi-omics tutorials temporarily hidden
 

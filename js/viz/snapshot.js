@@ -320,9 +320,11 @@ export const landscape_identity = (state) => ({
   revision: String(state.model?.get?.('data_revision') || ''),
   cells: names_signature(state.cats?.cell_names_array),
   genes: names_signature(state.genes?.gene_names),
+  // The clusters, whatever attribute the cells are shown by (cell_attributes.js).
   clusters: {
-    attribute: state.cats?.inst_cell_attr ?? null,
-    ...names_signature(state.cats?.cell_cats),
+    attribute:
+      state.cats?.base?.attribute ?? state.cats?.inst_cell_attr ?? null,
+    ...names_signature(state.cats?.base?.cell_cats ?? state.cats?.cell_cats),
   },
 });
 

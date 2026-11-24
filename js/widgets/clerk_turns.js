@@ -16,6 +16,12 @@
  * @returns {{question: object|null, work: object[], answer: object|null,
  *   results: object[], errors: object[], pause: object|null, pending: boolean}[]}
  */
+// Shift-click adds a gene or cluster to what's shown; it shouldn't also extend the
+// page's text selection (which starts on mousedown).
+const no_shift_select = (event) => {
+  if (event.shiftKey) event.preventDefault();
+};
+
 export const group_turns = (messages = [], pending = false) => {
   const turns = [];
   let current = null;
@@ -200,6 +206,7 @@ export const link_genes = (
         hover.hide?.();
         on_click(name, event.shiftKey);
       });
+      link.addEventListener('mousedown', no_shift_select);
       link.addEventListener('mouseenter', (event) => hover.show?.(name, event));
       link.addEventListener('mousemove', (event) => hover.move?.(event));
       link.addEventListener('mouseleave', () => hover.hide?.());
@@ -271,6 +278,7 @@ export const link_clusters = (
       hover.hide?.();
       on_click(id, event.shiftKey);
     });
+    link.addEventListener('mousedown', no_shift_select);
     link.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();

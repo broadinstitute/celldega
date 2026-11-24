@@ -1,5 +1,31 @@
 # Dataset Module API Reference
 
+## Motivation
+
+Studies compare samples, patients and cohorts, not only cells. A sample can be
+described by its cell-type composition, or by the expression signature of one
+of its populations, such as its B cells, and samples can group differently in
+each space: two samples with the same composition can differ in what their B
+cells express. Neither the sample-level observations nor these feature spaces
+come off the instrument; they have to be built from cell-level data.
+
+`DatasetCollection` makes the samples the observations, carries their metadata
+(such as patient and condition), and stores each feature space calculated for
+them as a modality, so the spaces can be clustered and compared side by side.
+Like Celldega's other collections, it is a thin wrapper around MuData; see
+[Collections](../collection/api.md) for the shared model.
+
+## Demo notebooks
+
+- [Compare samples in two feature spaces](../../examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb):
+  a simulated cohort's samples by cell-type composition, in a Composition view,
+  and by their B cells' expression, in a Clustergram.
+
+To compare group composition interactively, see the
+[Composition guide](../../visualizations/composition.md).
+
+## Overview
+
 The `dataset` module contains dataset-level modality constructors and
 helpers for building MuData-backed `DatasetCollection` objects from cell-level
 `AnnData` metadata.
@@ -28,6 +54,9 @@ dset.calc_population(
 )
 
 population = dset.mod["population"]
+
+# Compare the samples' composition as stacked bars.
+dega.viz.Composition(dset, group_attrs=["condition"])
 
 dset.calc_signature(
     adata,

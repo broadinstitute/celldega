@@ -90,7 +90,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (status) status.hidden = true;
     } catch (error) {
       if (status) {
-        status.textContent = 'The preview could not load. Please reload to try again.';
+        status.hidden = false;
+        status.textContent =
+          'The preview could not load. Please reload to try again.';
       }
       console.error(`Unable to load ${id}`, error);
     }

@@ -15,4 +15,15 @@ linked views with `dega.viz.spatial_clustergram(..., clerk=True)`.
 
 See the [Clerk guide](../../visualizations/clerk/index.md) for a walkthrough and code snippets.
 
+## Demo notebooks
+
+- [Reopen a saved Clerk case](../../examples/brief_notebooks/Atera_Kidney_Clerk_Case.ipynb):
+  a conversation about an Atera kidney section's clusters, read from Hugging Face, with
+  its cell-type labels on a Clustergram and its views as pins on a Landscape.
+
+**Gallery:** the [Clerk case page](../../gallery/gallery_clerk_atera_kidney.md) shows
+the same case without Python.
+
+## API
+
 ::: celldega.clerk

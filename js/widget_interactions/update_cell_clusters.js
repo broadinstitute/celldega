@@ -1,4 +1,5 @@
 import { set_dict_cell_cats, update_cell_cats } from '../global_variables/cat';
+import { reset_cell_attribute } from '../global_variables/cell_attributes';
 import { is_orbit_technology } from '../global_variables/image_info';
 import { update_meta_cluster } from '../global_variables/meta_cluster';
 import { buildCellCompactData } from '../utils/compact_data';
@@ -9,6 +10,9 @@ export const update_cell_clusters = (deck_ist, layers_obj, viz_state) => {
     viz_state.img?.landscape_parameters?.technology
   );
 
+  // New clusters from Python: shown by them (switching keeps the old ones).
+  if (viz_state.cats.attribute) viz_state.show_cell_attribute?.('');
+  reset_cell_attribute(viz_state.cats);
   update_meta_cluster(viz_state.cats, new_cluster_info['meta_cluster']);
   update_cell_cats(viz_state.cats, new_cluster_info['new_clusters']);
   if (pointCloud) {

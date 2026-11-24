@@ -2,10 +2,21 @@
 
 For a conceptual overview of what each widget shows and how to use it, see
 the [Visualizations](../../visualizations/index.md) section.
-Try the [Chromium PBMC notebook](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb)
-for low dimensional embedding landscapes, or the
-[Visium HD CRC notebook](../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb)
-for linked spatial, expression, and enrichment views.
+
+## Demo notebooks
+
+- [Landscape view Xenium](../../examples/brief_notebooks/Landscape_View_Xenium.ipynb): a Xenium tissue
+  linked to a Clustergram of its clusters.
+- [Landscape from a local server](../../examples/brief_notebooks/Landscape_Local_Server.ipynb): view
+  DegaFiles stored on your own machine.
+- [CellCloud thick MERFISH](../../examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb): cells of a
+  thick tissue in 3D, linked to a Clustergram.
+- [Review candidate cells](../../examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb): page through
+  cells in a Yearbook and get the ones you check back in Python.
+
+**Tutorials:** [Chromium PBMC](../../examples/tutorial_notebooks/Scanpy_Chromium.ipynb) for UMAP landscapes,
+and [Visium HD CRC](../../examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich.ipynb)
+for linked spatial, expression and enrichment views.
 
 ## Landscape data sources and controls
 

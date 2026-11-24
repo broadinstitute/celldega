@@ -437,9 +437,12 @@ export const matrix_viz = async (
     }),
   });
 
-  // Snapshot cards linked to this Clustergram open their view here, in the browser.
-  const stop_view_requests = listen_for_view_requests(model, (snapshot) =>
-    matrix.restore_snapshot(snapshot, { allow_resize: true })
+  // Snapshot cards linked to this Clustergram open their view here, in the browser,
+  // and Clerk's evidence links (a gene, a cited view) change it.
+  const stop_view_requests = listen_for_view_requests(
+    model,
+    (snapshot) => matrix.restore_snapshot(snapshot, { allow_resize: true }),
+    { apply: (changes) => matrix.apply_state(changes) }
   );
 
   initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);
@@ -558,6 +561,14 @@ export const matrix_viz = async (
         row: !!viz_state.model.get('manual_row_cat'),
         col: !!viz_state.model.get('manual_col_cat'),
       };
+      // Labels already in the synced state: set from Python before this view
+      // (e.g. a reopened Clerk case) or saved with the notebook.
+      let saved_manual = {};
+      try {
+        saved_manual = JSON.parse(viz_state.model.get('manual_cat') || '{}');
+      } catch {
+        saved_manual = {};
+      }
       ['row', 'col'].forEach((axis) => {
         if (!viz_state.manual_cat.flags[axis]) return;
 
@@ -567,6 +578,29 @@ export const matrix_viz = async (
 
         if (store) {
           store.setAttribute(attribute_name);
+        }
+        // Show them rather than letting the sync below wipe them.
+        const saved = saved_manual?.[axis]?.[attribute_name];
+        const names = new Set(
+          (viz_state[`${axis}_nodes`] || []).map((node) => String(node.name))
+        );
+        const values = Object.fromEntries(
+          Object.entries(saved?.values || {}).filter(
+            ([node, value]) =>
+              value && value !== 'N.A.' && names.has(String(node))
+          )
+        );
+        if (store && attribute_name && Object.keys(values).length) {
+          apply_manual_categories(
+            viz_state,
+            {
+              axis,
+              attribute: attribute_name,
+              values,
+              colors: saved.colors || {},
+            },
+            allocate_color
+          );
         }
 
         // Build initial bars, but don't echo back yet

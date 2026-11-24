@@ -856,6 +856,13 @@ def snapshot(*widgets, name: str = "", **kwargs) -> Screenshot:
     ``name`` is the collection key and postcard title. Capture finishes after the
     notebook cell returns. See :func:`screenshot` for capture options; that spelling
     remains a compatibility alias.
+
+    Example::
+
+        linked = dega.viz.spatial_clustergram(landscape, cgm)
+        dega.viz.snapshot(linked, description="...", path="figures/fig2.png")
+        # later, or in another notebook:
+        view = dega.viz.from_png("figures/fig2.png")
     """
     if name:
         kwargs["title"] = name

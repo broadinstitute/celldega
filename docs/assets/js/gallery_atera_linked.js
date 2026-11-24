@@ -51,6 +51,7 @@ async function initializeAteraGallery() {
       status.hidden = true;
       return viz;
     } catch (error) {
+      status.hidden = false;
       status.textContent = `The ${name === 'landscape' ? 'tissue view' : 'Clustergram'} could not load. Reload this page to try again.`;
       console.error(`Unable to load the ${sample.name} ${name}`, error);
       return null;
@@ -66,6 +67,7 @@ async function initializeAteraGallery() {
         ini_y: sample.ini_y,
         ini_zoom: sample.ini_zoom,
         height: 650,
+        loading_label: 'Loading the tissue… The first load may take a moment.',
       })
     ),
     load('clustergram', () =>
@@ -73,6 +75,7 @@ async function initializeAteraGallery() {
         url: matrix_url,
         width: 550,
         height: 550,
+        loading_label: 'Loading the cluster signatures…',
         viz_mode: 'dotplot',
         rank_dim: 3,
       })

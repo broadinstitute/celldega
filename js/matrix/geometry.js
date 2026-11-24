@@ -10,6 +10,9 @@
  * The matrix is therefore capped to the space left after the region and the
  * dendrogram; layouts with up to two bars per axis are unchanged.
  */
+/** Font size (px) of the row attribute titles (ui/attribute_labels.js). */
+export const ROW_ATTR_TITLE_SIZE = 10;
+
 export const compute_geometry = (viz_state) => {
   const { viz } = viz_state;
   const total_row_attrs = viz_state.attr.num.row;
@@ -56,4 +59,22 @@ export const compute_geometry = (viz_state) => {
   const bar_overflow =
     viz.col_region / 2 + last_bar_bottom - viz.label_col_y - viz.col_region;
   viz.cols_target_y = viz.label_col_y + Math.max(0, bar_overflow);
+
+  // Row labels and attribute bars share the `rows` view (and the bars' titles
+  // the static `row_attr_labels` view), both centered on `rows_target_x`. Each
+  // bar moves the last bar 9 px right but the views' right edge only 6.5 px, so
+  // from the third bar on, the last bar and its title crossed the edge. Move the
+  // target right by that overflow (the content shifts left), counting the bar's
+  // half width or its title's half height (10 px text), whichever is larger.
+  // Bar centers follow `build_cat_data_for_axis` (attr_state.js) plus
+  // `cat_shift_row` (cat_layers.js).
+  const last_row_bar_right =
+    viz.row_cat_offset * (total_row_attrs - 0.5) +
+    20 +
+    (viz.cat_shift_row ?? 0) +
+    Math.max(viz.row_cat_width / 2, ROW_ATTR_TITLE_SIZE / 2);
+  const row_overflow =
+    last_row_bar_right - (viz.label_row_x + viz.row_region / 2);
+  viz.rows_target_x =
+    viz.label_row_x + (total_row_attrs > 0 ? Math.max(0, row_overflow) : 0);
 };

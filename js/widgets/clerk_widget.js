@@ -33,6 +33,123 @@ const MAX_PANEL_WIDTH = 900;
 // Below this width (px) the question box takes its own line.
 const NARROW_PANEL_WIDTH = 480;
 
+// How long (ms) the panel waits for the kernel to answer before treating itself as a
+// saved record (a saved notebook, a docs page): a busy kernel answers later.
+const NO_KERNEL_MS = 3000;
+
+// Without a kernel, a link's requests go one widget at a time: the next once the
+// last widget has answered (its view_result, linked back as <widget>_result) and a
+// moment more for what it set off (e.g. a Clustergram selection's link to the
+// Landscape); without an answer, after RESULT_WAIT_MS.
+const RESULT_WAIT_MS = 8000;
+const SETTLE_MS = 300;
+
+// The settings a cited view may change, per widget (as Python's VIEW_KEYS, with a
+// Clustergram's resolved dendrogram group); sent as apply_state changes.
+const VIEW_SETTINGS = {
+  landscape: [
+    'clusters',
+    'genes',
+    'view',
+    'zoom_to',
+    'reset_view',
+    'space',
+    'layers',
+    'channels',
+    'sliders',
+    'image_source',
+  ],
+  clustergram: [
+    'marker_level',
+    'mode',
+    'size',
+    'focus_gene',
+    'view',
+    'order',
+    'crop',
+    'dendrogram',
+    'selection',
+  ],
+};
+const pick_settings = (settings, keys) =>
+  Object.fromEntries(
+    Object.entries(settings || {}).filter(([key]) => keys.includes(key))
+  );
+
+/**
+ * Evidence links followed in the browser, without a kernel: the same requests
+ * Python's Clerk makes (show genes, clusters, a cited view, a question's
+ * screenshots), as `{changes}` (apply_state settings) or `{snapshot}` (a saved
+ * view) for each linked widget. Python jslinks Clerk's `landscape_request` and
+ * `clustergram_request` to their `view_request` (see link_clerk).
+ * @param {object} fields - What the panel would send Python.
+ * @returns {Array<[string, object]>} `[widget, request fields]` pairs, in order.
+ */
+export const browser_requests = (fields) => {
+  const requests = [];
+  if (Array.isArray(fields.show_genes)) {
+    const genes = fields.show_genes;
+    const clustergram = { selection: { highlighted_genes: genes } };
+    // Zoom to a single gene clicked; several genes keep the current focus.
+    if (genes.length === 1 && fields.focus === genes[0]) {
+      clustergram.focus_gene = genes[0];
+    } else if (!genes.length) clustergram.focus_gene = '';
+    requests.push(['clustergram', { changes: clustergram }]);
+    requests.push(['landscape', { changes: { genes } }]);
+  } else if (Array.isArray(fields.show_clusters)) {
+    requests.push([
+      'landscape',
+      { changes: { clusters: fields.show_clusters } },
+    ]);
+  } else if (fields.apply_view) {
+    // Always the Clustergram first: its focus, selection or crop can change a
+    // linked Landscape, which then gets its own settings last.
+    ['clustergram', 'landscape'].forEach((name) => {
+      const changes = pick_settings(
+        fields.apply_view[name],
+        VIEW_SETTINGS[name]
+      );
+      if (Object.keys(changes).length) requests.push([name, { changes }]);
+    });
+  } else if (fields.show_snapshot) {
+    ['clustergram', 'landscape'].forEach((name) => {
+      const snapshot = fields.show_snapshot[name];
+      if (snapshot) requests.push([name, { snapshot }]);
+    });
+  }
+  return requests;
+};
+
+/**
+ * A question sent with "Landscape view (unchanged)" has no Landscape preview or
+ * saved view of its own: the Landscape was as sent with an earlier question. Fill
+ * them in from the latest earlier question that has them, so the question's Show
+ * links return the Landscape to what the scientist saw.
+ * @param {object[]} messages - The panel's messages.
+ * @returns {object[]} The messages, those questions with `landscape_unchanged`.
+ */
+export const with_unchanged_views = (messages) => {
+  let last = null;
+  return messages.map((message) => {
+    if (message?.role !== 'user') return message;
+    const landscape = message.snapshots?.landscape;
+    if (message.image && landscape) {
+      last = { image: message.image, snapshot: landscape };
+      return message;
+    }
+    const unchanged = (message.evidence || []).some((line) =>
+      /^Landscape view \(unchanged\)/.test(String(line))
+    );
+    if (!unchanged || !last || message.image) return message;
+    return {
+      ...message,
+      image: last.image,
+      snapshots: { ...(message.snapshots || {}), landscape: last.snapshot },
+      landscape_unchanged: true,
+    };
+  });
+};
+
 // Styles for rendered Markdown, scoped to the panel's class so they can't leak into
 // the rest of the notebook.
 const PANEL_CLASS = 'celldega-clerk';
@@ -53,11 +170,24 @@ const MARKDOWN_CSS = `
 .${PANEL_CLASS} .clerk-md th, .${PANEL_CLASS} .clerk-md td { border: 1px solid #d3d3d3; padding: 2px 6px; }
 .${PANEL_CLASS} .clerk-md blockquote { border-left: 3px solid #d3d3d3; margin: 4px 0; padding-left: 8px; color: #555; }
 .${PANEL_CLASS} .clerk-md hr { border: none; border-top: 1px solid #d3d3d3; margin: 8px 0; }
-.${PANEL_CLASS} details > summary { cursor: pointer; }
-.${PANEL_CLASS} .clerk-turn { margin-bottom: 16px; border-bottom: 1px solid #eef0f2; padding-bottom: 10px; }
-.${PANEL_CLASS} .clerk-turn > summary { font-size: 14px; line-height: 1.35; white-space: pre-wrap; }
-.${PANEL_CLASS} .clerk-fold > summary { font-size: 12px; color: #6c757d; margin: 4px 0 2px; }
-.${PANEL_CLASS} .clerk-fold[open] { border-left: 2px solid #e3e6e9; padding-left: 8px; }
+/* Folds look the same everywhere: undo page themes that style <details> (e.g. the
+   docs' MkDocs Material admonitions), then draw them as cards. */
+.${PANEL_CLASS} details { margin: 0; padding: 0; border: none; border-radius: 0; box-shadow: none; background: none; font-size: inherit; overflow: visible; }
+.${PANEL_CLASS} details > summary { cursor: pointer; list-style: none; display: flex; align-items: flex-start; gap: 7px; position: relative; margin: 0; padding: 0; min-height: 0; border: none; background: none; font-weight: normal; }
+.${PANEL_CLASS} details > summary::-webkit-details-marker { display: none; }
+.${PANEL_CLASS} details > summary::before, .${PANEL_CLASS} details > summary::after { content: none !important; display: none !important; }
+.${PANEL_CLASS} .clerk-chevron { flex: 0 0 auto; width: 5px; height: 5px; margin: 0.45em 2px 0 1px; border-right: 1.5px solid #8a96a3; border-bottom: 1.5px solid #8a96a3; transform: rotate(-45deg); transition: transform 0.15s; }
+.${PANEL_CLASS} details[open] > summary > .clerk-chevron { transform: rotate(45deg); }
+/* Each question and its answer is a card: where a turn starts and ends is clear. */
+.${PANEL_CLASS} .clerk-turn { margin: 0 0 12px; padding: 0 10px 10px; border: 1px solid #cfe0f1; border-radius: 6px; background: #fff; }
+.${PANEL_CLASS} .clerk-turn > summary { margin: 0 -10px 8px; padding: 7px 10px; background: #eef5fc; border-bottom: 1px solid #cfe0f1; border-radius: 5px 5px 0 0; font-size: 14px; line-height: 1.35; white-space: pre-wrap; }
+.${PANEL_CLASS} .clerk-turn:not([open]) { padding-bottom: 0; }
+.${PANEL_CLASS} .clerk-turn:not([open]) > summary { margin-bottom: 0; border-bottom: none; border-radius: 5px; }
+.${PANEL_CLASS} .clerk-answer { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eef0f2; }
+.${PANEL_CLASS} .clerk-fold { margin: 6px 0; padding: 0 8px; border: 1px solid #e3e7eb; border-radius: 4px; }
+.${PANEL_CLASS} .clerk-fold > summary { margin: 0 -8px; padding: 4px 8px; font-size: 12px; color: #5f6b77; }
+.${PANEL_CLASS} .clerk-fold[open] { padding-bottom: 6px; }
+.${PANEL_CLASS} .clerk-fold[open] > summary { margin-bottom: 6px; border-bottom: 1px solid #eef0f2; }
 .${PANEL_CLASS} .clerk-button, .${PANEL_CLASS} .clerk-tool, .${PANEL_CLASS} .clerk-ask {
   font-family: inherit; font-weight: bold; text-transform: uppercase; letter-spacing: 0.02em;
   background: none; border: none; cursor: pointer; user-select: none; }
@@ -112,6 +242,9 @@ const MARKDOWN_CSS = `
   max-width: calc(50% - 3px); }
 .${PANEL_CLASS} .clerk-sent-image img { display: block; max-width: 100%; max-height: 160px;
   border: 1px solid #d3d3d3; }
+/* Host pages can set display on forms or buttons (e.g. docs notebooks'
+   ".jupyter-wrapper form { display: block }"), which would show hidden parts. */
+.${PANEL_CLASS} [hidden] { display: none !important; }
 .${PANEL_CLASS} .clerk-report-form { margin-top: 5px; padding: 6px; border: 1px solid #d3d3d3; }
 .${PANEL_CLASS} .clerk-report-form label { display: block; font-size: 12px; color: #47515b; }
 .${PANEL_CLASS} .clerk-report-form input { width: 100%; box-sizing: border-box; margin-top: 3px; padding: 4px; font: inherit; font-size: 13px; }
@@ -333,7 +466,9 @@ export const render_clerk = async ({ model, el }) => {
         img.title =
           message.role === 'view'
             ? `${label} view Clerk showed`
-            : `${label} view sent with this question`;
+            : name === 'landscape' && message.landscape_unchanged
+              ? 'Landscape view, unchanged since an earlier question'
+              : `${label} view sent with this question`;
         figure.appendChild(img);
         if (snapshots[name]) {
           figure.appendChild(
@@ -377,8 +512,15 @@ export const render_clerk = async ({ model, el }) => {
     details.open = folds.has(key) ? folds.get(key) : default_open;
     const summary = document.createElement('summary');
     summary.addEventListener('click', () => folds.set(key, !details.open));
-    if (typeof label === 'string') summary.textContent = label;
-    else summary.appendChild(label);
+    const chevron = document.createElement('span');
+    chevron.className = 'clerk-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    summary.appendChild(chevron);
+    if (typeof label === 'string') {
+      const text = document.createElement('span');
+      text.textContent = label;
+      summary.appendChild(text);
+    } else summary.appendChild(label);
     details.appendChild(summary);
     return details;
   };
@@ -464,6 +606,79 @@ export const render_clerk = async ({ model, el }) => {
     model.save_changes();
   };
 
+  // Is there a kernel to answer? Python replies to a ping. Without one (a saved
+  // notebook, a docs page) the panel is a record to read: its evidence links change
+  // the linked widgets in the browser, and asking, saving and reports are hidden.
+  // A model without `send` (a web page using the JavaScript API) has no kernel at all.
+  let kernel = false;
+  let checked = typeof model.send !== 'function';
+  const offline = () => checked && !kernel;
+  const kernel_listeners = [];
+  const on_custom = (message) => {
+    if (message?.event !== 'pong' || kernel) return;
+    kernel = true;
+    kernel_listeners.forEach((fn) => fn());
+  };
+  model.on('msg:custom', on_custom);
+  try {
+    model.send?.({ event: 'ping' });
+  } catch {
+    // No comm: a static page.
+  }
+  const no_kernel_timer = checked
+    ? null
+    : setTimeout(() => {
+        checked = true;
+        kernel_listeners.forEach((fn) => fn());
+      }, NO_KERNEL_MS);
+
+  // Evidence links: through Python with a kernel (which also saves the view for
+  // RETURN), else straight to the linked widgets in the browser.
+  const queued = [];
+  let sending = false;
+  let wait_timer = null;
+  let stop_waiting = null;
+  const send_next = () => {
+    const next = queued.shift();
+    if (!next) {
+      sending = false;
+      return;
+    }
+    sending = true;
+    const [widget, request] = next;
+    requestCounter += 1;
+    const id = `${Date.now()}-${requestCounter}`;
+    const event = `change:${widget}_result`;
+    let answered = null;
+    const done = () => {
+      clearTimeout(wait_timer);
+      model.off?.(event, answered);
+      stop_waiting = null;
+      wait_timer = setTimeout(send_next, SETTLE_MS);
+    };
+    answered = () => {
+      if ((model.get(`${widget}_result`) || {}).id === id) done();
+    };
+    stop_waiting = () => model.off?.(event, answered);
+    model.on(event, answered);
+    wait_timer = setTimeout(done, RESULT_WAIT_MS);
+    model.set(`${widget}_request`, {
+      id,
+      at: Date.now(),
+      name: '',
+      ...request,
+    });
+    model.save_changes();
+  };
+  const follow = (fields) => {
+    if (kernel) {
+      send_now(fields);
+      return;
+    }
+    queued.push(...browser_requests(fields));
+    if (!sending) send_next();
+  };
+
   // Hovering a gene shows its UniProt name and description, as in the other
   // widgets; clusters, gene lists and views get a short description.
   const gene_tooltip = make_gene_hover_tooltip();
@@ -512,7 +727,7 @@ export const render_clerk = async ({ model, el }) => {
     shown_clusters = [];
     shown_view = '';
     // The Clustergram zooms to the gene just clicked (if it's still shown).
-    send_now({ show_genes: genes, focus: genes.includes(focus) ? focus : '' });
+    follow({ show_genes: genes, focus: genes.includes(focus) ? focus : '' });
     mark_shown();
   };
   const show_gene = (gene, add) =>
@@ -521,7 +736,7 @@ export const render_clerk = async ({ model, el }) => {
     shown_clusters = toggle(shown_clusters, cluster, add);
     shown_genes = [];
     shown_view = '';
-    send_now({ show_clusters: shown_clusters });
+    follow({ show_clusters: shown_clusters });
     mark_shown();
   };
   // What an Enrichr chart needs from the panel (see clerk_enrichment.js). Its bars
@@ -600,7 +815,7 @@ export const render_clerk = async ({ model, el }) => {
         shown_clusters = view.landscape?.genes?.length
           ? []
           : view.landscape?.clusters || [];
-        send_now({
+        follow({
           apply_view: {
             landscape: view.landscape,
             clustergram: view.clustergram,
@@ -695,10 +910,12 @@ export const render_clerk = async ({ model, el }) => {
         status.dataset.done = '1';
       }
     } else {
-      status.textContent = 'Inspect it before running it.';
+      status.textContent = offline()
+        ? 'Drafted for the scientist to inspect.'
+        : 'Inspect it before running it.';
     }
     if (!status.dataset.done) box.appendChild(status);
-    if (state === 'drafted' || state === 'failed') {
+    if (!offline() && (state === 'drafted' || state === 'failed')) {
       const run = make_button(
         state === 'failed'
           ? 'Run again with Claude Code'
@@ -729,7 +946,7 @@ export const render_clerk = async ({ model, el }) => {
       what.textContent = offer.purpose;
       box.appendChild(what);
     }
-    if (!model.get('pending')) {
+    if (!model.get('pending') && !offline()) {
       const ask = document.createElement('div');
       ask.className = 'clerk-offer';
       ask.textContent = 'Draft this notebook for you to inspect?';
@@ -784,7 +1001,7 @@ export const render_clerk = async ({ model, el }) => {
       done.textContent = `↻ ${offer.result || 'Labeled the Clustergram'}`;
       if (offer.result_detail) done.title = offer.result_detail;
       wrapper.appendChild(done);
-    } else if (!model.get('pending')) {
+    } else if (!model.get('pending') && !offline()) {
       const ask = document.createElement('div');
       ask.className = 'clerk-offer';
       // Names the manual column category the labels go in, e.g. "(cell_type)".
@@ -852,7 +1069,7 @@ export const render_clerk = async ({ model, el }) => {
     shown_genes = [];
     shown_clusters = [];
     shown_view = '';
-    send_now({ show_snapshot: snapshots });
+    follow({ show_snapshot: snapshots });
     mark_shown();
   };
 
@@ -875,6 +1092,7 @@ export const render_clerk = async ({ model, el }) => {
       wrapper = document.createElement('div');
       wrapper.className = 'clerk-turn';
     }
+    wrapper.dataset.turn = String(index);
 
     if (turn.work.length) {
       const steps = turn.work.length;
@@ -913,8 +1131,8 @@ export const render_clerk = async ({ model, el }) => {
     let asked = false;
     if (turn.answer) {
       const answer = document.createElement('div');
-      // Room between the question (and its work) and Clerk's answer.
-      answer.style.marginTop = '12px';
+      // Where Clerk's answer starts, under the question and its work.
+      answer.className = 'clerk-answer';
       answer.appendChild(make_label('Clerk', '#2c7fb8'));
       const {
         main,
@@ -1033,7 +1251,7 @@ export const render_clerk = async ({ model, el }) => {
       messagesPane.appendChild(empty);
     }
 
-    const turns = group_turns(messages, pending);
+    const turns = group_turns(with_unchanged_views(messages), pending);
     turns.forEach((turn, index) => {
       messagesPane.appendChild(
         renderTurn(turn, index, index === turns.length - 1)
@@ -1041,7 +1259,8 @@ export const render_clerk = async ({ model, el }) => {
     });
 
     mark_shown();
-    messagesPane.scrollTop = messagesPane.scrollHeight;
+    // Follow the latest message; a saved record (no kernel) opens at its start.
+    if (!offline()) messagesPane.scrollTop = messagesPane.scrollHeight;
   };
 
   // Open or close every fold at once, e.g. to search the whole conversation.
@@ -1112,7 +1331,7 @@ export const render_clerk = async ({ model, el }) => {
   );
   back.style.color = '#2c7fb8';
   const sync_back = () => {
-    back.style.display = model.get('can_restore') ? '' : 'none';
+    back.style.display = model.get('can_restore') && !offline() ? '' : 'none';
   };
   toolbar.insertBefore(back, toolbar.firstChild);
 
@@ -1128,7 +1347,7 @@ export const render_clerk = async ({ model, el }) => {
       ? 'Close every turn and section'
       : EXPAND_TITLE;
   });
-  tool(
+  const save_tool = tool(
     'Save',
     'Save this conversation to reopen later with OPEN or clerk.load_conversation ' +
       '(reading it needs no Claude; its links need the same data)',
@@ -1151,7 +1370,7 @@ export const render_clerk = async ({ model, el }) => {
     });
   });
   container.appendChild(opener);
-  tool(
+  const open_tool = tool(
     'Open',
     'Open a conversation saved with SAVE (it replaces this one)',
     () => opener.click()
@@ -1188,7 +1407,7 @@ export const render_clerk = async ({ model, el }) => {
     reportForm.hidden = true;
   });
   container.insertBefore(reportForm, messagesPane);
-  tool(
+  const report_tool = tool(
     'Report',
     'Save this conversation as an HTML report with its snapshots, the state to ' +
       'reproduce them, and the recorded cell types (written next to the notebook)',
@@ -1198,6 +1417,33 @@ export const render_clerk = async ({ model, el }) => {
       reportName.focus();
     }
   );
+
+  // Without a kernel the panel is a record to read: what needs Python is hidden.
+  const offline_note = document.createElement('div');
+  offline_note.className = 'clerk-offline';
+  offline_note.style.color = '#6b7785';
+  offline_note.style.fontSize = '12px';
+  offline_note.style.marginTop = '4px';
+  offline_note.textContent =
+    'A saved conversation: click its genes, clusters and views to see them in ' +
+    'the linked widgets. Asking Clerk needs the notebook running.';
+  offline_note.hidden = true;
+  container.insertBefore(offline_note, messagesPane);
+  const sync_kernel = () => {
+    const read_only = offline();
+    inputRow.style.display = read_only ? 'none' : 'flex';
+    [save_tool, open_tool, report_tool].forEach((button) => {
+      button.style.display = read_only ? 'none' : '';
+    });
+    if (read_only) reportForm.hidden = true;
+    offline_note.hidden = !read_only;
+    sync_back();
+  };
+  // Offers (Label, Run, Draft) need Python: a record shows them without buttons.
+  kernel_listeners.push(() => {
+    sync_kernel();
+    renderMessages();
+  });
 
   sendBtn.addEventListener('click', submit);
   textarea.addEventListener('keydown', (e) => {
@@ -1244,13 +1490,19 @@ export const render_clerk = async ({ model, el }) => {
 
   modelPicker.sync();
   effortPicker.sync();
-  sync_back();
+  sync_kernel();
   renderEvidence();
   renderMessages();
   resize_observer?.observe(container);
 
   return {
     finalize: () => {
+      if (no_kernel_timer) clearTimeout(no_kernel_timer);
+      clearTimeout(wait_timer);
+      stop_waiting?.();
+      queued.length = 0;
+      kernel_listeners.length = 0;
+      model.off?.('msg:custom', on_custom);
       resize_observer?.disconnect();
       gene_tooltip.destroy();
       listeners.forEach(([event, handler]) => model.off?.(event, handler));

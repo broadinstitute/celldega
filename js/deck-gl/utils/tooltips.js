@@ -1,10 +1,12 @@
 import { has_uniprot_info } from '../../external_apis/uniprot_api';
+import { active_labels } from '../../global_variables/cell_attributes';
 import {
   escape_html,
   gene_info_tooltip_html,
   refresh_gene_tooltip_async,
 } from '../../ui/gene_info';
 import { is_cluster_color_mode } from '../layers/cell_color';
+import { pin_card_html } from '../layers/pin_layer';
 
 import { get_point_cloud_source_index } from './point_cloud_indices';
 
@@ -137,10 +139,23 @@ export const make_tooltip = (viz_state, info) => {
       inst_cat = viz_state.cats.dict_cell_cats?.[inst_name];
       cellIndex = viz_state.cats.cell_name_to_index_map?.get(String(inst_name));
     }
-    inst_html = `<div>cell: ${inst_name}</div><div>cluster: ${inst_cat}</div>${cell_expression_html(
-      viz_state.cats,
-      cellIndex
-    )}`;
+    // The attribute cells are shown by (the ▾ beside CELL), then the cluster.
+    let shown_html = '';
+    const { attribute, attribute_kind } = viz_state.cats;
+    if (attribute && attribute_kind === 'cell') {
+      // The categories are that attribute's; the clusters are kept aside.
+      shown_html = `<div>${escape_html(attribute)}: ${escape_html(inst_cat)}</div>`;
+      inst_cat =
+        viz_state.cats.base?.cell_cats?.[cellIndex] ?? inst_cat ?? 'N.A.';
+    } else if (attribute && attribute_kind === 'labels') {
+      const label = active_labels(viz_state)?.[String(inst_cat)];
+      shown_html = `<div>${escape_html(attribute)}: ${
+        label ? escape_html(label) : '<i>unlabeled</i>'
+      }</div>`;
+    }
+    inst_html = `<div>cell: ${escape_html(inst_name)}</div>${shown_html}<div>cluster: ${escape_html(
+      inst_cat
+    )}</div>${cell_expression_html(viz_state.cats, cellIndex)}`;
 
     viz_state.tooltip_cat_cell = inst_cat;
   }
@@ -185,20 +200,7 @@ export const make_tooltip = (viz_state, info) => {
   }
   // Pins: the Snapshot's name, memo and a preview of its image (see ui/pins.js).
   else if (info.layer.id.startsWith('pin-layer')) {
-    const pin = info.object;
-    if (pin) {
-      const memo = pin.description
-        ? `<div style="white-space: pre-wrap; margin-top: 2px;">${escape_html(
-            pin.description
-          )}</div>`
-        : '';
-      // Only plain base64 goes into the image's src.
-      const preview =
-        typeof pin.thumb === 'string' && /^[A-Za-z0-9+/]+=*$/.test(pin.thumb)
-          ? `<img src="data:image/jpeg;base64,${pin.thumb}" alt="" style="display: block; max-width: 200px; max-height: 200px; margin-top: 4px; border: 1px solid #d3d3d3;">`
-          : '';
-      inst_html = `<div><b>${escape_html(pin.name || 'Snapshot')}</b></div>${memo}${preview}`;
-    }
+    if (info.object) inst_html = pin_card_html(info.object);
   }
   // Handle neighborhood-cloud shape tooltips -- GeoJsonLayer hands back the
   // picked feature directly as info.object (not indexed into a separate

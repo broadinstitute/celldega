@@ -341,3 +341,82 @@ describe('image source helpers', () => {
     );
   });
 });
+
+describe('one image dropdown: IMG / FLR / H&E / NONE', () => {
+  // The IMG button: a click toggles it (blue = on), as text_buttons.js does.
+  const with_img_button = (api, viz, layers) => {
+    const view_modes = document.createElement('div');
+    const channels = document.createElement('div');
+    const img = document.createElement('div');
+    img.style.color = 'blue';
+    const clicks = [];
+    img.addEventListener('click', () => {
+      const show = img.style.color !== 'blue';
+      img.style.color = show ? 'blue' : 'gray';
+      viz.img_layer_visible = show;
+      clicks.push(show);
+    });
+    view_modes.appendChild(img);
+    viz.buttons = { buttons: { img: { node: () => img } } };
+    const select = api.make_image_source_control(
+      viz,
+      layers,
+      view_modes,
+      channels
+    );
+    return { select, img, clicks, channels };
+  };
+  const shown = (select) =>
+    [...select.options].filter((o) => !o.hidden).map((o) => o.textContent);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  test('without an H&E: IMG or NONE, in place of the IMG button', async () => {
+    const api = makeAPI();
+    const viz = state(false);
+    const layers = { image_layers: await api.make_image_layers(viz) };
+    const { select, img, clicks } = with_img_button(api, viz, layers);
+    expect(shown(select)).toEqual(['IMG', 'NONE']);
+    expect(select.nextSibling).toBe(img);
+    expect(img.style.display).toBe('none');
+    expect([select.value, select.style.color]).toEqual(['primary', 'blue']);
+    change(select, 'none');
+    expect(clicks).toEqual([false]);
+    expect([select.value, select.style.color]).toEqual(['none', 'gray']);
+    change(select, 'primary');
+    expect(clicks).toEqual([false, true]);
+    expect([select.value, select.style.color]).toEqual(['primary', 'blue']);
+  });
+
+  test('with an H&E: FLR, H&E or NONE; picking an image turns it on', async () => {
+    const api = makeAPI();
+    const viz = state();
+    const layers = { image_layers: await api.make_image_layers(viz) };
+    const { select, clicks, channels } = with_img_button(api, viz, layers);
+    expect(shown(select)).toEqual(['FLR', 'H&E', 'NONE']);
+    change(select, 'none');
+    change(select, 'he');
+    expect(clicks).toEqual([false, true]);
+    expect(viz.img.image_source).toBe('he');
+    expect(channels.style.display).toBe('none');
+    expect(layers.image_layers.map((l) => l.props.visible)).toEqual([
+      false,
+      true,
+    ]);
+    expect([select.value, select.style.color]).toEqual(['he', 'blue']);
+  });
+
+  test('follows the IMG button: gray while the UMAP hides the image', async () => {
+    const api = makeAPI();
+    const viz = state(false);
+    const layers = { image_layers: await api.make_image_layers(viz) };
+    const { select, img, clicks } = with_img_button(api, viz, layers);
+    img.style.color = 'gray'; // the view switched to UMAP
+    await settle();
+    expect([select.value, select.style.color]).toEqual(['primary', 'gray']);
+    // NONE there just remembers it (no click, so the view stays on the UMAP).
+    change(select, 'none');
+    expect(clicks).toEqual([]);
+    expect(viz.img_layer_visible).toBe(false);
+    expect(select.value).toBe('none');
+  });
+});

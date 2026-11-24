@@ -368,3 +368,65 @@ def test_brackets_around_gene_and_cluster_names_are_dropped(monkeypatch) -> None
     assert w.messages[-1]["content"] == (
         "Cluster 4 carries MUC2 and tff3 [Fig 1A](view:1A), not [CAT] or [n=3]."
     )
+
+
+@pytest.mark.parametrize("failure", ["error", "timeout"])
+def test_a_widget_the_link_leaves_alone_cannot_block_it(monkeypatch, failure) -> None:
+    """A linked Yearbook that can't save its view (e.g. not displayed) doesn't stop
+    links that change only the Landscape and Clustergram; one that changes it does."""
+    from celldega.viz import Yearbook
+
+    w, _ls, _cgm, sent = _linked(monkeypatch)
+    w.snapshot_timeout = 0.05
+    yearbook = Yearbook(base_url="https://example.org/data", cells=["c1"], rows=1, cols=1)
+    w._linked_widgets["yearbook"] = yearbook
+    asked = []
+
+    def yearbook_send(content):
+        asked.append(content["event"])
+        if content["event"] == "capture_snapshot" and failure == "error":
+            yearbook._on_snapshot_msg(
+                yearbook,
+                {"event": "snapshot_error", "id": content["id"], "error": "No canvas to capture"},
+                [],
+            )
+
+    monkeypatch.setattr(yearbook, "send", yearbook_send)
+
+    # The scientist's views are saved first, then the link is followed.
+    w.request = {"id": "g1", "show_genes": ["MUC2"], "focus": "MUC2"}
+    w._last_evidence.result(timeout=5)
+    assert _applied(sent, "landscape")[-1] == {"genes": ["MUC2"]}
+    assert asked == [] and w.error == ""
+    assert set(w._saved_view["snapshots"]) == {"landscape", "clustergram"}
+    assert w.can_restore
+
+    # A view that changes the Yearbook needs its view saved first: it isn't followed.
+    image = {"yearbook": {"kind": "yearbook", "state": {}}}
+    count = len(w.messages)
+    w.request = {"id": "yb", "show_snapshot": image}
+    w._last_evidence.result(timeout=5)
+    assert asked == ["capture_snapshot"]
+    reason = "No canvas to capture" if failure == "error" else "no reply within"
+    assert "Couldn't save your Yearbook view" in w.error and reason in w.error
+    assert w.messages[count:] == [{"role": "error", "content": w.error}]
+    # The views saved for Back are kept.
+    assert set(w._saved_view["snapshots"]) == {"landscape", "clustergram"}
+
+    w.request = {"id": "back", "restore_view": True}
+    w._last_evidence.result(timeout=5)
+    assert w._saved_view is None and not w.can_restore and w.error == ""
+
+
+def test_a_later_link_saves_views_the_first_one_left_alone(monkeypatch) -> None:
+    w, _ls, _cgm, sent = _linked(monkeypatch)
+    w.request = {"id": "v1", "apply_view": {"clustergram": {"marker_level": 10}}}
+    w._last_evidence.result(timeout=5)
+    saved = deepcopy(w._saved_view)
+    assert set(saved["snapshots"]) == {"landscape", "clustergram"}
+    # Nothing new to save: the first saved views are kept for Back.
+    captures = sum(m["event"] == "capture_snapshot" for m in sent["landscape"])
+    w.request = {"id": "c1", "show_clusters": ["4"]}
+    w._last_evidence.result(timeout=5)
+    assert sum(m["event"] == "capture_snapshot" for m in sent["landscape"]) == captures
+    assert w._saved_view == saved

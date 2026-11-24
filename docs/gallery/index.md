@@ -81,17 +81,17 @@ and cell-type [Clustergrams](../visualizations/clustergram.md).
 
 ### Single-cell RNA-seq
 
+Explore 1.1 million cells in a single-cell RNA-seq atlas with a linked
+Landscape and Clustergram, or [open the UMAP alone](gallery_tabula_sapiens.md).
+Preview captured in [Celldega-App](../getting-started/desktop-app.md).
+
+Data: Tabula Sapiens Consortium, via
+[CZ CELLxGENE Discover](https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5)
+· [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 <div class="grid cards" markdown>
 
 - [Tabula Sapiens: Atlas UMAP and Cell-Type Signatures ![Tabula Sapiens UMAP linked to its cell-type marker Clustergram in Celldega-App](https://raw.githubusercontent.com/broadinstitute/celldega-app/de78faf4389b03874ff9a9d0e7340ef5ee444a26/docs/screenshots/tabula-sapiens-linked.png)](gallery_tabula_sapiens_clustergram.md)
-
-    Explore 1.1 million cells in a single-cell RNA-seq atlas with a linked
-    Landscape and Clustergram, or [open the UMAP alone](gallery_tabula_sapiens.md).
-    Preview captured in [Celldega-App](../getting-started/desktop-app.md).
-
-    Data: Tabula Sapiens Consortium, via
-    [CZ CELLxGENE Discover](https://cellxgene.cziscience.com/collections/e5f58829-1a66-40b5-a624-9046778e74f5)
-    · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 </div>
 
@@ -100,6 +100,18 @@ and cell-type [Clustergrams](../visualizations/clustergram.md).
 <div class="grid cards" markdown>
 
 - [CITE-seq PBMC Cell Types: RNA and Protein ![Clustered RNA and protein markers of PBMC cell types](../assets/img/citeseq_pbmc_cell_types.png)](gallery_citeseq_pbmc.md)
+
+</div>
+
+## Clerk
+
+Saved conversations with [Clerk](../visualizations/clerk/index.md), Celldega's AI tool
+for interpreting its visualizations, read beside the views they discuss. Click a
+gene, cluster or cited view in the conversation to show it in the linked views.
+
+<div class="grid cards" markdown>
+
+- [Clerk Case: Atera Kidney Cell Types ![A saved Clerk conversation beside the Atera kidney tissue and its labeled cluster Clustergram](../assets/img/clerk_atera_kidney.png)](gallery_clerk_atera_kidney.md)
 
 </div>
 

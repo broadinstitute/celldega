@@ -77,6 +77,29 @@ test('requests made before the viewer rendered are not replayed', async () => {
   expect(model.get('view_result').id).toBe('new');
 });
 
+test('a request can change settings instead of opening a saved view', async () => {
+  // Clerk's evidence links (a gene, a cluster, a cited view) without a kernel.
+  const model = make_model();
+  const restore = jest.fn(async () => []);
+  const apply = jest.fn(async () => ['colored by PODXL']);
+  listen_for_view_requests(model, restore, { apply });
+  model.set('view_request', { id: 'g', changes: { genes: ['PODXL'] } });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(apply).toHaveBeenCalledWith({ genes: ['PODXL'] });
+  expect(restore).not.toHaveBeenCalled();
+  expect(model.get('view_result')).toEqual({ id: 'g', shown: '' });
+});
+
+test('settings are ignored by a viewer that cannot apply them', async () => {
+  const model = make_model();
+  const restore = jest.fn(async () => []);
+  listen_for_view_requests(model, restore);
+  model.set('view_request', { id: 'g', changes: { genes: ['PODXL'] } });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(restore).not.toHaveBeenCalled();
+  expect(model.get('view_result')).toBeUndefined();
+});
+
 test('announce_view tells the cards what is shown, or that nothing is', () => {
   const model = make_model();
   announce_view(model, 'Medulla');

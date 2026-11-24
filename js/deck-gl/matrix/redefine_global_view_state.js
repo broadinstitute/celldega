@@ -4,7 +4,10 @@ import { get_dendro_tree_view_states } from './views';
 const get_static_view_states = (viz_state) => ({
   row_attr_labels: {
     // Match the rows view x-target so bars and labels align horizontally
-    target: [viz_state.viz.label_row_x, viz_state.viz.col_region / 2],
+    target: [
+      viz_state.viz.rows_target_x ?? viz_state.viz.label_row_x,
+      viz_state.viz.col_region / 2,
+    ],
     zoom: [0, 0],
   },
   col_attr_labels: {
@@ -32,7 +35,10 @@ export const redefine_global_view_state = (
     },
     rows: {
       zoom: [viz_state.zoom.ini_zoom_x, zoom_curated[1]],
-      target: [viz_state.viz.label_row_x, pan_curated[1]],
+      target: [
+        viz_state.viz.rows_target_x ?? viz_state.viz.label_row_x,
+        pan_curated[1],
+      ],
     },
     cols: {
       zoom: [zoom_curated[0], viz_state.zoom.ini_zoom_y],

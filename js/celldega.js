@@ -507,6 +507,31 @@ async function render({ model: widget_model, el }) {
   }
 }
 
+// The model values that show saved manual categories: each labeled axis turned on
+// with its (first) attribute, as Python's Clustergram.set_categories leaves them.
+const manual_category_values = (manual_cat) => {
+  let manual = manual_cat || {};
+  if (typeof manual === 'string') {
+    try {
+      manual = JSON.parse(manual || '{}');
+    } catch {
+      manual = {};
+    }
+  }
+  const attribute = (axis) =>
+    Object.keys(manual?.[axis] || {}).find((name) => name) || '';
+  const [row, col] = [attribute('row'), attribute('col')];
+  return {
+    manual_cat: JSON.stringify(manual),
+    manual_row_cat: row,
+    manual_col_cat: col,
+    manual_cat_config: JSON.stringify({
+      row: row ? { attribute: row } : null,
+      col: col ? { attribute: col } : null,
+    }),
+  };
+};
+
 // The widget model a Clustergram renders with when there is no Python kernel.
 const static_matrix_model = (
   network,
@@ -519,6 +544,7 @@ const static_matrix_model = (
     data_revision = '',
     width = 500,
     height = 500,
+    manual_cat = null,
   } = {}
 ) =>
   make_options_model({
@@ -537,23 +563,69 @@ const static_matrix_model = (
     width,
     height,
     data_revision,
+    // Saved labels (Python's Clustergram.manual_cat), drawn when it renders.
+    ...manual_category_values(manual_cat),
   });
+
+/**
+ * Show the loading mark (the pulsing Celldega awning and a label) in `el` while a
+ * web page's visualization loads, as notebook widgets do, and remove it once the
+ * visualization is drawn or fails. It appears only if loading takes more than a
+ * moment, so a view that renders at once never flashes it.
+ *
+ * @param {HTMLElement} el - The visualization's container
+ * @param {{loading?: boolean, loading_label?: string, height?: number}} options -
+ *   `loading: false` turns the mark off; `loading_label` replaces "Loading…"
+ *   (e.g. "Loading 3.8 million cells…"); `height` (px) is the space it takes.
+ * @param {() => Promise<object>} draw - Loads and draws the visualization
+ */
+const while_loading = async (el, options, draw) => {
+  const { loading = true, loading_label, height } = options || {};
+  const remove =
+    loading && el
+      ? show_loading(el, {
+          height: Number(height) || undefined,
+          label: loading_label || 'Loading…',
+          delay: LOADING_DELAY_MS,
+        })
+      : () => {};
+  try {
+    return await draw();
+  } finally {
+    remove();
+  }
+};
+
+// The positional renderers (landscape_ist, yearbook) take `height` 12th.
+const with_loading_mark =
+  (draw_with) =>
+  async (...args) =>
+    while_loading(args[0], { height: args[11] }, () => draw_with(...args));
 
 /**
  * Render a Landscape in a web page, without Python. The options are the
  * Python `Landscape`'s arguments, with the same defaults; for example a
  * single-cell AnnData Zarr store:
  * `await landscape(el, { zarr_url, cluster_attr: 'leiden', ini_zoom: -4.5 })`.
+ * The Celldega loading mark shows while it loads.
  *
  * @param {HTMLElement} el - Container element for the visualization
  * @param {object} options - e.g. `zarr_url` or `base_url`, `cluster_attr`,
- *   `cell_attr`, `technology`, `ini_x`, `ini_y`, `ini_zoom`, `height`, `width`
+ *   `cell_attr`, `technology`, `ini_x`, `ini_y`, `ini_zoom`, `height`, `width`;
+ *   `pins` (points of interest, Python's `landscape.pin_data`) and `show_pins`;
+ *   `loading_label` (replaces "Loading…") or `loading: false` (no loading mark)
  * @returns {Promise<object>} The Landscape, with its `model` (see link_models)
- *   and `finalize()`
+ *   and `finalize()`. `model.set('show_pins', true)` shows its pins, as clicking
+ *   PINS does.
  */
 const landscape = async (el, options = {}) => {
-  const model = make_options_model(landscape_model_values(options));
-  const viz = await render_landscape_ist({ model, el });
+  const { loading, loading_label, ...rest } = options;
+  const model = make_options_model(landscape_model_values(rest));
+  const viz = await while_loading(
+    el,
+    { loading, loading_label, height: model.get('height') },
+    () => render_landscape_ist({ model, el })
+  );
   viz.model = model;
   return viz;
 };
@@ -579,10 +651,16 @@ const landscape = async (el, options = {}) => {
  * @param {string} [options.data_revision] - An immutable revision of the data
  *   (a release tag, commit hash or content digest). Saved views record it, and
  *   restoring a view declared for another revision is refused.
+ * @param {object|string} [options.manual_cat] - Row and column labels to show
+ *   (Python's `Clustergram.manual_cat`, e.g. a saved Clerk case's
+ *   `clustergram_categories`): `{axis: {attribute: {values, colors}}}`
  * @param {function} [options.row_label_callback] - Called with a clicked row name
  * @param {function} [options.col_label_callback] - Called with a clicked column name
  * @param {function} [options.col_dendro_callback] - Called on dendrogram selections
  * @param {object} [options.fetchOptions] - Options for every fetch, e.g. headers
+ * @param {string} [options.loading_label] - Replaces "Loading…" under the loading
+ *   mark shown while it loads
+ * @param {boolean} [options.loading=true] - Show the loading mark
  * @returns {Promise<object>} The Clustergram, with its `model` (see
  *   link_models) and `finalize()`
  */
@@ -598,10 +676,13 @@ const clustergram = async (
     viz_mode,
     rank_dim = null,
     data_revision = '',
+    manual_cat = null,
     row_label_callback = null,
     col_label_callback = null,
     col_dendro_callback = null,
     fetchOptions = {},
+    loading = true,
+    loading_label,
   } = {}
 ) => {
   if ([given_network, url, base_url].filter(Boolean).length !== 1) {
@@ -609,33 +690,38 @@ const clustergram = async (
       '[clustergram] Pass exactly one of network, url (Matrix Zarr), or base_url (DegaFiles).'
     );
   }
-  const network =
-    given_network ??
-    (url
-      ? await network_from_zarr(url, { fetchOptions })
-      : await networkFromDegaFiles(base_url, name, fetchOptions));
-  const model = static_matrix_model(network, {
-    viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
-    rank_dim,
-    url: url || '',
-    base_url: base_url || '',
-    name,
-    width,
-    height,
-    data_revision: String(data_revision || ''),
+  // The matrix plus its label and dendrogram margins.
+  const mark = { loading, loading_label, height: Number(height) + 100 };
+  return while_loading(el, mark, async () => {
+    const network =
+      given_network ??
+      (url
+        ? await network_from_zarr(url, { fetchOptions })
+        : await networkFromDegaFiles(base_url, name, fetchOptions));
+    const model = static_matrix_model(network, {
+      viz_mode: viz_mode ?? (network.size_mat ? 'dotplot' : 'heatmap'),
+      rank_dim,
+      url: url || '',
+      base_url: base_url || '',
+      name,
+      width,
+      height,
+      data_revision: String(data_revision || ''),
+      manual_cat,
+    });
+    const viz = await matrix_viz(
+      model,
+      el,
+      network,
+      width,
+      height,
+      row_label_callback,
+      col_label_callback,
+      col_dendro_callback
+    );
+    viz.model = model;
+    return viz;
   });
-  const viz = await matrix_viz(
-    model,
-    el,
-    network,
-    width,
-    height,
-    row_label_callback,
-    col_label_callback,
-    col_dendro_callback
-  );
-  viz.model = model;
-  return viz;
 };
 
 /**
@@ -687,9 +773,82 @@ const matrix_from_dega_files = (
  */
 const matrix_from_zarr = (el, options = {}) => clustergram(el, options);
 
+/**
+ * Render a saved Clerk conversation in a web page, without Python: a case saved
+ * with the panel's Save button (`Clerk.save_conversation`). It's read-only: its
+ * genes, clusters, cited views and screenshots change linked widgets, and asking
+ * needs a notebook. Link it to a Landscape and Clustergram with `link_models`:
+ * `link_models(clerk.model, 'landscape_request', ls.model, 'view_request')` and
+ * `link_models(clerk.model, 'clustergram_request', cgm.model, 'view_request')`.
+ * Pass the case's labels, `annotations.manual_cat` (`clustergram_categories` in
+ * cases saved before 0.29.1), to `clustergram({manual_cat})` to show its cell
+ * types. The `url` can be on any host that allows cross-origin reads, such as
+ * Hugging Face.
+ *
+ * @param {HTMLElement} el - Container element for the panel
+ * @param {object} options
+ * @param {object} [options.conversation] - The saved conversation (parsed JSON)
+ * @param {string} [options.url] - Or the URL of its JSON file
+ * @param {number} [options.width=0] - Width in px; 0 fills the container
+ * @param {number} [options.height=600] - Height in px
+ * @param {object} [options.fetchOptions] - Options for fetching `url`
+ * @param {string} [options.loading_label] - Replaces "Loading…" under the loading
+ *   mark shown while it loads
+ * @param {boolean} [options.loading=true] - Show the loading mark
+ * @returns {Promise<object>} The panel, with its `model`, the `conversation`,
+ *   and `finalize()`
+ */
+const clerk = async (
+  el,
+  {
+    conversation,
+    url,
+    width = 0,
+    height = 600,
+    fetchOptions = {},
+    loading = true,
+    loading_label,
+  } = {}
+) => {
+  if (!conversation === !url) {
+    throw new Error('[clerk] Pass a conversation or its url.');
+  }
+  return while_loading(el, { loading, loading_label, height }, async () => {
+    let saved = conversation;
+    if (!saved) {
+      const response = await fetch(url, fetchOptions);
+      if (!response.ok) {
+        throw new Error(`[clerk] Couldn't load ${url} (${response.status})`);
+      }
+      saved = await response.json();
+    }
+    if (!Array.isArray(saved?.messages)) {
+      throw new Error('[clerk] Not a saved Clerk conversation');
+    }
+    const model = make_options_model({
+      width,
+      height,
+      messages: saved.messages,
+      cluster_names: saved.cluster_names || [],
+      cluster_labels: saved.cluster_labels || {},
+      context_info: saved.context_info || '',
+      model: saved.model || '',
+      effort: saved.effort || '',
+      gene_list: [],
+      pending: false,
+      can_restore: false,
+      fetch_enrichr: false,
+      briefing_label: '',
+    });
+    const viz = await render_clerk({ model, el });
+    return { ...viz, model, conversation: saved };
+  });
+};
+
 const from_png = create_from_png({ landscape, clustergram });
 
 export default {
+  clerk,
   // Options-object entry points for web pages without Python.
   landscape,
   clustergram,
@@ -701,7 +860,7 @@ export default {
   // Lower-level renderers and readers.
   anndata_zarr_source,
   landmark,
-  landscape_ist,
+  landscape_ist: with_loading_mark(landscape_ist),
   landscape_h_e,
   matrix_viz,
   matrix_from_dega_files,
@@ -709,7 +868,7 @@ export default {
   networkFromDegaFiles,
   network_from_dega_files: networkFromDegaFiles,
   network_from_zarr,
-  yearbook,
+  yearbook: with_loading_mark(yearbook),
   render,
   render_landmark,
   render_landscape_ist,

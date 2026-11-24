@@ -1,9 +1,9 @@
 """2D visualization of alignment results.
 
-Kept separate from :mod:`celldega.align.serial_slices` so additional plot
-types (e.g. a future 3D/interactive view, once serial alignment gains a Z
-axis worth looking at) can be added here without growing the fitting
-module — a 2D static matplotlib scatter is what's implemented for now.
+:func:`plot_alignment` (also ``transform.plot()``) draws a fit's landmarks
+before and after alignment as a static matplotlib scatter, so a bad fit or a
+mislabeled landmark shows at a glance. View the aligned cells themselves in 3D
+with a :class:`~celldega.viz.CellCloud`.
 """
 
 from __future__ import annotations

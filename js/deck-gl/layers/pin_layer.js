@@ -23,6 +23,39 @@ export const PIN_ICON = {
   mask: false,
 };
 
+const escape_text = (value) =>
+  String(value ?? '').replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[char]
+  );
+
+/**
+ * A pin's card, as HTML: its Snapshot's name, its memo (why the pin is there) and a
+ * preview of its view. The pin's tooltip on the tissue and its row in the pins list
+ * (ui/pins.js) both show it.
+ *
+ * @param {object} pin - `{name, description, thumb}`; `thumb` is a base64 JPEG.
+ * @returns {string}
+ */
+export const pin_card_html = (pin) => {
+  const memo = pin?.description
+    ? `<div style="white-space: pre-wrap; margin-top: 2px;">${escape_text(pin.description)}</div>`
+    : '';
+  // Only plain base64 goes into the image's src.
+  const preview =
+    typeof pin?.thumb === 'string' && /^[A-Za-z0-9+/]+=*$/.test(pin.thumb)
+      ? `<img src="data:image/jpeg;base64,${pin.thumb}" alt="" style="display: block; max-width: 200px; max-height: 200px; margin-top: 4px; border: 1px solid #d3d3d3;">`
+      : '';
+  return `<div><b>${escape_text(pin?.name || 'Snapshot')}</b></div>${memo}${preview}`;
+};
+
 /** Pins with a usable position (`target` is [x, y] in tissue coordinates). */
 export const valid_pins = (pins) =>
   (Array.isArray(pins) ? pins : []).filter(

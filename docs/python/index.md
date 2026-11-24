@@ -5,9 +5,9 @@ explore them in linked widgets. It fits downstream of single-cell and spatial
 workflows such as Scanpy and Squidpy: most analysis functions accept standard
 `AnnData`, `MuData`, and `GeoDataFrame` objects.
 
-You can start with these objects directly. Celldega's collection classes are
-useful when you want to keep several feature spaces, metadata, and relationships
-organized around the same datasets, neighborhoods, or cell sets.
+You can start with these objects directly. Celldega's collection classes
+organize the entities above the single cell (sets of cells, neighborhoods, and
+datasets) together with the feature spaces that describe them.
 
 ## How the modules support the visualizations
 
@@ -35,12 +35,13 @@ a visualization displays:
   and calculates their attributes, such as cell-type composition and expression.
   Neighborhoods display in Landscape and NeighborhoodCloud; their summaries
   cluster into Clustergrams.
-- **Collections** (`collection`, `dataset`, `set`) are data structures for
-  higher-level biological entities, such as neighborhoods, samples, and sets of
-  cells, that keep several feature spaces together.
+- **Collections** (`collection`, `set`, `dataset`, and `NeighborhoodCollection`
+  in `nbhd`) are data structures for the entities above the single cell: sets of
+  cells, neighborhoods, and datasets. Each holds one kind of entity and every
+  feature space calculated for it, such as composition or expression signatures.
 - **`select`** chooses and ranks cells for review in Yearbook.
-- **`align`** quickly aligns serial sections into 3D coordinates for CellCloud
-  and NeighborhoodCloud.
+- **`align`** aligns the cells of serial sections into a 3D stack, using the
+  clusters they share, for CellCloud and NeighborhoodCloud.
 - **`pre`** turns instrument output into DegaFiles that the browser loads a
   piece at a time.
 
@@ -55,12 +56,11 @@ widget are available to these modules for the next step of the analysis.
 | [viz](viz/api.md) | Display and link interactive views | Prepared spatial data, analysis objects, or saved matrices → notebook widgets |
 | [clust](clust/api.md) | Find patterns through hierarchical bi-clustering | Expression or other feature matrices → clustered `Matrix`, heatmaps, and dot plots |
 | [nbhd](nbhd/api.md) | Define spatial neighborhoods and summarize their contents | Cell coordinates and polygons → neighborhood geometry, expression, composition, and relationships |
-| [collection](collection/api.md) | Store multiple feature spaces on one observation axis | MuData-backed `CelldegaCollection`, the shared base for collection classes |
+| [collection](collection/api.md) | Organize entities above the single cell and their feature spaces | MuData-backed `CelldegaCollection`, the base of `SetCollection`, `NeighborhoodCollection` and `DatasetCollection` |
 | [dataset](dataset/api.md) | Compare samples or datasets | Cell-level data → `DatasetCollection` with sample metadata, population composition, and signatures |
 | [set](set/api.md) | Represent and compare groups defined by cell membership | Cell labels → `SetCollection`, signatures, composition, and overlap |
 | [select](select/api.md) | Choose, rank, and sample observations | Metadata/expression queries → an ordered `Selection` for inspection or visualization |
-| [align](align/api.md) | Register tissue slices in physical space | Landmarks and cell coordinates → reusable transforms and aligned coordinates |
-| [qc](qc/api.md) | Inspect segmentation and transcript-assignment quality | Instrument output and segmentation assignments → summary and gene-level QC metrics |
+| [align](align/api.md) | Align serial sections into a 3D stack of cells | Jointly clustered cells of serial sections → per-section transforms and 3D cell coordinates |
 
 ## Start with an example
 
@@ -147,13 +147,17 @@ functions and attach their results to the collection.
 and [pancreas islet gradients](../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb).
 **Reference:** [nbhd API](nbhd/api.md).
 
-## collection: keep related feature spaces together
+## collection: entities above the single cell
 
-`CelldegaCollection` is the common MuData-backed storage model used by the
-collection classes. One observation axis can have several feature modalities,
-shared annotations, pairwise relationships, and provenance. For example, the
-same neighborhoods can have both gene-expression and cell-population summaries.
-The collection stores these results; analysis and visualization functions use them.
+Spatial biology works with entities above the single cell: sets of cells (such
+as clusters), neighborhoods (such as functional tissue units), and datasets
+(such as the samples of a cohort). Each is described in several feature spaces:
+a dataset, for example, by its cell-type population or by the expression
+signature of its B cells. `CelldegaCollection` organizes one kind of entity and
+its feature spaces, and is the base of `SetCollection`, `NeighborhoodCollection`
+and `DatasetCollection`. It is a thin wrapper around MuData: each feature space
+is an `AnnData` modality over the shared entities, alongside shared annotations,
+pairwise relationships, and provenance.
 
 **Example:** [Pancreas islet gradients](../examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb)
 stores gradient geometry, population and expression summaries, and a bordering
@@ -195,14 +199,25 @@ assembling ID lists.
 **Examples and reference:** [Selector queries and samplers](select/api.md) and
 [choosing cells for Yearbook](../visualizations/yearbook.md#choosing-which-cells-to-show).
 
-## align: register tissue coordinates
+## align: stack serial sections in 3D
 
-`align` provides a landmark-based serial-slice workflow: calculate landmarks,
-fit rigid or thin-plate-spline transforms, inspect the fit, and apply the
-transforms to cell positions or other points in the same coordinate system.
-Save a fitted transform for reuse, then write the aligned coordinates as
-point-cloud DegaFiles for CellCloud. These are transformations of physical
-coordinates; expression-space integration remains part of the upstream analysis.
+`align` builds a 3D point cloud from serial sections. Each section's cell
+centroids start in their own 2D frame; when the cells of all sections are
+clustered together, the clusters they share line the sections up in two steps:
+
+1. **Cluster centroids:** `calc_landmarks` places a landmark at each cluster's
+   centroid in each section, and `calc_alignment_transform` fits a rigid
+   transform per section, working outward from a reference section.
+2. **Neighborhood overlap:** `neighborhood_alignment` refines each section's
+   transform so that the clusters' neighborhood polygons (e.g. alpha shapes from
+   `nbhd.alpha_shape_cell_clusters_by_slice`) overlap as much as possible across
+   neighboring sections.
+
+Apply the result to the cells with `align_serial_slices` (or to other points of
+the same sections), save it for reuse, and write the aligned cells as point-cloud
+DegaFiles for CellCloud. These are transformations of physical coordinates; the
+clustering itself (expression-space integration) is part of the upstream
+analysis.
 
 **Reference:** [alignment API](align/api.md).
 **Notebook:** [Broad–Allen mouse-brain preprocessing and alignment](../examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align.ipynb),
@@ -211,14 +226,3 @@ followed by [CellCloud visualization](../examples/tutorial_notebooks/Broad-Allen
 For importing an already aligned image, use the separate
 [aligned H&E workflow](aligned_he.md).
 
-## qc: assess segmentation and transcript assignment
-
-`qc` computes metrics such as the fraction of assigned transcripts, cell counts,
-cell areas, and gene-level assignment statistics. Use these to inspect instrument
-segmentations or compare a custom segmentation before interpreting the resulting
-expression measurements. `qc_segmentation` writes summary and gene-level CSV files.
-
-**Reference:** [segmentation QC API](qc/api.md).
-For the related preparation workflow, see the
-[custom segmentation example](../examples/brief_notebooks/Custom_Segmentation.ipynb);
-that notebook demonstrates importing a segmentation, rather than running QC.

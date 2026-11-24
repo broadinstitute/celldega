@@ -28,9 +28,12 @@ not_in_nav: |
   examples/tutorial_notebooks/AIFI_Olink_Plasma_Proteomics_Clustergram-Enrich.ipynb
   # Companion to python/aligned_he.md; source: notebooks/Xenium_Aligned_HE.ipynb.
   examples/tutorial_notebooks/Xenium_Aligned_HE.ipynb
+  # In development: the qc module and its planned ectopic-expression redesign.
+  python/qc/api.md
 
 hooks:
   - scripts/unlisted_docs.py
+  - scripts/llms_txt.py
 
 theme:
   name: material
@@ -89,7 +92,6 @@ nav:
       - dataset: python/dataset/api.md
       - nbhd: python/nbhd/api.md
       - pre: python/pre/api.md
-      - qc: python/qc/api.md
       - select: python/select/api.md
       - set: python/set/api.md
       - viz: python/viz/api.md
@@ -125,6 +127,8 @@ nav:
           - Tabula Sapiens Atlas UMAP: gallery/gallery_tabula_sapiens.md
           - Tabula Sapiens UMAP and Cell-Type Signatures: gallery/gallery_tabula_sapiens_clustergram.md
           - CITE-seq PBMC Cell Types (RNA + Protein): gallery/gallery_citeseq_pbmc.md
+      - Clerk:
+          - Clerk Case Atera Kidney Cell Types: gallery/gallery_clerk_atera_kidney.md
       - Web Presentations:
           - Broad Retreat 2024: https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/
   - Example Notebooks:
@@ -156,11 +160,18 @@ nav:
       - Atera Pre-process: examples/brief_notebooks/Atera_Pre-process.ipynb
       - Atera Pre-process with H&E: examples/brief_notebooks/Atera_Pre-process_with_HE.ipynb
       - Atera Kidney Yearbook Review: examples/brief_notebooks/Atera_Kidney_Yearbook_Review.ipynb
+      - Atera Kidney Low-Quality Cell Review: examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb
+      - Atera Kidney Ectopic Expression Review: examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb
+      - Atera Kidney Clerk Case: examples/brief_notebooks/Atera_Kidney_Clerk_Case.ipynb
       - CellCloud Thick MERFISH: examples/brief_notebooks/Landscape-3D_thick_MERFISH.ipynb
       - Landscape-Heatmap Visium-HD: examples/brief_notebooks/Landscape-Heatmap-Visium-HD.ipynb
       - UMAP-Cluster Pancreas Xenium: examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium.ipynb
       - Custom Segmentation: examples/brief_notebooks/Custom_Segmentation.ipynb
       - Gradient Neighborhood Pancreas Islets: examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets.ipynb
+      - DatasetCollection Feature Spaces: examples/brief_notebooks/DatasetCollection_Feature_Spaces.ipynb
+      - SetCollection Compare Clusterings: examples/brief_notebooks/SetCollection_Compare_Clusterings.ipynb
+      - SetCollection Signatures Dot Plot: examples/brief_notebooks/SetCollection_Signatures.ipynb
+      - NeighborhoodCollection Hexagonal Niches: examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb
     # CCLE multi-omics tutorials temporarily hidden (also excluded in exclude_docs above)
     # - CCLE Multi-omics Tutorials:
     #   - Overview: examples/ccle_multiomics.md
@@ -238,6 +249,8 @@ extra_javascript:
   - path: assets/js/visualization_previews.js
     type: module
   - path: assets/js/gallery_citeseq_pbmc.js
+    type: module
+  - path: assets/js/gallery_clerk_atera_kidney.js
     type: module
 
 extra_css:

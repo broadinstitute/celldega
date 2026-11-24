@@ -154,6 +154,11 @@ def alpha_shape_cell_clusters(
         Alpha shapes for each cluster at each alpha value, indexed (and named)
         `f"{cluster}_{inv_alpha}"`, with columns `name`, `cat`, `geometry`,
         `inv_alpha`, `color`, and `area`, sorted by area.
+
+    Example::
+
+        gdf_alpha = dega.nbhd.alpha_shape_cell_clusters(adata, cat="leiden", alphas=[150])
+        gdf_alpha = dega.nbhd.filter_alpha_shapes(gdf_alpha, alpha=150)
     """
     coords = _cell_coords(adata, spatial_key=spatial_key, modality=modality)
     labels = _obs_column_at(adata, cat, coords, modality=modality)

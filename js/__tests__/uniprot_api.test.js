@@ -149,8 +149,10 @@ module.exports = { UNIPROT_RETRY_MS, get_uniprot_info, has_uniprot_info,
   // Routes: the EBI search, the UniProt entry, and UniProt's search.
   const route = ({ ebi, entry = () => reply(200, ENTRY), search }) =>
     jest.fn((url) => {
-      if (url.includes('ebi.ac.uk')) return ebi();
-      if (url.includes('/uniprotkb/search')) return search();
+      if (url.startsWith('https://www.ebi.ac.uk/')) return ebi();
+      if (url.startsWith('https://rest.uniprot.org/uniprotkb/search?')) {
+        return search();
+      }
       return entry();
     });
 

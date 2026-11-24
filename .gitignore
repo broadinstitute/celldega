@@ -24,6 +24,7 @@ dist
 !docs/examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Low_Quality_Review.ipynb
 !docs/examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review.ipynb
+!docs/examples/brief_notebooks/Atera_Kidney_Clerk_Case.ipynb
 !notebooks/clerk/Snapshots_and_Pins.ipynb
 !notebooks/clerk/Snapshots_and_Pins_PBMC3k.ipynb
 !notebooks/clerk/Clerk_Atera_CRC_Landscape-Clustergram-Yearbook.ipynb

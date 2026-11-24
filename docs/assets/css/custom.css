@@ -265,3 +265,10 @@ body:has(.jupyter-wrapper):not(.celldega-nav-open) .jupyter-wrapper .jp-OutputAr
     /* 400px matrix plus its 100px canvas margin for labels/dendrogram. */
     flex: 0 0 520px;
 }
+
+/* Notebook pages style every form as a block (".jupyter-wrapper form"), which
+   overrides the hidden attribute in widgets saved with released bundles, such as
+   Clerk's report form. Keep hidden widget parts hidden. */
+.jupyter-wrapper [hidden] {
+    display: none !important;
+}

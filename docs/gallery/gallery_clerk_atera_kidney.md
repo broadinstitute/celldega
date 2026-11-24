@@ -8,10 +8,20 @@ looked them up in Enrichr, proposed tentative cell types with their evidence, an
 when asked, labeled them on the Clustergram: cell types on its columns, and the marker
 genes behind them on its rows.
 
+Clerk's cell types are tentative: each is its reading of the evidence it was shown,
+recorded with a confidence for the scientist to accept, edit or reject.
+
 Read the conversation on the right, one question at a time. Click a gene to color the
 cells by its expression, a cluster to highlight its cells, a cited view (*Fig 1A*) to
 show what Clerk pointed to, or **Show this view** under a question to return to the
 view it was asked about. This is a saved conversation: nothing here is sent to Claude.
+
+The conversation and the Clustergram's Matrix load from the
+[case folder on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/clerk/atera_kidney),
+and the tissue view streams images, cell boundaries, transcripts and gene expression
+from [DegaFiles on GitHub](https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE).
+To reopen the same case in Python, see the
+[Clerk case notebook](../examples/brief_notebooks/Atera_Kidney_Clerk_Case.ipynb).
 
 <div class="linked-gallery clerk-gallery" data-clerk-gallery="atera-kidney">
   <div class="linked-landscape-panel">
@@ -27,11 +37,3 @@ view it was asked about. This is a saved conversation: nothing here is sent to C
     <div data-clerk-panel aria-label="Saved Clerk conversation"></div>
   </div>
 </div>
-
-Clerk's cell types are tentative: each is its reading of the evidence it was shown,
-recorded with a confidence for the scientist to accept, edit or reject. The
-conversation and the Clustergram's Matrix load from the
-[case folder on Hugging Face](https://huggingface.co/datasets/broadinstitute/Celldega_Supporting_Data/tree/main/clerk/atera_kidney),
-which you can also reopen in Python with `dega.viz.Clerk(clerk_files=<folder URL>)`.
-The tissue view streams images, cell boundaries, transcripts and gene expression
-from [DegaFiles on GitHub](https://github.com/broadinstitute/Celldega_Atera_v1_WTA_Kidney_non_diseased_FFPE).

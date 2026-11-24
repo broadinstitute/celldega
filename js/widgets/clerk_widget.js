@@ -242,6 +242,9 @@ const MARKDOWN_CSS = `
   max-width: calc(50% - 3px); }
 .${PANEL_CLASS} .clerk-sent-image img { display: block; max-width: 100%; max-height: 160px;
   border: 1px solid #d3d3d3; }
+/* Host pages can set display on forms or buttons (e.g. docs notebooks'
+   ".jupyter-wrapper form { display: block }"), which would show hidden parts. */
+.${PANEL_CLASS} [hidden] { display: none !important; }
 .${PANEL_CLASS} .clerk-report-form { margin-top: 5px; padding: 6px; border: 1px solid #d3d3d3; }
 .${PANEL_CLASS} .clerk-report-form label { display: block; font-size: 12px; color: #47515b; }
 .${PANEL_CLASS} .clerk-report-form input { width: 100%; box-sizing: border-box; margin-top: 3px; padding: 4px; font: inherit; font-size: 13px; }

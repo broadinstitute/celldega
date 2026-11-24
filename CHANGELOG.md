@@ -4,6 +4,22 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Clerk:** the panel keeps its hidden parts hidden when the page around it
+  styles forms or buttons, so a docs notebook no longer shows the report-name
+  form.
+
+### Documentation
+
+- Gallery pages put all their text above the visualization; long notes fold
+  into collapsible blocks.
+- The Atera kidney Clerk case is listed in the gallery, reading its case folder
+  from Hugging Face, and a brief notebook (`Atera_Kidney_Clerk_Case`) reopens
+  the same case in Python.
+
 ## [0.29.1] - 2026-11-23
 
 Fixes that make the features released in 0.29.0 work as intended, mostly in

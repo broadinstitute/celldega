@@ -1,0 +1,201 @@
+# Celldega
+
+> Linked, interactive visualization and analysis of spatial and single-cell omics.
+
+Celldega pairs Python analysis with browser-based widgets for human-in-the-loop
+work: you explore, select and annotate in the widgets, and the results come back
+to Python for the next step. It sits downstream of Scanpy and Squidpy: most
+functions take ``AnnData``, ``MuData`` or ``GeoDataFrame`` objects. It handles
+Xenium (including Atera), MERSCOPE, Visium HD, CosMx and any single-cell
+AnnData. Documentation: https://broadinstitute.github.io/celldega/ (an index for
+AI agents is at https://broadinstitute.github.io/celldega/llms.txt).
+
+Widgets (``celldega.viz``; the main ones are also on ``celldega``):
+
+- ``Landscape``: the tissue (image, cells, transcripts, neighborhoods) or a UMAP.
+- ``Clustergram``: an interactive clustered heatmap of a ``clust.Matrix``.
+- ``Yearbook``: a grid of cell portraits for reviewing selected cells.
+- ``Composition``: category counts or proportions compared across groups.
+- ``CellCloud`` / ``NeighborhoodCloud``: 3D views of cells or neighborhood shapes.
+- ``Enrich``: Enrichr gene-set enrichment of a gene list.
+- ``Clerk``: an AI tool that interprets the linked widgets with Claude.
+
+Link widgets with ``viz.spatial_clustergram``, ``viz.landscape_yearbook``,
+``viz.landscape_yearbook_clustergram``, ``viz.clustergram_enrich`` or
+``viz.link_clerk``. Save a view as a reproducible PNG with ``viz.snapshot`` and
+rebuild it with ``viz.from_png``.
+
+Analysis modules:
+
+- ``pre``: instrument output to DegaFiles, which the browser streams a piece at a
+  time (``pre.main``); 3D point-cloud and aligned H&E writers.
+- ``clust``: ``Matrix``, hierarchical bi-clustering of any feature matrix for a
+  Clustergram (``Matrix(adata, groupby="leiden")`` for cluster signatures).
+- ``nbhd``: neighborhoods (alpha shapes, hextiles, gradients) and their
+  composition, expression, overlap and bordering.
+- ``set``, ``dataset``, ``collection``: collections of entities above the single
+  cell (``SetCollection``, ``DatasetCollection``, ``NeighborhoodCollection``)
+  and their feature spaces.
+- ``select``: ``Selector`` queries and samples cells, for example for Yearbook.
+- ``align``: stacks serial sections in 3D using the clusters they share.
+- ``clerk``: the prompts and model calls behind the ``Clerk`` widget.
+
+Example: a tissue linked to a heatmap of cluster signatures::
+
+    import celldega as dega
+
+    landscape = dega.Landscape(base_url=degafiles_url, adata=adata)
+    mat = dega.clust.Matrix(adata, groupby="leiden")
+    mat.cluster()
+    cgm = dega.Clustergram(matrix=mat)
+    dega.viz.spatial_clustergram(landscape, cgm)  # clicks in one update the other
+
+## Docs
+
+- [Home](https://broadinstitute.github.io/celldega/): Celldega is a spatial and single-cell analysis and visualization library developed by the Spatial Technology Platform at the Broad Institute of MIT and Harvard.
+
+## Getting Started
+
+- [Getting Started](https://broadinstitute.github.io/celldega/getting-started/): Celldega is a spatial and single-cell analysis and visualization library developed by the Spatial Technology Platform at the Broad Institute of MIT and Harvard.
+- [Installation](https://broadinstitute.github.io/celldega/getting-started/installation/): Celldega supports Python 3.11 and 3.12. Install it into the environment used by your Jupyter notebook:
+- [Visualize Your Own Data](https://broadinstitute.github.io/celldega/getting-started/your-data/): This guide follows a public 10x Genomics Xenium human pancreas dataset from the instrument's output to linked views of your own analysis: your clusters over the tissue and in a UMAP, a marker-gene dot plot, and gene-set…
+- [From Scanpy & Squidpy](https://broadinstitute.github.io/celldega/getting-started/from-scanpy/): If you already analyze single-cell or spatial data with Scanpy and Squidpy, Celldega picks up where your notebook leaves off. It reads the same AnnData: your clusters, colors, UMAP, and expression.
+- [Usage](https://broadinstitute.github.io/celldega/getting-started/usage/): Use Celldega in local or cloud notebooks, in a standalone web page, or through Celldega-App on your desktop.
+- [Desktop App](https://broadinstitute.github.io/celldega/getting-started/desktop-app/): Celldega-App lets you explore prepared spatial and single-cell data on your desktop. Open a local or remote dataset, compare a Landscape with its linked Clustergram, or inspect cell portraits in a Yearbook.
+- [Technologies](https://broadinstitute.github.io/celldega/getting-started/technologies/): Celldega utilizes a suite of complementary technologies to develop an efficient web-based analysis and visualization toolkit for spatial and single-cell data.
+- [File Formats](https://broadinstitute.github.io/celldega/getting-started/file_formats/): Celldega uses two complementary storage approaches: DegaFiles prepare spatial data for interactive rendering, and AnnData Zarr stores analysis inputs and visualization data.
+
+## Visualizations
+
+- [Visualizations](https://broadinstitute.github.io/celldega/visualizations/): Celldega's interactive views help you explore where cells are, how gene expression varies, and which biological processes distinguish a group.
+- [Yearbook](https://broadinstitute.github.io/celldega/visualizations/yearbook/): `Yearbook` shows a grid of cell portraits: small, zoomed-in views of the tissue, each centered on one cell.
+- [CellCloud](https://broadinstitute.github.io/celldega/visualizations/cell-cloud/): `CellCloud` shows cells in 3D, as points you can rotate and zoom.
+- [NeighborhoodCloud](https://broadinstitute.github.io/celldega/visualizations/neighborhood-cloud/): `NeighborhoodCloud` is a 3D, orbit-camera view of precomputed tissue neighborhoods — one alpha-shape polygon per cluster/slice, so it stays cheap to display regardless of dataset size.
+- [Clustergram](https://broadinstitute.github.io/celldega/visualizations/clustergram/): `Clustergram` uses hierarchical bi-clustering to organize both axes of a high-dimensional matrix: genes/features by their expression patterns, and cells, clusters, neighborhoods, or samples by their similarity.
+- [Composition](https://broadinstitute.github.io/celldega/visualizations/composition/): `Composition` is a `Clustergram` variant for comparing category composition across groups — e.g. cell-type proportions across samples or conditions — rather than a general-purpose heatmap.
+- [Enrich](https://broadinstitute.github.io/celldega/visualizations/enrich/): `Enrich` interprets a list of genes, such as the marker genes of a cluster, by looking them up in public gene-set libraries through Enrichr.
+- [Landscape–Clustergram–Enrich](https://broadinstitute.github.io/celldega/visualizations/landscape-clustergram-enrich/): Link a Landscape, Clustergram, and Enrich to move between where cells are, which genes distinguish them, and what those genes mean.
+- [CellCloud–Clustergram](https://broadinstitute.github.io/celldega/visualizations/cell-cloud-clustergram/): Link a CellCloud and Clustergram to compare 3D cell organization with gene-expression patterns.
+
+## Visualizations: Landscape
+
+- [Landscape](https://broadinstitute.github.io/celldega/visualizations/landscape/): `Landscape` shows where cells are and what they express.
+- [UMAP and XY](https://broadinstitute.github.io/celldega/visualizations/landscape/umap-xy/): A Landscape can show cells in a low dimensional embedding, such as a UMAP, as well as in tissue. A UMAP places cells with similar expression near each other, so islands of cells suggest cell types and states.
+- [Neighborhoods](https://broadinstitute.github.io/celldega/visualizations/landscape/neighborhoods/): Celldega helps you identify neighborhoods of cells, both in physical space, such as a structure in the tissue, and in data space, such as an island in a UMAP or a population in a two-gene XY plot.
+
+## Visualizations: Clerk
+
+- [Clerk](https://broadinstitute.github.io/celldega/visualizations/clerk/): The Clerk module (`celldega.clerk` and the `celldega.viz.Clerk` widget) is experimental. It is a proof of concept: its features, API and saved formats may change between releases, without deprecation.
+- [Embedding Clerk](https://broadinstitute.github.io/celldega/visualizations/clerk/hosting/): `celldega.clerk.run_turn` implements the bounded interpretation/evidence loop without widget traits, a browser transport or a model client. It consumes an initial model reply and yields plain-data events.
+
+## Python API
+
+- [Python API Overview](https://broadinstitute.github.io/celldega/python/): Use Celldega to prepare visualization data, summarize analysis results, and explore them in linked widgets.
+- [align](https://broadinstitute.github.io/celldega/python/align/api/): Align serial tissue sections into a 3D stack of cells.
+- [clerk](https://broadinstitute.github.io/celldega/python/clerk/api/): Clerk -- Celldega's AI tool for exploring and interpreting its visualizations.
+- [clust](https://broadinstitute.github.io/celldega/python/clust/api/): Hierarchical bi-clustering of feature matrices, for Clustergrams.
+- [collection](https://broadinstitute.github.io/celldega/python/collection/api/): The base class of Celldega's collections of entities above the single cell, backed by MuData.
+- [dataset](https://broadinstitute.github.io/celldega/python/dataset/api/): Dataset-level collections: samples or datasets as observations, in several feature spaces.
+- [nbhd](https://broadinstitute.github.io/celldega/python/nbhd/api/): Neighborhoods: build tissue regions from cells, and summarize what is in them.
+- [pre](https://broadinstitute.github.io/celldega/python/pre/api/): Pre-process instrument output into DegaFiles, the files Celldega's browser widgets stream.
+- [select](https://broadinstitute.github.io/celldega/python/select/api/): Query and sample the cells (or other observations) of an AnnData, reproducibly.
+- [set](https://broadinstitute.github.io/celldega/python/set/api/): Set-level collections: sets of cells (clusters, domains, annotations) as observations.
+- [viz](https://broadinstitute.github.io/celldega/python/viz/api/): Interactive, linkable widgets for Jupyter, and helpers to link and save them.
+
+## JavaScript API
+
+- [JavaScript API Overview](https://broadinstitute.github.io/celldega/javascript/): Use Celldega in a web page to explore prepared datasets without a Python kernel. The same Landscape and Clustergram views used in notebooks can read hosted DegaFiles or AnnData Zarr directly.
+- [API](https://broadinstitute.github.io/celldega/javascript/api/): The JavaScript component of Celldega is used within the Jupyter Widgets framework to provide interactive visualization in the context of a Jupyter notebook but can also be used as a standalone JavaScript library.
+- [Viz API: getters, setters, exporters](https://broadinstitute.github.io/celldega/javascript/viz-api/): Landscape and Clustergram expose an initial API for reading and changing views from code. Support varies by widget and control. Three kinds of methods cover this:
+- [Portable Snapshots](https://broadinstitute.github.io/celldega/javascript/saved-views/): Landscape and Clustergram expose `snapshot()` and `restore_snapshot()` independently of agent interfaces and notebook widgets. The goal is to preserve an interactive observation as reproducible visual evidence.
+
+## JavaScript API: Development
+
+- [State management](https://broadinstitute.github.io/celldega/javascript/development/state-management/): How a Celldega visualization holds its state in the browser, how a change becomes a redraw, and what to follow when you add a control or embed Celldega in an application.
+
+## Gallery
+
+- [Celldega Gallery](https://broadinstitute.github.io/celldega/gallery/): This gallery collects project web presentations and visualizations made with the stand-alone Celldega JavaScript library. Examples are grouped by visualization, then by technology.
+
+## Gallery: Spatial Landscapes
+
+- [CosMx Human Colon CRC](https://broadinstitute.github.io/celldega/gallery/gallery_cosmx_human_colon/): NanoString CosMx Whole Transcriptome (WTx) discovery sample of human colorectal cancer (colon CRC "S0"), converted to the Celldega Landscape format and served from a public GitHub repo (same pattern as `Landscape_View_X…
+- [Visium HD Cell Segmentation Mouse Brain](https://broadinstitute.github.io/celldega/gallery/gallery_visium_hd_cell_segmentation_mouse_brain/): Dataset Link
+
+## Gallery: Spatial Landscapes: Atera
+
+- [Atera Kidney non-diseased FFPE](https://broadinstitute.github.io/celldega/gallery/gallery_atera_kidney/): Explore 399,120 cells in an Atera v1 WTA human kidney section, colored by the dataset's 28 default Leiden clusters. The tissue view streams images, cell boundaries, and gene expression from the published DegaFiles.
+- [Atera Xenium Breast Cancer](https://broadinstitute.github.io/celldega/gallery/gallery_atera/)
+- [Atera Brain Hippocampus FF + Clustergram](https://broadinstitute.github.io/celldega/gallery/gallery_atera_hippocampus/): Explore 91,381 cells in a non-diseased human brain hippocampus section (Atera v1 whole-transcriptome, fresh frozen), colored by the dataset's 26 default Leiden clusters, next to a Clustergram of their marker genes.
+- [Atera Colorectal Cancer FF + Clustergram](https://broadinstitute.github.io/celldega/gallery/gallery_atera_colorectal_cancer/): Explore 446,234 cells in a human colorectal cancer section (Atera v1 whole-transcriptome, fresh frozen), colored by the dataset's 24 default Leiden clusters, next to a Clustergram of their marker genes.
+- [Atera Breast Cancer FF + Clustergram](https://broadinstitute.github.io/celldega/gallery/gallery_atera_breast_cancer/): Explore 485,850 cells in a human breast cancer section (Atera v1 whole-transcriptome, fresh frozen), colored by the dataset's 26 default Leiden clusters, next to a Clustergram of their marker genes.
+
+## Gallery: Spatial Landscapes: Xenium
+
+- [Xenium Prime Mouse Brain](https://broadinstitute.github.io/celldega/gallery/gallery_xenium_mouse_brain/)
+- [Xenium Prime Human Skin](https://broadinstitute.github.io/celldega/gallery/gallery_xenium_skin_cancer/)
+- [Broad-Allen Dev Mouse Brain E15.5 Slice 35](https://broadinstitute.github.io/celldega/gallery/gallery_broad_allen_mouse_brain_2d/)
+
+## Gallery: 3D CellClouds
+
+- [Xenium Broad-Allen Dev Mouse Brain E15.5](https://broadinstitute.github.io/celldega/gallery/gallery_broad_allen_mouse_brain_3d/): Both hosted sources show the same cells, clusters, and alignments. This gallery defaults to compact Parquet DegaFiles; the visualization notebook uses AnnData Zarr. Use the source picker above to compare them.
+- [MERFISH Thick Tissue](https://broadinstitute.github.io/celldega/gallery/gallery_merfish_thick_tissue/): tissue depth. Colors show cell clusters.
+
+## Gallery: Single-Cell Landscapes and Clustergrams
+
+- [Tabula Sapiens Atlas UMAP](https://broadinstitute.github.io/celldega/gallery/gallery_tabula_sapiens/): Explore the authors' UMAP of 1,136,218 cells from 28 organs, colored by cell type. Select a gene to color cells by its expression, or use XY to compare two genes.
+- [Tabula Sapiens UMAP and Cell-Type Signatures](https://broadinstitute.github.io/celldega/gallery/gallery_tabula_sapiens_clustergram/): Explore the atlas alongside marker expression across 180 cell types. Click a Clustergram gene to color the UMAP, or a cell-type column to select its cells.
+- [CITE-seq PBMC Cell Types (RNA + Protein)](https://broadinstitute.github.io/celldega/gallery/gallery_citeseq_pbmc/): Compare 20 cell types of human peripheral blood mononuclear cells (PBMCs) across gene expression and surface proteins measured in the same cells with 10x Genomics Flex and TotalSeq-C antibodies.
+
+## Gallery: Clerk
+
+- [Clerk Case Atera Kidney Cell Types](https://broadinstitute.github.io/celldega/gallery/gallery_clerk_atera_kidney/): A conversation with Clerk, Celldega's AI tool for interpreting its visualizations, about the 28 default Leiden clusters of an Atera v1 whole-transcriptome section of non-diseased human kidney (FFPE).
+
+## Gallery: Web Presentations
+
+- [Broad Retreat 2024](https://broadinstitute.github.io/Celldega-Broad-Retreat-2024/)
+
+## Example Notebooks
+
+- [Jupyter Notebook Examples](https://broadinstitute.github.io/celldega/examples/): These example notebooks demonstrate how to use Celldega to analyze and visualize spatial and single-cell data. Each notebook is designed to be run in a Jupyter environment and showcases different features of the library.
+
+## Example Notebooks: Spatial Transcriptomics Tutorials
+
+- [Atera Kidney Landscape-Clustergram](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Atera_Kidney_Landscape-Clustergram/): Compare the dataset's 28 default Leiden clusters in a linked Landscape–dotplot Clustergram, then measure how cell-type composition changes with distance from podocyte-defined glomerular footprints.
+- [Atera Brain Hippocampus H&E Landscape-Matrix](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Atera_Brain_Hippocampus_Landscape-Matrix/): Explore the pre-processed 10x Genomics Atera WTA dataset `Atera_v1_WTA_S4A_Brain_Hippocampus_ND_FF` with Celldega:
+- [Atera Breast Cancer FF H&E Landscape-Matrix](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Matrix/): Explore the pre-processed 10x Genomics Atera WTA dataset `Atera_v1_WTA_S4C_Breast_Cancer_FF` with Celldega:
+- [Atera Colorectal Cancer H&E Landscape-Matrix](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Atera_Colorectal_Cancer_Landscape-Matrix/): Explore the pre-processed 10x Genomics Atera WTA dataset `Atera_v1_WTA_S4B_Colorectal_Cancer_FF` with Celldega:
+- [Atera Breast Cancer Landscape-Clustergram](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Atera_Breast_Cancer_Landscape-Clustergram/): This tutorial uses `celldega>=0.26.0`.
+- [Atera Breast Cancer Neighborhood Exploration](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Atera_Breast_Cancer_Neighborhood_Exploration/): Continue from the Atera Landscape–Clustergram tutorial. Run its data preprocessing first; this notebook reuses the saved cell list, 10x cell types and tissue coordinates. Requires `celldega>=0.26.0`.
+- [Visium HD Human CRC Landscape-Clustergram-Enrich](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Visium_HD_Human_CRC_Landscape-Clustergram-Enrich/): This tutorial explores a Visium HD human colorectal cancer (CRC) sample that was already segmented into cells and clustered with Scanpy (220,703 cells, 15 Leiden clusters). It shows the handoff from Scanpy to Celldega:
+- [Scanpy-Squidpy Xenium Pancreas](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Scanpy-Squidpy_Xenium_Pancreas/): https://squidpy.readthedocs.io/en/stable/notebooks/tutorials/tutorial_xenium.html#analyze-xenium-data
+
+## Example Notebooks: Spatial Transcriptomics Tutorials: 3D Spatial Transcriptomics
+
+- [Broad-Allen Mouse Brain Preprocessing and Alignment](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Align/): This tutorial uses Celldega 0.29 (`pip install "celldega>=0.29"`). It shows how Celldega aligns serial sections into a 3D stack in two simple steps, using the Leiden clusters as landmarks:
+- [Broad-Allen Mouse Brain Visualization](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Broad-Allen_Dev-Mouse-Brain_E15.5_Viz/): This tutorial uses Celldega `0.28.0a5` and the matching JavaScript package `0.28.0-alpha.5`. It visualizes a 3D alignment of the serial sections.
+
+## Example Notebooks: Single Cell Tutorials
+
+- [Chromium PBMC Landscape-Clustergram-Enrich](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Scanpy_Chromium/): Cluster the 10x Genomics Chromium PBMC 3k dataset with Scanpy, save the AnnData to Zarr, and explore it with Celldega:
+- [Tabula Sapiens Atlas Landscape-Clustergram-Enrich](https://broadinstitute.github.io/celldega/examples/tutorial_notebooks/Tabula_Sapiens_Landscape-Clustergram-Enrich/): CELLxGENE Discover's homepage sends you to Tabula Sapiens - All Cells in its Explorer: 1,136,218 cells from 28 organs of 24 donors, on the authors' UMAP.
+
+## Example Notebooks: Brief Notebooks
+
+- [Landscape View Xenium](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Landscape_View_Xenium/)
+- [Landscape from a Local Server](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Landscape_Local_Server/): Celldega's widgets run in the browser and load DegaFiles (the output of `dega.pre.main`) over HTTP.
+- [Atera Pre-process](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Atera_Pre-process/): Make DegaFiles from a 10x Atera output bundle.
+- [Atera Pre-process with H&E](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Atera_Pre-process_with_HE/): Turn a 10x Genomics Atera WTA output bundle into Celldega DegaFiles, and add the post-run H&E image as an aligned background.
+- [Atera Kidney Yearbook Review](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Atera_Kidney_Yearbook_Review/): Use a tissue-wide Landscape for context, then send candidate cell IDs to a paginated Yearbook. Select the portraits that deserve a closer look and get their IDs back in Python.
+- [Atera Kidney Low-Quality Cell Review](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Atera_Kidney_Low_Quality_Review/): Removing cells with few transcripts and a small area is a standard quality control step, but its thresholds are usually chosen from histograms alone.
+- [Atera Kidney Ectopic Expression Review](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Atera_Kidney_Ectopic_Expression_Review/): Ectopic expression is a cell expressing marker genes of a different cell type.
+- [Atera Kidney Clerk Case](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Atera_Kidney_Clerk_Case/): Clerk is Celldega's AI tool for interpreting its visualizations.
+- [CellCloud Thick MERFISH](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Landscape-3D_thick_MERFISH/): Data obtained from https://elifesciences.org/reviewed-preprints/90029v1
+- [Landscape-Heatmap Visium-HD](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Landscape-Heatmap-Visium-HD/)
+- [UMAP-Cluster Pancreas Xenium](https://broadinstitute.github.io/celldega/examples/brief_notebooks/UMAP-Cluster_Pancreas_Xenium/): https://squidpy.readthedocs.io/en/stable/notebooks/tutorials/tutorial_xenium.html#analyze-xenium-data
+- [Custom Segmentation](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Custom_Segmentation/): Data source: https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-skin
+- [Gradient Neighborhood Pancreas Islets](https://broadinstitute.github.io/celldega/examples/brief_notebooks/Gradient_Neighborhood_Pancreas_Islets/): This notebook demonstrates the gradient neighborhood workflow in `celldega.nbhd`.
+- [DatasetCollection Feature Spaces](https://broadinstitute.github.io/celldega/examples/brief_notebooks/DatasetCollection_Feature_Spaces/): A `DatasetCollection` makes samples the observations and stores each feature space calculated for them as a modality (see Collections).
+- [SetCollection Compare Clusterings](https://broadinstitute.github.io/celldega/examples/brief_notebooks/SetCollection_Compare_Clusterings/): A `SetCollection` makes sets of cells, such as clusters, the observations, and keeps exactly which cells are in each set.
+- [SetCollection Signatures Dot Plot](https://broadinstitute.github.io/celldega/examples/brief_notebooks/SetCollection_Signatures/): A `SetCollection` derives feature spaces from the cells in each set. `calc_signature` calculates each set's mean expression and, optionally, the fraction of its cells that express each gene, in one modality.
+- [NeighborhoodCollection Hexagonal Niches](https://broadinstitute.github.io/celldega/examples/brief_notebooks/NeighborhoodCollection_Hextile_Niches/): A `NeighborhoodCollection` holds neighborhoods with their geometry and the feature spaces calculated for them.

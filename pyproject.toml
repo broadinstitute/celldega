@@ -44,7 +44,7 @@ dependencies = [
     "imagecodecs>=2024.6.1",
     "tifffile",
 
-    "anywidget~=0.9.18",
+    "anywidget>=0.9.18,<0.12.0",
     "ipywidgets>=8.0.0",
     "matplotlib",
     "requests",

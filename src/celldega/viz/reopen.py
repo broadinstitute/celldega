@@ -23,6 +23,8 @@ _SOURCE_OPTIONS = frozenset(
         "zarr_url",
         "zarr_layer",
         "url",
+        "matrices",
+        "active_matrix",
         "name",
         "technology",
         "dataset_name",
@@ -189,7 +191,16 @@ def from_png(
         if not options.get(axis) and isinstance(viewport.get(axis), int | float):
             options[axis] = max(1, round(viewport[axis]) - padding)
 
-    selectors = ("matrix", "network", "parquet_data", "url", "base_url", "base_urls", "zarr_url")
+    selectors = (
+        "matrix",
+        "network",
+        "parquet_data",
+        "url",
+        "matrices",
+        "base_url",
+        "base_urls",
+        "zarr_url",
+    )
     if any(overrides.get(key) is not None for key in selectors):
         for key in selectors:
             options.pop(key, None)
@@ -208,6 +219,18 @@ def from_png(
         url = options.pop("url", None)
         base_url = options.pop("base_url", None)
         options.pop("base_urls", None)
+        matrices = options.pop("matrices", None)
+        if matrices and options.get("matrix") is None:
+            # Several matrices, each from its Matrix Zarr store.
+            from celldega.clust import Matrix
+
+            if not all(isinstance(item, dict) and item.get("url") for item in matrices):
+                raise ValueError(
+                    "PNG's matrices have no reusable sources; pass matrix={name: Matrix}"
+                )
+            options["matrix"] = {item["name"]: Matrix.read_zarr(item["url"]) for item in matrices}
+        if not options.get("active_matrix") or not isinstance(options.get("matrix"), dict):
+            options.pop("active_matrix", None)
         if not any(options.get(key) is not None for key in ("matrix", "network", "parquet_data")):
             if url:
                 from celldega.clust import Matrix
@@ -231,7 +254,9 @@ def from_png(
     options = {
         key: value
         for key, value in options.items()
-        if key in traits or key in overrides or key in ("matrix", "parquet_data", "name")
+        if key in traits
+        or key in overrides
+        or key in ("matrix", "parquet_data", "name", "active_matrix")
     }
     viz = constructor(**options)
     viz._queue_initial_snapshot(snapshot, allow_resize=allow_resize)

@@ -199,6 +199,8 @@ export const make_network_from_zarr = (zarr) => {
       col_cats: meta.col_cats,
       row_entity: meta.row_entity,
       col_entity: meta.col_entity,
+      // What the values are and how to read them (Matrix.description).
+      description: meta.description || '',
       mat: transposed_rows_of(X),
       row_nodes,
       col_nodes,

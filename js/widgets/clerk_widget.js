@@ -60,6 +60,8 @@ const VIEW_SETTINGS = {
     'image_source',
   ],
   clustergram: [
+    // First: the other settings refer to the matrix it shows.
+    'matrix',
     'marker_level',
     'mode',
     'size',
@@ -418,10 +420,24 @@ export const render_clerk = async ({ model, el }) => {
     return button;
   };
 
-  container.appendChild(evidence);
-  container.appendChild(toolbar);
-  container.appendChild(messagesPane);
-  container.appendChild(inputRow);
+  // Caption mode: just the caption under a figure, its links live; no
+  // conversation, no question box, no border (see Python's dega.viz.caption).
+  const caption_mode = model.get('mode') === 'caption';
+  if (caption_mode) {
+    Object.assign(container.style, { height: 'auto', display: 'block' });
+    Object.assign(messagesPane.style, {
+      border: 'none',
+      padding: '0',
+      marginTop: '0',
+      overflowY: 'visible',
+    });
+    container.appendChild(messagesPane);
+  } else {
+    container.appendChild(evidence);
+    container.appendChild(toolbar);
+    container.appendChild(messagesPane);
+    container.appendChild(inputRow);
+  }
   el.appendChild(container);
 
   // Scrolling the conversation stops at its ends instead of carrying on to scroll
@@ -760,6 +776,10 @@ export const render_clerk = async ({ model, el }) => {
   };
   const describe_view = (view) => {
     const parts = [];
+    if (view.snapshot) {
+      const kinds = Object.keys(view.snapshot);
+      return `a saved view of the ${kinds.join(' and ')}`;
+    }
     const ls = view.landscape || {};
     if (ls.space) parts.push(`${ls.space} view`);
     if (ls.reset_view) parts.push('whole tissue');
@@ -772,6 +792,7 @@ export const render_clerk = async ({ model, el }) => {
     if (ls.clusters?.length) parts.push(`clusters ${ls.clusters.join(', ')}`);
     if (ls.genes?.length) parts.push(`genes ${ls.genes.join(', ')}`);
     const cg = view.clustergram || {};
+    if (cg.matrix) parts.push(`Clustergram: ${cg.matrix}`);
     if (cg.marker_level !== undefined) {
       parts.push(`Clustergram: ${cg.marker_level} markers per cluster`);
     }
@@ -815,12 +836,16 @@ export const render_clerk = async ({ model, el }) => {
         shown_clusters = view.landscape?.genes?.length
           ? []
           : view.landscape?.clusters || [];
-        follow({
-          apply_view: {
-            landscape: view.landscape,
-            clustergram: view.clustergram,
-          },
-        });
+        follow(
+          view.snapshot
+            ? { show_snapshot: view.snapshot }
+            : {
+                apply_view: {
+                  landscape: view.landscape,
+                  clustergram: view.clustergram,
+                },
+              }
+        );
         mark_shown();
       });
     });
@@ -1237,7 +1262,22 @@ export const render_clerk = async ({ model, el }) => {
     return wrapper;
   };
 
+  const renderCaption = () => {
+    messagesPane.replaceChildren(
+      markdown(model.get('caption') || '', {
+        genes: model.get('caption_genes') || [],
+        views: model.get('caption_views') || {},
+        scope: 'caption',
+      })
+    );
+    mark_shown();
+  };
+
   const renderMessages = () => {
+    if (caption_mode) {
+      renderCaption();
+      return;
+    }
     const messages = model.get('messages') || [];
     const pending = model.get('pending');
     messagesPane.innerHTML = '';
@@ -1482,6 +1522,9 @@ export const render_clerk = async ({ model, el }) => {
     ['change:cluster_labels', renderMessages],
     ['change:can_restore', () => sync_back()],
     ['change:messages', renderMessages],
+    ['change:caption', renderMessages],
+    ['change:caption_views', renderMessages],
+    ['change:caption_genes', renderMessages],
     ['change:pending', onPending],
     ['change:model', modelPicker.sync],
     ['change:effort', effortPicker.sync],

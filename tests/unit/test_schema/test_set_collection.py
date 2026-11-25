@@ -561,3 +561,38 @@ def test_calc_signature_log_normalized_ranking_keeps_var_metadata(monkeypatch):
     assert list(ranked.var_names) == list(adata.var_names)
     assert list(ranked.var["highly_variable"]) == [True, False, True]
     assert captured["kwargs"]["mask_var"] == "highly_variable"
+
+
+def test_add_relation_matches_sets_by_name_not_position():
+    from scipy import sparse
+
+    clust = SetCollection(_adata(), set_col="leiden", name="leiden")
+    sets = list(clust.obs.index)
+    # A tool's result in its own order (here reversed), e.g. Squidpy's categories.
+    order = sets[::-1]
+    values = np.arange(len(order) ** 2, dtype=float).reshape(len(order), len(order))
+    stored = clust.add_relation("z", values, labels=order)
+    for i, a in enumerate(sets):
+        for j, b in enumerate(sets):
+            assert stored[i, j] == values[order.index(a), order.index(b)]
+
+    frame = pd.DataFrame(values, index=order, columns=order)
+    assert np.array_equal(clust.add_relation("z_frame", frame), stored)
+    as_sparse = clust.add_relation("z_sparse", sparse.csr_matrix(values), labels=order)
+    assert np.array_equal(as_sparse.toarray(), stored)
+    # The modality built from it is labeled consistently.
+    mod = clust.add_relation_modality("z", key="z_mod")
+    assert mod.X[sets.index(order[0]), sets.index(order[1])] == values[0, 1]
+
+
+def test_add_relation_refuses_unnamed_or_mismatched_values():
+    clust = SetCollection(_adata(), set_col="leiden", name="leiden")
+    n = len(clust.obs)
+    with pytest.raises(ValueError, match="labels="):
+        clust.add_relation("z", np.zeros((n, n)))
+    with pytest.raises(ValueError, match="exactly"):
+        clust.add_relation("z", np.zeros((n, n)), labels=[f"x{i}" for i in range(n)])
+    with pytest.raises(ValueError, match="square"):
+        clust.add_relation("z", np.zeros((n, n + 1)), labels=list(clust.obs.index))
+    with pytest.raises(ValueError, match="unique"):
+        clust.add_relation("z", np.zeros((2, 2)), labels=["a", "a"])

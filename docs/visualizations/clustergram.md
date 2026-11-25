@@ -466,6 +466,39 @@ for what is saved before and after clustering, and
 [File Formats](../getting-started/file_formats.md#anndata-zarr-before-and-after-matrix-clustering)
 for the AnnData Zarr schema and JavaScript readers.
 
+### Several matrices about the same clusters
+
+One Clustergram can hold several matrices about the same objects, for example
+clusters by genes (their expression) and clusters by clusters (how often they
+are spatial neighbors). Pass them as a dictionary; a small MAT dropdown switches
+between them in the browser, without the kernel:
+
+```python
+expression = dega.clust.Matrix.read_zarr("marker_dotplot.zarr")
+enrichment = dega.clust.Matrix(
+    zscores,  # a clusters x clusters DataFrame
+    row_entity="cluster",
+    col_entity="cluster",
+    description="Neighborhood enrichment z-scores: positive when two clusters "
+    "are neighbors more often than chance.",
+)
+enrichment.cluster()
+cgm = dega.viz.Clustergram(
+    matrix={"Gene expression": expression, "Neighborhood enrichment": enrichment},
+    manual_col_cat="cell_type",
+)
+cgm.active_matrix = "Neighborhood enrichment"  # or choose it in the dropdown
+```
+
+Each matrix keeps its own zoom, order and marker level between visits. A
+matrix's `description` shows when hovering its name, is saved with
+`write_zarr`, and tells [Clerk](clerk/index.md#several-matrices) how to read its
+values. Manual labels follow the objects: cell types of the first matrix's
+clusters also show on every axis of clusters, and `manual_cat` stays in the first
+matrix's rows and columns. Clicks report each matrix's own entities, so a click
+on a cluster in either matrix highlights it in a linked Landscape. In a web page,
+pass `matrices: [{name, url}, ...]` to `clustergram()`.
+
 ## Examples and source code
 
 Link a Clustergram to a Landscape, CellCloud, or NeighborhoodCloud with

@@ -2,7 +2,8 @@
 
 The :mod:`celldega.select` module separates three related ideas:
 
-- attributes, such as ``adata.obs`` columns or gene expression vectors;
+- attributes, such as ``adata.obs`` columns, gene expression vectors, or how many
+  of a cell's spatial neighbors belong to a category;
 - queries, such as "B cells from samples S1 or S2";
 - samplers/rankers, such as random sampling or high-expression quantile bins.
 
@@ -205,10 +206,13 @@ class Attribute:
     """Reference to an AnnData-backed attribute.
 
     An ``Attribute`` is a lazy reference to one column of per-entity values: an
-    ``adata.obs`` column (``kind="obs"``) or a gene's expression vector
-    (``kind="gene"``, optionally from a named ``layer`` or from ``adata.raw``). It
-    becomes concrete only when a query or sampler is evaluated by a
-    :class:`Selector`.
+    ``adata.obs`` column (``kind="obs"``), a gene's expression vector
+    (``kind="gene"``, optionally from a named ``layer`` or from ``adata.raw``), or
+    how many of each cell's spatial neighbors have ``value`` in the ``obs`` column
+    ``name`` (``kind="neighbors"``, ``stat`` ``"count"`` or ``"fraction"``, from the
+    neighbor graph in ``adata.obsp[graph]``, e.g. Squidpy's
+    ``spatial_connectivities``). It becomes concrete only when a query or sampler is
+    evaluated by a :class:`Selector`.
 
     Attributes are usually created through :meth:`Selector.attr` or
     :meth:`Selector.gene` rather than instantiated directly.
@@ -227,10 +231,16 @@ class Attribute:
     (it keeps the default identity-based ``__hash__``).
     """
 
-    kind: Literal["obs", "gene"]
+    kind: Literal["obs", "gene", "neighbors"]
     name: str
     layer: str | None = None
     raw: bool = False
+    #: For ``kind="neighbors"``: the category neighbors are counted in, how
+    #: (``"count"`` or ``"fraction"`` of the cell's neighbors), and the graph's
+    #: ``adata.obsp`` key (default: ``spatial_connectivities``).
+    value: Any = None
+    stat: Literal["count", "fraction"] = "count"
+    graph: str | None = None
 
     def evaluate(self, selector: Selector) -> pd.Series:
         """Resolve this reference to a concrete Series aligned to ``selector.ids``.
@@ -243,6 +253,10 @@ class Attribute:
             return selector._obs_attribute(self.name)
         if self.kind == "gene":
             return selector._gene_attribute(self.name, layer=self.layer, raw=self.raw)
+        if self.kind == "neighbors":
+            return selector._neighbors_attribute(
+                self.name, self.value, stat=self.stat, graph=self.graph
+            )
         raise ValueError(f"Unknown attribute kind: {self.kind}")
 
     def to_dict(self) -> dict[str, Any]:
@@ -256,6 +270,11 @@ class Attribute:
             result["layer"] = self.layer
         if self.raw:
             result["raw"] = True
+        if self.kind == "neighbors":
+            result["value"] = _json_value(self.value)
+            result["stat"] = self.stat
+            if self.graph is not None:
+                result["graph"] = self.graph
         return result
 
     def isin(self, values: Sequence[Any]) -> Query:
@@ -1460,6 +1479,7 @@ class Selector:
             )
 
         self.adata = adata
+        self._graphs: dict[str, Any] = {}  # neighbor graphs, read once (neighbor_graph)
         self.samplers = SamplerFactory()
         self.default_preview_n = default_preview_n
         self.default_preview_seed = default_preview_seed
@@ -1495,6 +1515,42 @@ class Selector:
         Missing genes or layers raise ``KeyError``.
         """
         return Attribute("gene", name, layer=layer, raw=raw)
+
+    def neighbors(
+        self,
+        name: str,
+        value: Any,
+        *,
+        stat: Literal["count", "fraction"] = "count",
+        graph: str | None = None,
+    ) -> Attribute:
+        """Reference how many of each cell's spatial neighbors have ``value`` in the
+        ``obs`` column ``name``.
+
+        Neighbors come from a graph in ``adata.obsp``, such as the one
+        ``squidpy.gr.spatial_neighbors`` writes (``"spatial_connectivities"``, the
+        default). A cell is never its own neighbor.
+
+        Parameters
+        ----------
+        name
+            ``adata.obs`` column, e.g. ``"leiden"``.
+        value
+            The category counted, e.g. ``"16"``.
+        stat
+            ``"count"`` (how many neighbors) or ``"fraction"`` (the share of the
+            cell's neighbors; ``NaN`` for a cell with none).
+        graph
+            ``adata.obsp`` key of the neighbor graph.
+
+        Examples
+        --------
+        >>> # Cells of cluster 20 touching at least two cells of cluster 16
+        >>> query = (selector.attr("leiden") == "20") & (selector.neighbors("leiden", "16") >= 2)
+        """
+        if stat not in ("count", "fraction"):
+            raise ValueError("stat must be 'count' or 'fraction'")
+        return Attribute("neighbors", name, value=value, stat=stat, graph=graph)
 
     def select(
         self,
@@ -1673,6 +1729,62 @@ class Selector:
             raise KeyError(f"Attribute '{name}' not found in adata.obs")
         return pd.Series(self.adata.obs[name], index=self.ids, name=name)
 
+    #: The neighbor graph read when ``Selector.neighbors`` names none.
+    DEFAULT_GRAPH = "spatial_connectivities"
+
+    def neighbor_graph(self, graph: str | None = None) -> Any:
+        """The neighbor graph in ``adata.obsp`` (``graph``, else
+        ``spatial_connectivities``) as a binary CSR matrix without self-edges.
+
+        Raises ``KeyError`` when the AnnData has no such graph.
+        """
+        from scipy import sparse
+
+        key = graph or self.DEFAULT_GRAPH
+        cache = self._graphs
+        if key not in cache:
+            obsp = getattr(self.adata, "obsp", None)
+            if obsp is None or key not in obsp:
+                raise KeyError(
+                    f"Neighbor graph '{key}' not found in adata.obsp (compute one with "
+                    "squidpy.gr.spatial_neighbors)"
+                )
+            matrix = sparse.csr_matrix(obsp[key])
+            if matrix.shape != (len(self.ids), len(self.ids)):
+                raise ValueError(f"adata.obsp['{key}'] is not cells x cells")
+            matrix = (matrix != 0).astype(np.float32)
+            matrix.setdiag(0)
+            matrix.eliminate_zeros()
+            cache[key] = matrix
+        return cache[key]
+
+    def _neighbors_attribute(
+        self,
+        name: str,
+        value: Any,
+        *,
+        stat: str = "count",
+        graph: str | None = None,
+    ) -> pd.Series:
+        """Resolve "neighbors with ``value`` in ``name``" to a Series by entity id.
+
+        Raises ``KeyError`` for a missing column or graph, and ``ValueError`` when
+        no cell has ``value`` (usually a typo in a category).
+        """
+        labels = self._obs_attribute(name)
+        members = labels.astype(str).to_numpy() == str(value)
+        if not members.any():
+            raise ValueError(f"No cell has {name} == {value!r}")
+        matrix = self.neighbor_graph(graph)
+        counts = np.asarray(matrix @ members.astype(np.float32)).ravel()
+        label = f"neighbors {name}={value}"
+        if stat == "fraction":
+            degree = np.asarray(matrix.sum(axis=1)).ravel()
+            with np.errstate(divide="ignore", invalid="ignore"):
+                values = np.where(degree > 0, counts / degree, np.nan)
+            return pd.Series(values, index=self.ids, name=f"{label} (fraction)")
+        return pd.Series(counts, index=self.ids, name=label)
+
     def _gene_attribute(
         self, name: str, *, layer: str | None = None, raw: bool = False
     ) -> pd.Series:
@@ -1718,10 +1830,28 @@ _MAX_QUERY_DEPTH = 8
 def _attribute_from_dict(data: Any) -> Attribute:
     if (
         not isinstance(data, dict)
-        or data.get("type") not in ("obs", "gene")
+        or data.get("type") not in ("obs", "gene", "neighbors")
         or not data.get("name")
     ):
-        raise ValueError('an attribute must be like {"type": "obs"|"gene", "name": ...}')
+        raise ValueError(
+            'an attribute must be like {"type": "obs"|"gene"|"neighbors", "name": ...}'
+        )
+    if data["type"] == "neighbors":
+        if data.get("value") is None:
+            raise ValueError(
+                'a neighbors attribute needs a "value": {"type": "neighbors", "name": '
+                '"<obs column>", "value": "<category>", "stat": "count"|"fraction"}'
+            )
+        stat = str(data.get("stat") or "count")
+        if stat not in ("count", "fraction"):
+            raise ValueError('"stat" must be "count" or "fraction"')
+        return Attribute(
+            kind="neighbors",
+            name=str(data["name"]),
+            value=data["value"],
+            stat=stat,
+            graph=None if data.get("graph") is None else str(data["graph"]),
+        )
     return Attribute(
         kind=data["type"],
         name=str(data["name"]),
@@ -1734,7 +1864,9 @@ def query_from_dict(data: dict[str, Any], *, _depth: int = 0) -> Query:
     """Build a query from its :meth:`Query.to_dict` form (the inverse of ``to_dict``).
 
     A leaf is ``{"op": "eq"|"ne"|"lt"|"le"|"gt"|"ge"|"isin"|"notin"|"isna"|"notna"
-    |"between", "attr": {"type": "obs"|"gene", "name": ...}, "value": ...}``; a
+    |"between", "attr": {"type": "obs"|"gene", "name": ...}, "value": ...}`` (or a
+    neighbors attribute, ``{"type": "neighbors", "name": "<obs column>", "value":
+    "<category>", "stat": "count"|"fraction"}``); a
     combination is ``{"op": "and"|"or"|"not", "queries": [...]}``. Only these
     operators are accepted, so a saved or generated query can be re-run without
     running any code.

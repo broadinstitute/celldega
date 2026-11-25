@@ -65,6 +65,19 @@ def _adata_summary(adata) -> dict:
     return out
 
 
+def _matrix_summary(matrix) -> dict:
+    """A Matrix's name, source (a Zarr path or URL), shape and description."""
+    info: dict[str, Any] = {}
+    for key, attr in (("name", "name"), ("source", "_source"), ("description", "description")):
+        value = getattr(matrix, attr, None)
+        if value:
+            info[key] = str(value)
+    data = getattr(matrix, "data", None)
+    if data is not None and hasattr(data, "shape"):
+        info["shape"] = [int(n) for n in data.shape]
+    return info
+
+
 def widget_source(widget) -> dict:
     """What a widget shows data from, as far as Python knows it."""
     kind = type(widget).__name__
@@ -87,16 +100,16 @@ def widget_source(widget) -> dict:
         out["adata"] = _adata_summary(adata)
     matrix = getattr(widget, "_matrix", None)
     if matrix is not None:
-        info: dict[str, Any] = {}
-        for key, attr in (("name", "name"), ("source", "_source")):
-            value = getattr(matrix, attr, None)
-            if value:
-                info[key] = str(value)
-        data = getattr(matrix, "data", None)
-        if data is not None and hasattr(data, "shape"):
-            info["shape"] = [int(n) for n in data.shape]
+        info = _matrix_summary(matrix)
         if info:
             out["matrix"] = info
+    # A Clustergram with several matrices: each one, and which is shown.
+    matrices = getattr(widget, "_matrices", None) or {}
+    if matrices:
+        out["matrices"] = [
+            {"name": name, **_matrix_summary(each)} for name, each in matrices.items()
+        ]
+        out["active_matrix"] = getattr(widget, "active_matrix", "")
     extra = getattr(widget, "screenshot_metadata", None)
     if extra:
         out.update(extra)
@@ -150,7 +163,14 @@ def widget_source(widget) -> dict:
             for item in base_urls
             if isinstance(item, dict)
         ]
-    if matrix is not None:
+    if matrices:
+        # Reopened from their Zarr stores when every matrix has one.
+        options["matrices"] = [
+            {"name": name, "url": str(getattr(each, "_source", None) or "")}
+            for name, each in matrices.items()
+        ]
+        options["active_matrix"] = getattr(widget, "active_matrix", "")
+    elif matrix is not None:
         source = getattr(matrix, "_source", None)
         if source:
             options["url"] = str(source)
@@ -165,9 +185,11 @@ def widget_source(widget) -> dict:
         )
     )
     out["options"] = options
-    out["requires_data"] = (
-        not bool(options.get("url")) if is_matrix else adata is not None or inline_spatial
-    )
+    if matrices:
+        has_sources = all(item["url"] for item in options["matrices"])
+    else:
+        has_sources = bool(options.get("url"))
+    out["requires_data"] = not has_sources if is_matrix else adata is not None or inline_spatial
     return out
 
 

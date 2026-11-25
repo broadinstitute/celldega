@@ -307,7 +307,9 @@ def _writable_meta(meta: pd.DataFrame, names: pd.Index) -> tuple[pd.DataFrame, l
     back on read.
     """
     frame = meta.reindex(names).copy()
-    frame.index = names
+    # Unnamed: AnnData refuses an index named like one of the columns (a
+    # SetCollection's sets are indexed by, and carry, their set column).
+    frame.index = pd.Index(names).rename(None)
     object_columns = []
     for column in frame.columns:
         series = frame[column]
@@ -488,6 +490,7 @@ class Matrix:
         size_by: str | None = None,
         size_by_layer: str | None = None,
         dot_plot: str | None = None,
+        description: str | None = None,
     ):
         """
         Create a Matrix while preserving the supplied values.
@@ -537,6 +540,11 @@ class Matrix:
                 on ``mdata.mod[color_by]`` or on an AnnData ``data``. Mutually
                 exclusive with ``size_by`` and ``dot_plot``.
             dot_plot: Deprecated alias for `size_by` (pass either, not both).
+            description: What the values are and how to read them, in a few
+                sentences: the method, the units, what high and low values
+                mean. Saved with :meth:`write_zarr`; a Clustergram shows it
+                when hovering the matrix's name, and Clerk reads it to
+                interpret the matrix (see :attr:`description`).
 
         Examples:
             # Preserve already-prepared values (default)
@@ -681,6 +689,9 @@ class Matrix:
             self._data_hash_name = quick_hash_data(data)
         else:
             self._data_hash_name = name
+
+        #: What the values are and how to read them (see ``description=``).
+        self.description: str = "" if description is None else str(description)
 
         # Load data without changing supplied values. Filtering and normalization
         # remain explicit Matrix operations via ``filter`` and ``norm``.
@@ -1844,6 +1855,7 @@ class Matrix:
         meta_json.pop("row_nodes", None)
         meta_json.pop("col_nodes", None)
         meta_json["linkage"] = {}
+        meta_json["description"] = self.description
 
         return {
             "mat": _to_bytes(mat_df),
@@ -1976,6 +1988,7 @@ class Matrix:
             "source_global_cat_colors": dict(self._source_global_cat_colors),
             "viz": {key: self.viz.get(key) for key in _STORE_VIZ_KEYS},
             "views": [{key: view[key] for key in _STORE_VIEW_SCALARS} for view in self.views],
+            "description": self.description,
         }
         store: dict[str, Any] = {
             # One JSON document: AnnData's uns cannot hold lists of dicts, keys
@@ -2046,6 +2059,7 @@ class Matrix:
         mat.row_cats, mat.col_cats = meta["row_cats"], meta["col_cats"]
         mat.is_downsampled = bool(meta["is_downsampled"])
         mat._source_global_cat_colors = dict(meta["source_global_cat_colors"])
+        mat.description = str(meta.get("description") or "")
         if "size" in adata.layers:
             mat.size_matrix = pd.DataFrame(_dense(adata.layers["size"]).T, index=rows, columns=cols)
         markers = marker_ranks_from_uns(adata.uns.get("marker_ranks"))

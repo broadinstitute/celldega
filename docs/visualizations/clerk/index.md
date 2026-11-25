@@ -239,6 +239,69 @@ clerk = dega.viz.Clerk()
 dega.viz.link_clerk(clerk, landscape=landscape, clustergram=cgm)
 ```
 
+### Several matrices
+
+A Clustergram can hold several matrices about the same clusters, for example their
+gene expression and how often they are spatial neighbors (such as Squidpy's
+`nhood_enrichment` z-scores). Give each Matrix a `description` saying what its values
+are and how to read them, then pass them as a dictionary:
+
+```python
+expression = dega.clust.Matrix(adata, groupby="leiden", description="Mean expression ...")
+enrichment = dega.clust.Matrix(
+    zscores, row_entity="cluster", col_entity="cluster",
+    description="Squidpy neighborhood enrichment z-scores: positive when two clusters ...",
+)
+cgm = dega.viz.Clustergram(
+    matrix={"Gene expression": expression, "Neighborhood enrichment": enrichment},
+    manual_col_cat="cell_type",
+)
+clerk = dega.viz.Clerk(landscape=landscape, clustergram=cgm)
+```
+
+The MAT dropdown switches matrices, and so do Clerk's links. With each question Clerk
+gets the list of matrices with their descriptions, the one on screen as usual, and the
+others summarized (a clusters by clusters matrix whole, with its dendrogram groups).
+Clerk's cited views can name the matrix they rest on, so clicking one shows it; a gene
+link shows the expression matrix, and marker lookups work whichever matrix is shown.
+Cell-type labels stay with the clusters in every matrix.
+
+### Captions
+
+A caption is Clerk without the conversation: one Markdown paragraph, under a figure,
+whose links change the figure. Gene names and "cluster N" become links as in Clerk's
+answers, and `[text](view:ID)` links a view, given as settings (like Clerk's cited
+views, including a Clustergram `matrix`) or as a Snapshot:
+
+```python
+dega.viz.caption(
+    "Cluster 20 cells express PODXL and [sit with the podocytes of cluster "
+    "16](view:glom).",
+    {"glom": {"landscape": {"zoom_to": {"clusters": ["16"]}, "clusters": ["16", "20"]},
+              "clustergram": {"matrix": "Neighborhood enrichment"}}},
+    landscape=landscape,
+    clustergram=cgm,
+)
+```
+
+No AI is involved, and the links work in saved notebooks and web pages too.
+
+### Stacks
+
+To keep a notebook readable, put views that take turns in one place with
+`dega.viz.stack`: for example the tissue and its cells, or Clerk and Enrichr. A small
+switch shows one at a time; the others stay rendered. A view comes forward when one of
+Clerk's links (or a pin or Snapshot) opens something in it, or when Clerk changes it,
+and Clerk notes that a hidden view isn't in its evidence:
+
+```python
+spatial = dega.viz.stack({"Tissue": landscape, "Cells": yearbook})
+information = dega.viz.stack({"Clerk": clerk, "Enrichr": enrich})
+widgets.HBox([spatial, cgm, information])
+```
+
+Link the views first (`spatial_clustergram`, `link_clerk`), then make the stacks.
+
 ### Sidecar or wide
 
 To lay Clerk out with the views, linked, pass it to `spatial_clustergram`. By default it

@@ -4,9 +4,59 @@ All notable changes to Celldega are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/) conventions and
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.30.0] - Unreleased
+
+### Added
+
+- **A Clustergram with several matrices:** `Clustergram(matrix={"Gene
+  expression": expression, "Neighborhood enrichment": enrichment})` shows
+  different matrices about the same objects (for example clusters by genes, and
+  clusters by clusters) in one Clustergram, switched with a small MAT dropdown or
+  `active_matrix`, in the browser with no kernel needed. Each matrix keeps its own
+  zoom, order and marker level; cell-type labels follow the clusters onto every
+  axis of clusters. The web page API takes `clustergram(el, {matrices: [{name,
+  url}]})`.
+- **`Matrix(description=...)`:** what a matrix's values are and how to read them,
+  saved with `write_zarr`, shown when hovering its name in the dropdown, and read
+  by Clerk.
+- **Clerk reads every matrix:** with each question Clerk gets the list of the
+  Clustergram's matrices with their descriptions, the one on screen as before,
+  and the others summarized from their Matrix objects (a clusters by clusters
+  matrix whole). Its views and actions can switch matrices (`"matrix": name`), a
+  gene link switches to the matrix that has the gene, and marker lookups work
+  whichever matrix is shown.
+- **Selecting cells by their spatial neighbors:** `Selector.neighbors(column,
+  value)` counts (or, with `stat="fraction"`, shares) each cell's neighbors in a
+  category, from a neighbor graph in `adata.obsp` such as Squidpy's. Clerk is told
+  when its AnnData has one and can select, for example, a cluster's cells touching
+  another cluster for the Yearbook; the graph's values stay in the kernel.
+- **Stacks:** `dega.viz.stack({"Tissue": landscape, "Cells": yearbook})` puts
+  several widgets in one place with a small switch, one shown at a time. Hidden
+  widgets stay rendered, a widget comes forward when a link, pin or Snapshot opens
+  a view in it or when Clerk changes it, and it all works without a kernel (the
+  web page API has `stack(el, labels)`). Clerk notes a hidden view instead of
+  capturing it.
+- **Captions:** `dega.viz.caption(text, views, landscape=..., clustergram=...)`
+  is a paragraph under a figure whose gene, cluster and view links change the
+  figure: a Clerk panel in caption mode (`Clerk(mode="caption")`), with no AI and
+  no kernel needed. Views can be Clerk-style settings or Snapshots.
+- **Relations matched by name:** `collection.add_relation(key, values,
+  labels=...)` stores a square relation between a collection's observations (such
+  as Squidpy's neighborhood enrichment z-scores between a SetCollection's sets),
+  matching rows and columns by name rather than position, which a tool's own
+  order would otherwise silently mislabel.
+
+### Changed
+
+- **Pre-releases load their own front end from the CDN:** an alpha, beta or
+  release candidate installed from PyPI (e.g. `0.30.0a1`) loads the matching npm
+  bundle (`celldega@0.30.0-alpha.1`) instead of embedding the local one in every
+  widget; editable checkouts keep using their local build.
 
 ### Fixed
+
+- **`Matrix.write_zarr`** no longer fails when an axis's index is named like one
+  of its attribute columns (as a SetCollection's sets are).
 
 - **Clerk:** the panel keeps its hidden parts hidden when the page around it
   styles forms or buttons, so a docs notebook no longer shows the report-name
@@ -19,6 +69,14 @@ All notable changes to Celldega are documented here. This project follows
 - The Atera kidney Clerk case is listed in the gallery, reading its case folder
   from Hugging Face, and a brief notebook (`Atera_Kidney_Clerk_Case`) reopens
   the same case in Python.
+
+## [0.30.0a1] - 2026-11-25
+
+First alpha of 0.30.0, for trying the features above: a Clustergram with several
+matrices (e.g. gene expression and Squidpy neighborhood enrichment of the same
+clusters) and Clerk reasoning across them, selecting cells by their spatial
+neighbors, stacks, captions, and `add_relation`. See [0.30.0] for the full notes,
+including the fixes since 0.29.1.
 
 ## [0.29.1] - 2026-11-23
 

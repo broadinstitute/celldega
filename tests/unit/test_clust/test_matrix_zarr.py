@@ -155,3 +155,22 @@ def test_unclustered_matrix_cannot_be_saved(tmp_path):
 def test_reader_rejects_other_anndata():
     with pytest.raises(ValueError, match="clustered Matrix"):
         Matrix.from_clustered_adata(ad.AnnData(np.ones((2, 2))))
+
+
+def test_axis_named_like_a_column_saves(tmp_path):
+    """A SetCollection's sets are indexed by, and carry, their set column."""
+    obs = pd.DataFrame(
+        {"leiden": pd.Categorical(["0", "1", "2"]), "n_cells": [5, 6, 7]},
+        index=pd.Index(["0", "1", "2"], name="leiden"),
+    )
+    data = ad.AnnData(
+        np.arange(12, dtype=np.float32).reshape(3, 4),
+        obs=obs,
+        var=pd.DataFrame(index=list("abcd")),
+    )
+    mat = Matrix(data, col_attr=["leiden"], description="Test values.")
+    mat.cluster()
+    mat.write_zarr(tmp_path / "matrix.zarr")
+    restored = Matrix.read_zarr(tmp_path / "matrix.zarr")
+    assert list(restored.data.columns) == ["0", "1", "2"]
+    assert restored.description == "Test values."

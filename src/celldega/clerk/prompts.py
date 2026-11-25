@@ -11,6 +11,8 @@ happens to match it.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 
 ACTIONS_FENCE = "celldega-actions"
 FINDINGS_FENCE = "celldega-findings"
@@ -56,6 +58,11 @@ make the final call; you gather and weigh the evidence.
   spillover, ambient RNA, low quality) only when the evidence points to them.
 - Read cluster identities from the Clustergram's attributes, ranked markers and values,
   not from colors in the image.
+- With several Clustergram matrices, read each by its description: their values mean
+  different things. A matrix of how often clusters neighbor each other says where
+  cells are, not what they are; use it with the image and the markers, for example to
+  check whether two clusters touch across the tissue, or whether a cluster's unexpected
+  genes may come from cells it touches.
 - Targeted panels measure a few hundred to a few thousand genes. A canonical marker that
   is not in the data is unmeasured, not absent; say which markers are missing.
 - If an evidence note says a view is unavailable, say so plainly instead of guessing.
@@ -67,7 +74,10 @@ genes, cells per cluster and top genes in the field of view, and any neighborhoo
 scientist drew, with their cluster mix); a text snapshot of the Clustergram, the clusters-by-genes
 heatmap as shown (what is on screen with attributes, the order, marker level,
 dendrogram groups, the selection, and values with dot sizes; genes named in the
-conversation are added); the Enrich panel's results; genes the scientist selected;
+conversation are added); when the Clustergram holds several matrices about the same
+clusters (for example gene expression, and how often clusters are spatial neighbors),
+a list of them with descriptions written by whoever made them, the one on screen as
+above and the others summarized; the Enrich panel's results; genes the scientist selected;
 free-text context; the conversation so far; and sometimes notes from earlier work the
 scientist chose to share, which are earlier conclusions to check, not evidence.
 
@@ -133,7 +143,9 @@ Landscape settings: clusters, genes, zoom_to ({{"clusters": [...]}}), reset_view
 ({{"target": [x, y], "zoom": z}}), space ("spatial" or "umap"). Clustergram settings:
 marker_level, mode, size, focus_gene, and dendrogram_group ({{"axis": "col", "name":
 "<group name as listed in the Clustergram snapshot>"}}) to select a dendrogram group,
-e.g. when you discuss one, so the scientist can return to it. Write gene and cluster
+e.g. when you discuss one, so the scientist can return to it. With several matrices,
+add "matrix": "<name>" to a view whose claim rests on that matrix (its groups are
+then the ones listed for it), so the link shows it. Write gene and cluster
 names as plain text, with no brackets: the panel links them by itself. Keep figure links
 short ([Fig 1A](view:1A)) and don't wrap gene or cluster names in them. Use a
 few views per answer, each supporting a specific claim. Change the views directly
@@ -142,10 +154,16 @@ few views per answer, each supporting a specific claim. Change the views directl
 
 
 def actions_help(
-    *, clustergram: bool, landscape: bool = False, yearbook: bool = False, anndata: str = ""
+    *,
+    clustergram: bool,
+    landscape: bool = False,
+    yearbook: bool = False,
+    anndata: str = "",
+    matrices: Sequence[str] = (),
 ) -> str:
     """How Clerk can look things up, and change the linked Clustergram / Landscape /
-    Yearbook (``anndata``: a description of the cells it can select from, or "")."""
+    Yearbook (``anndata``: a description of the cells it can select from, or "";
+    ``matrices``: the names of the Clustergram's matrices when it has several)."""
     libraries = ", ".join(DEFAULT_ENRICHR_LIBRARIES)
     lines = [
         f"End a reply with one fenced block tagged `{ACTIONS_FENCE}` containing one JSON "
@@ -192,6 +210,14 @@ def actions_help(
             'gene), categories (label columns when asked: {"values": {"A": "<cell '
             'type>"}}).',
         ]
+        if len(matrices) > 1:
+            names = ", ".join(f'"{name}"' for name in matrices)
+            lines += [
+                'The Clustergram holds several matrices; "matrix" shows one by name '
+                f"({names}), e.g. "
+                '{"clustergram": {"matrix": "<name>"}}; the other settings then apply to '
+                "it. Marker and gene lookups work whichever matrix is shown.",
+            ]
     if landscape:
         lines += [
             "",

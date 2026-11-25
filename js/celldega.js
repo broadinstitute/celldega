@@ -23,6 +23,7 @@ import { landscape_h_e } from './viz/landscape_h_e';
 import { landscape_ist } from './viz/landscape_ist';
 import { landscape_model_values } from './viz/landscape_options';
 import { matrix_viz } from './viz/matrix_viz';
+import { multi_matrix_viz } from './viz/multi_matrix_viz';
 import { read_png, screenshot_png } from './viz/png';
 import {
   consume_initial_snapshot,
@@ -31,6 +32,7 @@ import {
 import { yearbook } from './viz/yearbook';
 import { render_clerk } from './widgets/clerk_widget';
 import { render_enrich } from './widgets/enrich_widget';
+import { render_stack_switch, stack } from './widgets/stack_switch';
 
 // Show the loading placeholder only for renders slower than this.
 const LOADING_DELAY_MS = 150;
@@ -362,11 +364,43 @@ const render_yearbook = async ({ model, el }) => {
 
 const render_landmark = async ({ model, el }) => landmark(model, el);
 
+// One matrix of a Clustergram with several (Python's `matrices` trait), read
+// from its parquet bytes when it is first shown.
+const parquet_matrix_entry = (entry) => ({
+  name: String(entry.name),
+  description: entry.description || '',
+  viz_mode: entry.viz_mode || '',
+  row_entity: entry.row_entity || '',
+  col_entity: entry.col_entity || '',
+  load: () =>
+    networkFromParquet(
+      entry.meta || {},
+      entry.mat,
+      entry.row_nodes,
+      entry.col_nodes,
+      entry.row_linkage,
+      entry.col_linkage,
+      entry.dot_mat
+    ),
+});
+
 const render_matrix_new = async ({ model, el }) => {
   // let network = model.get('network');
   let network;
   const width = model.get('width');
   const height = model.get('height');
+
+  // Several matrices (Clustergram(matrix={name: Matrix})): the dropdown switches.
+  const matrices = model.get('matrices') || [];
+  if (matrices.length > 1) {
+    return multi_matrix_viz(
+      model,
+      el,
+      matrices.map(parquet_matrix_entry),
+      width,
+      height
+    );
+  }
 
   const matBytes = model.get('mat_parquet');
   if (matBytes && matBytes.byteLength > 0) {
@@ -462,6 +496,9 @@ async function render({ model: widget_model, el }) {
         break;
       case 'Clerk':
         cleanup = await with_loading(render_clerk);
+        break;
+      case 'StackSwitch':
+        cleanup = render_stack_switch({ model, el });
         break;
       case 'Landmark':
         cleanup = await with_loading(render_landmark);
@@ -661,8 +698,14 @@ const landscape = async (el, options = {}) => {
  * @param {string} [options.loading_label] - Replaces "Loading…" under the loading
  *   mark shown while it loads
  * @param {boolean} [options.loading=true] - Show the loading mark
+ * @param {Array<object>} [options.matrices] - Several matrices about the same
+ *   objects, switched with a dropdown, in place of `network`/`url`/`base_url`:
+ *   each `{name, url}` (a Matrix Zarr store), `{name, network}` or `{name,
+ *   base_url, dega_name}`, optionally with `description` (shown on hover) and
+ *   `viz_mode`. Like Python's `Clustergram(matrix={name: Matrix})`.
+ * @param {string} [options.active_matrix] - With `matrices`, the one shown first
  * @returns {Promise<object>} The Clustergram, with its `model` (see
- *   link_models) and `finalize()`
+ *   link_models) and `finalize()`; with `matrices`, also `switch_matrix(name)`
  */
 const clustergram = async (
   el,
@@ -670,6 +713,8 @@ const clustergram = async (
     network: given_network,
     url,
     base_url,
+    matrices = null,
+    active_matrix = '',
     name = 'default',
     width = 500,
     height = 500,
@@ -685,13 +730,58 @@ const clustergram = async (
     loading_label,
   } = {}
 ) => {
+  // The matrix plus its label and dendrogram margins.
+  const mark = { loading, loading_label, height: Number(height) + 100 };
+  if (matrices?.length) {
+    if ([given_network, url, base_url].some(Boolean)) {
+      throw new Error(
+        '[clustergram] Pass matrices, or one of network, url or base_url.'
+      );
+    }
+    return while_loading(el, mark, async () => {
+      const entries = matrices.map((matrix, index) => ({
+        name: String(matrix.name ?? `Matrix ${index + 1}`),
+        description: matrix.description || '',
+        viz_mode: matrix.viz_mode || '',
+        url: matrix.url || '',
+        load: async () => {
+          if (matrix.network) return matrix.network;
+          if (matrix.url)
+            return network_from_zarr(matrix.url, { fetchOptions });
+          return networkFromDegaFiles(
+            matrix.base_url,
+            matrix.dega_name ?? 'default',
+            fetchOptions
+          );
+        },
+      }));
+      const names = entries.map((entry) => entry.name);
+      const model = make_options_model({
+        viz_mode: viz_mode ?? null,
+        rank_dim,
+        url: '',
+        base_url: '',
+        name,
+        width,
+        height,
+        data_revision: String(data_revision || ''),
+        active_matrix: names.includes(active_matrix) ? active_matrix : names[0],
+        ...manual_category_values(manual_cat),
+      });
+      const viz = await multi_matrix_viz(model, el, entries, width, height, {
+        row_label_callback,
+        col_label_callback,
+        col_dendro_callback,
+      });
+      viz.model = model;
+      return viz;
+    });
+  }
   if ([given_network, url, base_url].filter(Boolean).length !== 1) {
     throw new Error(
       '[clustergram] Pass exactly one of network, url (Matrix Zarr), or base_url (DegaFiles).'
     );
   }
-  // The matrix plus its label and dendrogram margins.
-  const mark = { loading, loading_label, height: Number(height) + 100 };
   return while_loading(el, mark, async () => {
     const network =
       given_network ??
@@ -852,6 +942,8 @@ export default {
   // Options-object entry points for web pages without Python.
   landscape,
   clustergram,
+  // Several visualizations in one place, one shown at a time.
+  stack,
   link_models,
   read_png,
   snapshot_png: screenshot_png,
@@ -863,6 +955,7 @@ export default {
   landscape_ist: with_loading_mark(landscape_ist),
   landscape_h_e,
   matrix_viz,
+  multi_matrix_viz,
   matrix_from_dega_files,
   matrix_from_zarr,
   networkFromDegaFiles,

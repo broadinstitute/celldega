@@ -1285,4 +1285,67 @@ describe('Clerk panel', () => {
       id: 'n1',
     });
   });
+
+  test('caption mode: only the caption, its links live without a kernel', async () => {
+    jest.useFakeTimers();
+    try {
+      const saved = { kind: 'landscape', state: {} };
+      const { el, model } = await render(
+        {
+          mode: 'caption',
+          cluster_names: ['16', '20'],
+          caption:
+            'Cluster 20 expresses PODXL and [sits with cluster 16](view:glom); ' +
+            '[the glomerulus](view:shot).',
+          caption_genes: ['PODXL'],
+          caption_views: {
+            glom: {
+              caption: 'Glomeruli',
+              landscape: { clusters: ['16', '20'] },
+              clustergram: { matrix: 'Neighborhood enrichment' },
+            },
+            shot: { caption: 'Saved', snapshot: { landscape: saved } },
+          },
+        },
+        { kernel: false }
+      );
+      // No conversation chrome: no question box, toolbar or border.
+      expect(el.querySelector('textarea')).toBeNull();
+      expect(el.querySelector('.clerk-ask')).toBeNull();
+      expect(el.querySelector('.clerk-gene').dataset.gene).toBe('PODXL');
+      expect(el.querySelectorAll('a.clerk-view')).toHaveLength(2);
+
+      // A view: the Clustergram switches matrix first, then the Landscape.
+      el.querySelector('a.clerk-view[data-view="glom"]').click();
+      expect(model.get('clustergram_request')).toMatchObject({
+        changes: { matrix: 'Neighborhood enrichment' },
+      });
+      model.set('clustergram_result', {
+        id: model.get('clustergram_request').id,
+        shown: '',
+      });
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request')).toMatchObject({
+        changes: { clusters: ['16', '20'] },
+      });
+
+      // A Snapshot view opens the saved view itself.
+      model.set('landscape_result', {
+        id: model.get('landscape_request').id,
+        shown: '',
+      });
+      jest.advanceTimersByTime(SETTLE);
+      el.querySelector('a.clerk-view[data-view="shot"]').click();
+      jest.advanceTimersByTime(SETTLE);
+      expect(model.get('landscape_request')).toMatchObject({
+        snapshot: saved,
+      });
+
+      // Edits from Python re-render the caption.
+      model.set('caption', 'Now about PODXL only.');
+      expect(el.textContent).toContain('Now about PODXL only.');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

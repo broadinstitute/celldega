@@ -114,6 +114,27 @@ selection.names()
 
 `selection.names()` returns the ordered ids, usually names from `adata.obs_names`.
 
+## Selecting Cells By Their Neighbors
+
+With a spatial neighbor graph in `adata.obsp` (for example from
+`squidpy.gr.spatial_neighbors`), `selector.neighbors(column, value)` is how many of
+each cell's neighbors have `value` in `adata.obs[column]` (`stat="fraction"`: their
+share). It combines with metadata and genes like any attribute, and can rank cells:
+
+```python
+# Cells of cluster 20 touching at least two cells of cluster 16, most surrounded first
+query = (selector.attr("leiden") == "20") & (selector.neighbors("leiden", "16") >= 2)
+selection = selector.select(
+    query=query,
+    sampler=selector.samplers.rank(selector.neighbors("leiden", "16", stat="fraction"), n=24),
+)
+```
+
+The graph defaults to `obsp["spatial_connectivities"]` (`graph=` picks another);
+edge weights are ignored and a cell is never its own neighbor. In JSON (as Clerk
+writes queries) the attribute is `{"type": "neighbors", "name": "leiden", "value":
+"16", "stat": "count"}`.
+
 ## Safe Default Preview
 
 If a query matches a very large number of entities and no sampler is provided, `Selector` returns a deterministic random preview instead of accidentally handing a widget or notebook hundreds of thousands of ids.

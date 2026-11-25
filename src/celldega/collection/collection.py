@@ -309,6 +309,74 @@ class CelldegaCollection:
         self.mdata.obs = obs
         return self.mdata.mod[key]
 
+    def add_relation(self, key: str, values: Any, *, labels: Any = None) -> Any:
+        """Store a square relation between the observations, matched to them by name.
+
+        Tools return such matrices in their own order: Squidpy's
+        ``nhood_enrichment``, for example, orders clusters as the cluster column's
+        categories, while a ``SetCollection`` keeps its sets in its own order.
+        Assigning ``relations[key]`` directly is positional; this matches rows and
+        columns to the observations by name, so they can't be mislabeled.
+
+        Args:
+            key: Name of the relation (``relations[key]``).
+            values: A square ``pandas.DataFrame`` labeled by observation names, or a
+                square array (dense or sparse) with ``labels``.
+            labels: The names of ``values``' rows and columns, in order (e.g.
+                ``adata.obs["leiden"].cat.categories`` for Squidpy's results).
+
+        Returns:
+            The stored relation, in the collection's order.
+
+        Raises:
+            ValueError: If ``values`` isn't square, has no names, or doesn't name
+                exactly this collection's observations.
+
+        Example::
+
+            sq.gr.nhood_enrichment(adata, cluster_key="leiden")
+            clust.add_relation(
+                "nhood_enrichment",
+                adata.uns["leiden_nhood_enrichment"]["zscore"],
+                labels=adata.obs["leiden"].cat.categories,
+            )
+        """
+        if isinstance(values, pd.DataFrame):
+            if labels is not None:
+                raise ValueError("pass labels only with an array; a DataFrame has its own")
+            if [str(n) for n in values.index] != [str(n) for n in values.columns]:
+                raise ValueError("the DataFrame's rows and columns must name the same items")
+            labels = values.index
+            values = values.to_numpy()
+        if labels is None:
+            raise ValueError(
+                "pass labels= (the names of the rows and columns, in order) or a labeled "
+                "DataFrame, so the relation is matched to the observations by name"
+            )
+        names = [str(n) for n in labels]
+        shape = getattr(values, "shape", None)
+        if shape is None or len(shape) != 2 or shape[0] != shape[1] or shape[0] != len(names):
+            raise ValueError(f"values must be square with one row per label ({len(names)})")
+        if len(set(names)) != len(names):
+            raise ValueError("labels must be unique")
+        wanted = [str(n) for n in self.obs.index]
+        missing = sorted(set(wanted) - set(names))
+        extra = sorted(set(names) - set(wanted))
+        if missing or extra:
+            raise ValueError(
+                "labels must name exactly this collection's observations"
+                + (f"; missing {missing[:10]}" if missing else "")
+                + (f"; not in the collection {extra[:10]}" if extra else "")
+            )
+        position = {name: i for i, name in enumerate(names)}
+        order = np.asarray([position[name] for name in wanted])
+        if sparse.issparse(values):
+            aligned = sparse.csr_matrix(values)[order][:, order]
+        else:
+            aligned = np.asarray(values)[np.ix_(order, order)]
+        self.relations[key] = aligned
+        return self.relations[key]
+
     def add_relation_modality(
         self,
         relation_key: str,

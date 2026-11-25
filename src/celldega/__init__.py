@@ -11,16 +11,20 @@ AI agents is at https://broadinstitute.github.io/celldega/llms.txt).
 Widgets (``celldega.viz``; the main ones are also on ``celldega``):
 
 - ``Landscape``: the tissue (image, cells, transcripts, neighborhoods) or a UMAP.
-- ``Clustergram``: an interactive clustered heatmap of a ``clust.Matrix``.
+- ``Clustergram``: an interactive clustered heatmap of a ``clust.Matrix``, or of
+  several matrices about the same objects (``matrix={name: Matrix}``, switched
+  with a dropdown).
 - ``Yearbook``: a grid of cell portraits for reviewing selected cells.
 - ``Composition``: category counts or proportions compared across groups.
 - ``CellCloud`` / ``NeighborhoodCloud``: 3D views of cells or neighborhood shapes.
 - ``Enrich``: Enrichr gene-set enrichment of a gene list.
-- ``Clerk``: an AI tool that interprets the linked widgets with Claude.
+- ``Clerk``: an AI tool that interprets the linked widgets with Claude; in caption
+  mode (``viz.caption``) a paragraph under a figure whose links change it.
 
 Link widgets with ``viz.spatial_clustergram``, ``viz.landscape_yearbook``,
 ``viz.landscape_yearbook_clustergram``, ``viz.clustergram_enrich`` or
-``viz.link_clerk``. Save a view as a reproducible PNG with ``viz.snapshot`` and
+``viz.link_clerk``. Put several widgets in one place, one shown at a time, with
+``viz.stack``. Save a view as a reproducible PNG with ``viz.snapshot`` and
 rebuild it with ``viz.from_png``.
 
 Analysis modules:
@@ -34,7 +38,8 @@ Analysis modules:
 - ``set``, ``dataset``, ``collection``: collections of entities above the single
   cell (``SetCollection``, ``DatasetCollection``, ``NeighborhoodCollection``)
   and their feature spaces.
-- ``select``: ``Selector`` queries and samples cells, for example for Yearbook.
+- ``select``: ``Selector`` queries and samples cells by metadata, genes and
+  spatial neighbors, for example for Yearbook.
 - ``align``: stacks serial sections in 3D using the clusters they share.
 - ``clerk``: the prompts and model calls behind the ``Clerk`` widget.
 

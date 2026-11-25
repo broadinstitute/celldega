@@ -490,9 +490,12 @@ export const get_clustergram_state = (viz_state, options = {}) => {
     };
   };
 
+  // A Clustergram with several matrices reports which one this is.
+  const matrix = viz_state.model?.get?.('active_matrix') || '';
   return {
     kind: 'clustergram',
     version: CLUSTERGRAM_STATE_VERSION,
+    ...(matrix ? { matrix } : {}),
     ...observed_controls(viz_state),
     on_screen_known: bounds !== null,
     rows: axis_state('row'),

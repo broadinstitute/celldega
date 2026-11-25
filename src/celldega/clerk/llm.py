@@ -155,6 +155,8 @@ def build_prompt(
     briefing: str = "",
     history_questions: int | None = None,
     history_chars: int | None = None,
+    matrix_states: dict[str, dict] | None = None,
+    matrices: list[dict] | None = None,
 ) -> str:
     """Assemble the prompt for one question from the gathered evidence.
 
@@ -187,6 +189,10 @@ def build_prompt(
             (default :data:`MAX_HISTORY_QUESTIONS`).
         history_chars: Character budget for ``history`` (default
             :data:`MAX_HISTORY_CHARS`).
+        matrix_states: For a Clustergram with several matrices, summaries of those
+            not on screen (``{name: state}``, see :mod:`celldega.clerk.matrices`).
+        matrices: The Clustergram's matrices, ``[{name, description, on_screen,
+            rows, cols}]``, listed with their descriptions (see :func:`format_matrices`).
     """
     parts: list[str] = []
 
@@ -225,9 +231,20 @@ def build_prompt(
     if landscape_text:
         parts += ["## Landscape (what the scientist sees)", landscape_text, ""]
 
+    matrices_text = format_matrices(matrices)
+    if matrices_text:
+        parts += ["## Clustergram matrices", matrices_text, ""]
+
     clustergram_text = format_clustergram_state(clustergram_state)
     if clustergram_text:
-        parts += ["## Clustergram (what the scientist sees)", clustergram_text, ""]
+        parts += [
+            f"## Clustergram (what the scientist sees){_matrix_suffix(clustergram_state)}",
+            clustergram_text,
+            "",
+        ]
+
+    for title, text in _matrix_sections(matrix_states):
+        parts += [f"## {title}", text, ""]
 
     enrich_text = format_enrich_state(enrich_state)
     if enrich_text:
@@ -255,6 +272,57 @@ def build_prompt(
 
     parts += ["## Question", question.strip() or "Interpret this cluster."]
     return "\n".join(parts)
+
+
+#: Value-table caps for a matrix not on screen: a clusters x clusters matrix of up
+#: to 40 clusters is shown whole.
+MATRIX_VALUE_ROWS = 40
+MATRIX_VALUE_COLS = 40
+
+
+def matrix_title(name: str) -> str:
+    """How a Clustergram matrix not on screen is titled to Clerk."""
+    return f"Clustergram matrix '{name}'"
+
+
+def _matrix_suffix(state: dict | None) -> str:
+    """``": matrix 'name'"`` for a snapshot of one of several matrices."""
+    name = (state or {}).get("matrix")
+    return f": matrix '{name}'" if name else ""
+
+
+def _matrix_sections(states: dict[str, dict] | None) -> list[tuple[str, str]]:
+    """``(title, text)`` for each matrix not on screen with something to show."""
+    sections = []
+    for name, state in (states or {}).items():
+        text = format_clustergram_state(
+            state, max_value_rows=MATRIX_VALUE_ROWS, max_value_cols=MATRIX_VALUE_COLS
+        )
+        if text:
+            sections.append((f"{matrix_title(name)} (not on screen)", text))
+    return sections
+
+
+def format_matrices(matrices: list[dict] | None) -> str:
+    """The matrices of a Clustergram with several, what each one is, and which is on
+    screen ("" for a Clustergram with one matrix)."""
+    if not matrices or len(matrices) < 2:
+        return ""
+    lines = [
+        "The Clustergram holds several matrices about the same objects; the scientist "
+        "switches between them with its dropdown. Values mean different things in "
+        "each: read every matrix by its description.",
+    ]
+    for matrix in matrices:
+        status = "on screen" if matrix.get("on_screen") else "not on screen, summarized below"
+        size = ""
+        if matrix.get("rows") is not None and matrix.get("cols") is not None:
+            size = f"; {int(matrix['rows']):,} rows x {int(matrix['cols']):,} columns"
+        line = f"- '{matrix.get('name')}' ({status}{size})"
+        if matrix.get("description"):
+            line += f": {matrix['description']}"
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _enrichr_lines(enrichr_terms: list[dict] | None) -> list[str]:
@@ -557,7 +625,39 @@ def describe_anndata(
             parts.append(f"- {name}: numbers {low:.4g} to {high:.4g}")
     if len(obs.columns) > max_columns:
         parts.append(f"- +{len(obs.columns) - max_columns} more columns")
+    graph = _describe_graph(adata)
+    if graph:
+        parts.append(graph)
     return "\n".join(parts)
+
+
+def _describe_graph(adata, key: str = "spatial_connectivities") -> str:
+    """One line about the AnnData's spatial neighbor graph and how to select by it
+    ("" without one). Only its size is described, never its values."""
+    import numpy as np
+
+    obsp = getattr(adata, "obsp", None)
+    try:
+        if obsp is None or key not in obsp:
+            return ""
+        graph = obsp[key]
+        degree = np.diff(graph.tocsr().indptr) if hasattr(graph, "tocsr") else None
+    except Exception:  # unusual or backed matrices: say nothing
+        return ""
+    params = ((getattr(adata, "uns", {}) or {}).get("spatial_neighbors") or {}).get("params") or {}
+    how = ""
+    if params.get("delaunay"):
+        how = "Delaunay neighbors"
+        if params.get("max_edge_um"):
+            how += f" closer than {params['max_edge_um']:g} um"
+        how += "; "
+    median = f"median {np.median(degree):.0f} neighbors per cell; " if degree is not None else ""
+    return (
+        f"spatial neighbor graph ({how}{median}obsp '{key}'): select cells by their "
+        'neighbors with the attribute {"type": "neighbors", "name": "<obs column>", '
+        '"value": "<category>", "stat": "count"} (how many of a cell\'s neighbors have '
+        'that value; "stat": "fraction" for their share), in queries or samplers.'
+    )
 
 
 def _value_kind(adata) -> str:
@@ -653,6 +753,7 @@ VIEW_KEYS = {
         "image_source",
     ),
     "clustergram": (
+        "matrix",
         "marker_level",
         "mode",
         "size",
@@ -670,9 +771,14 @@ MAX_VIEWS = 12
 
 
 def resolve_dendrogram_groups(
-    views: dict | None, clustergram_state: dict | None
+    views: dict | None,
+    clustergram_state: dict | None,
+    matrix_states: dict[str, dict] | None = None,
 ) -> tuple[dict | None, list[str]]:
     """Pin each view's ``dendrogram_group`` to the Clustergram state Clerk saw.
+
+    A view naming another of the Clustergram's matrices (``"matrix": name``) reads
+    that matrix's groups (``matrix_states``, the summaries Clerk was sent).
 
     Clerk names a group as listed in the Clustergram snapshot, e.g.
     ``{"dendrogram_group": {"axis": "col", "name": "39"}}``. Group names depend on
@@ -698,7 +804,11 @@ def resolve_dendrogram_groups(
         name = str((spec or {}).get("name") or "") if isinstance(spec, dict) else ""
         name = re.sub(r"^\s*group\s+", "", name, flags=re.IGNORECASE).strip()
         key = {"col": "cols", "row": "rows"}.get(axis)
-        groups = ((clustergram_state or {}).get(key) or {}).get("groups") or {} if key else {}
+        state = clustergram_state
+        wanted = settings.get("matrix")
+        if wanted and wanted != (clustergram_state or {}).get("matrix"):
+            state = (matrix_states or {}).get(str(wanted))
+        groups = ((state or {}).get(key) or {}).get("groups") or {} if key else {}
         group = next((g for g in groups.get("groups") or [] if str(g.get("name")) == name), None)
         if group is None:
             problems.append(f"view {view_id}: no {axis or '?'} dendrogram group {name!r} in view")
@@ -1006,6 +1116,7 @@ def build_follow_up(
     enrich_state: dict | None = None,
     yearbook_state: dict | None = None,
     has_image: bool = False,
+    matrix_states: dict[str, dict] | None = None,
 ) -> str:
     """The message for a follow-up round: only what is new since the last message."""
     parts: list[str] = []
@@ -1014,7 +1125,9 @@ def build_follow_up(
         parts += ["## Landscape now", landscape_text, ""]
     clustergram_text = format_clustergram_state(clustergram_state)
     if clustergram_text:
-        parts += ["## Clustergram now", clustergram_text, ""]
+        parts += [f"## Clustergram now{_matrix_suffix(clustergram_state)}", clustergram_text, ""]
+    for title, text in _matrix_sections(matrix_states):
+        parts += [f"## {title}, now", text, ""]
     enrich_text = format_enrich_state(enrich_state)
     if enrich_text:
         parts += ["## Enrich now", enrich_text, ""]
@@ -1058,6 +1171,8 @@ def build_next_question(
     has_image: bool = False,
     notes: list[str] | None = None,
     actions_help: str | None = None,
+    matrix_states: dict[str, dict] | None = None,
+    matrices: list[dict] | None = None,
 ) -> str:
     """The message for a new question in a conversation that continues one session.
 
@@ -1073,7 +1188,12 @@ def build_next_question(
     changed = []
     for title, text in (
         ("Landscape", format_landscape_state(landscape_state, neighborhoods)),
-        ("Clustergram", format_clustergram_state(clustergram_state)),
+        ("Clustergram matrices", format_matrices(matrices)),
+        (
+            f"Clustergram{_matrix_suffix(clustergram_state)}",
+            format_clustergram_state(clustergram_state),
+        ),
+        *_matrix_sections(matrix_states),
         ("Enrich: enrichment results on screen", format_enrich_state(enrich_state)),
         ("Yearbook", format_yearbook_state(yearbook_state)),
     ):
@@ -1278,6 +1398,8 @@ def ask(
     briefing: str = "",
     history_questions: int | None = None,
     history_chars: int | None = None,
+    matrix_states: dict[str, dict] | None = None,
+    matrices: list[dict] | None = None,
 ) -> str:
     """Build the prompt from evidence (and earlier turns) and run the model.
 
@@ -1291,6 +1413,8 @@ def ask(
         has_image=bool(image_b64),
         history=history,
         clustergram_state=clustergram_state,
+        matrix_states=matrix_states,
+        matrices=matrices,
         notes=notes,
         enrich_state=enrich_state,
         yearbook_state=yearbook_state,
@@ -1321,6 +1445,7 @@ def follow_up(
     model: str = "",
     timeout: int = DEFAULT_TIMEOUT,
     effort: str = "",
+    matrix_states: dict[str, dict] | None = None,
 ) -> str:
     """Continue a started :class:`Session` with only what is new (see :func:`build_follow_up`)."""
     if not session.started:
@@ -1329,6 +1454,7 @@ def follow_up(
         notes=notes,
         lookups=lookups,
         clustergram_state=clustergram_state,
+        matrix_states=matrix_states,
         landscape_state=landscape_state,
         neighborhoods=neighborhoods,
         enrich_state=enrich_state,

@@ -38,3 +38,24 @@ def test_serve_mode_serves_the_bundle_once(monkeypatch) -> None:
         assert resp.headers["Access-Control-Allow-Origin"] == "*"
         assert "javascript" in resp.headers["Content-Type"]
         assert len(resp.read()) == widget._LOCAL_ESM.stat().st_size
+
+
+def test_installed_prereleases_load_their_npm_alpha(monkeypatch) -> None:
+    monkeypatch.delenv("CELLDEGA_LOCAL_ESM", raising=False)
+    monkeypatch.delenv("ANYWIDGET_HMR", raising=False)
+    monkeypatch.delenv("CELLDEGA_ESM_VERSION", raising=False)
+    monkeypatch.setattr(widget, "_editable_install", lambda: False)
+    assert widget._npm_version("0.30.0") == "0.30.0"
+    assert widget._npm_version("0.30.0a1") == "0.30.0-alpha.1"
+    assert widget._npm_version("0.30.0b2") == "0.30.0-beta.2"
+    assert widget._npm_version("0.30.0rc1") == "0.30.0-rc.1"
+    assert widget._npm_version("0.30.0.dev3") == ""
+    assert widget._npm_version("0.30.0a1+local") == ""
+    monkeypatch.setattr(widget.importlib.metadata, "version", lambda name: "0.30.0a1")
+    assert "celldega@0.30.0-alpha.1" in widget._resolve_widget_esm()
+
+    # An editable checkout keeps its local build, whatever version it reports.
+    monkeypatch.setattr(widget, "_editable_install", lambda: True)
+    assert widget._npm_version("0.30.0a1") == ""
+    assert widget._resolve_widget_esm() == widget._LOCAL_ESM
+    assert widget._npm_version("0.30.0") == "0.30.0"

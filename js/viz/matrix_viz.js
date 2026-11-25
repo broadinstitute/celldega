@@ -144,6 +144,22 @@ import {
 import { model_source } from './source';
 import { listen_for_view_requests } from './view_requests';
 
+/**
+ * Render a Clustergram of one matrix (`network`) into `el`.
+ *
+ * @param {object} model - The widget model (or a web page's options model)
+ * @param {HTMLElement} el - Container element
+ * @param {object} network - The matrix (see networkFromParquet / network_from_zarr)
+ * @param {number|string} [width]
+ * @param {number|string} [height]
+ * @param {function} [row_label_callback]
+ * @param {function} [col_label_callback]
+ * @param {function} [col_dendro_callback]
+ * @param {object} [viz_options] - Set by a Clustergram with several matrices
+ *   (multi_matrix_viz): `matrix_menu` ({names, active, descriptions, on_change})
+ *   adds the matrix dropdown; `view_requests: false` and `initial_snapshot:
+ *   false` leave those to the caller, which picks the matrix first.
+ */
 export const matrix_viz = async (
   model,
   el,
@@ -152,7 +168,8 @@ export const matrix_viz = async (
   height = '800',
   row_label_callback = null,
   col_label_callback = null,
-  col_dendro_callback = null
+  col_dendro_callback = null,
+  viz_options = {}
 ) => {
   const root = document.createElement('div');
   root.style.border = '1px solid #d3d3d3';
@@ -412,6 +429,8 @@ export const matrix_viz = async (
     layers: get_mat_layers_list(layers_mat),
   });
 
+  // Several matrices: the dropdown that switches between them.
+  viz_state.matrix_menu = viz_options.matrix_menu || null;
   const ui_container = make_matrix_ui_container(
     deck_mat,
     layers_mat,
@@ -439,11 +458,15 @@ export const matrix_viz = async (
 
   // Snapshot cards linked to this Clustergram open their view here, in the browser,
   // and Clerk's evidence links (a gene, a cited view) change it.
-  const stop_view_requests = listen_for_view_requests(
-    model,
-    (snapshot) => matrix.restore_snapshot(snapshot, { allow_resize: true }),
-    { apply: (changes) => matrix.apply_state(changes) }
-  );
+  const stop_view_requests =
+    viz_options.view_requests === false
+      ? () => {}
+      : listen_for_view_requests(
+          model,
+          (snapshot) =>
+            matrix.restore_snapshot(snapshot, { allow_resize: true }),
+          { apply: (changes) => matrix.apply_state(changes) }
+        );
 
   initialize_dendro_tree_overlay(viz_state, deck_mat, layers_mat);
 
@@ -1044,16 +1067,23 @@ export const matrix_viz = async (
         rows: names_signature(source_names.rows),
         cols: names_signature(source_names.cols),
       }),
-      source: () => ({
-        ...model_source(model, 'clustergram', { width, height }),
-        url: model.get?.('url') || model.get?.('zarr_url') || '',
-        name: network.name || '',
-        data_revision: String(model.get?.('data_revision') || ''),
-      }),
+      source: () => {
+        // With several matrices, which one the view shows.
+        const active_matrix = model.get?.('active_matrix') || '';
+        return {
+          ...model_source(model, 'clustergram', { width, height }),
+          url: model.get?.('url') || model.get?.('zarr_url') || '',
+          name: network.name || '',
+          data_revision: String(model.get?.('data_revision') || ''),
+          ...(active_matrix ? { active_matrix } : {}),
+        };
+      },
     })
   );
 
-  void consume_initial_snapshot(model, matrix, root);
+  if (viz_options.initial_snapshot !== false) {
+    void consume_initial_snapshot(model, matrix, root);
+  }
 
   return matrix;
 };

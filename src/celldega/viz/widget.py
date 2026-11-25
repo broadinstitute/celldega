@@ -1,7 +1,7 @@
 """Widget module for interactive visualization components."""
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import colorsys
 import concurrent.futures
 import contextlib
@@ -66,8 +66,10 @@ def _resolve_widget_esm() -> "Path | str":
       2. ``CELLDEGA_LOCAL_ESM`` (any other value) or ``ANYWIDGET_HMR`` set -> local file
          inlined into each widget (dev / HMR).
       3. ``CELLDEGA_ESM_VERSION`` env var               -> CDN at that version.
-      4. installed version, if a clean ``X.Y.Z`` release -> CDN at that version.
-      5. otherwise (dev / unpublished, e.g. ``0.16.0a1``) -> local file (safe,
+      4. installed version, if a clean ``X.Y.Z`` release -> CDN at that version; a
+         pre-release installed from a package (not an editable checkout) -> CDN at
+         its npm version (``0.30.0a1`` -> ``0.30.0-alpha.1``).
+      5. otherwise (dev / editable / unpublished) -> local file (safe,
          self-contained, since that version may not be on the CDN).
 
     Inlining puts the whole ~12 MB bundle into every widget's state. A row of linked
@@ -88,10 +90,38 @@ def _resolve_widget_esm() -> "Path | str":
             candidate = importlib.metadata.version("celldega")
         except importlib.metadata.PackageNotFoundError:
             candidate = ""
-        version = candidate if re.fullmatch(r"\d+\.\d+\.\d+", candidate) else ""
+        version = _npm_version(candidate)
     if not version:
         return _LOCAL_ESM
     return f"export {{ default }} from '{_ESM_CDN.format(version=version)}';"
+
+
+def _npm_version(version: str) -> str:
+    """The npm version published with an installed Python version ("" for none).
+
+    A clean ``X.Y.Z`` is published as is; an alpha, beta or release candidate as
+    ``X.Y.Z-alpha.N`` (``-beta.N``, ``-rc.N``), unless Celldega is an editable
+    checkout, whose version string can be stale and whose JS is the local build.
+    """
+    if re.fullmatch(r"\d+\.\d+\.\d+", version):
+        return version
+    match = re.fullmatch(r"(\d+\.\d+\.\d+)(a|b|rc)(\d+)", version)
+    if not match or _editable_install():
+        return ""
+    tag = {"a": "alpha", "b": "beta", "rc": "rc"}[match[2]]
+    return f"{match[1]}-{tag}.{match[3]}"
+
+
+def _editable_install() -> bool:
+    """Whether Celldega is installed in editable (development) mode."""
+    try:
+        record = importlib.metadata.distribution("celldega").read_text("direct_url.json")
+    except Exception:  # not installed, or no record
+        return False
+    try:
+        return bool(json.loads(record or "{}").get("dir_info", {}).get("editable"))
+    except ValueError:
+        return False
 
 
 _WIDGET_ESM = _resolve_widget_esm()
@@ -1987,6 +2017,31 @@ class Clerk(CelldegaWidget):
     width = traitlets.Int(0).tag(sync=True)
     height = traitlets.Int(450).tag(sync=True)
 
+    #: ``"conversation"`` (the default panel) or ``"caption"``: one Markdown paragraph
+    #: under a figure, whose links show its genes, clusters and views in the linked
+    #: widgets (see :func:`celldega.viz.caption`).
+    mode = traitlets.Unicode("conversation").tag(sync=True)
+    #: The caption's Markdown (caption mode). Gene names and "cluster N" become
+    #: links; ``[text](view:ID)`` links a view in :attr:`caption_views`.
+    caption = traitlets.Unicode("").tag(sync=True)
+    #: The caption's views, ``{ID: {"caption", "landscape", "clustergram"}}`` with
+    #: the same settings as Clerk's cited views, or ``{ID: {"snapshot": {kind:
+    #: saved view}}}`` for Snapshots.
+    caption_views = traitlets.Dict({}).tag(sync=True)
+    #: Genes the caption names that the panel links (found by Python).
+    caption_genes = traitlets.List(default_value=[]).tag(sync=True)
+
+    @traitlets.validate("mode")
+    def _validate_mode(self, proposal):
+        if proposal["value"] not in ("conversation", "caption"):
+            raise traitlets.TraitError("mode must be 'conversation' or 'caption'")
+        return proposal["value"]
+
+    @traitlets.observe("caption")
+    def _on_caption(self, change) -> None:
+        if getattr(self, "_linked_widgets", None) is not None:
+            self.caption_genes = (self._links_for(change["new"] or "") or {}).get("genes", [])
+
     # Evidence
     gene_list = traitlets.List(default_value=[]).tag(sync=True)
     context_info = traitlets.Unicode("").tag(sync=True)
@@ -2117,6 +2172,9 @@ class Clerk(CelldegaWidget):
             from . import link_clerk
 
             link_clerk(self, capture_on_select=capture_on_select, **link_targets)
+        if self.caption:
+            # Its genes, now that the linked widgets know their gene names.
+            self.caption_genes = (self._links_for(self.caption) or {}).get("genes", [])
         if clerk_files is not None:
             self.open_case(clerk_files)
 
@@ -2466,6 +2524,76 @@ class Clerk(CelldegaWidget):
                     found.append(name)
         return found[:limit]
 
+    def _summarize_matrices(
+        self,
+        cgm: "Clustergram",
+        result: dict,
+        question: str,
+        extra_rows: Sequence[str],
+        markers: dict | None,
+    ) -> None:
+        """For a Clustergram with several matrices: list them with their descriptions,
+        and summarize those not on screen from their Matrix objects (with any of their
+        rows named in the question or in Clerk's last answer). Marker lookups read the
+        matrix that has ranked markers when the one on screen has none."""
+        from ..clerk.llm import matrix_title
+        from ..clerk.matrices import cluster_markers, has_markers, matrix_state
+
+        matrices = cgm._matrices
+        state = result.get("clustergram_state")
+        # Which matrix the browser reported (the trait may still be switching).
+        shown = (state or {}).get("matrix") or cgm.active_matrix
+
+        def size(matrix, axis):
+            data = getattr(matrix, "data", None)
+            return None if data is None else int(data.shape[axis])
+
+        result["matrices"] = [
+            {
+                "name": name,
+                "description": str(getattr(matrix, "description", "") or ""),
+                "on_screen": name == shown,
+                "rows": size(matrix, 0),
+                "cols": size(matrix, 1),
+            }
+            for name, matrix in matrices.items()
+        ]
+        last_answer = next(
+            (m.get("content", "") for m in reversed(self.messages) if m.get("role") == "assistant"),
+            "",
+        )
+        # Cell types and other labels of the first matrix's columns (e.g. clusters).
+        labels = {
+            str(attribute): {str(k): str(v) for k, v in (spec.get("values") or {}).items()}
+            for attribute, spec in (cgm.manual_cat_dict.get("col") or {}).items()
+            if isinstance(spec, dict)
+        }
+        for name, matrix in matrices.items():
+            if name == shown or getattr(matrix, "data", None) is None:
+                continue
+            rows = [str(row) for row in matrix.data.index]
+            known = set(rows)
+            asked = [
+                *(str(g) for g in extra_rows if str(g) in known),
+                *self._find_names([question, last_answer], rows, 40),
+            ]
+            summary = matrix_state(matrix, name, extra_rows=asked, labels=labels)
+            if summary:
+                result["matrix_states"][name] = summary
+                result["summary"].append(
+                    f"{matrix_title(name)}: {len(rows)} rows x {matrix.data.shape[1]} columns "
+                    "(not on screen)"
+                )
+        if markers and state is not None and not state.get("marker_ranking"):
+            source = next((n for n, m in matrices.items() if has_markers(m)), None)
+            if source:
+                state["cluster_markers"] = cluster_markers(
+                    matrices[source], markers.get("clusters"), int(markers.get("n", 10))
+                )
+                result["notes"].append(
+                    f"The ranked markers come from the matrix '{source}' (not on screen)."
+                )
+
     def _refresh_views(
         self,
         question: str = "",
@@ -2491,6 +2619,10 @@ class Clerk(CelldegaWidget):
             "yearbook_state": None,
             "snapshots": {},
             "clustergram_state": None,
+            # A Clustergram with several matrices: what each is, and summaries of
+            # those not on screen (from their Matrix objects).
+            "matrices": None,
+            "matrix_states": {},
             "enrich_state": None,
             "landscape_state": None,
             "neighborhoods": None,
@@ -2511,12 +2643,30 @@ class Clerk(CelldegaWidget):
             requests.append((widget, "snapshot_capture_id", send))
             labels.append(name)
 
+        from .stack import is_hidden
+
+        # A widget a stack is hiding has no canvas to capture: say so instead.
+        hidden = [
+            name
+            for name in ("landscape", "clustergram", "yearbook", "enrich")
+            if self._linked_widgets.get(name) is not None and is_hidden(self._linked_widgets[name])
+        ]
+        for name in hidden:
+            result["notes"].append(
+                f"The {name.title()} is hidden (the scientist is looking at another view in "
+                "its place), so its view isn't included this time."
+            )
+            result["summary"].append(f"{name.title()}: hidden")
         landscape = self._linked_widgets.get("landscape")
-        has_landscape = landscape is not None and hasattr(landscape, "request_snapshot")
+        has_landscape = (
+            landscape is not None
+            and hasattr(landscape, "request_snapshot")
+            and "landscape" not in hidden
+        )
         if has_landscape:
             capture("landscape", landscape)
         cgm = self._linked_widgets.get("clustergram")
-        has_cgm = cgm is not None and hasattr(cgm, "request_state")
+        has_cgm = cgm is not None and hasattr(cgm, "request_state") and "clustergram" not in hidden
         if has_cgm:
             last_answer = next(
                 (
@@ -2540,19 +2690,26 @@ class Clerk(CelldegaWidget):
                 requests.append((cgm, "state_capture_id", lambda: cgm.request_state(**options)))
                 labels.append("clustergram")
         yearbook = self._linked_widgets.get("yearbook")
-        has_yearbook = yearbook is not None and hasattr(yearbook, "request_snapshot")
+        has_yearbook = (
+            yearbook is not None
+            and hasattr(yearbook, "request_snapshot")
+            and "yearbook" not in hidden
+        )
         if has_yearbook:
             capture("yearbook", yearbook)
         enrich = self._linked_widgets.get("enrich")
+        # Enrich's results are state, not pixels: read even when hidden.
         has_enrich = enrich is not None and hasattr(enrich, "request_state")
         if has_enrich:
             requests.append((enrich, "state_capture_id", enrich.request_state))
             labels.append("enrich")
+        result["hidden"] = hidden
         if not requests:
-            result["notes"].append(
-                "No Landscape, Clustergram or Enrich panel is linked to Clerk; only the "
-                "text evidence below is available."
-            )
+            if not hidden:
+                result["notes"].append(
+                    "No Landscape, Clustergram or Enrich panel is linked to Clerk; only the "
+                    "text evidence below is available."
+                )
             return result
 
         answered = dict(zip(labels, self._request_and_wait(requests), strict=True))
@@ -2617,6 +2774,8 @@ class Clerk(CelldegaWidget):
                     "may not be displayed, or the page needs reloading after an update)."
                 )
                 result["summary"].append("Clustergram: no snapshot")
+        if has_cgm and getattr(cgm, "_matrices", None):
+            self._summarize_matrices(cgm, result, question, extra_rows, markers)
         if has_yearbook:
             if "yearbook" in captured:
                 shot = captured["yearbook"]
@@ -2687,7 +2846,7 @@ class Clerk(CelldegaWidget):
         sent again (``unchanged``: "Landscape", "Clustergram", ...) get no preview."""
         from .snapshots import restore_spec
 
-        skip = {str(name).split(" ")[0].lower() for name in unchanged}
+        skip = {_summary_view(name).lower() for name in unchanged}
         landscape_thumb = self.image_thumb_b64 if image_fresh and "landscape" not in skip else ""
         clustergram_thumb = "" if "clustergram" in skip else clustergram_thumb
         yearbook_thumb = "" if "yearbook" in skip else yearbook_thumb
@@ -3516,9 +3675,15 @@ class Clerk(CelldegaWidget):
         if self.record:
             self.record[-1]["steps"].append({"kind": kind, "text": text, **extra})
 
+    def _view_sources(self) -> dict:
+        """Where each linked view's data comes from (see ``widget_source``; a
+        Clustergram with several matrices lists each one)."""
+        from .screenshots import widget_source
+
+        return {name: widget_source(widget) for name, widget in self._linked_widgets.items()}
+
     def _log_capture(self, views: dict, label: str) -> None:
         """Keep observed evidence separately from the subset of settings we can replay."""
-        from .screenshots import widget_source
         from .snapshots import restore_spec
 
         if not self.record:
@@ -3536,7 +3701,9 @@ class Clerk(CelldegaWidget):
                 if views.get(key) is not None
             }
         )
-        sources = {name: widget_source(widget) for name, widget in self._linked_widgets.items()}
+        if views.get("matrix_states"):
+            observations["matrix_states"] = deepcopy(views["matrix_states"])
+        sources = self._view_sources()
         landscape = _landscape_reproduction(views.get("landscape_state"))
         clustergram = _clustergram_reproduction(views.get("clustergram_state"))
         image = self.image_b64 if views.get("image_fresh") else ""
@@ -3691,8 +3858,12 @@ class Clerk(CelldegaWidget):
             unknown_keys = sorted(set(landscape_settings) - set(landscape.APPLY_STATE_KEYS))
             if unknown_keys:
                 raise ValueError(f"unknown Landscape setting(s): {unknown_keys}")
+        from .stack import bring_forward
+
         before_cgm = getattr(cgm, "_apply_request_id", 0)
         changes = [f"the Clustergram: {c}" for c in (cgm.apply_state(settings) if settings else [])]
+        if settings:
+            bring_forward(cgm)
         self._pending_clustergram_apply = (
             cgm._apply_request_id if getattr(cgm, "_apply_request_id", 0) != before_cgm else None
         )
@@ -3702,10 +3873,12 @@ class Clerk(CelldegaWidget):
             changes += [f"the Landscape: {c}" for c in landscape.apply_state(landscape_settings)]
             if getattr(landscape, "_apply_request_id", 0) != before:
                 self._pending_landscape_apply = landscape._apply_request_id
+            bring_forward(landscape)
         if yearbook_change is not None:
             apply, description = yearbook_change
             apply()
             changes.append(f"the Yearbook: {description}")
+            bring_forward(self._linked_widgets.get("yearbook"))
         return changes, reads
 
     #: Most Yearbook portraits Clerk may ask for at once.
@@ -4029,12 +4202,16 @@ class Clerk(CelldegaWidget):
 
     def _use_views(self, call: dict, views: dict) -> None:
         call["clustergram_state"] = views["clustergram_state"]
+        call["matrix_states"] = dict(views.get("matrix_states") or {}) or None
+        call["matrices"] = views.get("matrices")
         call["enrich_state"] = views["enrich_state"]
         call["yearbook_state"] = views.get("yearbook_state")
         call["landscape_state"] = views.get("landscape_state")
         call["neighborhoods"] = views.get("neighborhoods")
         call["notes"] = list(views["notes"])
-        call["image_b64"] = self.image_b64 or None
+        # An earlier screenshot of a Landscape now hidden would mislead.
+        hidden = "landscape" in (views.get("hidden") or ())
+        call["image_b64"] = None if hidden else (self.image_b64 or None)
 
     def _answer(self, question, call):
         """Answer one question (worker thread), following any actions Clerk asks for."""
@@ -4058,6 +4235,7 @@ class Clerk(CelldegaWidget):
                 landscape=landscape is not None and hasattr(landscape, "apply_state"),
                 yearbook=has_yearbook,
                 anndata=self._describe_selectable() if has_yearbook else "",
+                matrices=getattr(cgm, "matrix_names", None) or (),
             )
             # Continuing the conversation's session, Clerk is sent only what changed.
             conversation = self._take_conversation(call)
@@ -4066,7 +4244,7 @@ class Clerk(CelldegaWidget):
             )
             summary = [
                 f"{line} (unchanged)"
-                if any(line.startswith(name.split(" ")[0]) for name in unchanged)
+                if _summary_view(line) in {_summary_view(name) for name in unchanged}
                 else line
                 for line in views["summary"]
             ]
@@ -4323,7 +4501,7 @@ class Clerk(CelldegaWidget):
 
                 text = event["text"]
                 views, problems = resolve_dendrogram_groups(
-                    event["views"], call.get("clustergram_state")
+                    event["views"], call.get("clustergram_state"), call.get("matrix_states")
                 )
                 if problems:
                     self._append(
@@ -4791,7 +4969,6 @@ class Clerk(CelldegaWidget):
         Returns:
             Path: The file written.
         """
-        from .screenshots import widget_source
 
         location = Path(path) if path else Path(self.output_dir) / "conversations"
         if location.suffix.lower() == ".json":
@@ -4833,7 +5010,7 @@ class Clerk(CelldegaWidget):
             "cluster_labels": dict(self.cluster_labels),
             # The Clustergram's cell types and other manual labels (Clerk's and yours).
             "annotations": self._annotations(),
-            "sources": {name: widget_source(w) for name, w in self._linked_widgets.items()},
+            "sources": self._view_sources(),
             "messages": [dict(m) for m in self.messages],
             "record": record,
             "findings": [dict(f) for f in self.findings],
@@ -5242,9 +5419,41 @@ def _case_file(path: Path) -> Path:
     raise FileNotFoundError(f"No saved Clerk case at {path}")
 
 
+def _summary_view(text) -> str:
+    """The view a summary line or view name is about: ``Clustergram matrix 'name'``
+    for a matrix not on screen, else the first word (``Landscape view`` ->
+    ``Landscape``)."""
+    text = str(text)
+    prefix = "Clustergram matrix '"
+    if text.startswith(prefix):
+        end = text.find("'", len(prefix))
+        if end > 0:
+            return text[: end + 1]
+    return text.split(" ")[0].rstrip(":")
+
+
+def _matrix_changes(sent: dict | None, call: dict | None) -> tuple[list, dict]:
+    """Summaries of matrices not on screen (``matrix_states``) as Clerk was last
+    sent them (titles) and those that differ (``{name: state}``)."""
+    from ..clerk.llm import matrix_title
+
+    before = (sent or {}).get("matrix_states") or {}
+    unchanged, changed = [], {}
+    for name, state in ((call or {}).get("matrix_states") or {}).items():
+        if not state:
+            continue
+        if state == before.get(name):
+            unchanged.append(matrix_title(name))
+        else:
+            changed[name] = state
+    return unchanged, changed
+
+
 # What a question sent Clerk, compared with the next question's (see _views_since).
 _SENT_KEYS = (
     "clustergram_state",
+    "matrix_states",
+    "matrices",
     "landscape_state",
     "neighborhoods",
     "enrich_state",
@@ -5270,7 +5479,7 @@ def _unchanged_views(sent: dict, call: dict) -> list[str]:
         if key == "landscape_state" and call.get("neighborhoods") != sent.get("neighborhoods"):
             continue
         out.append(name)
-    return out
+    return out + _matrix_changes(sent, call)[0]
 
 
 def _views_since(sent: dict, call: dict) -> dict:
@@ -5288,6 +5497,11 @@ def _views_since(sent: dict, call: dict) -> dict:
     for key, name in VIEW_NAMES.items():
         if call.get(key) and name not in unchanged:
             out[key] = call[key]
+    named = _matrix_changes(sent, call)[1]
+    if named:
+        out["matrix_states"] = named
+    if call.get("matrices") and call.get("matrices") != sent.get("matrices"):
+        out["matrices"] = call["matrices"]
     if "landscape_state" in out and call.get("neighborhoods"):
         out["neighborhoods"] = call["neighborhoods"]
     if call.get("image_b64") and ("landscape_state" in out or not sent.get("image_b64")):
@@ -5313,6 +5527,9 @@ def _changed_views(call: dict, views: dict, image_b64: str) -> dict:
         )
         if views.get(key) and views.get(key) != call.get(key)
     }
+    named = _matrix_changes(call, views)[1]
+    if named:
+        changed["matrix_states"] = named
     if views.get("image_fresh") and image_b64 and image_b64 != call.get("image_b64"):
         changed["image_b64"] = image_b64
     return changed
@@ -5418,8 +5635,56 @@ def _validate_replay_controls(widget, changes):
                 widget._check_category_names(group["axis"], dict.fromkeys(group["members"]))
 
 
-def _validate_clustergram_controls(widget, changes: dict) -> dict:
+def _named_matrices(matrices: Mapping) -> dict[str, Any]:
+    """``{name: Matrix}`` for a Clustergram with several matrices, checked."""
+    if not matrices:
+        raise ValueError("matrix={...} needs at least one Matrix")
+    named: dict[str, Any] = {}
+    for key, matrix in matrices.items():
+        name = str(key).strip()
+        if not name:
+            raise ValueError("each matrix needs a name")
+        if name in named:
+            raise ValueError(f"two matrices are named {name!r}")
+        if not hasattr(matrix, "export_viz_parquet"):
+            raise TypeError(f"matrix {name!r} is not a celldega.clust.Matrix")
+        named[name] = matrix
+    return named
+
+
+def _matrix_entry(name: str, matrix: Any, payload: dict) -> dict:
+    """One matrix of a Clustergram with several, as the browser reads it: its name,
+    description and default display, plus the data :meth:`Matrix.export_viz_parquet`
+    exports (bytes, sent as binary buffers)."""
+
+    def entity_json(value, default):
+        value = value if value is not None else default
+        return json.dumps(value) if isinstance(value, dict) else str(value)
+
+    return {
+        "name": name,
+        "description": str(getattr(matrix, "description", "") or ""),
+        "viz_mode": "dotplot" if payload.get("dot_mat") else "heatmap",
+        "meta": payload.get("meta", {}),
+        "row_entity": entity_json(payload.get("row_entity"), {"entity": "gene", "attr": "name"}),
+        "col_entity": entity_json(payload.get("col_entity"), {"entity": "cell", "attr": "leiden"}),
+        **{
+            key: payload.get(key, b"") or b""
+            for key in ("mat", "dot_mat", "row_nodes", "col_nodes", "row_linkage", "col_linkage")
+        },
+    }
+
+
+def _validate_clustergram_controls(
+    widget, changes: dict, *, row_names: Sequence[str] | None = None, col_names=None
+) -> dict:
+    """Validate a Clustergram's navigation changes against the names of the matrix
+    they apply to (``row_names``/``col_names``; the widget's own by default)."""
     _validate_replay_controls(widget, changes)
+    if row_names is None:
+        row_names = widget.row_names
+    if col_names is None:
+        col_names = widget.col_names
     out = {
         key: deepcopy(changes[key])
         for key in ("order", "crop", "view", "dendrogram", "annotations", "selection")
@@ -5440,7 +5705,7 @@ def _validate_clustergram_controls(widget, changes: dict) -> dict:
                 continue
             if not isinstance(spec, list) or not spec or len(set(map(str, spec))) != len(spec):
                 raise ValueError(f"{key}.{axis} must be a nonempty list of unique names")
-            known = list(map(str, widget.row_names if axis == "row" else widget.col_names))
+            known = list(map(str, row_names if axis == "row" else col_names))
             if known and (
                 set(map(str, spec)) - set(known) or (key == "order" and len(spec) != len(known))
             ):
@@ -6127,10 +6392,39 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
     Python access to the same matrix
         If constructed with ``matrix=``, use :meth:`matrix_dataframe` for the underlying
         ``pandas.DataFrame``.
+
+    Several matrices
+        Pass ``matrix={"Gene expression": expression, "Neighborhood enrichment":
+        enrichment}`` to show different matrices about the same objects (for
+        example clusters by genes, and clusters by clusters) in one Clustergram.
+        A small dropdown switches between them in the browser, with no kernel
+        needed, and each matrix keeps its own zoom, order and marker level. Set
+        :attr:`active_matrix` (or ``apply_state({"matrix": name})``) to switch from
+        Python. Each Matrix's ``description`` shows when hovering its name, and
+        Clerk reads it. Manual categories (e.g. cell types of clusters) follow the
+        objects across matrices: labels of the first matrix's clusters also show
+        on any other axis of clusters, and :attr:`manual_cat` stays in the first
+        matrix's rows and columns.
+
+        Example::
+
+            cgm = dega.viz.Clustergram(
+                matrix={"Gene expression": expression, "Neighborhood enrichment": enrichment},
+                manual_col_cat="cell_type",
+            )
+            cgm.active_matrix = "Neighborhood enrichment"
     """
 
     _esm = _WIDGET_ESM
     _registry_namespace = "matrix"
+
+    #: One entry per matrix when the Clustergram holds several (``matrix={name:
+    #: Matrix}``): its name, description and data, as sent to the browser, which
+    #: switches between them without the kernel. Empty for a single matrix.
+    matrices = traitlets.List(default_value=[]).tag(sync=True)
+    #: The matrix on screen, by name, when there are several (``""`` otherwise).
+    #: Set it to switch, as the dropdown does.
+    active_matrix = traitlets.Unicode("").tag(sync=True)
 
     # --- core traits used by JS -------------------------------------------------
     value = traitlets.Int(0).tag(sync=True)
@@ -6238,6 +6532,7 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
     #: Keys :meth:`apply_state` understands (the setter half of the Clustergram's API).
     APPLY_STATE_KEYS = (
+        "matrix",
         "marker_level",
         "mode",
         "size",
@@ -6263,6 +6558,9 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         Args:
             changes: Any of:
 
+                - ``matrix``: for a Clustergram with several matrices, the one to
+                  show (by name), switched to before the other changes apply; they
+                  then refer to that matrix's rows and columns.
                 - ``marker_level``: marker genes per cluster (the DIM slider), snapped
                   to the nearest precomputed level, or ``"all"`` for every row.
                 - ``mode``: ``"heatmap"`` or ``"dotplot"``.
@@ -6303,8 +6601,14 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
                 f"Unknown Clustergram setting(s): {unknown}; supported: {list(self.APPLY_STATE_KEYS)}"
             )
 
-        navigation = _validate_clustergram_controls(self, changes)
+        target = self._target_matrix(changes.get("matrix"))
+        target_rows, target_cols = self._matrix_axis_names(target)
+        navigation = _validate_clustergram_controls(
+            self, changes, row_names=target_rows, col_names=target_cols
+        )
         updates: list[tuple[str, Any, str]] = []
+        if "matrix" in changes and target != self.active_matrix:
+            updates.append(("active_matrix", target, f"matrix -> {target}"))
         if "marker_level" in changes:
             level = changes["marker_level"]
             if level is None or str(level).lower() == "all":
@@ -6331,7 +6635,7 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             updates.append(("dot_size_encoded", size == "prop", f"dot size -> {size.upper()}"))
         if "focus_gene" in changes:
             gene = str(changes["focus_gene"] or "")
-            if gene and self.row_names and gene not in self.row_names:
+            if gene and target_rows and gene not in target_rows:
                 raise ValueError(f"{gene!r} is not a row of this Clustergram")
             updates.append(("focused_gene", gene, f"zoomed to {gene}" if gene else "cleared focus"))
 
@@ -6352,6 +6656,10 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             self._check_category_names(category_axis, categories["values"])
 
         described = [description for *_, description in updates]
+        if target != self.active_matrix:
+            # Switch here too, so Python (to_cluster, Clerk) follows at once; the
+            # browser switches before applying the other changes.
+            self.active_matrix = target
         browser = deepcopy(changes)
         if categories is not None:
             browser["categories"] = {**categories, "attribute": category_attribute}
@@ -6384,7 +6692,9 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         )
 
     def _check_category_names(self, axis: str, values: dict) -> None:
-        known = self.col_names if axis == "col" else self.row_names
+        # Manual categories are kept in the first matrix's rows and columns.
+        rows, cols = self._matrix_axis_names(self._primary_matrix_name())
+        known = cols if axis == "col" else rows
         unknown = [str(name) for name in values if known and str(name) not in known]
         if unknown:
             raise ValueError(f"not {axis} names of this Clustergram: {unknown[:10]}")
@@ -6633,7 +6943,12 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         parquet_data : dict, optional
             Pre-exported parquet payload from your matrix object.
         matrix : object, optional
-            If provided and has .export_viz_parquet(), we'll call that.
+            If provided and has .export_viz_parquet(), we'll call that. Or
+            ``{name: Matrix}``: several matrices about the same objects, switched
+            with a dropdown (the first is shown unless ``active_matrix`` names
+            another).
+        active_matrix : str, optional
+            With several matrices, the one shown first.
         network : dict, optional
             Deprecated path, kept only for backwards-compatibility.
         """
@@ -6653,12 +6968,36 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
 
         # Store matrix reference for later use (e.g., multi-gene expression calculations)
         self._matrix = None
+        # Several matrices (matrix={name: Matrix}): name -> Matrix, in dropdown order.
+        # Set before the traits so validating active_matrix can read it.
+        self._matrices: dict[str, Any] = {}
+        initial_matrix = kwargs.pop("active_matrix", None)
+        entries: list[dict] = []
 
         if pq_data is None:
             matrix = kwargs.pop("matrix", None)
+            if isinstance(matrix, Mapping):
+                named = _named_matrices(matrix)
+                if len(named) == 1:
+                    matrix = next(iter(named.values()))
+                else:
+                    active = str(initial_matrix) if initial_matrix else next(iter(named))
+                    if active not in named:
+                        raise ValueError(
+                            f"active_matrix {active!r} is not one of the matrices: {list(named)}"
+                        )
+                    self._matrices = named
+                    payloads = {key: m.export_viz_parquet() for key, m in named.items()}
+                    entries = [_matrix_entry(key, named[key], payloads[key]) for key in named]
+                    matrix = named[active]
+                    pq_data = payloads[active]
+                    initial_matrix = active
+            if initial_matrix and not entries:
+                raise ValueError("active_matrix needs several matrices: matrix={name: Matrix}")
             if matrix is not None:
                 self._matrix = matrix  # Store reference for multi-gene calculations
-                pq_data = matrix.export_viz_parquet()
+                if pq_data is None:
+                    pq_data = matrix.export_viz_parquet()
             elif "network" not in kwargs:
                 raise ValueError(
                     "You must pass either `network`, `parquet_data`, or `matrix` (for fallback). "
@@ -6680,23 +7019,28 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
             row_entity_json = json.dumps(row_entity) if isinstance(row_entity, dict) else row_entity
             col_entity_json = json.dumps(col_entity) if isinstance(col_entity, dict) else col_entity
 
+            # With several matrices the browser reads each one's data from
+            # `matrices`, so the data traits stay empty rather than hold a copy.
+            data = {} if entries else pq_data
             parquet_traits = {
-                "mat_parquet": traitlets.Bytes(pq_data.get("mat", b"")).tag(sync=True),
+                "mat_parquet": traitlets.Bytes(data.get("mat", b"")).tag(sync=True),
                 # Optional secondary matrix for dot-plot size encoding (may be empty)
-                "dot_mat_parquet": traitlets.Bytes(pq_data.get("dot_mat", b"")).tag(sync=True),
-                "row_nodes_parquet": traitlets.Bytes(pq_data.get("row_nodes", b"")).tag(sync=True),
-                "col_nodes_parquet": traitlets.Bytes(pq_data.get("col_nodes", b"")).tag(sync=True),
-                "row_linkage_parquet": traitlets.Bytes(pq_data.get("row_linkage", b"")).tag(
-                    sync=True
-                ),
-                "col_linkage_parquet": traitlets.Bytes(pq_data.get("col_linkage", b"")).tag(
-                    sync=True
-                ),
+                "dot_mat_parquet": traitlets.Bytes(data.get("dot_mat", b"")).tag(sync=True),
+                "row_nodes_parquet": traitlets.Bytes(data.get("row_nodes", b"")).tag(sync=True),
+                "col_nodes_parquet": traitlets.Bytes(data.get("col_nodes", b"")).tag(sync=True),
+                "row_linkage_parquet": traitlets.Bytes(data.get("row_linkage", b"")).tag(sync=True),
+                "col_linkage_parquet": traitlets.Bytes(data.get("col_linkage", b"")).tag(sync=True),
                 # Entity info as JSON strings
                 "row_entity": traitlets.Unicode(row_entity_json).tag(sync=True),
                 "col_entity": traitlets.Unicode(col_entity_json).tag(sync=True),
             }
             self.add_traits(**parquet_traits)
+
+        if entries:
+            kwargs["matrices"] = entries
+            kwargs["active_matrix"] = initial_matrix
+            # One registry key for the set, so it replaces only an identical set.
+            name = "|".join(str((entry["meta"] or {}).get("name", "")) for entry in entries)
 
         if explicit_registry_key is not None:
             name = explicit_registry_key
@@ -6745,12 +7089,82 @@ class Clustergram(Screenshots, _RasterCapture, _StateSnapshots, CelldegaWidget):
         ):
             self.manual_cat_config = json.dumps(config)
 
-        # Seed category_colors from network_meta if available
-        base_colors = dict(self.network_meta.get("global_cat_colors", {}))
+        # Seed category_colors from network_meta (every matrix's, with several)
+        base_colors = {}
+        for entry in self.matrices:
+            base_colors.update((entry.get("meta") or {}).get("global_cat_colors", {}))
+        base_colors.update(self.network_meta.get("global_cat_colors", {}))
         if getattr(self, "category_colors", None):
             base_colors.update(self.category_colors)
         self._category_colors = base_colors
         self.category_colors = deepcopy(self._category_colors)
+
+    # ------------------------------------------------------------------
+    # Several matrices (matrix={name: Matrix})
+    # ------------------------------------------------------------------
+    @property
+    def matrix_names(self) -> list[str]:
+        """The names of this Clustergram's matrices, in dropdown order (empty for one)."""
+        return list(self._matrices)
+
+    def get_matrix(self, name: str | None = None):
+        """The :class:`~celldega.clust.Matrix` shown under ``name``, by default the one
+        on screen (``None`` for a Clustergram built from parquet data or a network)."""
+        if name in (None, ""):
+            return self._matrix
+        return self._matrices[self._target_matrix(name)]
+
+    @traitlets.validate("active_matrix")
+    def _validate_active_matrix(self, proposal):
+        value = str(proposal["value"] or "")
+        names = list(getattr(self, "_matrices", None) or {})
+        if not names:
+            if value:
+                raise traitlets.TraitError("this Clustergram has one matrix")
+            return ""
+        if value not in names:
+            raise traitlets.TraitError(f"unknown matrix {value!r}; choose one of {names}")
+        return value
+
+    @traitlets.observe("active_matrix")
+    def _on_active_matrix(self, change) -> None:
+        """Follow the matrix on screen: its Matrix, entities and metadata."""
+        matrices = getattr(self, "_matrices", None) or {}
+        if change["new"] not in matrices:
+            return
+        self._matrix = matrices[change["new"]]
+        entry = next((e for e in self.matrices if e.get("name") == change["new"]), None)
+        if entry is None:
+            return
+        for key in ("row_entity", "col_entity"):
+            if self.has_trait(key) and getattr(self, key) != entry[key]:
+                setattr(self, key, entry[key])
+        self.network_meta = entry.get("meta") or {}
+
+    def _primary_matrix_name(self) -> str:
+        """The first matrix: manual categories are kept in its rows and columns."""
+        return next(iter(self._matrices), "")
+
+    def _target_matrix(self, name: Any) -> str:
+        """The matrix a change refers to: ``name``, or the one on screen."""
+        if name in (None, ""):
+            return self.active_matrix
+        name = str(name)
+        if not self._matrices:
+            raise ValueError("this Clustergram has one matrix; 'matrix' applies to several")
+        if name not in self._matrices:
+            raise ValueError(f"unknown matrix {name!r}; choose one of {list(self._matrices)}")
+        return name
+
+    def _matrix_axis_names(self, name: str) -> tuple[list[str], list[str]]:
+        """Row and column names of a matrix: from the browser for the one on screen
+        (or a single matrix), else from its Matrix."""
+        if not self._matrices or name == self.active_matrix:
+            return list(map(str, self.row_names)), list(map(str, self.col_names))
+        data = getattr(self._matrices[name], "data", None)
+        if data is None:
+            return [], []
+        return list(map(str, data.index)), list(map(str, data.columns))
 
     def to_cluster(
         self,

@@ -57,6 +57,7 @@ import { set_gene_search, set_matrix_row_search } from './gene_search';
 import { make_image_source_control } from './image_source';
 import { embed_logo_in_search, make_logo_button } from './logo';
 import { init_matrix_cat_bars } from './matrix_cat_bars';
+import { make_matrix_dropdown } from './matrix_dropdown';
 import {
   make_img_layer_slider_callback,
   make_slider,
@@ -291,6 +292,15 @@ export const make_matrix_ui_container = (deck_mat, layers_mat, viz_state) => {
       .style('color', 'black')
       .style('user-select', 'none')
       .style('font-family', MATRIX_UI_FONT_FAMILY);
+
+  // MAT row: with several matrices, the dropdown that switches between them.
+  const matrix_dropdown = make_matrix_dropdown(viz_state.matrix_menu);
+  if (matrix_dropdown) {
+    append_label('MAT:');
+    matrix_dropdown.style.gridColumn = '2 / -1';
+    grid.appendChild(matrix_dropdown);
+    viz_state.matrix_dropdown = matrix_dropdown;
+  }
 
   // COL / ROW rows: order dropdown + dendrogram slider per axis. Columns come
   // first, as their labels sit above the rows'.

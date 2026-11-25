@@ -30,6 +30,7 @@
       };
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       let viz = null;
+      let model = null;
 
       const mark_parts = (el) => {
         el.dataset.shot = 'widget';
@@ -67,6 +68,11 @@
             options.cluster_attr = spec.labels;
             options.cell_attr = [spec.labels];
           }
+          // Cluster labels from a Clustergram's category (the ▾ beside CELL shows
+          // cells, and counts the bars, by them).
+          if (spec.intermediate_zoom_limit) options.intermediate_zoom_limit = spec.intermediate_zoom_limit;
+          if (spec.label_sets) options.label_sets = spec.label_sets;
+          if (spec.cell_attribute) options.cell_attribute = spec.cell_attribute;
           el.style.width = `${width}px`;
           viz = await celldega.landscape(el, options);
           if (spec.changes && Object.keys(spec.changes).length) {
@@ -83,8 +89,48 @@
           });
           if (spec.highlighted_cols) viz.model.set('highlighted_cols', spec.highlighted_cols);
           if (spec.changes && Object.keys(spec.changes).length) viz.apply_state(spec.changes);
+          await sleep(800);
+          if (spec.highlighted_genes) viz.model.set('highlighted_genes', spec.highlighted_genes);
+          if (spec.focused_gene) {
+            // Bold the gene as a linked Enrich click does; the Clustergram flies to
+            // it, so put the camera back unless the panel is about that zoom.
+            const { view } = viz.get_replay_state();
+            viz.model.set('focused_gene', spec.focused_gene);
+            await sleep(1500);
+            if (!spec.zoom_to_focus && view) viz.apply_state({ view });
+          }
+        } else if (spec.widget === 'yearbook') {
+          const values = {
+            base_url: spec.base_url,
+            cells: spec.cells || [],
+            num_rows: spec.num_rows || 2,
+            num_cols: spec.num_cols || 4,
+            portrait_size_um: spec.portrait_size_um || 40,
+            portrait_gap: spec.portrait_gap ?? 4,
+            genes: spec.genes || [],
+            width,
+            height,
+            token: '',
+            creds: {},
+            dataset_name: '',
+            segmentation: 'default',
+            current_page: 0,
+            front_end_query: spec.front_end_query || {},
+            // Microns per image pixel: portrait_size_um and the scale bar need it
+            // for technologies without a known pixel size (e.g. Visium HD).
+            scale_bar_microns_per_pixel: spec.microns_per_pixel ?? null,
+            cell_name_prefix: false,
+            cluster_attr: spec.labels || 'leiden',
+          };
+          if (spec.labels) {
+            values.meta_cell_parquet = await bytes(`${spec.data}/labels_${spec.labels}.meta_cell.parquet`);
+            values.meta_cluster_parquet = await bytes(`${spec.data}/labels_${spec.labels}.meta_cluster.parquet`);
+          }
+          el.style.width = `${width}px`;
+          model = make_model(values);
+          viz = await celldega.render_yearbook({ model, el });
         } else if (spec.widget === 'enrich') {
-          const model = make_model({
+          model = make_model({
             gene_list: spec.genes,
             inst_lib: spec.library || 'CellMarker_2024',
             available_libs: [spec.library || 'CellMarker_2024'],
@@ -131,6 +177,77 @@
           binary += String.fromCharCode(...buffer.subarray(i, i + 0x8000));
         }
         return { png: btoa(binary), state: snapshot.state, identity: snapshot.identity };
+      };
+
+      // What the panel shows, for linking panels (an Enrich term's genes turn blue
+      // in a Clustergram) and for placing arrows (a Clustergram's row and column
+      // order and dendrogram groups).
+      window.panel_state = (kind) => {
+        if (kind === 'clustergram') {
+          return viz.get_state({
+            rows: 'viewport',
+            cols: 'viewport',
+            max_rows: 2000,
+            max_cols: 200,
+            include_values: false,
+          });
+        }
+        if (kind === 'enrich') {
+          return {
+            selected_term: model.get('selected_term') || '',
+            term_genes: model.get('term_genes') || [],
+            focused_gene: model.get('focused_gene') || '',
+          };
+        }
+        return {};
+      };
+
+      // Changes after the first render (e.g. after a click), as the widget's own
+      // apply_state takes them.
+      window.apply_changes = async (changes) => {
+        const done = await viz.apply_state(changes);
+        await sleep(1500);
+        return done;
+      };
+
+      // Mark a widget's open dialog (e.g. the Clustergram's category form) so a
+      // screenshot can take it alone.
+      window.mark_dialog = (title) => {
+        const dialogs = [...document.querySelectorAll('#panel div')].filter(
+          (div) =>
+            div.style.display === 'block' &&
+            div.style.position === 'absolute' &&
+            div.querySelector('input') &&
+            div.textContent.includes(title)
+        );
+        if (!dialogs.length) return false;
+        dialogs[dialogs.length - 1].dataset.shot = 'dialog';
+        return true;
+      };
+
+      // Clustergram: frame the first `count` rows (all columns), as zooming in on
+      // the top of a ranked order does. Rows sit at slot * (i + 1.5) in world
+      // units and the first view centers on the matrix, slot * (n / 2 + 1).
+      window.zoom_rows = async (count) => {
+        const state = viz.get_state({ rows: 'viewport', cols: 'viewport', max_rows: 5000, include_values: false });
+        const n = state.rows.names.length;
+        const k = Math.min(count, n);
+        const { view } = viz.get_replay_state();
+        const [x, y] = view.target;
+        const [zx, zy] = view.zoom;
+        const target_y = (y * (1 + k / 2)) / (1 + n / 2);
+        viz.apply_state({ view: { target: [x, target_y], zoom: [zx, zy + Math.log2(n / k)] } });
+        await sleep(1500);
+      };
+
+      // Clustergram: bold a gene's label (as clicking it in a linked Enrich does)
+      // without moving the camera.
+      window.bold_gene = async (gene) => {
+        const { view } = viz.get_replay_state();
+        viz.model.set('focused_gene', gene);
+        await sleep(1500);
+        viz.apply_state({ view });
+        await sleep(1000);
       };
 
       window.capture_ready = true;

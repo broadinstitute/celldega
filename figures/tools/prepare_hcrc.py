@@ -8,7 +8,9 @@ Writes, under figures/build/hcrc/data/:
   notebook widget would.
 - ``matrix.zarr``: the clustered Leiden marker Matrix for the Clustergram panel.
 - ``facts.json``: camera views (whole tissue, regions) and the numbers the text
-  quotes (cell counts, cluster markers), so the storyboard never hard-codes them.
+  quotes (cell counts, cluster markers), so the storyboard never hard-codes them;
+- ``../assets/``: the Jupyter and Scanpy logos, downloaded from the projects'
+  repositories, for the panel naming the tools used to sub-cluster.
 
 Run once (about a minute; needs the HCRC AnnData from the Visium HD CRC tutorial in
 notebooks/data/visium-hd_data/Visium_HD_Human_Colon_Cancer/):
@@ -48,7 +50,7 @@ GROUPS = {
 #: Tentative names of the cancer clusters, from their markers (cluster 8: hypoxia and
 #: inflammation genes; 0 and 3: proliferation genes; 2: LGR5; 10: Wnt targets).
 CANCER_NAMES = {
-    "8": "8 hypoxic, inflamed",
+    "8": "8 hypoxic",
     "0": "0 proliferative",
     "3": "3 proliferative",
     "2": "2 stem-like",
@@ -67,7 +69,7 @@ CANCER_META_COLORS = {
     "stem-like, Wnt-high (2, 10)": "#3b5bdb",
 }
 CANCER_SUBTYPE_COLORS = {
-    "8 hypoxic, inflamed": "#14b8c4",
+    "8 hypoxic": "#14b8c4",
     "0 proliferative": "#f0a04b",
     "3 proliferative": "#c46a0c",
     "2 stem-like": "#5c7cfa",
@@ -95,11 +97,50 @@ PROLIFERATION_GENES = ["MKI67", "TOP2A", "MCM2", "PCNA", "CDK1", "TYMS", "UBE2C"
 #: Genes the crypt panels show, base to surface.
 CRYPT_GENES = ["LGR5", "TFF3", "CA2", "CA1", "GUCA2A"]
 #: Yearbook: the cells of one plasma cluster with the most of its top IG gene.
-PLASMA = {"cluster": "9", "gene": "IGHG1", "n": 8}
+PLASMA = {"cluster": "9", "gene": "IGHG1", "n": 10}
 #: Crypt-depth order of the goblet/secretory sub-clusters, base to surface (and
 #: their colors), from the tutorial's sub-clustering of cluster 4.
 CRYPT_COLORS = "Meta_crypt_clusters_with_vivid_colors.csv"
 EXCLUDED_SUB_CLUSTERS = ["3", "6"]
+
+
+#: Logos of the tools the figure names, from the projects' own repositories.
+LOGOS = {
+    "scanpy.png": "https://raw.githubusercontent.com/scverse/scanpy/main/docs/_static/img/Scanpy_Logo_RGB.png",
+    "jupyter.svg": "https://raw.githubusercontent.com/jupyter/jupyter.github.io/main/assets/homepage/main-logo.svg",
+}
+
+
+def fetch_logos(out: Path) -> None:
+    """Download the tool logos into the build's assets folder (once)."""
+    from urllib.request import urlopen
+
+    out.mkdir(parents=True, exist_ok=True)
+    for name, url in LOGOS.items():
+        path = out / name
+        if not path.exists():
+            with urlopen(url, timeout=30) as response:
+                path.write_bytes(response.read())
+
+
+def bin_microns_per_pixel(tile: str = "115_20", bin_um: float = 2.0) -> float:
+    """Microns per image pixel, measured from the data: Visium HD cells are built
+    from 2 um bins, so their outlines step in whole bins; the smallest common
+    vertex step is one bin."""
+    import io
+    from urllib.request import urlopen
+
+    url = f"{BASE_URL}/cell_segmentation/cell_tile_{tile}.parquet"
+    with urlopen(url, timeout=30) as response:
+        cells = pd.read_parquet(io.BytesIO(response.read()))
+    steps = []
+    for geometry in cells["GEOMETRY"]:
+        coords = np.array([list(point) for ring in geometry for point in ring], dtype=float)
+        delta = np.abs(np.diff(coords, axis=0)).ravel()
+        steps.extend(delta[delta > 0.5])
+    values, counts = np.unique(np.round(steps, 1), return_counts=True)
+    step = float(values[np.argmax(counts)])
+    return round(bin_um / step, 4)
 
 
 def label_set(name, labels: pd.Series, colors: dict, out: Path) -> None:
@@ -168,6 +209,7 @@ def main() -> None:
     import celldega as dega
 
     OUT.mkdir(parents=True, exist_ok=True)
+    fetch_logos(OUT.parent / "assets")
     source = ad.read_h5ad(SOURCE / "crc_cluster.h5ad", backed="r")
     leiden = source.obs["leiden"].astype(str)
     categories = list(source.obs["leiden"].cat.categories)
@@ -228,6 +270,7 @@ def main() -> None:
     cancer = dega.clust.Matrix(
         cancer_cells,
         groupby="subtype",
+        rank_genes_groups=True,
         col_entity={"entity": "cell", "attr": "subtype"},
         name="hcrc_cancer_subtypes",
         description=(
@@ -266,7 +309,9 @@ def main() -> None:
         sub_cells.obs["leiden"].astype(str).map(names), categories=depth_labels
     )
     sub_cells.uns["depth_colors"] = [depth_colors[label] for label in depth_labels]
-    ranked = dega.clust.Matrix(sub_cells, groupby="depth", name="hcrc_crypt_ranked")
+    ranked = dega.clust.Matrix(
+        sub_cells, groupby="depth", rank_genes_groups=True, name="hcrc_crypt_ranked"
+    )
     sub_markers = ranked._marker_groups()
     rows = list(
         dict.fromkeys(
@@ -332,6 +377,7 @@ def main() -> None:
     crypts = densest(normal, 1200)
     hypoxic = densest(cells[cells["leiden"] == "8"][["x", "y"]].to_numpy(), 1500)
     facts = {
+        "microns_per_pixel": bin_microns_per_pixel(),
         "n_cells": int(leiden.notna().sum()),
         "n_clusters": len(categories),
         "groups": GROUPS,

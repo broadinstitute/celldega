@@ -58,6 +58,10 @@ All notable changes to Celldega are documented here. This project follows
 - **`Matrix.write_zarr`** no longer fails when an axis's index is named like one
   of its attribute columns (as a SetCollection's sets are).
 
+- **Clustergram:** long column labels (sub-cluster names, or a label annotated
+  as "4 (Normal)") shrink to fit the column label area instead of being cut off
+  at the top, down to a legible floor; short labels keep their size.
+
 - **Clerk:** the panel keeps its hidden parts hidden when the page around it
   styles forms or buttons, so a docs notebook no longer shows the report-name
   form.

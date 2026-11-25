@@ -36,6 +36,8 @@ describe('compute_crop_filter', () => {
     );
 
     const shims = `
+      const label_text_width = (text, font_px) =>
+        String(text).length * font_px * 0.55;
       const calc_dendro_polygons = () => {};
       const calc_dendro_triangles = () => {};
       const refresh_row_label_visibility = () => {};
@@ -358,6 +360,42 @@ describe('compute_crop_filter', () => {
     expect(get_zoomed_axis_label_font_size(dense_gene_matrix, 'col', 6)).toBe(
       8
     );
+  });
+
+  test('column label fonts shrink so long labels fit the label area', () => {
+    const viz_state = makeVizState({ row: [1, 2], col: [1, 2, 3] });
+    viz_state.viz.col_label = 75;
+    const wide = get_axis_label_font_size(viz_state, 'col');
+
+    // Short names (cluster ids) keep the size the column width gives them.
+    viz_state.labels = {
+      col_label_data: ['0', '1', '2', '3', '4'].map((name) => ({ name })),
+    };
+    expect(get_axis_label_font_size(viz_state, 'col')).toBeCloseTo(wide);
+
+    // Long names shrink until the longest fits the 45-degree diagonal.
+    viz_state.labels = {
+      col_label_data: [
+        { name: '4', display_name: '4 (Normal)' },
+        { name: '3', display_name: '3 (QC)' },
+      ],
+    };
+    const fitted = get_axis_label_font_size(viz_state, 'col');
+    const room = 75 * Math.SQRT2 * 0.9;
+    expect(fitted).toBeLessThan(wide);
+    expect('4 (Normal)'.length * fitted * 2 * 0.55).toBeCloseTo(room);
+    // Zooming in does not grow them past the fit.
+    expect(get_zoomed_axis_label_font_size(viz_state, 'col', 4)).toBeCloseTo(
+      fitted
+    );
+
+    // A very long name stops at a legible floor (and is clipped, as before).
+    viz_state.labels = {
+      col_label_data: [{ name: 'x'.repeat(200) }],
+    };
+    expect(get_axis_label_font_size(viz_state, 'col')).toBe(5);
+    // Rows are unaffected.
+    expect(get_axis_label_font_size(viz_state, 'row')).toBe(24);
   });
 
   test('crop fade helpers hide marks outside the pending filter', () => {

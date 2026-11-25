@@ -1,3 +1,5 @@
+import { label_text_width } from '../deck-gl/matrix/label_fit';
+
 const axis_count = (viz_state, axis) =>
   axis === 'row' ? viz_state.mat.num_rows : viz_state.mat.num_cols;
 
@@ -10,6 +12,15 @@ const MAX_FILTER_FONT_SIZE = 24;
 // more rows/columns instead of enlarging the labels until they are clipped.
 const MAX_ZOOM_FONT_SIZE = 10;
 const FILTER_FONT_SLOT_FACTOR = 0.45;
+// Column labels run at 45 degrees up through the column label area
+// (`viz.col_label` px tall) and are cut off at the top of the canvas past it, so
+// their font is capped to fit the longest label (a share of the diagonal is
+// left for the label's offset), but not below a legible floor.
+const COL_LABEL_DIAGONAL_SHARE = Math.SQRT2 * 0.9;
+const MIN_COL_LABEL_FONT_SIZE = 5;
+// Label layers draw at getSize * LABEL_SIZE_SCALE pixels (sizeScale: 2).
+const LABEL_SIZE_SCALE = 2;
+const REFERENCE_FONT_PX = 10;
 const CROP_FADE_ALPHA = 0;
 
 const stored_filter_array = (source, axis) => {
@@ -441,6 +452,37 @@ export const get_default_pan = (viz_state) => [
   get_default_pan_y(viz_state),
 ];
 
+/**
+ * The largest column label font size (TextLayer units) at which every column
+ * label fits the column label area; Infinity when nothing needs capping.
+ * Cached per label set (display names change with manual categories).
+ */
+export const col_label_fit_size = (viz_state) => {
+  const labels = viz_state.labels?.col_label_data;
+  const room = (viz_state.viz?.col_label ?? 0) * COL_LABEL_DIAGONAL_SHARE;
+  if (!Array.isArray(labels) || !labels.length || !(room > 0)) return Infinity;
+  const cache = viz_state.labels._col_label_fit;
+  if (cache?.labels === labels && cache.room === room) return cache.size;
+  // Text width grows linearly with the font size: measure once at a reference.
+  const widest = labels.reduce(
+    (max, d) =>
+      Math.max(
+        max,
+        label_text_width(d?.display_name || d?.name || '', REFERENCE_FONT_PX)
+      ),
+    0
+  );
+  const size =
+    widest > 0
+      ? Math.max(
+          MIN_COL_LABEL_FONT_SIZE,
+          (room * REFERENCE_FONT_PX) / widest / LABEL_SIZE_SCALE
+        )
+      : Infinity;
+  viz_state.labels._col_label_fit = { labels, room, size };
+  return size;
+};
+
 export const get_axis_label_font_size = (viz_state, axis) => {
   const font_key = axis === 'row' ? 'rows' : 'cols';
   const label_scale = viz_state.viz.label_scale?.[font_key] ?? 1;
@@ -450,10 +492,10 @@ export const get_axis_label_font_size = (viz_state, axis) => {
     get_axis_slot_size(viz_state, axis) * FILTER_FONT_SLOT_FACTOR
   );
 
-  return (
+  const size =
     label_scale *
-    Math.max(original_size, Math.min(MAX_FILTER_FONT_SIZE, filtered_size))
-  );
+    Math.max(original_size, Math.min(MAX_FILTER_FONT_SIZE, filtered_size));
+  return axis === 'col' ? Math.min(size, col_label_fit_size(viz_state)) : size;
 };
 
 export const get_zoomed_axis_label_font_size = (
@@ -465,7 +507,11 @@ export const get_zoomed_axis_label_font_size = (
   const font_key = axis === 'row' ? 'rows' : 'cols';
   const label_scale = viz_state.viz.label_scale?.[font_key] ?? 1;
   const max_size = Math.max(base_size, MAX_ZOOM_FONT_SIZE * label_scale);
-  return Math.min(max_size, base_size * Math.pow(2, zoom_value));
+  const size = Math.min(max_size, base_size * Math.pow(2, zoom_value));
+  // Zooming in never grows column labels past what the label area fits.
+  return axis === 'col'
+    ? Math.min(size, Math.max(base_size, col_label_fit_size(viz_state)))
+    : size;
 };
 
 export const get_crop_fade_filter = (viz_state) =>

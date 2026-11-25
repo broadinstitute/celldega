@@ -48,6 +48,20 @@ const measure = (text, font_px, font_weight, font_family) => {
 };
 
 /**
+ * Width of a label in pixels at a font size (Arial by default).
+ *
+ * @param {string} text
+ * @param {number} font_px - Rendered font size, in pixels.
+ * @param {{font_weight?: string, font_family?: string}} [options]
+ * @returns {number}
+ */
+export const label_text_width = (
+  text,
+  font_px,
+  { font_weight = 'normal', font_family = 'Arial' } = {}
+) => measure(String(text ?? ''), font_px, font_weight, font_family);
+
+/**
  * `text` if it fits in `max_px`, else its longest beginning that fits with "…".
  *
  * @param {string} text

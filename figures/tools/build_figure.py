@@ -1,6 +1,6 @@
 """Build a storyboard's figure in one command: data -> captures -> composed PNG.
 
-    uv run --no-project --with playwright --with pyyaml --with pillow \\
+    uv run --no-project --with playwright --with pyyaml --with numpy --with pillow \\
         python figures/tools/build_figure.py figures/storyboards/hcrc.yaml
 
 Runs the storyboard's data step (``figures/tools/prepare_<id>.py``, in the dega

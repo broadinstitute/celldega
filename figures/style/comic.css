@@ -1,21 +1,20 @@
-/* Comic-book style for storyboard figures (figures/tools/compose.py).
+/* Style for storyboard figures (figures/tools/compose.py): comic-book structure
+   (narration boxes, action bubbles, insight boxes) in formal type.
    Every color, font and spacing of a composed figure lives here. */
 
 :root {
   --ink: #111111;
   --paper: #ffffff;
-  --narration: #fff4b8;
-  --insight: #eef6ff;
-  --pow-fill: #ffd400;
-  --pow-ink: #d7191c;
-  --takeaway: #111111;
+  --narration: #fbf6e3;
+  --insight: #eef4fb;
+  --takeaway: #1b1b1b;
   --takeaway-ink: #ffffff;
-  --accent: #3355ff;
-  --page-width: 2000px;
-  --gutter: 18px;
-  --border: 4px;
-  --body-font: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
-  --display-font: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+  --takeaway-label: #f2c94c;
+  --locator: #1a1a1a;
+  --page-width: 1944px;
+  --gutter: 20px;
+  --border: 3px;
+  --font: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * {
@@ -26,98 +25,113 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--body-font);
+  font-family: var(--font);
 }
 
 .figure {
+  position: relative;
   width: var(--page-width);
-  padding: 36px 40px 40px;
+  padding: 12px;
+}
+.row:last-child {
+  margin-bottom: 0;
 }
 
-/* Headline claim and subtitle */
-.headline {
-  font-family: var(--display-font);
-  font-size: 96px;
-  letter-spacing: 1.5px;
-  line-height: 1;
-  margin: 0 0 10px;
-}
-.subtitle {
-  font-size: 32px;
-  margin: 0 0 30px;
-  max-width: 1600px;
-  color: #333333;
-}
-
-/* A row: header (letter, POW, narration), panels, takeaway */
+/* A row: letter + title, narration, panels, color key, takeaways */
 .row {
-  margin-bottom: 34px;
+  margin-bottom: 22px;
   border: var(--border) solid var(--ink);
-  padding: var(--gutter);
+  padding: 12px 18px 16px;
   background: var(--paper);
-  box-shadow: 8px 8px 0 var(--ink);
 }
 .row-head {
   display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-bottom: var(--gutter);
+  align-items: baseline;
+  gap: 22px;
+  margin: 4px 0 14px;
 }
 .row-letter {
-  font-family: var(--display-font);
-  font-size: 64px;
+  font-size: 42px;
+  font-weight: 700;
   line-height: 1;
-  min-width: 40px;
 }
-.pow {
-  font-family: var(--display-font);
-  font-size: 48px;
-  letter-spacing: 1px;
-  color: var(--pow-ink);
-  background: var(--pow-fill);
-  padding: 22px 34px;
-  clip-path: polygon(
-    0% 18%, 9% 12%, 6% 0%, 20% 9%, 30% 0%, 37% 10%, 50% 2%, 58% 12%, 70% 0%,
-    75% 12%, 92% 6%, 88% 20%, 100% 26%, 91% 40%, 100% 54%, 89% 62%, 97% 80%,
-    82% 78%, 80% 100%, 66% 86%, 55% 100%, 46% 86%, 32% 98%, 28% 84%, 12% 94%,
-    13% 78%, 0% 76%, 8% 60%, 0% 46%, 9% 34%
-  );
-  white-space: nowrap;
-  transform: rotate(-3deg);
+.row-title {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
 }
 .narration {
-  flex: 1;
-  font-size: 30px;
-  line-height: 1.35;
+  font-size: 27px;
+  line-height: 1.38;
   background: var(--narration);
-  border: 3px solid var(--ink);
-  padding: 12px 18px;
-  margin: 0;
+  border: 2px solid var(--ink);
+  padding: 8px 14px;
+  margin: 0 0 12px;
 }
 
-.panels {
+/* Nested layout: lrow = side by side (one height), lcol = stacked (one width) */
+.layout {
+  display: flex;
+}
+.lrow {
   display: flex;
   gap: var(--gutter);
   align-items: flex-start;
+  min-width: 0;
 }
+.layout > .lrow,
+.layout > .lcol {
+  width: 100%;
+}
+.lcol {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.cell {
+  min-width: 0;
+}
+
 .panel {
   margin: 0;
-  flex: none;
 }
 .panel-title {
   display: inline-block;
   background: var(--ink);
   color: var(--paper);
-  font-weight: 700;
-  font-size: 24px;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  padding: 4px 9px;
-  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+  padding: 3px 9px;
+  margin-bottom: 4px;
 }
+/* A title on the frame itself, in a corner */
+.panel-title.inside {
+  position: absolute;
+  z-index: 4;
+  margin: 0;
+  line-height: 1.25;
+  top: 0;
+  left: 0;
+}
+.panel-title.inside.top-right {
+  left: auto;
+  right: 0;
+}
+.panel-title.inside.bottom-left,
+.panel-title.inside.bottom-right {
+  top: auto;
+  bottom: 0;
+}
+.panel-title.inside.bottom-right {
+  left: auto;
+  right: 0;
+}
+
 .frame {
   position: relative;
-  border: 3px solid var(--ink);
+  border: 2px solid var(--ink);
   background: var(--paper);
   line-height: 0;
 }
@@ -127,29 +141,119 @@ body {
   height: auto;
 }
 
+/* A panel of tool logos (e.g. Jupyter and Scanpy) with a caption */
+.frame.tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 10px;
+  line-height: 1.2;
+}
+.frame.tools img {
+  width: 72%;
+  height: auto;
+}
+.tools-caption {
+  font-size: 19px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Locator box: where a zoomed panel looks */
+.locator {
+  position: absolute;
+  border: 3px solid var(--locator);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), inset 0 0 0 2px rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+
+/* Pop-out over a panel: a widget's form, as it opens in the widget */
+.inset {
+  position: absolute;
+  z-index: 3;
+  line-height: 1.2;
+}
+.inset .frame {
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+}
+.inset-caption {
+  display: inline-block;
+  font-size: 19px;
+  font-weight: 600;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 4px 9px;
+  margin-bottom: 5px;
+}
+
+/* Arrows between panels (drawn by compose.py's script) */
+svg.arrows {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+svg.arrows .halo {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+svg.arrows .line {
+  fill: none;
+  stroke: #1a1a1a;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
 /* Action bubble: what the scientist does */
 .bubble {
   position: absolute;
+  z-index: 3;
   top: 10px;
   left: 10px;
-  max-width: 78%;
-  line-height: 1.2;
-  font-size: 24px;
+  max-width: 80%;
+  line-height: 1.22;
+  font-size: 21px;
   font-weight: 600;
   background: var(--paper);
-  border: 3px solid var(--ink);
-  border-radius: 18px;
-  padding: 8px 12px;
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
+  border: 2.5px solid var(--ink);
+  border-radius: 16px;
+  padding: 7px 11px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
 }
 .bubble::after {
   content: '';
   position: absolute;
   left: 22px;
-  bottom: -14px;
-  border-width: 14px 10px 0 4px;
+  bottom: -13px;
+  border-width: 13px 9px 0 4px;
   border-style: solid;
   border-color: var(--ink) transparent transparent transparent;
+}
+.bubble.no-tail::after {
+  display: none;
+}
+/* A long, thin tail pointing down at what the bubble is about (--tail px) */
+.bubble.long-tail::after {
+  bottom: calc(-1 * var(--tail));
+  border-width: var(--tail) 6px 0 3px;
+}
+/* Tail on top, pointing up at what the bubble is about (e.g. a clicked term) */
+.bubble.tail-up::after {
+  top: -13px;
+  bottom: auto;
+  border-width: 0 9px 13px 4px;
+  border-color: transparent transparent var(--ink) transparent;
 }
 
 .bubble.top-right {
@@ -163,7 +267,7 @@ body {
 .bubble.bottom-left,
 .bubble.bottom-right {
   top: auto;
-  bottom: 24px;
+  bottom: 22px;
 }
 .bubble.bottom-right {
   left: auto;
@@ -176,37 +280,27 @@ body {
 
 /* Insight box: what the panel shows */
 .insight {
-  margin-top: 8px;
-  font-size: 26px;
+  position: relative;
+  z-index: 3;
+  margin-top: 5px;
+  font-size: 22px;
   line-height: 1.3;
   background: var(--insight);
-  border: 2px solid var(--ink);
-  padding: 7px 10px;
+  border: 1.5px solid var(--ink);
+  padding: 6px 9px;
 }
 
-.takeaway {
-  margin-top: var(--gutter);
-  background: var(--takeaway);
-  color: var(--takeaway-ink);
-  font-size: 30px;
-  font-weight: 700;
-  padding: 10px 18px;
-}
-.takeaway::before {
-  content: 'TAKEAWAY  ';
-  font-family: var(--display-font);
-  letter-spacing: 1px;
-  color: var(--pow-fill);
-  margin-right: 10px;
+.insight.above {
+  margin: 0 0 5px;
 }
 
-/* Color keys under panels */
+/* Color keys */
 .legend {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
-  margin-top: 8px;
-  font-size: 22px;
+  margin-top: 6px;
+  font-size: 20px;
   line-height: 1.25;
 }
 .legend .key {
@@ -216,11 +310,62 @@ body {
 }
 .legend i {
   display: inline-block;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 1.5px solid var(--ink);
 }
 .legend i.ramp {
   width: 64px;
   background: linear-gradient(90deg, rgba(255, 0, 0, 0.12), rgb(255, 0, 0));
+}
+.row-legend {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1.5px solid #bbbbbb;
+}
+.row-legend .legend {
+  margin-top: 0;
+  font-size: 21px;
+}
+.group-legend {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.group-legend .legend {
+  margin-top: 0;
+}
+.legend-title {
+  font-weight: 700;
+  font-size: 21px;
+  white-space: nowrap;
+}
+
+/* Takeaways */
+.takeaways {
+  display: flex;
+  gap: 18px;
+  margin-top: var(--gutter);
+  background: var(--takeaway);
+  color: var(--takeaway-ink);
+  padding: 10px 18px;
+}
+.takeaways .label {
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--takeaway-label);
+  padding-top: 2px;
+  white-space: nowrap;
+}
+.takeaways ul {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.35;
 }

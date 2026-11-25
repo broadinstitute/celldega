@@ -5,9 +5,9 @@ regenerated and no image is drawn by hand or by a generative model.
 
 | Path | What it is | In git |
 | --- | --- | --- |
-| `storyboards/<id>.yaml` | The figure's words (headline, subtitle; per row a POW banner, narration, takeaway; per panel an action bubble and an insight box; the caption) and each panel's view | yes |
+| `storyboards/<id>.yaml` | The figure's words (per row a title, narration and takeaways; per panel an action bubble and an insight box; the caption), each panel's view and clicks, the layout, and the locator boxes and arrows between panels | yes |
 | `style/comic.css` | Every color, font and spacing of the composed figure | yes |
-| `tools/prepare_<id>.py` | The figure's data step: cell labels, matrices, framing facts | yes |
+| `tools/prepare_<id>.py` | The figure's data step: cell labels, matrices, framing facts, tool logos (downloaded from the projects) | yes |
 | `tools/capture.py`, `tools/capture.html` | Stage 1: render each panel with Celldega's web API in headless Chrome | yes |
 | `tools/compose.py` | Stage 2: lay out the text around the captures and render the figure | yes |
 | `tools/build_figure.py` | All of the above in one command | yes |
@@ -16,14 +16,18 @@ regenerated and no image is drawn by hand or by a generative model.
 ## Stages
 
 1. **Capture** is the only stage that touches widgets. For each panel it renders the
-   widget (Landscape, Clustergram, Enrich) from the data, applies the panel's view,
-   and saves from the same render a screenshot (what the reader sees: the whole
-   widget, its map, or its controls) and a Snapshot, a Celldega screenshot PNG
-   carrying the saved view that `dega.viz.from_png` reopens. Both go in
-   `build/<id>/manifest.json`.
+   widget (Landscape, Clustergram, Enrich, Yearbook) from the data, applies the
+   panel's view, makes its clicks (a term in Enrich, a double-click on a column
+   label), and saves from the same render a screenshot (what the reader sees: the
+   whole widget or its map) and a Snapshot, a Celldega screenshot PNG carrying the
+   saved view that `dega.viz.from_png` reopens. Both go in
+   `build/<id>/manifest.json`, with the panel's geometry (where its map, rows,
+   columns and dendrogram groups sit) for the arrows.
 2. **Compose** builds the figure from the manifest and the storyboard with HTML and
-   CSS, and renders one large PNG (2x) and a PDF. Rewording or relaying out never
-   needs a recapture.
+   CSS: nested layouts sized by the captures' aspect ratios, locator boxes, and
+   arrows from a zoom box, a dendrogram group or a gene's row to another panel. It
+   renders one large PNG (2x) and a PDF. Rewording or relaying out never needs a
+   recapture.
 
 The figure carries enough text to read without its caption; the caption
 (`caption.md`) keeps methods, statistics and each panel's reopen link. A readability
@@ -34,7 +38,7 @@ what confused it.
 
 ```bash
 python figures/tools/prepare_hcrc.py            # data (dega environment, ~10 s)
-uv run --no-project --with playwright --with pyyaml --with pillow \
+uv run --no-project --with playwright --with pyyaml --with numpy --with pillow \
     python figures/tools/build_figure.py figures/storyboards/hcrc.yaml
 # -> figures/build/hcrc/figure.png
 ```

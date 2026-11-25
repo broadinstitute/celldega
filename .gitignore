@@ -157,3 +157,6 @@ uv.lock
 # Generated exports: independent visualization screenshots and Clerk reports.
 celldega_files/
 clerk_files/
+
+# Storyboard figures: track the storyboards and tools; their builds stay local.
+figures/build/

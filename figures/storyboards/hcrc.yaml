@@ -1,0 +1,304 @@
+# Storyboard: Visium HD human colorectal cancer, told as a comic-style figure.
+#
+# Stage 1 (figures/tools/capture.py) renders each panel's `widget` with its `view`
+# and `changes`; stage 2 (figures/tools/compose.py) lays out the text below around
+# the captures. Text can use facts from figures/build/hcrc/data/facts.json, e.g.
+# {n_cells:,}. Views name `views` below or facts["views"] entries.
+#
+# Text layers (readable without the caption): headline + subtitle; per row a POW
+# banner, narration and a takeaway; per panel an action bubble, an insight box and
+# a color key (`legend`). The caption carries methods, statistics and reopen links.
+
+id: hcrc
+technology: Visium-HD
+base_url: https://raw.githubusercontent.com/SharkieJones/celldega_Visium-HD_hCRC/refs/heads/main/Visium_HD_Human_Colon_Cancer_2025-10-25_2um
+
+# Regions framed by panels, as boxes in data coordinates [x0, y0, x1, y1] (DegaFiles
+# cell coordinates), or cameras {target, zoom}.
+views:
+  tissue: {box: [40600, 0, 65200, 22700], pad: 0.03}
+  normal: {box: [53500, 11000, 60000, 22700], pad: 0.0}
+  tls: {target: [63554, 11259], zoom: -3.0}
+  crypts: {target: [56898, 21712], zoom: -2.3}
+  cluster_8: {target: [62572, 9747], zoom: -2.6}
+
+# Names in the color keys, per label set.
+names:
+  leiden:
+    "0": "0 cancer"
+    "1": "1 myeloid"
+    "2": "2 cancer"
+    "3": "3 cancer"
+    "4": "4 normal epithelium"
+    "5": "5 IgA plasma"
+    "6": "6 fibroblast"
+    "7": "7 endothelial"
+    "8": "8 cancer"
+    "9": "9 IgG plasma"
+    "10": "10 cancer"
+    "11": "11 low quality"
+    "12": "12 smooth muscle"
+    "13": "13 neutrophil"
+    "14": "14 IgG plasma"
+
+headline: "One colorectal cancer section, read like a story"
+subtitle: >-
+  Visium HD human colorectal cancer: {n_cells:,} segmented cells in {n_clusters}
+  clusters, explored with Celldega's linked Landscape, Clustergram and Enrich.
+
+rows:
+  - id: a
+    pow: "LINKED!"
+    narration: >-
+      The Landscape draws every cell on the H&E, colored by cluster; the Clustergram
+      shows each cluster's marker genes. Click a cluster there and its markers go
+      straight to Enrichr.
+    takeaway: "Cluster 4 is normal colon epithelium, rich in goblet cells."
+    panels:
+      - id: a1
+        title: Landscape
+        widget: landscape
+        labels: leiden
+        view: tissue
+        size: [560, 470]
+        shot: widget
+        action: "Every cell over the H&E"
+        bubble: bottom-left
+        legend: all
+        insight: "{n_clusters} Leiden clusters, colored on the tissue"
+      - id: a2
+        title: Clustergram
+        widget: clustergram
+        matrix: matrix.zarr
+        rank_dim: 3
+        size: [430, 430]
+        highlighted_cols: ["4"]
+        manual_cat:
+          col:
+            compartment:
+              values: {"0": Cancer, "2": Cancer, "3": Cancer, "8": Cancer, "10": Cancer,
+                       "4": Normal, "1": Immune, "5": Immune, "9": Immune, "13": Immune,
+                       "14": Immune, "6": Stroma, "7": Stroma, "12": Stroma, "11": QC}
+              colors: {Cancer: "#8c8c8c", Normal: "#7b3fa0", Immune: "#e08a1e",
+                       Stroma: "#2e8b57", QC: "#d3d3d3"}
+        shot: widget
+        action: "Click cluster 4"
+        bubble: top-right
+        insight: "Cluster 4's top markers: PIGR, FCGBP, TSPAN8, MUC2"
+      - id: a3
+        title: Enrich (Enrichr)
+        widget: enrich
+        genes: cluster_4_markers
+        library: CellMarker_2024
+        size: [300, 500]
+        shot: widget
+        action: "Cluster 4's top 25 markers"
+        bubble: bottom-left
+        insight: "Top terms: colon goblet cells, then colon progenitor cells"
+
+  - id: b
+    pow: "ZOOM!"
+    narration: >-
+      Highlighting groups of clusters maps the section's compartments; zooming in
+      shows the structures they build.
+    takeaway: "Stroma, immune cells, normal crypts and tumor glands each map to their own regions."
+    panels:
+      - id: b1
+        title: Muscle, fibroblasts, vessels
+        widget: landscape
+        labels: leiden
+        view: tissue
+        changes: {clusters: ["6", "7", "12"], layers: {image: false}}
+        size: [300, 260]
+        action: "Highlight clusters"
+        legend: ["12", "6", "7"]
+        insight: "Fibroblasts and muscle fill the lower left; vessels run throughout"
+      - id: b2
+        title: Immune cells
+        widget: landscape
+        labels: leiden
+        view: tissue
+        changes: {clusters: ["1", "5", "9", "13", "14"], layers: {image: false}}
+        size: [300, 260]
+        legend: ["1", "5", "9", "14", "13"]
+        insight: "Myeloid, plasma and neutrophil clusters"
+      - id: b3
+        title: Immune aggregate (zoom)
+        widget: landscape
+        labels: leiden
+        view: tls
+        changes: {sliders: {cell: 60}}
+        size: [300, 260]
+        action: "Zoom in"
+        legend: ["1", "9", "5"]
+        insight: "Myeloid cells amid IgG plasma cells; other clusters as keyed in a"
+      - id: b4
+        title: Cancer clusters
+        widget: landscape
+        labels: leiden
+        view: tissue
+        changes: {clusters: ["0", "2", "3", "8", "10"], layers: {image: false}}
+        size: [300, 260]
+        legend: ["0", "2", "3", "8", "10"]
+        insight: "Tumor glands, without the normal markers PIGR and MUC2"
+      - id: b5
+        title: Normal epithelium
+        widget: landscape
+        labels: leiden
+        view: tissue
+        changes: {clusters: ["4"], layers: {image: false}}
+        size: [300, 260]
+        legend: ["4"]
+        insight: "One strip of normal colon mucosa"
+      - id: b6
+        title: Colon crypts (zoom)
+        widget: landscape
+        labels: leiden
+        view: crypts
+        changes: {sliders: {cell: 100}}
+        size: [300, 260]
+        action: "Zoom in"
+        legend: ["4", "5"]
+        insight: "Crypts cut lengthwise: epithelium, with IgA plasma cells between crypts"
+
+  - id: c
+    pow: "DEEPER!"
+    narration: >-
+      Sub-clustering the normal epithelium (cluster 4) orders its cells along the
+      crypt, from base (left) to surface (right), and marker genes switch on in turn.
+    takeaway: >-
+      From base to surface: LGR5 (stem), then ITLN1 and TFF3 (goblet), CA2 and CA1
+      (absorptive), and GUCA2A at the surface.
+    panels:
+      - id: c1
+        title: Crypt depth
+        widget: landscape
+        labels: crypt_depth
+        view: normal
+        size: [250, 420]
+        action: "Sub-cluster cluster 4"
+        legend: all
+        insight: "Nine sub-clusters, ordered base to surface by their markers"
+      - id: c2
+        title: LGR5
+        widget: landscape
+        labels: leiden
+        view: normal
+        changes: {genes: ["LGR5"], layers: {image: false}}
+        size: [190, 420]
+        action: "Search a gene"
+        legend: expression
+        insight: "Crypt bases (left edge); top-right dots are tumor"
+      - id: c3
+        title: ITLN1
+        widget: landscape
+        labels: leiden
+        view: normal
+        changes: {genes: ["ITLN1"], layers: {image: false}}
+        size: [190, 420]
+        insight: "Goblet cells, base to middle"
+      - id: c4
+        title: TFF3
+        widget: landscape
+        labels: leiden
+        view: normal
+        changes: {genes: ["TFF3"], layers: {image: false}}
+        size: [190, 420]
+        insight: "Goblet cells along the crypts"
+      - id: c5
+        title: CA2
+        widget: landscape
+        labels: leiden
+        view: normal
+        changes: {genes: ["CA2"], layers: {image: false}}
+        size: [190, 420]
+        insight: "Middle to upper crypt"
+      - id: c6
+        title: CA1
+        widget: landscape
+        labels: leiden
+        view: normal
+        changes: {genes: ["CA1"], layers: {image: false}}
+        size: [190, 420]
+        insight: "Upper crypt"
+      - id: c7
+        title: GUCA2A
+        widget: landscape
+        labels: leiden
+        view: normal
+        changes: {genes: ["GUCA2A"], layers: {image: false}}
+        size: [190, 420]
+        insight: "Luminal surface (right edge)"
+
+  - id: d
+    pow: "HYPOXIA?"
+    narration: >-
+      Inside the tumor, the cancer clusters differ: cluster 8 lines the glands and
+      expresses NDRG1, a gene cells switch on when short of oxygen.
+    takeaway: >-
+      Cluster 8 lines the glands' luminal side and expresses NDRG1: a hypoxia
+      hypothesis to test.
+    panels:
+      - id: d1
+        title: Cluster 8 vs other cancer
+        widget: landscape
+        labels: cancer_type
+        view: tissue
+        changes: {layers: {image: false}}
+        size: [400, 420]
+        action: "Color the cancer clusters"
+        legend: all
+        insight: "Cluster 8 rims the tumor glands"
+      - id: d2
+        title: NDRG1
+        widget: landscape
+        labels: leiden
+        view: tissue
+        changes: {genes: ["NDRG1"], layers: {image: false}}
+        size: [400, 420]
+        action: "Search NDRG1"
+        legend: expression
+        insight: "In 43% of cluster 8 cells, at most 18% of any other cluster"
+      - id: d3
+        title: HOOK1 (for contrast)
+        widget: landscape
+        labels: leiden
+        view: tissue
+        changes: {genes: ["HOOK1"], layers: {image: false}}
+        size: [400, 420]
+        insight: "Throughout the tumor (51% of cluster 3 cells)"
+      - id: d4
+        title: Where cluster 8 sits (zoom)
+        widget: landscape
+        labels: cancer_type
+        view: cluster_8
+        changes: {sliders: {cell: 100}}
+        size: [400, 420]
+        action: "Zoom in"
+        legend: all
+        insight: "Cluster 8 lines the luminal side of the glands"
+
+caption: |
+  **Figure (draft). A Visium HD human colorectal cancer section explored with
+  Celldega.** 10x Genomics Visium HD (2 um bins, segmented into cells): {n_cells:,}
+  cells in {n_clusters} Leiden clusters (crc_cluster.h5ad on Hugging Face,
+  broadinstitute/Celldega_Supporting_Data; DegaFiles on GitHub,
+  SharkieJones/celldega_Visium-HD_hCRC). (a) Landscape: H&E with cells colored by
+  Leiden cluster. Clustergram: pseudo-bulk signature of each cluster (log1p counts
+  per million, z-scored per gene; red above and blue below the cluster mean; dot
+  size: fraction of cells expressing), top 3 ranked markers per cluster (t-test);
+  columns labeled by compartment. Enrich: Enrichr (CellMarker 2024 library) on
+  cluster 4's top 25 ranked markers. (b) Clusters grouped by their markers: stroma
+  (6 fibroblasts, 7 endothelial / perivascular, 12 smooth muscle), immune (1
+  myeloid, 5 IgA plasma, 9 and 14 IgG plasma, 13 neutrophils), cancer (0, 2, 3, 8,
+  10; tumor glands in which at most 4% of cells express the normal markers PIGR,
+  FCGBP or MUC2, against 73-99% in cluster 4) and normal
+  epithelium (4); zooms on the densest immune and normal regions. (c) Cluster 4
+  sub-clustered (Leiden; two small sub-clusters excluded) and its sub-clusters
+  ordered by crypt depth from their marker genes; genes colored by expression in
+  the normal epithelium (cells without the gene are not drawn). (d) Cancer
+  clusters: cluster 8 against the other four. NDRG1 is detected in 43% of cluster
+  8 cells and in at most 18% of the cells of any other cluster (cluster 3); HOOK1
+  in 51% of cluster 3 cells and across the tumor. Every panel is a Celldega render of the
+  data (figures/tools/capture.py), laid out by figures/tools/compose.py from
+  figures/storyboards/hcrc.yaml.

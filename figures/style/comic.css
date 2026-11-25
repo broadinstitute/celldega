@@ -1,0 +1,226 @@
+/* Comic-book style for storyboard figures (figures/tools/compose.py).
+   Every color, font and spacing of a composed figure lives here. */
+
+:root {
+  --ink: #111111;
+  --paper: #ffffff;
+  --narration: #fff4b8;
+  --insight: #eef6ff;
+  --pow-fill: #ffd400;
+  --pow-ink: #d7191c;
+  --takeaway: #111111;
+  --takeaway-ink: #ffffff;
+  --accent: #3355ff;
+  --page-width: 2000px;
+  --gutter: 18px;
+  --border: 4px;
+  --body-font: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --display-font: 'Bangers', 'Impact', 'Arial Black', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body-font);
+}
+
+.figure {
+  width: var(--page-width);
+  padding: 36px 40px 40px;
+}
+
+/* Headline claim and subtitle */
+.headline {
+  font-family: var(--display-font);
+  font-size: 96px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  margin: 0 0 10px;
+}
+.subtitle {
+  font-size: 32px;
+  margin: 0 0 30px;
+  max-width: 1600px;
+  color: #333333;
+}
+
+/* A row: header (letter, POW, narration), panels, takeaway */
+.row {
+  margin-bottom: 34px;
+  border: var(--border) solid var(--ink);
+  padding: var(--gutter);
+  background: var(--paper);
+  box-shadow: 8px 8px 0 var(--ink);
+}
+.row-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: var(--gutter);
+}
+.row-letter {
+  font-family: var(--display-font);
+  font-size: 64px;
+  line-height: 1;
+  min-width: 40px;
+}
+.pow {
+  font-family: var(--display-font);
+  font-size: 48px;
+  letter-spacing: 1px;
+  color: var(--pow-ink);
+  background: var(--pow-fill);
+  padding: 22px 34px;
+  clip-path: polygon(
+    0% 18%, 9% 12%, 6% 0%, 20% 9%, 30% 0%, 37% 10%, 50% 2%, 58% 12%, 70% 0%,
+    75% 12%, 92% 6%, 88% 20%, 100% 26%, 91% 40%, 100% 54%, 89% 62%, 97% 80%,
+    82% 78%, 80% 100%, 66% 86%, 55% 100%, 46% 86%, 32% 98%, 28% 84%, 12% 94%,
+    13% 78%, 0% 76%, 8% 60%, 0% 46%, 9% 34%
+  );
+  white-space: nowrap;
+  transform: rotate(-3deg);
+}
+.narration {
+  flex: 1;
+  font-size: 30px;
+  line-height: 1.35;
+  background: var(--narration);
+  border: 3px solid var(--ink);
+  padding: 12px 18px;
+  margin: 0;
+}
+
+.panels {
+  display: flex;
+  gap: var(--gutter);
+  align-items: flex-start;
+}
+.panel {
+  margin: 0;
+  flex: none;
+}
+.panel-title {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  margin-bottom: 6px;
+}
+.frame {
+  position: relative;
+  border: 3px solid var(--ink);
+  background: var(--paper);
+  line-height: 0;
+}
+.frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Action bubble: what the scientist does */
+.bubble {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  max-width: 78%;
+  line-height: 1.2;
+  font-size: 24px;
+  font-weight: 600;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  padding: 8px 12px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  bottom: -14px;
+  border-width: 14px 10px 0 4px;
+  border-style: solid;
+  border-color: var(--ink) transparent transparent transparent;
+}
+
+.bubble.top-right {
+  left: auto;
+  right: 10px;
+}
+.bubble.top-right::after {
+  left: auto;
+  right: 22px;
+}
+.bubble.bottom-left,
+.bubble.bottom-right {
+  top: auto;
+  bottom: 24px;
+}
+.bubble.bottom-right {
+  left: auto;
+  right: 10px;
+}
+.bubble.bottom-right::after {
+  left: auto;
+  right: 22px;
+}
+
+/* Insight box: what the panel shows */
+.insight {
+  margin-top: 8px;
+  font-size: 26px;
+  line-height: 1.3;
+  background: var(--insight);
+  border: 2px solid var(--ink);
+  padding: 7px 10px;
+}
+
+.takeaway {
+  margin-top: var(--gutter);
+  background: var(--takeaway);
+  color: var(--takeaway-ink);
+  font-size: 30px;
+  font-weight: 700;
+  padding: 10px 18px;
+}
+.takeaway::before {
+  content: 'TAKEAWAY  ';
+  font-family: var(--display-font);
+  letter-spacing: 1px;
+  color: var(--pow-fill);
+  margin-right: 10px;
+}
+
+/* Color keys under panels */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+.legend .key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend i {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--ink);
+}
+.legend i.ramp {
+  width: 64px;
+  background: linear-gradient(90deg, rgba(255, 0, 0, 0.12), rgb(255, 0, 0));
+}

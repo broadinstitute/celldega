@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Figure capture</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        background: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+      }
+      #panel {
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="panel"></div>
+    <script type="module">
+      // Stage 1 of the storyboard -> figure pipeline (see figures/README.md): render
+      // one panel with Celldega's web API, apply its view, and mark the parts a
+      // screenshot can take (data-shot="widget" | "canvas" | "controls").
+      import celldega from '../../src/celldega/static/celldega.js';
+
+      const bytes = async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`${url}: ${response.status}`);
+        return new DataView(await response.arrayBuffer());
+      };
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      let viz = null;
+
+      const mark_parts = (el) => {
+        el.dataset.shot = 'widget';
+        const canvas = el.querySelector('canvas');
+        if (!canvas) return;
+        let root = canvas;
+        while (root.parentElement && root.parentElement !== el) root = root.parentElement;
+        root.dataset.shot = 'canvas';
+        [...el.children]
+          .filter((child) => child !== root && child.tagName === 'DIV')
+          .forEach((child, i) => {
+            child.dataset.shot = i === 0 ? 'controls' : `controls-${i}`;
+          });
+      };
+
+      window.render_panel = async (spec) => {
+        const el = document.getElementById('panel');
+        el.replaceChildren();
+        const [width, height] = spec.size;
+        if (spec.widget === 'landscape') {
+          const options = {
+            technology: spec.technology,
+            base_url: spec.base_url,
+            width,
+            height,
+            ini_x: spec.view.target[0],
+            ini_y: spec.view.target[1],
+            ini_zoom: spec.view.zoom,
+            max_tiles_to_view: spec.max_tiles_to_view ?? 25,
+            loading: false,
+          };
+          if (spec.labels) {
+            options.meta_cell_parquet = await bytes(`${spec.data}/labels_${spec.labels}.meta_cell.parquet`);
+            options.meta_cluster_parquet = await bytes(`${spec.data}/labels_${spec.labels}.meta_cluster.parquet`);
+            options.cluster_attr = spec.labels;
+            options.cell_attr = [spec.labels];
+          }
+          el.style.width = `${width}px`;
+          viz = await celldega.landscape(el, options);
+          if (spec.changes && Object.keys(spec.changes).length) {
+            await viz.apply_state(spec.changes);
+          }
+        } else if (spec.widget === 'clustergram') {
+          viz = await celldega.clustergram(el, {
+            url: new URL(`${spec.data}/${spec.matrix}`, location.href).href,
+            width,
+            height,
+            rank_dim: spec.rank_dim ?? null,
+            manual_cat: spec.manual_cat ?? null,
+            loading: false,
+          });
+          if (spec.highlighted_cols) viz.model.set('highlighted_cols', spec.highlighted_cols);
+          if (spec.changes && Object.keys(spec.changes).length) viz.apply_state(spec.changes);
+        } else if (spec.widget === 'enrich') {
+          const model = make_model({
+            gene_list: spec.genes,
+            inst_lib: spec.library || 'CellMarker_2024',
+            available_libs: [spec.library || 'CellMarker_2024'],
+            num_terms: spec.num_terms || 10,
+            width,
+            height,
+            source_label: spec.source_label || '',
+          });
+          viz = await celldega.render_enrich({ model, el });
+        } else {
+          throw new Error(`unknown widget ${spec.widget}`);
+        }
+        await sleep(spec.settle_ms ?? 6000);
+        mark_parts(el);
+        return { ok: true };
+      };
+
+      // A minimal widget model (as the web API's options model) for Enrich.
+      const make_model = (values) => {
+        const state = { ...values };
+        const listeners = new Map();
+        return {
+          get: (key) => state[key] ?? null,
+          set: (key, value) => {
+            state[key] = value;
+            (listeners.get(`change:${key}`) || []).forEach((fn) => fn());
+          },
+          on: (event, fn) => listeners.set(event, [...(listeners.get(event) || []), fn]),
+          off: (event, fn) =>
+            listeners.set(event, (listeners.get(event) || []).filter((f) => f !== fn)),
+          save_changes: () => {},
+        };
+      };
+
+      // The panel's saved view as a Celldega screenshot PNG (reopen it in Python with
+      // dega.viz.from_png); null for widgets without saved views (Enrich).
+      window.panel_snapshot = async (title, description) => {
+        if (!viz?.snapshot) return null;
+        const snapshot = await viz.snapshot({ max_size: 2048, description });
+        const blob = celldega.screenshot_png(snapshot, { title });
+        const buffer = new Uint8Array(await blob.arrayBuffer());
+        let binary = '';
+        for (let i = 0; i < buffer.length; i += 0x8000) {
+          binary += String.fromCharCode(...buffer.subarray(i, i + 0x8000));
+        }
+        return { png: btoa(binary), state: snapshot.state, identity: snapshot.identity };
+      };
+
+      window.capture_ready = true;
+    </script>
+  </body>
+</html>
